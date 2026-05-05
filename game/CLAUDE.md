@@ -34,6 +34,8 @@ Each tool returns a dict:
 Inside `exec(...)`, import from `views/`:
 
 - **`crop(obs, radius=4)`** — centered (2r+1)×(2r+1) ASCII window around your `@`. Better for spatial reasoning than parsing the full 80-col screen.
+- **`unexplored(obs)`** — list of explored walkable cells adjacent to unseen space, sorted by distance. Tells you where to go to reveal more map. Returns counts, coordinates, and bearings (e.g. `"3 cells N+5 cells E"`).
+- **`likely_secret_doors(obs)`** — heuristic spots worth searching: dead-end corridors and fully-walled rooms with no visible door. Skips areas that aren't fully revealed yet to avoid false positives.
 
 You can write new views — pure functions over `obs` returning strings or simple data. Add them in `game/views/`. Don't put side-effecting code in views; that belongs in tactics (later).
 

@@ -12,5 +12,7 @@ Conventions:
 """
 
 from .crop import crop
+from .likely_secret_doors import likely_secret_doors
+from .unexplored import unexplored
 
-__all__ = ["crop"]
+__all__ = ["crop", "likely_secret_doors", "unexplored"]
