@@ -19,7 +19,10 @@ Each tool returns a dict:
 - `cursor` — `[row, col]` of the cursor on the TTY (your `@` is usually here). Note **row first, NLE order**.
 - `terminated` / `truncated` — game-over flags.
 - `reward` (on `do`) — gym reward for the step.
-- `chars`, `colors` — only present inside `exec()`. 24x80 raw grids of glyph codes / color codes.
+- `chars`, `colors`, `descriptions`, `glyphs` — only present inside `exec()`.
+  - `chars` (24×80) and `colors` (24×80): the rendered tty grid.
+  - `descriptions` (21×79): per-cell text descriptions (NetHack's `;` glance text).
+  - `glyphs` (21×79): NetHack glyph IDs encoding type/identity (monsters/items only present when in LoS, terrain persists as remembered). Use with `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) to distinguish currently-visible from remembered terrain.
 
 ## How to play
 

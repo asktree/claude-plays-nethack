@@ -62,6 +62,7 @@ class GameState:
                 "blstats", "message",
                 "inv_glyphs", "inv_strs", "inv_letters", "inv_oclasses",
                 "screen_descriptions",
+                "glyphs",  # 21x79 NetHack glyph IDs — encode monster/item/terrain type
             )
             self.env = gym.make(ENV_ID, observation_keys=obs_keys)
             self.actions_tuple = tuple(self.env.unwrapped.actions)
@@ -328,6 +329,11 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
         snap["chars"] = [[int(c) for c in row] for row in obs["tty_chars"]]
         snap["colors"] = [[int(c) for c in row] for row in obs["tty_colors"]]
         snap["descriptions"] = _decode_screen_descriptions(obs)
+        # NLE's `glyphs` is 21x79 ints encoding glyph type/identity.
+        # Helpful for distinguishing currently-visible (monsters/items only
+        # render in LoS) from remembered (terrain persists).
+        if "glyphs" in obs:
+            snap["glyphs"] = [[int(g) for g in row] for row in obs["glyphs"]]
     return snap
 
 
