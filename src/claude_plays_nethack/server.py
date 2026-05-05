@@ -138,6 +138,20 @@ def _decode_message(obs: dict[str, Any]) -> str:
     return bytes(obs["message"]).rstrip(b"\x00").decode("latin-1", errors="replace")
 
 
+def _chars_to_strings(obs: dict[str, Any]) -> list[str]:
+    """Encode tty_chars as 24 strings of 80 chars each (full grid, no crop).
+
+    Compact and human-readable in the trajectory log — replaying any turn is
+    just `obs['chars']` from the line, parsed back to a 2D structure if needed.
+    """
+    if "tty_chars" not in obs:
+        return []
+    out: list[str] = []
+    for row in obs["tty_chars"]:
+        out.append("".join(chr(int(c)) if c else " " for c in row))
+    return out
+
+
 def _has_more_prompt(obs: dict[str, Any]) -> bool:
     """True if the top tty row shows --More-- (a flush-the-message-buffer prompt).
 
@@ -309,12 +323,21 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
 
 def _reset() -> dict[str, Any]:
     env = STATE.ensure_env()
-    obs, info = env.reset()
+    # Generate and log a known seed so the run is reproducible from the trajectory.
+    import random
+    seed = int(os.environ.get("NETHACK_SEED") or random.randint(0, 2**31 - 1))
+    obs, info = env.reset(seed=seed)
     STATE.last_obs = obs
     STATE.last_info = info
     STATE.terminated = False
     STATE.truncated = False
-    STATE.log({"event": "reset", "env": ENV_ID})
+    STATE.log({
+        "event": "reset",
+        "env": ENV_ID,
+        "seed": seed,
+        "chars": _chars_to_strings(obs),
+        "cursor": [int(x) for x in obs["tty_cursor"]],
+    })
     snap = _snapshot()
     _write_live_state(STATE.last_obs, snap)
     return snap
@@ -379,6 +402,8 @@ def _do(action: int | str) -> dict[str, Any]:
         "blstats": _decode_blstats(obs),
         "message": combined,
         "auto_more_count": auto_more_count,
+        "chars": _chars_to_strings(obs),
+        "cursor": [int(x) for x in obs["tty_cursor"]],
     })
     snap = _snapshot()
     snap["reward"] = float(reward)
