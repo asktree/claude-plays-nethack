@@ -15,7 +15,7 @@ Each tool returns a dict:
 - `screen` — the rendered TTY screen as a multi-line string. What a human sees.
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
 - `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
-- `inventory` — list of `{letter, text}` for what you're carrying.
+- `inventory` — list of `{letter, text}` for what you're carrying. (In `do()` tool results the rendered text dedupes when unchanged — you'll see "(unchanged from last turn)" instead. Call `observe()` to force a full render. The structured `obs.inventory` field is always present for views/tactics inside exec.)
 - `cursor` — `[row, col]` of the cursor on the TTY (your `@` is usually here). Note **row first, NLE order**.
 - `terminated` / `truncated` — game-over flags.
 - `reward` (on `do`) — gym reward for the step.
@@ -47,6 +47,10 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
   print(unexplored(obs))            # see frontier coordinates
   travel_to(12, 34)                 # auto-walk there; will stop on monsters
   ```
+
+- **`travel_to_nearest(symbol, index=0)`** — find the nth-nearest cell with that glyph and travel_to it. Great for grabbing items: `travel_to_nearest('$')` for gold, `travel_to_nearest('!')` for a potion, `travel_to_nearest('?')` for a scroll. `index=1` is the 2nd-nearest, etc.
+
+- **`look_at(row, col)`** / **`look_at_nearest(symbol, index=0)`** — uses NetHack's `Command.GLANCE` to identify what's at a cell. Returns the post-glance snapshot whose `message` is NetHack's description (e.g. `"kobold; a small humanoid"`, `"(a fountain)"`). Useful when a glyph is ambiguous from `chars` alone.
 
 - **`safe_do(action)`** — a wrapped `do()` that **raises `Interrupted`** if a watched condition fires after the step. Use this for non-Travel sequences (search loops, kicking, item interactions, etc.) so you don't blindly chain past new threats.
 

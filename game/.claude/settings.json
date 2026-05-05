@@ -13,5 +13,13 @@
   },
   "sandbox": {
     "enabled": true
+  },
+  "hooks": {
+    "Stop": [{
+      "hooks": [{
+        "type": "command",
+        "command": "DEST=/Users/em/Coding/claude-plays-nethack/game/sessions; mkdir -p \"$DEST\"; SRC=$(ls -t ~/.claude/projects/-Users-em-Coding-claude-plays-nethack-game/*.jsonl 2>/dev/null | head -1); [ -n \"$SRC\" ] && cp \"$SRC\" \"$DEST/$(date +%s)-$(basename \"$SRC\")\" 2>/dev/null; true"
+      }]
+    }]
   }
 }

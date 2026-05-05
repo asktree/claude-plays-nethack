@@ -50,6 +50,10 @@ class GameState:
         self.trajectory_path: Path = TRAJECTORY_DIR / f"{int(time.time())}-{self.session_id}.jsonl"
         self.action_table: dict[str, int] = {}
         self.actions_tuple: tuple = ()
+        # For inventory dedup in formatted text: track the last inventory we
+        # actually rendered. `do()` skips the inventory section when unchanged
+        # since last rendered, to keep tool_results small in long sessions.
+        self.last_rendered_inventory: list[dict[str, str]] | None = None
 
     def ensure_env(self) -> gym.Env:
         if self.env is None:
@@ -189,12 +193,13 @@ def _decode_blstats(obs: dict[str, Any]) -> dict[str, int]:
     return {k: int(bl[i]) for i, k in enumerate(keys) if i < len(bl)}
 
 
-def _format_for_text(snap: dict[str, Any]) -> str:
+def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> str:
     """Render a snapshot as the text the model will actually read.
 
-    Key point: this string contains real newlines. JSON-serializing the
-    snapshot dict would escape them to '\\n' inside the tool result, which
-    destroys spatial reasoning over the dungeon map.
+    `dedup_inventory=True` (used by `do()`): if inventory hasn't changed since
+    last render, show "(unchanged from last turn — call observe() to see)"
+    instead of the full list. Saves ~500 tokens/call across long sessions.
+    `observe()` and `exec` always render full inventory (no dedup).
     """
     if not snap.get("started"):
         return snap.get("hint", "(no game started)")
@@ -218,9 +223,14 @@ def _format_for_text(snap: dict[str, Any]) -> str:
     inv = snap.get("inventory") or []
     if inv:
         lines.append("")
-        lines.append("Inventory:")
-        for it in inv:
-            lines.append(f"  {it['letter']} - {it['text']}")
+        unchanged = dedup_inventory and inv == STATE.last_rendered_inventory
+        if unchanged:
+            lines.append("Inventory: (unchanged from last turn — call observe() to see full list)")
+        else:
+            lines.append("Inventory:")
+            for it in inv:
+                lines.append(f"  {it['letter']} - {it['text']}")
+            STATE.last_rendered_inventory = list(inv)
     if "reward" in snap:
         lines.append("")
         lines.append(f"reward: {snap['reward']}")
@@ -230,7 +240,7 @@ def _format_for_text(snap: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _tool_result(snap: dict[str, Any]) -> ToolResult:
+def _tool_result(snap: dict[str, Any], *, dedup_inventory: bool = False) -> ToolResult:
     """Wrap a snapshot as a single TextContent block.
 
     We deliberately do NOT set `structured_content`: Claude Code's UI surfaces
@@ -239,7 +249,7 @@ def _tool_result(snap: dict[str, Any]) -> ToolResult:
     state for any post-hoc analysis; we don't need it on the wire.
     """
     return ToolResult(
-        content=[TextContent(type="text", text=_format_for_text(snap))],
+        content=[TextContent(type="text", text=_format_for_text(snap, dedup_inventory=dedup_inventory))],
     )
 
 
@@ -528,13 +538,19 @@ def _format_exec_result(out: dict[str, Any]) -> str:
 @mcp.tool
 def reset() -> ToolResult:
     """Start a new NetHack game. Returns the initial observation."""
+    STATE.last_rendered_inventory = None  # fresh game, fresh dedup
     return _tool_result(_reset())
 
 
 @mcp.tool
 def observe() -> ToolResult:
-    """Return the current game observation without taking an action."""
-    return _tool_result(_observe())
+    """Return the current game observation without taking an action.
+
+    Always shows full inventory (no dedup) — call this when you want a
+    confirmed full view, e.g. after `do()` reported inventory unchanged
+    but you want to double-check.
+    """
+    return _tool_result(_observe(), dedup_inventory=False)
 
 
 @mcp.tool
@@ -543,8 +559,12 @@ def do(action: int | str) -> ToolResult:
 
     `action` may be an int (gym action index, 0..120 for NetHackChallenge-v0)
     or a string name like 'Command.READ', 'CompassDirection.N', 'north', 'MORE'.
+
+    Inventory section is deduped: if it hasn't changed since last `do()`/render,
+    you'll see "Inventory: (unchanged...)" instead of the full list. Call
+    `observe()` to force a full render.
     """
-    return _tool_result(_do(action))
+    return _tool_result(_do(action), dedup_inventory=True)
 
 
 @mcp.tool

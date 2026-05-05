@@ -67,3 +67,41 @@ def _caller_kernel_globals() -> dict:
     import sys
     frame = sys._getframe(2)  # caller of travel_to
     return frame.f_globals
+
+
+def travel_to_nearest(symbol: str, index: int = 0, *, observe=None, do=None) -> dict[str, Any]:
+    """Find the nth-nearest occurrence of `symbol` in view, then travel_to it.
+
+    `index=0` (default) is the nearest. Distance is Chebyshev (NetHack moves).
+    Searches the dungeon area only (rows 1..21).
+
+    Useful for grabbing items: travel_to_nearest('$') walks toward the nearest
+    gold pile; travel_to_nearest('!') toward a potion; travel_to_nearest('?')
+    toward a scroll. Travel will auto-stop on hostiles or item pickup.
+
+    Raises ValueError if there are fewer than index+1 matches.
+    """
+    if do is None or observe is None:
+        frame = _caller_kernel_globals()
+        do = do or frame.get("do")
+        observe = observe or frame.get("observe")
+        if do is None or observe is None:
+            raise RuntimeError("must be called inside game.exec()")
+    obs = observe()
+    chars = obs.get("chars") or []
+    cursor = obs.get("cursor") or [0, 0]
+    py, px = int(cursor[0]), int(cursor[1])
+    matches: list[tuple[int, int, int]] = []
+    for r in range(1, min(22, len(chars))):
+        for c, ch_int in enumerate(chars[r]):
+            ch = chr(ch_int) if ch_int else " "
+            if ch == symbol:
+                d = max(abs(r - py), abs(c - px))
+                matches.append((d, r, c))
+    matches.sort()
+    if index >= len(matches):
+        raise ValueError(
+            f"only {len(matches)} occurrence(s) of {symbol!r} in view; requested index {index}"
+        )
+    _, r, c = matches[index]
+    return travel_to(r, c, do=do, observe=observe)

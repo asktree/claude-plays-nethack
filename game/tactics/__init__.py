@@ -7,7 +7,11 @@ multi-step idioms so the gamer doesn't reinvent them in scratch loops.
 Imported flat: `from tactics import travel_to`.
 """
 
+from .look_at import look_at, look_at_nearest
 from .safe_do import Interrupted, safe_do
-from .travel_to import travel_to
+from .travel_to import travel_to, travel_to_nearest
 
-__all__ = ["Interrupted", "safe_do", "travel_to"]
+__all__ = [
+    "Interrupted", "look_at", "look_at_nearest",
+    "safe_do", "travel_to", "travel_to_nearest",
+]
