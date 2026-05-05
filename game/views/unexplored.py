@@ -45,7 +45,8 @@ def unexplored(obs: dict[str, Any], max_results: int = 12) -> str:
     w = len(chars[0]) if chars else 0
 
     frontiers: list[tuple[int, int, int, str]] = []
-    for r in range(h):
+    # Dungeon area is rows 1..21 (row 0 = message, 22-23 = status).
+    for r in range(1, min(22, h)):
         for c in range(w):
             ch_int = chars[r][c]
             ch = chr(ch_int) if ch_int else " "

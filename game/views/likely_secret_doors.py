@@ -31,7 +31,8 @@ def _dead_ends(chars: list[list[int]]) -> list[tuple[int, int, str]]:
     h = len(chars)
     w = len(chars[0]) if chars else 0
     out: list[tuple[int, int, str]] = []
-    for r in range(h):
+    # Dungeon rows only — row 0 is message, 22-23 are status.
+    for r in range(1, min(22, h)):
         for c in range(w):
             if _ch(chars, r, c) != "#":
                 continue
@@ -61,7 +62,8 @@ def _sealed_rooms(chars: list[list[int]]) -> list[tuple[int, int, int, int, int]
     w = len(chars[0]) if chars else 0
     visited: set[tuple[int, int]] = set()
     rooms: list[tuple[int, int, int, int, int]] = []
-    for r in range(h):
+    # Dungeon rows only.
+    for r in range(1, min(22, h)):
         for c in range(w):
             if (r, c) in visited or _ch(chars, r, c) != ".":
                 continue

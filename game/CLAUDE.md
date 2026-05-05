@@ -34,8 +34,9 @@ Each tool returns a dict:
 Inside `exec(...)`, import from `views/`:
 
 - **`crop(obs, radius=4)`** — centered (2r+1)×(2r+1) ASCII window around your `@`. Better for spatial reasoning than parsing the full 80-col screen.
-- **`unexplored(obs)`** — list of explored walkable cells adjacent to unseen space, sorted by distance. Tells you where to go to reveal more map. Returns counts, coordinates, and bearings (e.g. `"3 cells N+5 cells E"`).
+- **`unexplored(obs)`** — list of explored walkable cells adjacent to unseen space, sorted by distance. Tells you where to go to reveal more map. Returns counts, coordinates `(row, col)`, and bearings (e.g. `"3N+5E"`). Coords are usable with `Command.TRAVEL`: send `_`, then move the cursor to `(row, col)` and `.` to confirm.
 - **`likely_secret_doors(obs)`** — heuristic spots worth searching: dead-end corridors and fully-walled rooms with no visible door. Skips areas that aren't fully revealed yet to avoid false positives.
+- **`monsters(obs)`** — visible monsters (excluding `@`) sorted by distance, split into hostile/peaceful vs tame, named via NetHack's per-cell descriptions ("kobold", "tame little dog called Hachi"). Handy before deciding to charge or retreat.
 
 You can write new views — pure functions over `obs` returning strings or simple data. Add them in `game/views/`. Don't put side-effecting code in views; that belongs in tactics (later).
 

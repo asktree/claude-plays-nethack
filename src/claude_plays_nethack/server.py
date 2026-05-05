@@ -289,6 +289,7 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
     if include_grid:
         snap["chars"] = [[int(c) for c in row] for row in obs["tty_chars"]]
         snap["colors"] = [[int(c) for c in row] for row in obs["tty_colors"]]
+        snap["descriptions"] = _decode_screen_descriptions(obs)
     return snap
 
 
