@@ -7,7 +7,8 @@
     "allow": [
       "mcp__nethack__reset",
       "mcp__nethack__observe",
-      "mcp__nethack__do"
+      "mcp__nethack__do",
+      "mcp__nethack__exec"
     ]
   },
   "sandbox": {

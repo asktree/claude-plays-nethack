@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import builtins
+import contextlib
+import io
 import json
 import os
+import sys
 import time
+import traceback
 import uuid
 from pathlib import Path
 from typing import Any
@@ -17,10 +22,15 @@ from mcp.types import TextContent
 from nle import nethack
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TRAJECTORY_DIR = Path(os.environ.get("NETHACK_TRAJECTORY_DIR", REPO_ROOT / "game" / "trajectory"))
+GAME_DIR = REPO_ROOT / "game"
+TRAJECTORY_DIR = Path(os.environ.get("NETHACK_TRAJECTORY_DIR", GAME_DIR / "trajectory"))
 TRAJECTORY_DIR.mkdir(parents=True, exist_ok=True)
-LIVE_STATE_PATH = Path(os.environ.get("NETHACK_LIVE_STATE", REPO_ROOT / "game" / ".live_state.json"))
+LIVE_STATE_PATH = Path(os.environ.get("NETHACK_LIVE_STATE", GAME_DIR / ".live_state.json"))
 LIVE_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+# Make `views/` (and future `tactics/`) importable inside game.exec()'d code.
+if str(GAME_DIR) not in sys.path:
+    sys.path.insert(0, str(GAME_DIR))
 
 ENV_ID = os.environ.get("NETHACK_ENV", "NetHackChallenge-v0")
 
@@ -250,14 +260,21 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
     tmp.replace(LIVE_STATE_PATH)
 
 
-def _snapshot() -> dict[str, Any]:
+def _snapshot(include_grid: bool = False) -> dict[str, Any]:
+    """Build the model-facing snapshot.
+
+    `include_grid=True` adds the raw 24x80 chars/colors arrays for use by
+    view/tactic functions inside game.exec(). Default is False because the
+    grid is large and the rendered `screen` string already covers what the
+    model needs to read.
+    """
     if STATE.last_obs is None:
         return {
             "started": False,
             "hint": "Call reset() to start a new game.",
         }
     obs = STATE.last_obs
-    return {
+    snap: dict[str, Any] = {
         "started": True,
         "terminated": STATE.terminated,
         "truncated": STATE.truncated,
@@ -269,6 +286,10 @@ def _snapshot() -> dict[str, Any]:
         "trajectory_log": str(STATE.trajectory_path),
         "session": STATE.session_id,
     }
+    if include_grid:
+        snap["chars"] = [[int(c) for c in row] for row in obs["tty_chars"]]
+        snap["colors"] = [[int(c) for c in row] for row in obs["tty_colors"]]
+    return snap
 
 
 def _reset() -> dict[str, Any]:
@@ -321,6 +342,59 @@ def _do(action: int | str) -> dict[str, Any]:
     return snap
 
 
+# Persistent Python kernel for game.exec(). Imports, variable bindings, and
+# definitions persist across exec() calls within a session. NOT cleared on
+# reset(); the gamer can keep their helpers across game restarts.
+_KERNEL: dict[str, Any] = {"__name__": "__nethack_kernel__"}
+
+
+def _exec_python(python_code: str) -> dict[str, Any]:
+    """Run python_code in the persistent kernel; capture stdout/result/error.
+
+    Always-fresh kernel globals: `obs` (latest snapshot WITH raw chars/colors),
+    `do(action)`, `observe()`. Imports persist (e.g. `from views import crop`).
+    """
+    _KERNEL["obs"] = _snapshot(include_grid=True)
+    _KERNEL["do"] = _do
+    _KERNEL["observe"] = lambda: _snapshot(include_grid=True)
+
+    stdout = io.StringIO()
+    err: str | None = None
+    result_repr: str | None = None
+    try:
+        with contextlib.redirect_stdout(stdout):
+            try:
+                # try as expression first so `crop(obs)` returns a value
+                value = builtins.eval(compile(python_code, "<exec>", "eval"), _KERNEL)
+                if value is not None:
+                    result_repr = value if isinstance(value, str) else repr(value)
+            except SyntaxError:
+                builtins.exec(compile(python_code, "<exec>", "exec"), _KERNEL)
+    except Exception:
+        err = traceback.format_exc()
+
+    return {
+        "stdout": stdout.getvalue(),
+        "result": result_repr,
+        "error": err,
+        "post_state": _snapshot(),  # state after any do() calls inside the script
+    }
+
+
+def _format_exec_result(out: dict[str, Any]) -> str:
+    parts: list[str] = []
+    if out.get("stdout"):
+        parts.append("=== stdout ===\n" + out["stdout"].rstrip())
+    if out.get("result") is not None:
+        parts.append("=== result ===\n" + str(out["result"]))
+    if out.get("error"):
+        parts.append("=== error ===\n" + out["error"].rstrip())
+    if not parts:
+        parts.append("(no output)")
+    parts.append("=== post-exec state ===\n" + _format_for_text(out["post_state"]))
+    return "\n\n".join(parts)
+
+
 @mcp.tool
 def reset() -> ToolResult:
     """Start a new NetHack game. Returns the initial observation."""
@@ -341,6 +415,24 @@ def do(action: int | str) -> ToolResult:
     or a string name like 'Command.READ', 'CompassDirection.N', 'north', 'MORE'.
     """
     return _tool_result(_do(action))
+
+
+@mcp.tool
+def exec(python_code: str) -> ToolResult:
+    """Run Python in a persistent kernel. State, imports, defs persist across calls.
+
+    In scope each call: `obs` (current observation with raw `chars`/`colors` grids),
+    `do(action)` (take an action, returns new snapshot), `observe()` (re-read state).
+    `game/views/` and `game/tactics/` are on sys.path — `from views import crop`.
+
+    Returns: stdout + final expression value + traceback (if any) + post-exec state.
+
+    Use this when you'd otherwise call do() many times in a row, or when a view
+    function would render the dungeon better than the default screen.
+    """
+    return ToolResult(
+        content=[TextContent(type="text", text=_format_exec_result(_exec_python(python_code)))],
+    )
 
 
 def main() -> None:

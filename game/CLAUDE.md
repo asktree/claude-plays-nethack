@@ -1,40 +1,50 @@
 # You are playing NetHack.
 
-You play through the `nethack` MCP server. Four tools, that's the surface.
+You play through the `nethack` MCP server. Four tools, that's the whole surface.
 
 ## Tools
 
-- **`reset()`** — start a new game. Call this once at the beginning. Returns the initial observation.
-- **`observe()`** — return the current game observation without taking an action. Use sparingly; `do()` already returns the resulting observation.
-- **`do(action)`** — take one action. Returns the resulting observation. `action` is either an int (0..120) or a string name like `"Command.READ"`, `"CompassDirection.N"`, `"north"`, `"MORE"`. The full table is below.
+- **`reset()`** — start a new game. Call this once at the beginning.
+- **`observe()`** — return the current observation without taking an action.
+- **`do(action)`** — take one action. `action` is an int (0..120) or a name like `"Command.READ"`, `"CompassDirection.N"`, `"north"`, `"MORE"`. Full table below.
+- **`exec(python_code)`** — run Python in a persistent kernel. **Use this when you'd otherwise call `do()` many times in a row, or when a custom view function would render the dungeon better than the default screen.** The kernel persists across calls (imports, variables, your own helper functions). In scope each call: `obs` (current snapshot with raw `chars`/`colors` grids), `do(action)` (returns new snapshot), `observe()`. The `game/views/` and `game/tactics/` directories are on `sys.path` — `from views import crop`.
 
 ## Observation shape
 
 Each tool returns a dict:
-- `screen` — the rendered TTY screen as a multi-line string. This is what a human player sees.
+- `screen` — the rendered TTY screen as a multi-line string. What a human sees.
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
-- `blstats` — bottom-line stats as a dict: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `experience_points`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, `dungeon_number`, `level_number`, `condition`, `alignment`, plus the six attribute scores.
+- `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
 - `inventory` — list of `{letter, text}` for what you're carrying.
-- `cursor` — `[col, row]` of the cursor on the TTY (your `@` is usually here).
+- `cursor` — `[row, col]` of the cursor on the TTY (your `@` is usually here). Note **row first, NLE order**.
 - `terminated` / `truncated` — game-over flags.
 - `reward` (on `do`) — gym reward for the step.
+- `chars`, `colors` — only present inside `exec()`. 24x80 raw grids of glyph codes / color codes.
 
 ## How to play
 
 1. Call `reset()` to start.
 2. Read the screen, message, and blstats.
-3. Call `do(...)` to act.
+3. Call `do(...)` for a single action, or `exec(...)` to script a sequence.
 4. If a `--More--` prompt or menu appears, send `"MORE"` (which sends `\r`) or the appropriate key.
 5. Repeat. Stay alive. Descend. Win.
 
+## Views (pure read-only renderings)
+
+Inside `exec(...)`, import from `views/`:
+
+- **`crop(obs, radius=4)`** — centered (2r+1)×(2r+1) ASCII window around your `@`. Better for spatial reasoning than parsing the full 80-col screen.
+
+You can write new views — pure functions over `obs` returning strings or simple data. Add them in `game/views/`. Don't put side-effecting code in views; that belongs in tactics (later).
+
 ## Trajectory
 
-Every `do()` is logged to `trajectory/<timestamp>-<session>.jsonl`. You don't need to do anything; it happens automatically.
+Every `do()` is logged to `trajectory/<timestamp>-<session>.jsonl` automatically.
 
 ## What does not exist yet
 
-- No `tactics/` library. You play turn-by-turn for now. If you find yourself doing the same boring sequence over and over, mention it — we'll build a tactic together later.
-- No persistent memory between runs. Each session is fresh.
+- No `tactics/` library yet. You can compose actions with `exec()`; bring it up if you find yourself wanting reusable scripts.
+- No persistent memory between runs.
 - No save/load yet.
 - No token budget meter yet.
 
