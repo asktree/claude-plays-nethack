@@ -22,7 +22,7 @@ Each tool returns a dict:
 - `chars`, `colors`, `descriptions`, `glyphs` — only present inside `exec()`.
   - `chars` (24×80) and `colors` (24×80): the rendered tty grid.
   - `descriptions` (21×79): per-cell text descriptions (NetHack's `;` glance text).
-  - `glyphs` (21×79): NetHack glyph IDs encoding type/identity (monsters/items only present when in LoS, terrain persists as remembered). Use with `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) to distinguish currently-visible from remembered terrain.
+  - `glyphs` (21×79): NetHack glyph IDs encoding type/identity (monsters/items only present when in LoS, terrain persists as remembered). Use with `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) to distinguish currently-visible from remembered terrain. **Don't `print(obs["glyphs"])`** — it's 1600 ints (~11KB) and would bloat your context. Iterate it programmatically and print summaries instead.
 
 ## How to play
 
