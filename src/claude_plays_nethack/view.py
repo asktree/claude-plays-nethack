@@ -12,10 +12,15 @@ unified action/reasoning log.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import re
+import select
+import sys
+import termios
 import time
+import tty
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -294,13 +299,19 @@ def _build_legend(state: dict[str, Any]) -> Panel:
     return Panel(body, title="Legend (visible)", border_style="magenta", padding=(0, 1))
 
 
-def _build_log(_traj: list[TrajectoryEvent], sess: list[SessionEvent]) -> Panel:
+def _build_log(
+    _traj: list[TrajectoryEvent],
+    sess: list[SessionEvent],
+    expanded: bool = False,
+) -> Panel:
     """Render the gamer's session activity, newest-first.
 
-    Rendering top-down with newest at top means rich's natural bottom-cropping
-    behavior (when the panel is shorter than the content) drops the OLDEST
-    events. The latest activity is always visible at the top regardless of
-    terminal size — same convention as Slack, Discord, htop, twitter feeds.
+    `expanded`: when True (toggled by Ctrl+O in the TUI), say/thinking events
+    keep their original line breaks and don't truncate, and exec blocks show
+    every line of code instead of the first 6.
+
+    Newest-first ordering means rich's bottom-cropping (when the panel is
+    shorter than content) drops the OLDEST events — latest is always visible.
 
     Thinking-block text is empty in saved transcripts (Claude Code strips
     plaintext post-v2.1.89) so empty thinking events are dropped.
@@ -310,10 +321,12 @@ def _build_log(_traj: list[TrajectoryEvent], sess: list[SessionEvent]) -> Panel:
         "say":   ("cyan", "💬"),
         "call":  ("bright_blue", "🛠"),
     }
-    CODE_PREVIEW_LINES = 6  # for exec tool_use, show first N lines of python_code
+    COLLAPSED_CODE_LINES = 6
+    COLLAPSED_TEXT_CHARS = 240
+    LINE_CAP = 200  # always cap individual code/text lines so one giant line
+                    # can't blow up panel layout
     body = Text()
     rendered = 0
-    # Walk newest -> oldest, append top-to-bottom of the panel.
     for e in reversed(sess[-60:]):
         if e.kind == "thinking" and not e.text:
             continue
@@ -321,28 +334,38 @@ def _build_log(_traj: list[TrajectoryEvent], sess: list[SessionEvent]) -> Panel:
         if kind is None:
             continue
         color, icon = KIND_STYLE[kind]
-        text = e.text
-        if kind in ("think", "say"):
-            text = text.replace("\n", " ")
-            if len(text) > 240:
-                text = text[:237] + "…"
         body.append(f"{icon} ", style=color)
-        body.append(f"{text}\n", style=color)
-        # exec calls: show the python code, indented and dim.
-        if kind == "call" and e.code:
-            code_lines = e.code.splitlines()
-            for i, ln in enumerate(code_lines[:CODE_PREVIEW_LINES]):
-                if len(ln) > 100:
-                    ln = ln[:97] + "…"
-                body.append(f"     │ {ln}\n", style="dim cyan")
-            if len(code_lines) > CODE_PREVIEW_LINES:
-                body.append(f"     └ (+{len(code_lines)-CODE_PREVIEW_LINES} more lines)\n", style="dim")
+        if kind in ("think", "say"):
+            text = e.text
+            if expanded:
+                # Preserve newlines; let rich wrap long lines naturally.
+                lines = text.splitlines() or [""]
+                body.append(f"{lines[0]}\n", style=color)
+                for ln in lines[1:]:
+                    body.append(f"   {ln}\n", style=color)  # hanging indent under icon
+            else:
+                flat = text.replace("\n", " ")
+                if len(flat) > COLLAPSED_TEXT_CHARS:
+                    flat = flat[:COLLAPSED_TEXT_CHARS - 1] + "…"
+                body.append(f"{flat}\n", style=color)
+        else:  # call
+            body.append(f"{e.text}\n", style=color)
+            if e.code:
+                code_lines = e.code.splitlines()
+                shown = code_lines if expanded else code_lines[:COLLAPSED_CODE_LINES]
+                for ln in shown:
+                    if len(ln) > LINE_CAP:
+                        ln = ln[:LINE_CAP - 1] + "…"
+                    body.append(f"     │ {ln}\n", style="dim cyan")
+                if not expanded and len(code_lines) > COLLAPSED_CODE_LINES:
+                    body.append(f"     └ (+{len(code_lines)-COLLAPSED_CODE_LINES} more lines)\n", style="dim")
         rendered += 1
         if rendered >= 40:
             break
     if rendered == 0:
         body = Text("(no activity yet — start a gamer session)", style="dim")
-    return Panel(body, title="Recent activity (newest ↑)", border_style="green", padding=(0, 1))
+    title = "Recent activity (newest ↑) — [Ctrl+O] " + ("collapse" if expanded else "expand")
+    return Panel(body, title=title, border_style="green", padding=(0, 1))
 
 
 def _build_header(state: dict[str, Any]) -> Panel:
@@ -372,7 +395,8 @@ def _build_header(state: dict[str, Any]) -> Panel:
 
 def _build_layout(state: dict[str, Any] | None,
                   traj: list[TrajectoryEvent],
-                  sess: list[SessionEvent]) -> Layout:
+                  sess: list[SessionEvent],
+                  expanded: bool = False) -> Layout:
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=4),
@@ -385,7 +409,7 @@ def _build_layout(state: dict[str, Any] | None,
         ), border_style="white"))
         body = Layout(name="body")
         body.split_row(
-            Layout(_build_log(traj, sess), name="left"),
+            Layout(_build_log(traj, sess, expanded=expanded), name="left"),
             Layout(Panel(Text("(no map yet)", style="dim")), name="right", size=40),
         )
         layout["body"].update(body)
@@ -408,7 +432,7 @@ def _build_layout(state: dict[str, Any] | None,
     left = Layout(name="left_inner")
     left.split_column(
         Layout(map_panel, name="map", size=map_panel_height),
-        Layout(_build_log(traj, sess), name="activity"),
+        Layout(_build_log(traj, sess, expanded=expanded), name="activity"),
     )
     body["left"].update(left)
 
@@ -423,16 +447,52 @@ def _build_layout(state: dict[str, Any] | None,
     return layout
 
 
+def _setup_raw_stdin() -> int | None:
+    """Put stdin in cbreak so individual keys arrive without buffering.
+
+    Returns the fd if stdin is a tty, else None (e.g. when piped). Restores
+    the original termios on process exit.
+    """
+    if not sys.stdin.isatty():
+        return None
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    tty.setcbreak(fd)
+    atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old))
+    return fd
+
+
+def _poll_key(fd: int | None) -> str | None:
+    """Non-blocking single-byte read from stdin, or None if nothing pending."""
+    if fd is None:
+        return None
+    rlist, _, _ = select.select([fd], [], [], 0)
+    if rlist:
+        try:
+            return os.read(fd, 1).decode("utf-8", errors="replace")
+        except OSError:
+            return None
+    return None
+
+
 def main() -> None:
     console = Console()
     traj_reader = _trajectory_reader()
     sess_reader = _session_reader()
+    fd = _setup_raw_stdin()
+    expanded = False
     with Live(console=console, screen=True, refresh_per_second=5) as live:
         while True:
             traj_reader.refresh()
             sess_reader.refresh()
             state = _read_state()
-            live.update(_build_layout(state, traj_reader.events, sess_reader.events))
+            # Non-blocking keypress dispatch.
+            key = _poll_key(fd)
+            if key in ("\x0f",):       # Ctrl+O: toggle expand
+                expanded = not expanded
+            elif key in ("q", "\x03"): # q or Ctrl+C: quit
+                break
+            live.update(_build_layout(state, traj_reader.events, sess_reader.events, expanded=expanded))
             time.sleep(0.2)
 
 
