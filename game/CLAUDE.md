@@ -26,8 +26,31 @@ Each tool returns a dict:
 1. Call `reset()` to start.
 2. Read the screen, message, and blstats.
 3. Call `do(...)` for a single action, or `exec(...)` to script a sequence.
-4. If a `--More--` prompt or menu appears, send `"MORE"` (which sends `\r`) or the appropriate key.
-5. Repeat. Stay alive. Descend. Win.
+4. **For navigating known terrain, prefer `travel_to(r, c)` from `tactics/` over manual `do("east")`-style loops.** Travel auto-paths and auto-stops on hostiles/items.
+5. `--More--` prompts are auto-handled by `do()` — multi-message sequences come back joined by ` | ` in `obs["message"]`.
+6. Repeat. Stay alive. Descend. Win.
+
+## Tactics (multi-step procedures)
+
+Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — they're side-effecting helpers for common idioms.
+
+- **`travel_to(row, col)`** — auto-path to a known tty cell using NetHack's built-in `Command.TRAVEL`. Strictly better than a manual `for d in [...]: do(d)` loop because Travel:
+  - paths through known terrain optimally
+  - **stops automatically on hostiles, items, or level boundaries**
+  - is one call instead of N
+
+  Use it whenever you'd otherwise script directional movement. Pair it with `unexplored(obs)` to navigate the dungeon:
+
+  ```python
+  from views import unexplored
+  from tactics import travel_to
+  print(unexplored(obs))            # see frontier coordinates
+  travel_to(12, 34)                 # auto-walk there; will stop on monsters
+  ```
+
+  Travel may stop short of the target (door, monster, etc). That's a feature — check the post-state and decide what to do next.
+
+**You can write new tactics** in `game/tactics/`. Side effects are fine and expected — that's what differentiates tactics from views.
 
 ## Views (pure read-only renderings)
 
