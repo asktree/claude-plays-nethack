@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nethack": {
+      "command": "/Users/em/Coding/claude-plays-nethack/.venv/bin/python3",
+      "args": ["-m", "claude_plays_nethack.server"]
+    }
+  }
+}

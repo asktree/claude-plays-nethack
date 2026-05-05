@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# trajectory + scratch
+game/trajectory/
+game/tactics/scratch/
+game/.live_state.json
+game/.live_state.json.tmp
+nethack_save/
+
+.DS_Store

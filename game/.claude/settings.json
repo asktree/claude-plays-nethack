@@ -1,0 +1,16 @@
+{
+  "model": "claude-opus-4-6",
+  "alwaysThinkingEnabled": true,
+  "showThinkingSummaries": true,
+  "enabledMcpjsonServers": ["nethack"],
+  "permissions": {
+    "allow": [
+      "mcp__nethack__reset",
+      "mcp__nethack__observe",
+      "mcp__nethack__do"
+    ]
+  },
+  "sandbox": {
+    "enabled": true
+  }
+}
