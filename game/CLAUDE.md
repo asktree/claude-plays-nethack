@@ -39,7 +39,7 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
   - **stops automatically on hostiles, items, or level boundaries**
   - is one call instead of N
 
-  Use it whenever you'd otherwise script directional movement. Pair it with `unexplored(obs)` to navigate the dungeon:
+  Pair it with `unexplored(obs)` to navigate the dungeon:
 
   ```python
   from views import unexplored
@@ -48,7 +48,17 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
   travel_to(12, 34)                 # auto-walk there; will stop on monsters
   ```
 
-  Travel may stop short of the target (door, monster, etc). That's a feature — check the post-state and decide what to do next.
+- **`safe_do(action)`** — a wrapped `do()` that **raises `Interrupted`** if a watched condition fires after the step. Use this for non-Travel sequences (search loops, kicking, item interactions, etc.) so you don't blindly chain past new threats.
+
+  ```python
+  from tactics import safe_do
+  for _ in range(10):
+      safe_do("Command.SEARCH")    # raises if a hidden monster reveals
+  ```
+
+  Default interrupts: **new monster in view** (vs the obs taken just before the step), **HP dropped >25%** in one step, **game over**. When raised, this exec call ends with an error — you'll see the abort reason in the result. Override the default set with `safe_do(action, interrupts=[...])`.
+
+  Rule of thumb: **inside a script with a loop, prefer `travel_to` for navigation and `safe_do` for everything else.** Bare `do()` is fine for one-off conscious actions.
 
 **You can write new tactics** in `game/tactics/`. Side effects are fine and expected — that's what differentiates tactics from views.
 

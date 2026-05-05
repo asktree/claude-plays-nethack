@@ -16,6 +16,7 @@ import atexit
 import json
 import os
 import re
+import select
 import sys
 import termios
 import threading
@@ -303,6 +304,7 @@ def _build_log(
     _traj: list[TrajectoryEvent],
     sess: list[SessionEvent],
     expanded: bool = False,
+    scroll: int = 0,
 ) -> Panel:
     """Render the gamer's session activity, newest-first.
 
@@ -325,9 +327,15 @@ def _build_log(
     COLLAPSED_TEXT_CHARS = 240
     LINE_CAP = 200  # always cap individual code/text lines so one giant line
                     # can't blow up panel layout
+    # Apply scroll: skip the first `scroll` newest events, then render up to 40.
+    chrono = sess[-300:]
+    reverse_chrono = list(reversed(chrono))
+    max_scroll = max(0, len(reverse_chrono) - 1)
+    scroll = min(scroll, max_scroll)
+    visible = reverse_chrono[scroll:scroll + 60]
     body = Text()
     rendered = 0
-    for e in reversed(sess[-60:]):
+    for e in visible:
         if e.kind == "thinking" and not e.text:
             continue
         kind = {"thinking": "think", "text": "say", "tool_use": "call"}.get(e.kind)
@@ -364,8 +372,16 @@ def _build_log(
             break
     if rendered == 0:
         body = Text("(no activity yet — start a gamer session)", style="dim")
-    title = "Recent activity (newest ↑) — [Ctrl+O] " + ("collapse" if expanded else "expand")
-    return Panel(body, title=title, border_style="green", padding=(0, 1))
+    base = "Recent activity"
+    if scroll > 0:
+        # Show "scrolled back N of total" with a different border color so it's
+        # obvious we're not live anymore.
+        title = f"{base} — scrolled back {scroll}/{len(reverse_chrono)} — [↑↓ PgUpDn End=live] [Ctrl+O] {'collapse' if expanded else 'expand'}"
+        border = "yellow"
+    else:
+        title = f"{base} (newest ↑) — [↑↓ PgUpDn] [Ctrl+O] {'collapse' if expanded else 'expand'} — q quit"
+        border = "green"
+    return Panel(body, title=title, border_style=border, padding=(0, 1))
 
 
 def _build_header(state: dict[str, Any]) -> Panel:
@@ -396,7 +412,8 @@ def _build_header(state: dict[str, Any]) -> Panel:
 def _build_layout(state: dict[str, Any] | None,
                   traj: list[TrajectoryEvent],
                   sess: list[SessionEvent],
-                  expanded: bool = False) -> Layout:
+                  expanded: bool = False,
+                  scroll: int = 0) -> Layout:
     layout = Layout()
     layout.split_column(
         Layout(name="header", size=4),
@@ -409,7 +426,7 @@ def _build_layout(state: dict[str, Any] | None,
         ), border_style="white"))
         body = Layout(name="body")
         body.split_row(
-            Layout(_build_log(traj, sess, expanded=expanded), name="left"),
+            Layout(_build_log(traj, sess, expanded=expanded, scroll=scroll), name="left"),
             Layout(Panel(Text("(no map yet)", style="dim")), name="right", size=40),
         )
         layout["body"].update(body)
@@ -432,7 +449,7 @@ def _build_layout(state: dict[str, Any] | None,
     left = Layout(name="left_inner")
     left.split_column(
         Layout(map_panel, name="map", size=map_panel_height),
-        Layout(_build_log(traj, sess, expanded=expanded), name="activity"),
+        Layout(_build_log(traj, sess, expanded=expanded, scroll=scroll), name="activity"),
     )
     body["left"].update(left)
 
@@ -447,7 +464,12 @@ def _build_layout(state: dict[str, Any] | None,
     return layout
 
 
-_UI_STATE = {"expanded": False, "quit": False}
+_UI_STATE = {
+    "expanded": False,
+    "quit": False,
+    "scroll": 0,        # how many events scrolled back from newest
+    "last_count": 0,    # session event count at last render (for scroll-pinning)
+}
 _DEBUG_LOG = os.environ.get("NETHACK_VIEW_DEBUG")  # path to write key events to
 
 
@@ -461,8 +483,29 @@ def _dbg(msg: str) -> None:
         pass
 
 
+def _try_read(fd: int, timeout_s: float = 0.05) -> bytes:
+    """Read up to 1 byte with a short timeout (for ESC-sequence assembly)."""
+    rlist, _, _ = select.select([fd], [], [], timeout_s)
+    if rlist:
+        try:
+            return os.read(fd, 1)
+        except OSError:
+            return b""
+    return b""
+
+
 def _key_listener(fd: int) -> None:
-    """Background thread: blocking-read keypresses, mutate _UI_STATE."""
+    """Background thread: blocking-read keypresses, mutate _UI_STATE.
+
+    Handles single-byte keys (q, Ctrl+O, Ctrl+C, g/G) and CSI escape
+    sequences for arrows/PageUp/PageDown/Home/End:
+        ESC [ A   = up
+        ESC [ B   = down
+        ESC [ 5 ~ = PageUp
+        ESC [ 6 ~ = PageDown
+        ESC [ H   = Home
+        ESC [ F   = End
+    """
     _dbg(f"key_listener thread started, fd={fd}, isatty={os.isatty(fd)}")
     while not _UI_STATE["quit"]:
         try:
@@ -474,6 +517,31 @@ def _key_listener(fd: int) -> None:
             _dbg("got empty bytes (EOF) — thread exiting")
             return
         _dbg(f"got byte: {ch!r}")
+        if ch == b"\x1b":
+            second = _try_read(fd)
+            if second in (b"[", b"O"):
+                third = _try_read(fd)
+                if third == b"A":
+                    _UI_STATE["scroll"] += 1
+                    _dbg(f"  → scroll up (now {_UI_STATE['scroll']})")
+                elif third == b"B":
+                    _UI_STATE["scroll"] = max(0, _UI_STATE["scroll"] - 1)
+                    _dbg(f"  → scroll down (now {_UI_STATE['scroll']})")
+                elif third in (b"5", b"6"):
+                    _try_read(fd)  # consume trailing '~'
+                    if third == b"5":
+                        _UI_STATE["scroll"] += 10
+                        _dbg(f"  → PageUp (now {_UI_STATE['scroll']})")
+                    else:
+                        _UI_STATE["scroll"] = max(0, _UI_STATE["scroll"] - 10)
+                        _dbg(f"  → PageDown (now {_UI_STATE['scroll']})")
+                elif third == b"H":
+                    _UI_STATE["scroll"] = 99999  # clamp on render
+                    _dbg("  → Home (top/oldest)")
+                elif third == b"F":
+                    _UI_STATE["scroll"] = 0
+                    _dbg("  → End (live)")
+            continue
         if ch == b"\x0f":      # Ctrl+O
             _UI_STATE["expanded"] = not _UI_STATE["expanded"]
             _dbg(f"  → toggled expanded to {_UI_STATE['expanded']}")
@@ -481,6 +549,10 @@ def _key_listener(fd: int) -> None:
             _UI_STATE["quit"] = True
             _dbg("  → quit")
             return
+        elif ch == b"g":   # vim-style: jump oldest
+            _UI_STATE["scroll"] = 99999
+        elif ch == b"G":   # vim-style: jump live
+            _UI_STATE["scroll"] = 0
 
 
 def _setup_input_thread() -> None:
@@ -518,9 +590,18 @@ def main() -> None:
             traj_reader.refresh()
             sess_reader.refresh()
             state = _read_state()
+            # Auto-pin: if user is scrolled back and new events arrive,
+            # bump scroll so the visible window stays anchored to the same
+            # absolute events. Without this, new events would shift their
+            # view and "annoy" the user mid-read.
+            count = len(sess_reader.events)
+            if _UI_STATE["scroll"] > 0 and count > _UI_STATE["last_count"]:
+                _UI_STATE["scroll"] += count - _UI_STATE["last_count"]
+            _UI_STATE["last_count"] = count
             live.update(_build_layout(
                 state, traj_reader.events, sess_reader.events,
                 expanded=_UI_STATE["expanded"],
+                scroll=_UI_STATE["scroll"],
             ))
             time.sleep(0.2)
 
