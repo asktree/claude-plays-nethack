@@ -380,13 +380,16 @@ def _exec_python(python_code: str) -> dict[str, Any]:
     _KERNEL["do"] = _kernel_do
     _KERNEL["observe"] = _kernel_observe
 
+    # Snapshot the trajectory file position so we can read out the steps
+    # taken during this exec call afterward.
+    pos_before = STATE.trajectory_path.stat().st_size if STATE.trajectory_path.exists() else 0
+
     stdout = io.StringIO()
     err: str | None = None
     result_repr: str | None = None
     try:
         with contextlib.redirect_stdout(stdout):
             try:
-                # try as expression first so `crop(obs)` returns a value
                 value = builtins.eval(compile(python_code, "<exec>", "eval"), _KERNEL)
                 if value is not None:
                     result_repr = value if isinstance(value, str) else repr(value)
@@ -395,11 +398,26 @@ def _exec_python(python_code: str) -> dict[str, Any]:
     except Exception:
         err = traceback.format_exc()
 
+    # Read the trajectory delta — every do()/reset() that happened during exec.
+    steps: list[dict[str, Any]] = []
+    if STATE.trajectory_path.exists():
+        with STATE.trajectory_path.open() as fh:
+            fh.seek(pos_before)
+            for line in fh.read().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    steps.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
     return {
         "stdout": stdout.getvalue(),
         "result": result_repr,
         "error": err,
-        "post_state": _snapshot(),  # state after any do() calls inside the script
+        "steps": steps,
+        "post_state": _snapshot(),
     }
 
 
@@ -411,8 +429,22 @@ def _format_exec_result(out: dict[str, Any]) -> str:
         parts.append("=== result ===\n" + str(out["result"]))
     if out.get("error"):
         parts.append("=== error ===\n" + out["error"].rstrip())
-    if not parts:
-        parts.append("(no output)")
+    steps = out.get("steps") or []
+    if steps:
+        lines: list[str] = []
+        for s in steps:
+            ev = s.get("event")
+            if ev == "reset":
+                lines.append("       <reset>")
+            elif ev == "do":
+                turn = s.get("blstats", {}).get("time", "?")
+                action = s.get("action_name", "?")
+                msg = s.get("message", "") or ""
+                rew = s.get("reward")
+                rew_part = f"  r={rew}" if rew not in (None, 0.0) else ""
+                msg_part = f'  msg="{msg}"' if msg else ""
+                lines.append(f"  T={turn:<4}  {action:<32}{rew_part}{msg_part}")
+        parts.append(f"=== steps during exec ({len(steps)}) ===\n" + "\n".join(lines))
     parts.append("=== post-exec state ===\n" + _format_for_text(out["post_state"]))
     return "\n\n".join(parts)
 

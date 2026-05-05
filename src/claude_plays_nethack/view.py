@@ -16,9 +16,9 @@ import atexit
 import json
 import os
 import re
-import select
 import sys
 import termios
+import threading
 import time
 import tty
 from dataclasses import dataclass, field
@@ -447,52 +447,55 @@ def _build_layout(state: dict[str, Any] | None,
     return layout
 
 
-def _setup_raw_stdin() -> int | None:
-    """Put stdin in cbreak so individual keys arrive without buffering.
+_UI_STATE = {"expanded": False, "quit": False}
 
-    Returns the fd if stdin is a tty, else None (e.g. when piped). Restores
-    the original termios on process exit.
+
+def _key_listener(fd: int) -> None:
+    """Background thread: blocking-read keypresses, mutate _UI_STATE.
+
+    A background thread sidesteps weird interactions between rich.Live's
+    refresh loop and select() on stdin. cbreak mode delivers each key as
+    an immediate byte; we just os.read(1) and dispatch.
     """
+    while not _UI_STATE["quit"]:
+        try:
+            ch = os.read(fd, 1)
+        except OSError:
+            return
+        if not ch:
+            return
+        if ch == b"\x0f":      # Ctrl+O
+            _UI_STATE["expanded"] = not _UI_STATE["expanded"]
+        elif ch in (b"q", b"\x03"):  # q or Ctrl+C
+            _UI_STATE["quit"] = True
+            return
+
+
+def _setup_input_thread() -> None:
+    """Put stdin in cbreak, restore on exit, spawn the key listener thread."""
     if not sys.stdin.isatty():
-        return None
+        return
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
     tty.setcbreak(fd)
     atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old))
-    return fd
-
-
-def _poll_key(fd: int | None) -> str | None:
-    """Non-blocking single-byte read from stdin, or None if nothing pending."""
-    if fd is None:
-        return None
-    rlist, _, _ = select.select([fd], [], [], 0)
-    if rlist:
-        try:
-            return os.read(fd, 1).decode("utf-8", errors="replace")
-        except OSError:
-            return None
-    return None
+    threading.Thread(target=_key_listener, args=(fd,), daemon=True).start()
 
 
 def main() -> None:
     console = Console()
     traj_reader = _trajectory_reader()
     sess_reader = _session_reader()
-    fd = _setup_raw_stdin()
-    expanded = False
+    _setup_input_thread()
     with Live(console=console, screen=True, refresh_per_second=5) as live:
-        while True:
+        while not _UI_STATE["quit"]:
             traj_reader.refresh()
             sess_reader.refresh()
             state = _read_state()
-            # Non-blocking keypress dispatch.
-            key = _poll_key(fd)
-            if key in ("\x0f",):       # Ctrl+O: toggle expand
-                expanded = not expanded
-            elif key in ("q", "\x03"): # q or Ctrl+C: quit
-                break
-            live.update(_build_layout(state, traj_reader.events, sess_reader.events, expanded=expanded))
+            live.update(_build_layout(
+                state, traj_reader.events, sess_reader.events,
+                expanded=_UI_STATE["expanded"],
+            ))
             time.sleep(0.2)
 
 
