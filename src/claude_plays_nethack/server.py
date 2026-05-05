@@ -331,10 +331,17 @@ def _reset() -> dict[str, Any]:
     STATE.last_info = info
     STATE.terminated = False
     STATE.truncated = False
+    # Roll the trajectory file: every game gets its own <timestamp>-<seed>.jsonl
+    # so post-hoc analysis splits naturally per game (vs per server-session).
+    STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{seed}.jsonl"
+    # Reference where the corresponding Claude Code conversation lives; the
+    # gamer-Claude session jsonl path is encoded from the gamer cwd.
+    gamer_session_dir = Path.home() / ".claude" / "projects" / str(GAME_DIR).replace("/", "-")
     STATE.log({
         "event": "reset",
         "env": ENV_ID,
         "seed": seed,
+        "claude_session_dir": str(gamer_session_dir),
         "chars": _chars_to_strings(obs),
         "cursor": [int(x) for x in obs["tty_cursor"]],
     })
