@@ -77,6 +77,7 @@ class SessionEvent:
     t: float
     kind: str  # "thinking" | "text" | "tool_use"
     text: str
+    code: str | None = None  # python source for exec() tool_use, None otherwise
 
 
 EVENT_RETENTION = 500  # cap per reader so old events drop off
@@ -193,12 +194,22 @@ def _session_record(rec: dict[str, Any]) -> list[SessionEvent]:
             inp = block.get("input", {})
             if "nethack" in name:
                 short = name.replace("mcp__nethack__", "")
-                arg = inp.get("action") if isinstance(inp, dict) else inp
-                out.append(SessionEvent(
-                    t=ts,
-                    kind="tool_use",
-                    text=f"{short}({arg!r})" if arg is not None else f"{short}()",
-                ))
+                if short == "exec" and isinstance(inp, dict):
+                    code = (inp.get("python_code") or "").rstrip()
+                    n_lines = len(code.splitlines()) if code else 0
+                    out.append(SessionEvent(
+                        t=ts,
+                        kind="tool_use",
+                        text=f"exec [{n_lines} line{'' if n_lines == 1 else 's'}]",
+                        code=code,
+                    ))
+                else:
+                    arg = inp.get("action") if isinstance(inp, dict) else inp
+                    out.append(SessionEvent(
+                        t=ts,
+                        kind="tool_use",
+                        text=f"{short}({arg!r})" if arg is not None else f"{short}()",
+                    ))
     return out
 
 
@@ -299,6 +310,7 @@ def _build_log(_traj: list[TrajectoryEvent], sess: list[SessionEvent]) -> Panel:
         "say":   ("cyan", "💬"),
         "call":  ("bright_blue", "🛠"),
     }
+    CODE_PREVIEW_LINES = 6  # for exec tool_use, show first N lines of python_code
     body = Text()
     rendered = 0
     # Walk newest -> oldest, append top-to-bottom of the panel.
@@ -316,6 +328,15 @@ def _build_log(_traj: list[TrajectoryEvent], sess: list[SessionEvent]) -> Panel:
                 text = text[:237] + "…"
         body.append(f"{icon} ", style=color)
         body.append(f"{text}\n", style=color)
+        # exec calls: show the python code, indented and dim.
+        if kind == "call" and e.code:
+            code_lines = e.code.splitlines()
+            for i, ln in enumerate(code_lines[:CODE_PREVIEW_LINES]):
+                if len(ln) > 100:
+                    ln = ln[:97] + "…"
+                body.append(f"     │ {ln}\n", style="dim cyan")
+            if len(code_lines) > CODE_PREVIEW_LINES:
+                body.append(f"     └ (+{len(code_lines)-CODE_PREVIEW_LINES} more lines)\n", style="dim")
         rendered += 1
         if rendered >= 40:
             break

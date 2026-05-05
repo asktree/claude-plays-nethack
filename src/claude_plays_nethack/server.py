@@ -349,15 +349,36 @@ def _do(action: int | str) -> dict[str, Any]:
 _KERNEL: dict[str, Any] = {"__name__": "__nethack_kernel__"}
 
 
+def _kernel_do(action: int | str) -> dict[str, Any]:
+    """Wrap _do so the kernel's `obs` global stays fresh after each step.
+
+    Without this wrapper, the loop pattern
+        while obs['blstats']['x'] > target: do(...)
+    becomes infinite — `obs` is captured at exec entry and never updates,
+    so the predicate is fixed and the loop bumps the same wall forever
+    until NLE truncates the episode. Real bug, hit by the first gamer run.
+    """
+    slim = _do(action)
+    _KERNEL["obs"] = _snapshot(include_grid=True)
+    return slim
+
+
+def _kernel_observe() -> dict[str, Any]:
+    snap = _snapshot(include_grid=True)
+    _KERNEL["obs"] = snap
+    return snap
+
+
 def _exec_python(python_code: str) -> dict[str, Any]:
     """Run python_code in the persistent kernel; capture stdout/result/error.
 
-    Always-fresh kernel globals: `obs` (latest snapshot WITH raw chars/colors),
-    `do(action)`, `observe()`. Imports persist (e.g. `from views import crop`).
+    Kernel globals: `obs` (latest snapshot with raw chars/colors/descriptions —
+    AUTO-REFRESHED after every kernel do() call), `do(action)`, `observe()`.
+    Imports persist across calls (e.g. `from views import crop`).
     """
     _KERNEL["obs"] = _snapshot(include_grid=True)
-    _KERNEL["do"] = _do
-    _KERNEL["observe"] = lambda: _snapshot(include_grid=True)
+    _KERNEL["do"] = _kernel_do
+    _KERNEL["observe"] = _kernel_observe
 
     stdout = io.StringIO()
     err: str | None = None
