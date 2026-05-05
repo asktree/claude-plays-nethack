@@ -484,15 +484,27 @@ def _key_listener(fd: int) -> None:
 
 
 def _setup_input_thread() -> None:
-    """Put stdin in cbreak, restore on exit, spawn the key listener thread."""
+    """Put stdin in cbreak (plus IEXTEN/IXON cleared) so all keys reach us.
+
+    Plain tty.setcbreak only clears ECHO and ICANON. The terminal driver
+    still processes IEXTEN special chars including DISCARD (^O on macOS) —
+    that's why Ctrl+O was being silently swallowed before reaching our
+    read(). We also clear IXON so ^S/^Q can't accidentally freeze the TUI.
+    ISIG stays on so Ctrl+C still raises SIGINT.
+    """
     if not sys.stdin.isatty():
         _dbg("stdin not a tty — keyboard disabled")
         return
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
-    tty.setcbreak(fd, when=termios.TCSANOW)
+    new = termios.tcgetattr(fd)
+    new[0] &= ~termios.IXON                                            # iflag
+    new[3] &= ~(termios.ECHO | termios.ICANON | termios.IEXTEN)        # lflag
+    new[6][termios.VMIN] = 1
+    new[6][termios.VTIME] = 0
+    termios.tcsetattr(fd, termios.TCSANOW, new)
     atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old))
-    _dbg(f"cbreak set on fd={fd}, spawning thread")
+    _dbg(f"cbreak+IEXTEN/IXON cleared on fd={fd}, spawning thread")
     threading.Thread(target=_key_listener, args=(fd,), daemon=True).start()
 
 
