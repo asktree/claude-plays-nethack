@@ -138,6 +138,20 @@ def _decode_message(obs: dict[str, Any]) -> str:
     return bytes(obs["message"]).rstrip(b"\x00").decode("latin-1", errors="replace")
 
 
+def _has_more_prompt(obs: dict[str, Any]) -> bool:
+    """True if the top tty row shows --More-- (a flush-the-message-buffer prompt).
+
+    NetHack shows --More-- when there are too many messages to fit on one line.
+    The only useful response is to advance, so we auto-handle it in _do() and
+    accumulate the messages.
+    """
+    if "tty_chars" not in obs:
+        return False
+    row0 = obs["tty_chars"][0]
+    text = bytes(row0).rstrip(b"\x00").decode("latin-1", errors="replace")
+    return "--More--" in text
+
+
 def _decode_inventory(obs: dict[str, Any]) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
     for letter_byte, str_arr in zip(obs["inv_letters"], obs["inv_strs"], strict=True):
@@ -324,6 +338,34 @@ def _do(action: int | str) -> dict[str, Any]:
     obs, reward, terminated, truncated, info = env.step(idx)
     STATE.last_obs = obs
     STATE.last_info = info
+
+    # Auto-MORE: when NetHack shows --More-- on the top line, the only useful
+    # input is to advance. Loop press MORE until the prompt clears, accumulating
+    # the messages so the gamer sees them all.
+    messages: list[str] = []
+    initial_msg = _decode_message(obs).strip()
+    if initial_msg:
+        messages.append(initial_msg)
+    more_idx = STATE.action_table.get("MORE")
+    SAFETY = 50  # absolute cap to prevent infinite loop on weird states
+    auto_more_count = 0
+    if more_idx is not None:
+        while (
+            not terminated
+            and not truncated
+            and _has_more_prompt(obs)
+            and auto_more_count < SAFETY
+        ):
+            obs, more_reward, terminated, truncated, info = env.step(more_idx)
+            STATE.last_obs = obs
+            STATE.last_info = info
+            new_msg = _decode_message(obs).strip()
+            if new_msg:
+                messages.append(new_msg)
+            reward += more_reward
+            auto_more_count += 1
+
+    combined = " | ".join(messages)
     STATE.terminated = bool(terminated)
     STATE.truncated = bool(truncated)
     STATE.log({
@@ -335,10 +377,12 @@ def _do(action: int | str) -> dict[str, Any]:
         "terminated": STATE.terminated,
         "truncated": STATE.truncated,
         "blstats": _decode_blstats(obs),
-        "message": _decode_message(obs),
+        "message": combined,
+        "auto_more_count": auto_more_count,
     })
     snap = _snapshot()
     snap["reward"] = float(reward)
+    snap["message"] = combined  # override with full accumulated text
     _write_live_state(STATE.last_obs, snap)
     return snap
 

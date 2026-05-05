@@ -448,37 +448,51 @@ def _build_layout(state: dict[str, Any] | None,
 
 
 _UI_STATE = {"expanded": False, "quit": False}
+_DEBUG_LOG = os.environ.get("NETHACK_VIEW_DEBUG")  # path to write key events to
+
+
+def _dbg(msg: str) -> None:
+    if not _DEBUG_LOG:
+        return
+    try:
+        with open(_DEBUG_LOG, "a") as fh:
+            fh.write(f"{time.time():.3f}  {msg}\n")
+    except OSError:
+        pass
 
 
 def _key_listener(fd: int) -> None:
-    """Background thread: blocking-read keypresses, mutate _UI_STATE.
-
-    A background thread sidesteps weird interactions between rich.Live's
-    refresh loop and select() on stdin. cbreak mode delivers each key as
-    an immediate byte; we just os.read(1) and dispatch.
-    """
+    """Background thread: blocking-read keypresses, mutate _UI_STATE."""
+    _dbg(f"key_listener thread started, fd={fd}, isatty={os.isatty(fd)}")
     while not _UI_STATE["quit"]:
         try:
             ch = os.read(fd, 1)
-        except OSError:
+        except OSError as e:
+            _dbg(f"OSError on read: {e}")
             return
         if not ch:
+            _dbg("got empty bytes (EOF) — thread exiting")
             return
+        _dbg(f"got byte: {ch!r}")
         if ch == b"\x0f":      # Ctrl+O
             _UI_STATE["expanded"] = not _UI_STATE["expanded"]
+            _dbg(f"  → toggled expanded to {_UI_STATE['expanded']}")
         elif ch in (b"q", b"\x03"):  # q or Ctrl+C
             _UI_STATE["quit"] = True
+            _dbg("  → quit")
             return
 
 
 def _setup_input_thread() -> None:
     """Put stdin in cbreak, restore on exit, spawn the key listener thread."""
     if not sys.stdin.isatty():
+        _dbg("stdin not a tty — keyboard disabled")
         return
     fd = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
-    tty.setcbreak(fd)
+    tty.setcbreak(fd, when=termios.TCSANOW)
     atexit.register(lambda: termios.tcsetattr(fd, termios.TCSADRAIN, old))
+    _dbg(f"cbreak set on fd={fd}, spawning thread")
     threading.Thread(target=_key_listener, args=(fd,), daemon=True).start()
 
 
