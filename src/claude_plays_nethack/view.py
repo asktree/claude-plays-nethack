@@ -393,7 +393,7 @@ def _build_log(
     if scroll > 0:
         # Show "scrolled back N of total" with a different border color so it's
         # obvious we're not live anymore.
-        title = f"{base} — scrolled back {scroll}/{len(reverse_chrono)} — [↑↓ PgUpDn End=live] [Ctrl+O] {'collapse' if expanded else 'expand'}"
+        title = f"{base} — scrolled back {scroll}/{len(reverse_chrono)} — [↑↓ PgUpDn  G=live] [Ctrl+O] {'collapse' if expanded else 'expand'}"
         border = "yellow"
     else:
         title = f"{base} (newest ↑) — [↑↓ PgUpDn] [Ctrl+O] {'collapse' if expanded else 'expand'} — q quit"

@@ -120,13 +120,38 @@ class GameState:
                 table[alias] = table[qualified]
         self.action_table = table
 
-    def resolve_action(self, action: int | str) -> int:
+    def resolve_action(self, action) -> int:
+        # NLE action enums (CompassDirection.NW, Command.READ, etc) are
+        # IntEnum members — `int(member) = keypress byte`, NOT the gym action
+        # index. Map by .value to find the index.
+        import enum
+        if isinstance(action, enum.IntEnum):
+            target = int(action.value)
+            for idx, ae in enumerate(self.actions_tuple):
+                if int(ae.value) == target:
+                    return idx
+            raise ValueError(f"enum {action!r} (value={target}) not in action set")
         if isinstance(action, int):
             if action < 0 or action >= len(self.actions_tuple):
                 raise ValueError(f"action index {action} out of range [0, {len(self.actions_tuple)})")
             return action
         if isinstance(action, str):
-            key = action.strip()
+            # No .strip() here — '\r' (MORE), ' ' (SPACE) and friends are
+            # valid single-char keypresses and would be eaten by strip.
+            key = action
+            # Single-char strings → look up by KEYPRESS, not short-name.
+            # do("y") = literal y key (= CompassDirection.NW for movement OR
+            # "yes" in a prompt; NetHack interprets the byte in context).
+            # do("n"), do("?"), etc. all work the same way. This sidesteps the
+            # confusion where "n" could mean "north" alias or the n key (SE).
+            if len(key) == 1:
+                target = ord(key)
+                for idx, action_enum in enumerate(self.actions_tuple):
+                    if int(action_enum.value) == target:
+                        return idx
+                raise ValueError(
+                    f"keypress {key!r} (byte {target}) is not in the action set"
+                )
             if key in self.action_table:
                 return self.action_table[key]
             if key.lower() in self.action_table:
@@ -134,7 +159,7 @@ class GameState:
             raise ValueError(
                 f"unknown action name {action!r}. "
                 f"Try a Command/CompassDirection/MiscAction enum name "
-                f"(e.g. 'Command.READ', 'north', 'MORE')."
+                f"(e.g. 'Command.READ', 'north', 'MORE'), or a single key char."
             )
         raise TypeError(f"action must be int or str, got {type(action).__name__}")
 
@@ -591,6 +616,17 @@ def _exec_python(python_code: str) -> dict[str, Any]:
     _KERNEL["obs"] = _snapshot(include_grid=True)
     _KERNEL["do"] = _kernel_do
     _KERNEL["observe"] = _kernel_observe
+    # Pre-import NLE action enums so the gamer can write
+    # `do(CompassDirection.NW)` or `do(Command.READ)` without bringing them in
+    # explicitly. Single-char strings like `do("y")` go straight to keypress.
+    if "Command" not in _KERNEL:
+        from nle import nethack as _nh
+        _KERNEL["Command"] = _nh.Command
+        _KERNEL["CompassDirection"] = _nh.CompassDirection
+        _KERNEL["CompassDirectionLonger"] = _nh.CompassDirectionLonger
+        _KERNEL["MiscDirection"] = _nh.MiscDirection
+        _KERNEL["MiscAction"] = _nh.MiscAction
+        _KERNEL["TextCharacters"] = _nh.TextCharacters
 
     # Snapshot the trajectory file position so we can read out the steps
     # taken during this exec call afterward.
