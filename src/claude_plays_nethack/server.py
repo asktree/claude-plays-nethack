@@ -33,6 +33,13 @@ if str(GAME_DIR) not in sys.path:
     sys.path.insert(0, str(GAME_DIR))
 
 ENV_ID = os.environ.get("NETHACK_ENV", "NetHackChallenge-v0")
+# NetHack tty geometry. tty_chars is 24x80 total (NLE keeps the full VT100
+# layout). Dungeon proper is rows 1..21 cols 0..78 — row 0 is the message line,
+# rows 22-23 are status, col 79 is unused padding. Defining once so everywhere
+# uses the same range and we don't accidentally iterate the padding.
+DUNGEON_ROWS_START = 1   # inclusive
+DUNGEON_ROWS_END = 22    # exclusive (so rows 1..21)
+DUNGEON_COLS = 79        # cols 0..78
 # Char substituted for `' '` cells we've never had line-of-sight to.
 # `°` (degree sign): Latin-1, guaranteed single-width in any monospace font,
 # and NetHack uses NO `°` anywhere in its glyph set — zero collision.
@@ -134,6 +141,10 @@ class GameState:
     def update_seen(self, obs: dict[str, Any]) -> None:
         """Mark cells as seen: any non-blank in chars + 8 cells around @.
 
+        NetHack's dungeon area is 21 rows x 79 cols (rows 1..21 of the 24-row
+        tty; cols 0..78 — col 79 is unused padding). seen grids match: 22x79
+        to keep tty_chars indexing consistent (rows[0]=msg, rows[1..21]=map).
+
         Heuristic — under-marks slightly (a fully lit room beyond @'s 8-cell
         adjacency is only marked as cells get rendered as `.` floor). False
         positives self-correct on the next obs since the cell will render
@@ -145,11 +156,11 @@ class GameState:
         key = self._level_key(obs)
         if key is None:
             return
-        seen = self.seen_per_level.setdefault(key, [[False] * 80 for _ in range(24)])
+        seen = self.seen_per_level.setdefault(key, [[False] * DUNGEON_COLS for _ in range(DUNGEON_ROWS_END)])
         chars = obs["tty_chars"]
-        for r in range(1, 22):
+        for r in range(DUNGEON_ROWS_START, DUNGEON_ROWS_END):
             row = chars[r]
-            for c in range(80):
+            for c in range(DUNGEON_COLS):
                 v = int(row[c])
                 if v != 0 and v != 0x20:
                     seen[r][c] = True
@@ -157,7 +168,7 @@ class GameState:
         for dr in (-1, 0, 1):
             for dc in (-1, 0, 1):
                 rr, cc = cy + dr, cx + dc
-                if 0 <= rr < 24 and 0 <= cc < 80:
+                if DUNGEON_ROWS_START <= rr < DUNGEON_ROWS_END and 0 <= cc < DUNGEON_COLS:
                     seen[rr][cc] = True
 
     def current_seen(self, obs: dict[str, Any]) -> list[list[bool]] | None:
@@ -187,10 +198,10 @@ def _render_screen(obs: dict[str, Any]) -> str:
     seen = STATE.current_seen(obs)
     decorative = " " + UNSEEN_CHAR  # chars to strip from line endings
     map_rows: list[str] = []
-    for r in range(1, 22):
+    for r in range(DUNGEON_ROWS_START, DUNGEON_ROWS_END):
         row_chars = chars[r]
         line = []
-        for c in range(80):
+        for c in range(DUNGEON_COLS):
             v = int(row_chars[c])
             ch = chr(v) if v else " "
             if ch == " " and seen is not None and not seen[r][c]:
