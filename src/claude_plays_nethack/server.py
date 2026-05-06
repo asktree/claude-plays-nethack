@@ -401,6 +401,15 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
         [[int(g) for g in row] for row in obs["glyphs"]]
         if "glyphs" in obs else None
     )
+    # NetHack's bottom-of-screen status rows (rows 22-23 of the 24-row tty).
+    # We strip these from chars (since blstats has the structured info), but
+    # view.sh wants to show them in the familiar "Agent the Footpad ..." form.
+    tty_chars_full = obs["tty_chars"]
+    status_rows = [
+        "".join(chr(int(c)) if c else " " for c in tty_chars_full[r]).rstrip()
+        for r in (22, 23)
+        if r < len(tty_chars_full)
+    ]
     state = {
         "session": snap.get("session"),
         "terminated": snap.get("terminated"),
@@ -414,6 +423,7 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
         "descriptions": descs_grid,
         "glyphs": glyphs_grid,
         "seen": [list(row) for row in seen_grid] if seen_grid else None,
+        "status_rows": status_rows,
         "trajectory_log": snap.get("trajectory_log"),
     }
     tmp = LIVE_STATE_PATH.with_suffix(LIVE_STATE_PATH.suffix + ".tmp")

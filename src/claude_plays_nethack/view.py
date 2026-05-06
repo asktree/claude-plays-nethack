@@ -310,6 +310,30 @@ def _build_inventory(state: dict[str, Any]) -> Panel:
     return Panel(body, title="Inventory", border_style="blue", padding=(0, 1))
 
 
+def _build_stats(state: dict[str, Any]) -> Panel:
+    """NetHack's familiar 2-row status as it would appear in-game.
+
+    Row 22: "Agent the Footpad           St:15 Dx:18 Co:15 In:8 Wi:12 Ch:7 Chaotic"
+    Row 23: "Dlvl:1 $:0 HP:15(15) Pw:2(2) AC:7 Xp:1/0 T:2"
+
+    Includes character name + title (=role/class progression), stats, alignment,
+    and the live combat block. Color rules: HP/Pw bright when full, yellow when
+    below half, red when below quarter; hunger word colored when not Normal.
+    """
+    rows = state.get("status_rows") or []
+    bl = state.get("blstats", {}) or {}
+    body = Text()
+    for i, row in enumerate(rows):
+        if not row.strip():
+            continue
+        body.append(row, style="bold")
+        if i < len(rows) - 1:
+            body.append("\n")
+    if not rows:
+        body = Text("(no status)", style="dim")
+    return Panel(body, title="Status", border_style="white", padding=(0, 1))
+
+
 def _build_legend(state: dict[str, Any]) -> Panel:
     chars = state["chars"]
     descs = state.get("descriptions") or []
@@ -359,7 +383,7 @@ def _build_log(
         "think": ("yellow", "💭"),
         "say":   ("cyan", "💬"),
         "call":  ("bright_blue", "🛠"),
-        "msg":   ("bright_yellow", "📜"),
+        "msg":   ("dark_orange", "📜"),
     }
     COLLAPSED_CODE_LINES = 6
     COLLAPSED_TEXT_CHARS = 240
@@ -423,25 +447,16 @@ def _build_log(
 
 
 def _build_header(state: dict[str, Any]) -> Panel:
-    bl = state.get("blstats", {}) or {}
+    """Slim header: session id + current message + game-over flag.
+
+    blstats moved to the col 1 Status panel; no longer duplicated here.
+    """
     msg = state.get("message", "") or ""
     session = state.get("session") or "?"
-    hunger = bl.get("hunger_state", "?")
-    line1 = (
-        f"session={session}  T={bl.get('time','?')}  "
-        f"HP={bl.get('hitpoints','?')}/{bl.get('max_hitpoints','?')}  "
-        f"Pw={bl.get('energy','?')}/{bl.get('max_energy','?')}  "
-        f"Dlvl={bl.get('depth','?')}  "
-        f"AC={bl.get('armor_class','?')}  "
-        f"$={bl.get('gold','?')}  "
-        f"XP={bl.get('experience_level','?')}/{bl.get('experience_points','?')}  "
-        f"Score={bl.get('score','?')}  "
-        f"Hunger={hunger}"
-    )
-    body = Text(line1, style="bold")
+    body = Text(f"session={session}", style="bold")
     if msg:
-        body.append("\n")
-        body.append(f"msg: {msg}", style="italic yellow")
+        body.append("  ")
+        body.append(f"msg: {msg}", style="italic dark_orange")
     if state.get("terminated") or state.get("truncated"):
         body.append("\n** GAME OVER **", style="bold red")
     return Panel(body, border_style="white", padding=(0, 1))
@@ -489,8 +504,10 @@ def _build_layout(state: dict[str, Any] | None,
     )
 
     col1 = Layout(name="col1_inner")
+    # Stats panel: 2 status rows + 2 borders + padding ≈ 4 rows. Title adds 1.
     col1.split_column(
         Layout(map_panel, name="map", size=map_panel_height),
+        Layout(_build_stats(state), name="stats", size=4),
         Layout(_build_legend(state), name="legend"),
     )
     body["col1"].update(col1)
