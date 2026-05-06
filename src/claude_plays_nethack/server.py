@@ -139,17 +139,24 @@ class GameState:
         return (bl.get("dungeon_number", 0), bl.get("level_number", 0))
 
     def update_seen(self, obs: dict[str, Any]) -> None:
-        """Mark cells as seen: any non-blank in chars + 8 cells around @.
+        """Mark cells as seen: any non-blank glyph in chars on this turn.
 
-        NetHack's dungeon area is 21 rows x 79 cols (rows 1..21 of the 24-row
-        tty; cols 0..78 — col 79 is unused padding). seen grids match: 22x79
-        to keep tty_chars indexing consistent (rows[0]=msg, rows[1..21]=map).
+        NetHack renders every cell in current line-of-sight as a non-blank
+        char (lit rooms fully render on entry; dark rooms render the cells
+        you illuminate; corridors render the @'s cell). Cells you've seen
+        before persist as remembered terrain, also non-blank. So "non-blank
+        in chars" cleanly captures everything.
 
-        Heuristic — under-marks slightly (a fully lit room beyond @'s 8-cell
-        adjacency is only marked as cells get rendered as `.` floor). False
-        positives self-correct on the next obs since the cell will render
-        as something non-blank then. False negatives (mark unseen as seen)
-        don't happen with this rule.
+        We previously also marked the 8 cells around @, intended as
+        defensive paranoia for "what if a lit room doesn't render?". But
+        NetHack DOES render lit rooms, and the adjacency rule had no
+        wall-blocking check — when @ stood next to a wall, the cell on
+        the other side got marked seen. Removed: trust chars.
+
+        Trade-off: rock cells you walked PAST in corridors stay as
+        unseen (we never get told "yes that's rock there"). Matches
+        vanilla NetHack's own semantic — the game itself doesn't
+        distinguish seen-rock from unseen-rock either.
         """
         if obs is None:
             return
@@ -164,12 +171,6 @@ class GameState:
                 v = int(row[c])
                 if v != 0 and v != 0x20:
                     seen[r][c] = True
-        cy, cx = int(obs["tty_cursor"][0]), int(obs["tty_cursor"][1])
-        for dr in (-1, 0, 1):
-            for dc in (-1, 0, 1):
-                rr, cc = cy + dr, cx + dc
-                if DUNGEON_ROWS_START <= rr < DUNGEON_ROWS_END and 0 <= cc < DUNGEON_COLS:
-                    seen[rr][cc] = True
 
     def current_seen(self, obs: dict[str, Any]) -> list[list[bool]] | None:
         key = self._level_key(obs)
