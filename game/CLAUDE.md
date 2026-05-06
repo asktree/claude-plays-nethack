@@ -68,7 +68,7 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
 
   Default interrupts: **new monster in view** (vs the obs taken just before the step), **HP dropped >25%** in one step, **game over**. When raised, this exec call ends with an error — you'll see the abort reason in the result. Override the default set with `safe_do(action, interrupts=[...])`.
 
-  Rule of thumb: **inside a script with a loop, prefer `travel_to` for navigation and `safe_do` for everything else.** Bare `do()` is fine for one-off conscious actions.
+  **Rule: inside any loop in `exec()`, you MUST use `safe_do` (or `travel_to` / `auto_explore`, which already include safety). Never bare `do()` in a loop.** Bare `do()` is for one-off deliberate actions outside loops, and for the action you take *after* a safe_do interrupt (e.g. attacking the bat that interrupted your search). The most recent gamer death (Valkyrie, food-crisis after wall-searching with bare `do()`) traces directly to this rule being violated.
 
 **You can write new tactics** in `game/tactics/`. Side effects are fine and expected — that's what differentiates tactics from views.
 

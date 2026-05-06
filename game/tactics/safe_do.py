@@ -108,7 +108,26 @@ def _terminated(_pre: dict, post: dict) -> str | None:
     return None
 
 
-DEFAULT_INTERRUPTS: list[Interrupt] = [_hostile_in_view, _hp_drop, _terminated]
+# Hunger thresholds in NetHack's hunger_state int:
+#   0=Satiated, 1=Normal, 2=Hungry, 3=Weak, 4=Fainting, 5=Fainted, 6=Starved
+# Weak means -1 to hit/damage and you might collapse soon. Fire here so the
+# gamer can't burn turns scripting through to starvation (the actual cause of
+# the recent Valkyrie post-mortem death — food crisis from over-searching).
+def _hunger_critical(pre: dict, post: dict) -> str | None:
+    pre_h = pre.get("blstats", {}).get("hunger_state", 1)
+    post_h = post.get("blstats", {}).get("hunger_state", 1)
+    if post_h >= 3 and post_h > pre_h:
+        labels = {3: "Weak", 4: "Fainting", 5: "Fainted", 6: "Starved"}
+        return f"hunger crossed into {labels.get(post_h, str(post_h))} — eat before continuing"
+    return None
+
+
+DEFAULT_INTERRUPTS: list[Interrupt] = [
+    _hostile_in_view,
+    _hp_drop,
+    _hunger_critical,
+    _terminated,
+]
 # _new_monster removed — _hostile_in_view subsumes it (any hostile visible is
 # a stop, not just newly-appeared ones).
 
