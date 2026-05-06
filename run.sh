@@ -6,6 +6,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")/game"
 
-PROMPT="${1:-Start a new NetHack game with reset(), then play. Take it turn by turn — observe, decide, act. Do your best to play strategically optimally, and ultimately win.}"
+PROMPT="${1:-You are playing NetHack. Your game is already started — call observe() to see your character, then play. Take it turn by turn — observe, decide, act. Do your best to play strategically optimally, and ultimately win.}"
 
 exec claude "$PROMPT"

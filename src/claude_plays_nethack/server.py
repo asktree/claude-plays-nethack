@@ -466,17 +466,21 @@ def _reset() -> dict[str, Any]:
 
 
 def _observe() -> dict[str, Any]:
+    # Lazy auto-reset: the gamer can't call reset() (it isn't an MCP tool).
+    # First observe() or do() in a fresh server starts the game transparently.
     if STATE.last_obs is None:
-        STATE.ensure_env()
+        _reset()
     return _snapshot()
 
 
 def _do(action: int | str) -> dict[str, Any]:
     env = STATE.ensure_env()
     if STATE.last_obs is None:
-        raise RuntimeError("game not started; call reset() first")
+        _reset()
     if STATE.terminated or STATE.truncated:
-        raise RuntimeError("game over; call reset() to start a new game")
+        raise RuntimeError(
+            "game over — restart the harness (./run.sh) to start a new game"
+        )
 
     idx = STATE.resolve_action(action)
     action_enum = STATE.actions_tuple[idx]
@@ -642,11 +646,10 @@ def _format_exec_result(out: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
-@mcp.tool
-def reset() -> ToolResult:
-    """Start a new NetHack game. Returns the initial observation."""
-    STATE.last_rendered_inventory = None  # fresh game, fresh dedup
-    return _tool_result(_reset())
+# Note: reset() is intentionally NOT exposed as an MCP tool. The gamer should
+# not be able to restart themselves mid-game (no escape hatch). _observe and
+# _do auto-init a game on first call. For a fresh game, restart `./run.sh`
+# (which spawns a new MCP server process).
 
 
 @mcp.tool

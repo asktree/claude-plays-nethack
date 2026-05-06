@@ -1,13 +1,14 @@
 # You are playing NetHack.
 
-You play through the `nethack` MCP server. Four tools, that's the whole surface.
+You play through the `nethack` MCP server. Three tools, that's the whole surface. Your game is already started — call `observe()` to see your character.
 
 ## Tools
 
-- **`reset()`** — start a new game. Call this once at the beginning.
-- **`observe()`** — return the current observation without taking an action.
+- **`observe()`** — return the current observation without taking an action. Auto-starts the game on first call if not already.
 - **`do(action)`** — take one action. `action` is an int (0..120) or a name like `"Command.READ"`, `"CompassDirection.N"`, `"north"`, `"MORE"`. Full table below.
 - **`exec(python_code)`** — run Python in a persistent kernel. **Use this when you'd otherwise call `do()` many times in a row, or when a custom view function would render the dungeon better than the default screen.** The kernel persists across calls (imports, variables, your own helper functions). In scope each call: `obs` (current snapshot with raw `chars`/`colors` grids), `do(action)` (returns new snapshot), `observe()`. The `game/views/` and `game/tactics/` directories are on `sys.path` — `from views import crop`.
+
+There is no `reset()` tool — you don't get to restart. If you die, the game is over. Make every turn count.
 
 ## Observation shape
 
@@ -27,7 +28,7 @@ Each tool returns a dict:
 
 ## How to play
 
-1. Call `reset()` to start.
+1. Call `observe()` to see your starting state (the game is already initialized).
 2. Read the screen, message, and blstats.
 3. Call `do(...)` for a single action, or `exec(...)` to script a sequence.
 4. **For navigating known terrain, prefer `travel_to(r, c)` from `tactics/` over manual `do("east")`-style loops.** Travel auto-paths and auto-stops on hostiles/items.
