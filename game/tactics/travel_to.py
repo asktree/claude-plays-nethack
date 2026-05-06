@@ -6,7 +6,7 @@ from typing import Any
 
 
 def travel_to(row: int, col: int, *, observe=None, do=None) -> dict[str, Any]:
-    """Auto-path to the given tty (row, col) via NetHack's Travel command.
+    """Auto-path to the given dungeon (row, col) via NetHack's Travel command.
 
     Travel is NetHack's built-in pathfinder: it routes through known terrain
     and stops automatically on monsters, item pickup, level boundaries, or
@@ -92,7 +92,7 @@ def travel_to_nearest(symbol: str, index: int = 0, *, observe=None, do=None) -> 
     cursor = obs.get("cursor") or [0, 0]
     py, px = int(cursor[0]), int(cursor[1])
     matches: list[tuple[int, int, int]] = []
-    for r in range(1, min(22, len(chars))):
+    for r in range(len(chars)):
         for c, ch_int in enumerate(chars[r]):
             ch = chr(ch_int) if ch_int else " "
             if ch == symbol:

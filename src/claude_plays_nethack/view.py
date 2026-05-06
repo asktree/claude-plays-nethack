@@ -241,43 +241,40 @@ UNSEEN_STYLE = "grey50"  # rich's standard dim-grey; renders as 50% white
 def _build_screen(state: dict[str, Any]) -> tuple[Text, int, int]:
     """Render the full colored dungeon map. Returns (text, width, height).
 
-    NetHack's dungeon is rows 1..21 of the 24-row tty; rows 0 and 22-23 are
-    message + status. We keep the full 21-row grid even when mostly blank so
-    layout doesn't shift as the player explores.
+    Reads from `state["chars"]` and `state["seen"]` which are now both 21×79
+    dungeon-relative grids (no message/status rows, no padding col). Cell
+    indexing is direct: `chars[r][c]` and `seen[r][c]` align.
 
     Cells that have never been in line-of-sight are rendered as a dim-grey
-    `░` (fog), matching the model's text overlay (which uses '°') so the
-    human view and the model view agree on what's frontier vs known void.
+    `░` (fog), matching the model's text overlay (`°`).
     """
     chars = state["chars"]
     colors = state["colors"]
-    seen = state.get("seen")  # may be None for older live states
-    rows_chars = chars[1:-2]
-    rows_colors = colors[1:-2]
+    seen = state.get("seen")  # 21x79, may be None for older live states
 
     out = Text()
-    for i in range(len(rows_chars)):
-        row_chars = rows_chars[i]
-        row_colors = rows_colors[i]
-        actual_r = i + 1  # original tty row index
+    for r in range(len(chars)):
+        row_chars = chars[r]
+        row_colors = colors[r] if r < len(colors) else []
         for c in range(len(row_chars)):
             ch_int = row_chars[c]
             char = chr(ch_int) if ch_int else " "
             is_unseen = (
                 seen is not None
-                and actual_r < len(seen)
-                and c < len(seen[actual_r])
-                and not seen[actual_r][c]
+                and r < len(seen)
+                and c < len(seen[r])
+                and not seen[r][c]
             )
             if char == " " and is_unseen:
                 out.append(UNSEEN_GLYPH, style=UNSEEN_STYLE)
             else:
-                color_name = NH_COLOR_TO_RICH.get(int(row_colors[c]) & 0xF, "white")
+                col_int = int(row_colors[c]) if c < len(row_colors) else 0
+                color_name = NH_COLOR_TO_RICH.get(col_int & 0xF, "white")
                 out.append(char, style=color_name)
-        if i < len(rows_chars) - 1:
+        if r < len(chars) - 1:
             out.append("\n")
-    width = len(rows_chars[0]) if rows_chars else 0
-    height = len(rows_chars)
+    width = len(chars[0]) if chars else 0
+    height = len(chars)
     return out, width, height
 
 

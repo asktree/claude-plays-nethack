@@ -45,7 +45,7 @@ def _best_frontier(obs: dict[str, Any]) -> tuple[int, int, str] | None:
     w = len(chars[0]) if chars else 0
     walkable = set(".#+<>")
     candidates: list[tuple[int, int, int, int, str]] = []  # (is_door, distance, r, c, glyph)
-    for r in range(1, min(22, h)):
+    for r in range(h):
         for c in range(w):
             ch_int = chars[r][c]
             ch = chr(ch_int) if ch_int else " "

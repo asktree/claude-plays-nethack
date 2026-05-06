@@ -34,12 +34,16 @@ if str(GAME_DIR) not in sys.path:
 
 ENV_ID = os.environ.get("NETHACK_ENV", "NetHackChallenge-v0")
 # NetHack tty geometry. tty_chars is 24x80 total (NLE keeps the full VT100
-# layout). Dungeon proper is rows 1..21 cols 0..78 — row 0 is the message line,
-# rows 22-23 are status, col 79 is unused padding. Defining once so everywhere
-# uses the same range and we don't accidentally iterate the padding.
-DUNGEON_ROWS_START = 1   # inclusive
-DUNGEON_ROWS_END = 22    # exclusive (so rows 1..21)
-DUNGEON_COLS = 79        # cols 0..78
+# layout). Dungeon proper is at tty rows 1..21 cols 0..78 — row 0 is the
+# message line, rows 22-23 are status, col 79 is unused padding.
+#
+# In our model-facing obs, all 2D arrays (chars, colors, glyphs, descriptions,
+# seen, seenv) use a UNIFIED 21x79 dungeon-only shape — no message/status rows,
+# no padding col. cursor is dungeon-relative ([row 0..20, col 0..78]) so it
+# indexes into chars[r][c] directly. Views and tactics never need to add +1
+# offsets. Internal STATE.last_obs still has full tty_chars for the renderer.
+DUNGEON_ROWS = 21
+DUNGEON_COLS = 79
 # Char substituted for `' '` cells we've never had line-of-sight to.
 # `°` (degree sign): Latin-1, guaranteed single-width in any monospace font,
 # and NetHack uses NO `°` anywhere in its glyph set — zero collision.
@@ -141,35 +145,26 @@ class GameState:
         return (bl.get("dungeon_number", 0), bl.get("level_number", 0))
 
     def update_seen(self, obs: dict[str, Any]) -> None:
-        """Read NetHack's per-cell seenv bitmask directly into our seen grid.
+        """Read NetHack's per-cell seenv bitmask into our 21x79 seen grid.
 
         seenv is a uint8 per dungeon cell tracking which directions the player
-        has viewed the cell from. Any non-zero value means "seen at least once."
-        This is NetHack's ground truth — much better than our previous
-        chars+diagonal-LoS heuristic. Exposed by our forked NLE (see
-        /Users/em/Coding/nle-fork) which we patched to mirror levl[].seenv into
-        the obs buffer per turn.
-
-        seenv shape is 21x79 (DUNGEON_SHAPE) with rows starting at chars row 1.
-        We map seenv[gr][gc] → seen[gr+1][gc] so seen indexing matches tty_chars.
+        has viewed the cell from. Any non-zero value = seen. Ground truth via
+        our forked NLE (see /Users/em/Coding/nle-fork). seen grid uses the same
+        dungeon-relative indexing as glyphs/descriptions — `seen[r][c]` aligns
+        directly to `chars[r][c]` in the model-facing snapshot.
         """
         if obs is None or "seenv" not in obs:
             return
         key = self._level_key(obs)
         if key is None:
             return
-        seen = self.seen_per_level.setdefault(key, [[False] * DUNGEON_COLS for _ in range(DUNGEON_ROWS_END)])
+        seen = self.seen_per_level.setdefault(key, [[False] * DUNGEON_COLS for _ in range(DUNGEON_ROWS)])
         seenv = obs["seenv"]
-        for gr in range(len(seenv)):
+        for gr in range(min(len(seenv), DUNGEON_ROWS)):
             row = seenv[gr]
-            cr = gr + 1  # align to tty_chars row indexing
-            if cr >= DUNGEON_ROWS_END:
-                break
-            for gc in range(len(row)):
-                if gc >= DUNGEON_COLS:
-                    break
+            for gc in range(min(len(row), DUNGEON_COLS)):
                 if int(row[gc]) != 0:
-                    seen[cr][gc] = True
+                    seen[gr][gc] = True
 
     def current_seen(self, obs: dict[str, Any]) -> list[list[bool]] | None:
         key = self._level_key(obs)
@@ -188,30 +183,25 @@ def _render_screen(obs: dict[str, Any]) -> str:
     """Render the dungeon map, with `' '` cells replaced by UNSEEN_CHAR when
     they've never been in line-of-sight on the current level.
 
-    NLE's tty_chars is 24×80: row 0 is the message line, rows 22-23 are status.
-    Both are already in our snapshot (`message`, `blstats`); we strip them.
-    The UNSEEN_CHAR overlay distinguishes "I've passed by here, it's just rock"
-    from "I've never been near this cell" — vanilla NetHack renders both as
-    `' '`, which made the frontier ambiguous.
+    Reads from the raw 24×80 tty_chars (slicing rows 1..21, cols 0..78 — the
+    dungeon area — and dropping col 79 padding). seen[r][c] is the
+    dungeon-relative 21×79 grid, indexed directly.
     """
     chars = obs["tty_chars"]
     seen = STATE.current_seen(obs)
-    decorative = " " + UNSEEN_CHAR  # chars to strip from line endings
+    decorative = " " + UNSEEN_CHAR
     map_rows: list[str] = []
-    for r in range(DUNGEON_ROWS_START, DUNGEON_ROWS_END):
-        row_chars = chars[r]
+    for gr in range(DUNGEON_ROWS):
+        row_chars = chars[gr + 1]  # +1 because tty_chars row 0 is message line
         line = []
-        for c in range(DUNGEON_COLS):
-            v = int(row_chars[c])
+        for gc in range(DUNGEON_COLS):
+            v = int(row_chars[gc])
             ch = chr(v) if v else " "
-            if ch == " " and seen is not None and not seen[r][c]:
+            if ch == " " and seen is not None and not seen[gr][gc]:
                 ch = UNSEEN_CHAR
             line.append(ch)
-        # rstrip both spaces AND the unseen marker — the trailing run
-        # carries no info ("more unseen to the right") and would multiply
-        # token cost across 21 rows × 500+ steps.
+        # rstrip ' ' and unseen marker — trailing run carries no info.
         map_rows.append("".join(line).rstrip(decorative))
-    # drop top/bottom rows that are entirely decorative
     while map_rows and not map_rows[0]:
         map_rows.pop(0)
     while map_rows and not map_rows[-1]:
@@ -368,8 +358,18 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
     """
     if not snap.get("started") or obs is None:
         return
-    chars_grid = [[int(c) for c in row] for row in obs["tty_chars"]]
-    colors_grid = [[int(c) for c in row] for row in obs["tty_colors"]]
+    # All 2D grids written here are 21x79 (dungeon-only) — view.py consumes
+    # them with the same indexing. cursor is dungeon-relative (in snap already).
+    tty_chars = obs["tty_chars"]
+    tty_colors = obs["tty_colors"]
+    chars_grid = [
+        [int(tty_chars[gr + 1][gc]) for gc in range(DUNGEON_COLS)]
+        for gr in range(DUNGEON_ROWS)
+    ]
+    colors_grid = [
+        [int(tty_colors[gr + 1][gc]) for gc in range(DUNGEON_COLS)]
+        for gr in range(DUNGEON_ROWS)
+    ]
     descs_grid = _decode_screen_descriptions(obs)
     seen_grid = STATE.current_seen(obs)
     glyphs_grid = (
@@ -383,7 +383,7 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
         "blstats": snap.get("blstats", {}),
         "message": snap.get("message", ""),
         "inventory": snap.get("inventory", []),
-        "cursor": snap.get("cursor", [0, 0]),
+        "cursor": snap.get("cursor", [0, 0]),  # already dungeon-relative
         "chars": chars_grid,
         "colors": colors_grid,
         "descriptions": descs_grid,
@@ -410,6 +410,10 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
             "hint": "Call reset() to start a new game.",
         }
     obs = STATE.last_obs
+    tty_cursor = obs["tty_cursor"]
+    # Cursor in dungeon-relative coords: subtract 1 from row to skip the
+    # message line. cursor[0] now indexes chars[r] directly (0..20).
+    dungeon_cursor = [int(tty_cursor[0]) - 1, int(tty_cursor[1])]
     snap: dict[str, Any] = {
         "started": True,
         "terminated": STATE.terminated,
@@ -418,24 +422,30 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
         "message": _decode_message(obs),
         "blstats": _decode_blstats(obs),
         "inventory": _decode_inventory(obs),
-        "cursor": [int(x) for x in obs["tty_cursor"]],
+        "cursor": dungeon_cursor,
         "trajectory_log": str(STATE.trajectory_path),
         "session": STATE.session_id,
     }
     if include_grid:
-        snap["chars"] = [[int(c) for c in row] for row in obs["tty_chars"]]
-        snap["colors"] = [[int(c) for c in row] for row in obs["tty_colors"]]
+        # All 2D grids are 21x79 dungeon-only — chars[r][c], colors[r][c],
+        # descriptions[r][c], glyphs[r][c], seen[r][c] all use the same
+        # indexing. r in 0..20 is the dungeon row; c in 0..78 is the col.
+        tty_chars = obs["tty_chars"]
+        tty_colors = obs["tty_colors"]
+        snap["chars"] = [
+            [int(tty_chars[gr + 1][gc]) for gc in range(DUNGEON_COLS)]
+            for gr in range(DUNGEON_ROWS)
+        ]
+        snap["colors"] = [
+            [int(tty_colors[gr + 1][gc]) for gc in range(DUNGEON_COLS)]
+            for gr in range(DUNGEON_ROWS)
+        ]
         snap["descriptions"] = _decode_screen_descriptions(obs)
-        # NLE's `glyphs` is 21x79 ints encoding glyph type/identity.
-        # Helpful for distinguishing currently-visible (monsters/items only
-        # render in LoS) from remembered (terrain persists).
         if "glyphs" in obs:
             snap["glyphs"] = [[int(g) for g in row] for row in obs["glyphs"]]
-        # Per-level seen grid (24x80 booleans). Auto-tracked; views (e.g.
-        # unexplored) use this for true frontier detection.
         seen = STATE.current_seen(obs)
         if seen is not None:
-            snap["seen"] = [list(row) for row in seen]  # copy
+            snap["seen"] = [list(row) for row in seen]
     return snap
 
 

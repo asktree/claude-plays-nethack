@@ -69,7 +69,7 @@ def look_at_nearest(symbol: str, index: int = 0, *, do=None, observe=None) -> di
     py, px = int(cursor[0]), int(cursor[1])
 
     matches: list[tuple[int, int, int]] = []
-    for r in range(1, min(22, len(chars))):
+    for r in range(len(chars)):
         for c, ch_int in enumerate(chars[r]):
             ch = chr(ch_int) if ch_int else " "
             if ch == symbol:

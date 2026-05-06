@@ -17,11 +17,15 @@ Each tool returns a dict:
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
 - `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
 - `inventory` — list of `{letter, text}` for what you're carrying. (In `do()` tool results the rendered text dedupes when unchanged — you'll see "(unchanged from last turn)" instead. Call `observe()` to force a full render. The structured `obs.inventory` field is always present for views/tactics inside exec.)
-- `cursor` — `[row, col]` of the cursor on the TTY (your `@` is usually here). Note **row first, NLE order**.
+- `cursor` — `[row, col]` of the player `@` in **dungeon-relative coords**. row is 0..20, col is 0..78. This indexes directly into `chars[r][c]` — NO `+1` row offset to apply. All 2D obs grids (chars, colors, glyphs, descriptions, seen) share this same indexing.
 - `terminated` / `truncated` — game-over flags.
 - `reward` (on `do`) — gym reward for the step.
-- `chars`, `colors`, `descriptions`, `glyphs`, `seen` — only present inside `exec()`.
-  - `seen` (24×80 booleans): True for cells we've ever had LoS on (this level). Use this for true frontier detection rather than testing for blank in chars.
+- `chars`, `colors`, `descriptions`, `glyphs`, `seen` — only present inside `exec()`. **All 21×79, dungeon-only, same indexing.** No row/col offsets needed.
+  - `chars[r][c]` — rendered character (the `@`, walls, monsters, items, ...).
+  - `colors[r][c]` — NetHack color id (0..15) for that cell.
+  - `descriptions[r][c]` — per-cell description text (e.g. "fountain", "tame kitten").
+  - `glyphs[r][c]` — NetHack glyph id (use `from nle import nethack; nethack.glyph_is_normal_monster(g)` etc to classify).
+  - `seen[r][c]` — bool: ever had LoS on this cell on this level (NetHack's `seenv != 0`).
   - `chars` (24×80) and `colors` (24×80): the rendered tty grid.
   - `descriptions` (21×79): per-cell text descriptions (NetHack's `;` glance text).
   - `glyphs` (21×79): NetHack glyph IDs encoding type/identity (monsters/items only present when in LoS, terrain persists as remembered). Use with `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) to distinguish currently-visible from remembered terrain. **Don't `print(obs["glyphs"])`** — it's 1600 ints (~11KB) and would bloat your context. Iterate it programmatically and print summaries instead.

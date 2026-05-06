@@ -55,39 +55,36 @@ def _hostile_set(obs: dict[str, Any]) -> set[tuple[str, tuple[int, int]]]:
     if glyphs:
         try:
             from nle import nethack as _nh
-            for gr in range(len(glyphs)):
-                row = glyphs[gr]
-                for gc in range(len(row)):
-                    g = int(row[gc])
+            # All grids (glyphs, chars, cursor) share dungeon-relative 21x79
+            # indexing, so direct (r, c) comparisons work without offsets.
+            for r in range(len(glyphs)):
+                row = glyphs[r]
+                for c in range(len(row)):
+                    g = int(row[c])
                     if not _nh.glyph_is_normal_monster(g):
                         continue
                     if _nh.glyph_is_pet(g):
                         continue
-                    # glyphs[gr] aligns to chars[gr+1] (chars row 0 is the
-                    # message line; glyphs starts at the first dungeon row).
-                    cr = gr + 1
                     # NetHack renders the player as their race's monster glyph,
-                    # which IS in the normal_monster range — glyph_is_normal_monster
-                    # returns True for the player. Filter via cursor position.
-                    if (cr, gc) == player_pos:
+                    # which IS in the normal_monster range. Filter via cursor.
+                    if (r, c) == player_pos:
                         continue
-                    ch_int = chars[cr][gc] if cr < len(chars) and gc < len(chars[cr]) else 0
+                    ch_int = chars[r][c] if r < len(chars) and c < len(chars[r]) else 0
                     ch = chr(ch_int) if ch_int else "?"
-                    out.add((ch, (cr, gc)))
+                    out.add((ch, (r, c)))
             return out
         except ImportError:
             pass
     # Fallback: chars+descriptions heuristic (trips on statues but better
     # than nothing if glyphs aren't in scope).
     descs = obs.get("descriptions") or []
-    for r in range(1, min(22, len(chars))):
+    for r in range(len(chars)):
         row = chars[r]
         for c, ch_int in enumerate(row):
             ch = chr(ch_int) if ch_int else " "
             if not ch.isalpha() or ch == "@":
                 continue
-            dr = r - 1
-            desc = descs[dr][c] if 0 <= dr < len(descs) and 0 <= c < len(descs[dr]) else ""
+            desc = descs[r][c] if 0 <= r < len(descs) and 0 <= c < len(descs[r]) else ""
             if desc.startswith("tame ") or desc.startswith("statue"):
                 continue
             out.add((ch, (r, c)))

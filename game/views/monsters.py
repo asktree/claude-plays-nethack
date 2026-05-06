@@ -37,11 +37,11 @@ def monsters(obs: dict[str, Any]) -> str:
     if not chars:
         return "(monsters unavailable: obs has no `chars`; call from inside game.exec)"
 
-    # screen_descriptions is 21x79 covering rows 1..21 of chars; offset by 1.
+    # All grids (chars, descriptions, glyphs) use the same dungeon-relative
+    # 21x79 indexing. desc_at(r, c) is just descriptions[r][c].
     def desc_at(r: int, c: int) -> str:
-        dr = r - 1
-        if 0 <= dr < len(descriptions) and 0 <= c < len(descriptions[dr]):
-            return descriptions[dr][c]
+        if 0 <= r < len(descriptions) and 0 <= c < len(descriptions[r]):
+            return descriptions[r][c]
         return ""
 
     sightings: list[tuple[int, int, int, str, str, bool]] = []  # (dist, r, c, glyph, desc, tame)
@@ -58,28 +58,27 @@ def monsters(obs: dict[str, Any]) -> str:
             _nh = None
 
     if use_glyphs:
-        for gr in range(len(glyphs)):
-            row = glyphs[gr]
-            for gc in range(len(row)):
-                g = int(row[gc])
+        for r in range(len(glyphs)):
+            row = glyphs[r]
+            for c in range(len(row)):
+                g = int(row[c])
                 if not _nh.glyph_is_normal_monster(g):
                     continue
                 tame = bool(_nh.glyph_is_pet(g))
-                cr = gr + 1  # glyphs[gr] aligns to chars[gr+1]
                 # Player is in the normal_monster glyph range too. Filter via
                 # cursor (more robust than ch=='@' check, which would miss a
                 # polymorphed player rendered as a different char).
-                if (cr, gc) == (pr, pc):
+                if (r, c) == (pr, pc):
                     continue
-                ch_int = chars[cr][gc] if cr < len(chars) and gc < len(chars[cr]) else 0
+                ch_int = chars[r][c] if r < len(chars) and c < len(chars[r]) else 0
                 ch = chr(ch_int) if ch_int else "?"
-                desc = desc_at(cr, gc)
-                d = max(abs(cr - pr), abs(gc - pc))
-                sightings.append((d, cr, gc, ch, desc or f"unknown {ch!r}", tame))
+                desc = desc_at(r, c)
+                d = max(abs(r - pr), abs(c - pc))
+                sightings.append((d, r, c, ch, desc or f"unknown {ch!r}", tame))
     else:
         # Fallback: chars+descriptions heuristic. Filters statues by description
         # ("statue of ...") since glyphs aren't available.
-        for r in range(1, min(22, len(chars))):
+        for r in range(len(chars)):
             row = chars[r]
             for c, ch_int in enumerate(row):
                 ch = chr(ch_int) if ch_int else " "

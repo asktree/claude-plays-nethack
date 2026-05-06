@@ -29,11 +29,16 @@ def _bearing(pr: int, pc: int, r: int, c: int) -> str:
 
 
 def unexplored(obs: dict[str, Any], max_results: int = 12) -> str:
-    """List explored walkable cells with at least one unseen 4-neighbor.
+    """List explored walkable cells worth exploring further.
 
-    These are the boundary between known map and the dark — walking onto a
-    frontier and stepping further reveals new territory. Sorted by Chebyshev
-    distance from the player (i.e. NetHack movement cost), closest first.
+    Frontiers come in two flavors:
+      1. Walkable cells with at least one unseen 4-neighbor — the boundary
+         between known and unknown.
+      2. Closed `+` doors regardless of neighbor seen-status — even if the
+         door cell itself is "seen", what's beyond is gated until you walk
+         through. Always worth a visit.
+
+    Sorted by Chebyshev distance (NetHack movement cost), closest first.
     """
     chars = obs.get("chars") or []
     if not chars:
@@ -46,29 +51,30 @@ def unexplored(obs: dict[str, Any], max_results: int = 12) -> str:
 
     seen = obs.get("seen") or []
     frontiers: list[tuple[int, int, int, str]] = []
-    # Dungeon area is rows 1..21 (row 0 = message, 22-23 = status).
-    for r in range(1, min(22, h)):
+    for r in range(h):
         for c in range(w):
             ch_int = chars[r][c]
             ch = chr(ch_int) if ch_int else " "
             if ch not in WALKABLE:
                 continue
-            # A true frontier: walkable cell with at least one UNSEEN neighbor.
-            # Falls back to the old "blank neighbor" heuristic when no seen
-            # grid is available.
             is_frontier = False
-            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                nr, nc = r + dr, c + dc
-                if not (0 <= nr < h and 0 <= nc < w):
-                    continue
-                if seen and 0 <= nr < len(seen) and 0 <= nc < len(seen[nr]):
-                    if not seen[nr][nc]:
-                        is_frontier = True
-                        break
-                else:
-                    if _is_blank(_at(chars, nr, nc)):
-                        is_frontier = True
-                        break
+            # Rule 2: closed doors are always frontiers.
+            if ch == "+":
+                is_frontier = True
+            # Rule 1: walkable cells adjacent to unseen.
+            else:
+                for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    nr, nc = r + dr, c + dc
+                    if not (0 <= nr < h and 0 <= nc < w):
+                        continue
+                    if seen and 0 <= nr < len(seen) and 0 <= nc < len(seen[nr]):
+                        if not seen[nr][nc]:
+                            is_frontier = True
+                            break
+                    else:
+                        if _is_blank(_at(chars, nr, nc)):
+                            is_frontier = True
+                            break
             if is_frontier:
                 d = max(abs(r - pr), abs(c - pc))  # Chebyshev = NetHack moves
                 frontiers.append((d, r, c, ch))
