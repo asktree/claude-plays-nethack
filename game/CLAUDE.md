@@ -12,14 +12,15 @@ You play through the `nethack` MCP server. Four tools, that's the whole surface.
 ## Observation shape
 
 Each tool returns a dict:
-- `screen` — the rendered TTY screen as a multi-line string. What a human sees.
+- `screen` — the rendered TTY screen as a multi-line string. **`?` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** A `?` on a `.` floor cell inside a room is just a scroll item (vanilla NetHack glyph). The harness auto-tracks which cells you've ever seen (per-level) and overlays the marker so you can tell exploration frontier apart from passed-by void. Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
 - `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
 - `inventory` — list of `{letter, text}` for what you're carrying. (In `do()` tool results the rendered text dedupes when unchanged — you'll see "(unchanged from last turn)" instead. Call `observe()` to force a full render. The structured `obs.inventory` field is always present for views/tactics inside exec.)
 - `cursor` — `[row, col]` of the cursor on the TTY (your `@` is usually here). Note **row first, NLE order**.
 - `terminated` / `truncated` — game-over flags.
 - `reward` (on `do`) — gym reward for the step.
-- `chars`, `colors`, `descriptions`, `glyphs` — only present inside `exec()`.
+- `chars`, `colors`, `descriptions`, `glyphs`, `seen` — only present inside `exec()`.
+  - `seen` (24×80 booleans): True for cells we've ever had LoS on (this level). Use this for true frontier detection rather than testing for blank in chars.
   - `chars` (24×80) and `colors` (24×80): the rendered tty grid.
   - `descriptions` (21×79): per-cell text descriptions (NetHack's `;` glance text).
   - `glyphs` (21×79): NetHack glyph IDs encoding type/identity (monsters/items only present when in LoS, terrain persists as remembered). Use with `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) to distinguish currently-visible from remembered terrain. **Don't `print(obs["glyphs"])`** — it's 1600 ints (~11KB) and would bloat your context. Iterate it programmatically and print summaries instead.

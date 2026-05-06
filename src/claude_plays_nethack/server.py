@@ -33,6 +33,11 @@ if str(GAME_DIR) not in sys.path:
     sys.path.insert(0, str(GAME_DIR))
 
 ENV_ID = os.environ.get("NETHACK_ENV", "NetHackChallenge-v0")
+# Char substituted for `' '` cells we've never had line-of-sight to. ASCII so
+# it's single-width in the model's text view. `?` collides with NetHack's
+# scroll glyph, but scrolls only appear on `.` floor — `?` in the rock-void
+# region is unambiguously unseen-rock by context. Override with env var.
+UNSEEN_CHAR = os.environ.get("NETHACK_UNSEEN_CHAR", "?")
 
 mcp = FastMCP("nethack")
 
@@ -54,6 +59,11 @@ class GameState:
         # actually rendered. `do()` skips the inventory section when unchanged
         # since last rendered, to keep tool_results small in long sessions.
         self.last_rendered_inventory: list[dict[str, str]] | None = None
+        # Per-level "seen" boolean grid (24x80). Marks any cell that has ever
+        # been rendered as a non-blank glyph OR was adjacent to @. The `screen`
+        # render substitutes UNSEEN_CHAR for `' '` cells where seen is False,
+        # so the gamer can distinguish unexplored frontier from known void.
+        self.seen_per_level: dict[tuple[int, int], list[list[bool]]] = {}
 
     def ensure_env(self) -> gym.Env:
         if self.env is None:
@@ -113,6 +123,45 @@ class GameState:
             )
         raise TypeError(f"action must be int or str, got {type(action).__name__}")
 
+    def _level_key(self, obs: dict[str, Any]) -> tuple[int, int] | None:
+        if obs is None or "blstats" not in obs:
+            return None
+        bl = _decode_blstats(obs)
+        return (bl.get("dungeon_number", 0), bl.get("level_number", 0))
+
+    def update_seen(self, obs: dict[str, Any]) -> None:
+        """Mark cells as seen: any non-blank in chars + 8 cells around @.
+
+        Heuristic — under-marks slightly (a fully lit room beyond @'s 8-cell
+        adjacency is only marked as cells get rendered as `.` floor). False
+        positives self-correct on the next obs since the cell will render
+        as something non-blank then. False negatives (mark unseen as seen)
+        don't happen with this rule.
+        """
+        if obs is None:
+            return
+        key = self._level_key(obs)
+        if key is None:
+            return
+        seen = self.seen_per_level.setdefault(key, [[False] * 80 for _ in range(24)])
+        chars = obs["tty_chars"]
+        for r in range(1, 22):
+            row = chars[r]
+            for c in range(80):
+                v = int(row[c])
+                if v != 0 and v != 0x20:
+                    seen[r][c] = True
+        cy, cx = int(obs["tty_cursor"][0]), int(obs["tty_cursor"][1])
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                rr, cc = cy + dr, cx + dc
+                if 0 <= rr < 24 and 0 <= cc < 80:
+                    seen[rr][cc] = True
+
+    def current_seen(self, obs: dict[str, Any]) -> list[list[bool]] | None:
+        key = self._level_key(obs)
+        return self.seen_per_level.get(key) if key is not None else None
+
     def log(self, record: dict[str, Any]) -> None:
         record = {"t": time.time(), "session": self.session_id, **record}
         with self.trajectory_path.open("a") as fh:
@@ -123,15 +172,33 @@ STATE = GameState()
 
 
 def _render_screen(obs: dict[str, Any]) -> str:
-    """Render the dungeon map, stripping NLE's top message row and bottom status rows.
+    """Render the dungeon map, with `' '` cells replaced by UNSEEN_CHAR when
+    they've never been in line-of-sight on the current level.
 
-    NLE's tty_chars is 24×80: row 0 is the message line, rows 22-23 are the status
-    lines. Both are already surfaced in our snapshot (`message`, `blstats`), so
-    keeping them in the screen string would just duplicate info and bloat tokens.
+    NLE's tty_chars is 24×80: row 0 is the message line, rows 22-23 are status.
+    Both are already in our snapshot (`message`, `blstats`); we strip them.
+    The UNSEEN_CHAR overlay distinguishes "I've passed by here, it's just rock"
+    from "I've never been near this cell" — vanilla NetHack renders both as
+    `' '`, which made the frontier ambiguous.
     """
-    rows = ["".join(chr(int(c)) for c in row).rstrip() for row in obs["tty_chars"]]
-    map_rows = rows[1:-2]
-    # trim leading/trailing fully-blank rows
+    chars = obs["tty_chars"]
+    seen = STATE.current_seen(obs)
+    decorative = " " + UNSEEN_CHAR  # chars to strip from line endings
+    map_rows: list[str] = []
+    for r in range(1, 22):
+        row_chars = chars[r]
+        line = []
+        for c in range(80):
+            v = int(row_chars[c])
+            ch = chr(v) if v else " "
+            if ch == " " and seen is not None and not seen[r][c]:
+                ch = UNSEEN_CHAR
+            line.append(ch)
+        # rstrip both spaces AND the unseen marker — the trailing run
+        # carries no info ("more unseen to the right") and would multiply
+        # token cost across 21 rows × 500+ steps.
+        map_rows.append("".join(line).rstrip(decorative))
+    # drop top/bottom rows that are entirely decorative
     while map_rows and not map_rows[0]:
         map_rows.pop(0)
     while map_rows and not map_rows[-1]:
@@ -334,6 +401,11 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
         # render in LoS) from remembered (terrain persists).
         if "glyphs" in obs:
             snap["glyphs"] = [[int(g) for g in row] for row in obs["glyphs"]]
+        # Per-level seen grid (24x80 booleans). Auto-tracked; views (e.g.
+        # unexplored) use this for true frontier detection.
+        seen = STATE.current_seen(obs)
+        if seen is not None:
+            snap["seen"] = [list(row) for row in seen]  # copy
     return snap
 
 
@@ -342,11 +414,13 @@ def _reset() -> dict[str, Any]:
     # Generate and log a known seed so the run is reproducible from the trajectory.
     import random
     seed = int(os.environ.get("NETHACK_SEED") or random.randint(0, 2**31 - 1))
+    STATE.seen_per_level.clear()  # fresh game, fresh memory
     obs, info = env.reset(seed=seed)
     STATE.last_obs = obs
     STATE.last_info = info
     STATE.terminated = False
     STATE.truncated = False
+    STATE.update_seen(obs)
     # Roll the trajectory file: every game gets its own <timestamp>-<seed>.jsonl
     # so post-hoc analysis splits naturally per game (vs per server-session).
     STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{seed}.jsonl"
@@ -384,6 +458,7 @@ def _do(action: int | str) -> dict[str, Any]:
     obs, reward, terminated, truncated, info = env.step(idx)
     STATE.last_obs = obs
     STATE.last_info = info
+    STATE.update_seen(obs)
 
     # Auto-MORE: when NetHack shows --More-- on the top line, the only useful
     # input is to advance. Loop press MORE until the prompt clears, accumulating
@@ -405,6 +480,7 @@ def _do(action: int | str) -> dict[str, Any]:
             obs, more_reward, terminated, truncated, info = env.step(more_idx)
             STATE.last_obs = obs
             STATE.last_info = info
+            STATE.update_seen(obs)
             new_msg = _decode_message(obs).strip()
             if new_msg:
                 messages.append(new_msg)

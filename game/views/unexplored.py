@@ -44,6 +44,7 @@ def unexplored(obs: dict[str, Any], max_results: int = 12) -> str:
     h = len(chars)
     w = len(chars[0]) if chars else 0
 
+    seen = obs.get("seen") or []
     frontiers: list[tuple[int, int, int, str]] = []
     # Dungeon area is rows 1..21 (row 0 = message, 22-23 = status).
     for r in range(1, min(22, h)):
@@ -52,8 +53,23 @@ def unexplored(obs: dict[str, Any], max_results: int = 12) -> str:
             ch = chr(ch_int) if ch_int else " "
             if ch not in WALKABLE:
                 continue
-            if any(_is_blank(_at(chars, r + dr, c + dc))
-                   for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1))):
+            # A true frontier: walkable cell with at least one UNSEEN neighbor.
+            # Falls back to the old "blank neighbor" heuristic when no seen
+            # grid is available.
+            is_frontier = False
+            for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nr, nc = r + dr, c + dc
+                if not (0 <= nr < h and 0 <= nc < w):
+                    continue
+                if seen and 0 <= nr < len(seen) and 0 <= nc < len(seen[nr]):
+                    if not seen[nr][nc]:
+                        is_frontier = True
+                        break
+                else:
+                    if _is_blank(_at(chars, nr, nc)):
+                        is_frontier = True
+                        break
+            if is_frontier:
                 d = max(abs(r - pr), abs(c - pc))  # Chebyshev = NetHack moves
                 frontiers.append((d, r, c, ch))
 
