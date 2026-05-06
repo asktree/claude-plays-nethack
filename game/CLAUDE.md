@@ -54,6 +54,8 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
 
 - **`travel_to_nearest(symbol, index=0)`** — find the nth-nearest cell with that glyph and travel_to it. Great for grabbing items: `travel_to_nearest('$')` for gold, `travel_to_nearest('!')` for a potion, `travel_to_nearest('?')` for a scroll. `index=1` is the 2nd-nearest, etc.
 
+- **`auto_explore()`** — repeatedly travels to the nearest unexplored frontier on this level until exploration is done OR a hostile comes into view OR no progress is possible. One call to clear a level methodically. Returns a summary dict with `reason`, `iters`, `targets`. Pair with `safe_do`'s philosophy: any visible hostile halts exploration; you choose how to handle.
+
 - **`look_at(row, col)`** / **`look_at_nearest(symbol, index=0)`** — uses NetHack's `Command.GLANCE` to identify what's at a cell. Returns the post-glance snapshot whose `message` is NetHack's description (e.g. `"kobold; a small humanoid"`, `"(a fountain)"`). Useful when a glyph is ambiguous from `chars` alone.
 
 - **`safe_do(action)`** — a wrapped `do()` that **raises `Interrupted`** if a watched condition fires after the step. Use this for non-Travel sequences (search loops, kicking, item interactions, etc.) so you don't blindly chain past new threats.

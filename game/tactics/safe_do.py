@@ -67,21 +67,27 @@ def _new_monster(pre: dict, post: dict) -> str | None:
     return "new monster in view: " + ", ".join(parts)
 
 
-def _adjacent_hostile(pre: dict, post: dict) -> str | None:
-    """Fire if any hostile sits in the 8 cells around @, regardless of when it
-    appeared. Catches the case where a known monster (already in baseline) keeps
-    attacking while the gamer continues a script — e.g. the bat-vs-Valkyrie
-    death where safe_do's new_monster check wouldn't re-fire on a known threat.
+def _hostile_in_view(pre: dict, post: dict) -> str | None:
+    """Fire on ANY hostile visible after the step, regardless of distance or
+    whether it was already in baseline.
+
+    Rationale: safe_do is for scripted sequences. If any hostile is visible,
+    the gamer should stop scripting and decide consciously. Most of the time
+    there are no enemies visible, so safe_do is a no-op; when there are, you
+    need to handle them. The previous distance-1 rule missed cases like the
+    bat-vs-Valkyrie post-mortem where a known hostile kept attacking through
+    a long search loop. This also matches NetHack's Travel behavior, which
+    auto-stops on any hostile in view.
     """
     cursor = post.get("cursor") or [0, 0]
     pr, pc = int(cursor[0]), int(cursor[1])
     threats = _hostile_set(post)
-    adjacent = [(ch, (r, c)) for ch, (r, c) in threats
-                if max(abs(r - pr), abs(c - pc)) <= 1]
-    if not adjacent:
+    if not threats:
         return None
-    parts = [f"'{ch}' at ({r},{c})" for ch, (r, c) in sorted(adjacent)[:3]]
-    return "hostile adjacent — bare do() to engage/flee: " + ", ".join(parts)
+    sorted_threats = sorted(threats, key=lambda t: max(abs(t[1][0] - pr), abs(t[1][1] - pc)))
+    parts = [f"'{ch}' at ({r},{c})" for ch, (r, c) in sorted_threats[:3]]
+    suffix = "" if len(threats) <= 3 else f" (+{len(threats)-3} more)"
+    return f"hostile in view — bare do() to engage/flee: {', '.join(parts)}{suffix}"
 
 
 def _hp_drop(pre: dict, post: dict, frac: float = 0.25) -> str | None:
@@ -102,7 +108,9 @@ def _terminated(_pre: dict, post: dict) -> str | None:
     return None
 
 
-DEFAULT_INTERRUPTS: list[Interrupt] = [_adjacent_hostile, _new_monster, _hp_drop, _terminated]
+DEFAULT_INTERRUPTS: list[Interrupt] = [_hostile_in_view, _hp_drop, _terminated]
+# _new_monster removed — _hostile_in_view subsumes it (any hostile visible is
+# a stop, not just newly-appeared ones).
 
 
 def safe_do(

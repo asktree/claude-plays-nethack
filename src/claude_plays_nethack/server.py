@@ -274,6 +274,14 @@ def _decode_blstats(obs: dict[str, Any]) -> dict[str, int]:
     return {k: int(bl[i]) for i, k in enumerate(keys) if i < len(bl)}
 
 
+# NetHack hunger states from include/hack.h. The header was showing a raw int
+# (e.g. "Hunger=2") which the gamer kept missing — labels are unmissable.
+HUNGER_LABELS = {
+    0: "Satiated", 1: "Normal", 2: "Hungry",
+    3: "Weak", 4: "Fainting", 5: "Fainted", 6: "Starved",
+}
+
+
 def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> str:
     """Render a snapshot as the text the model will actually read.
 
@@ -285,6 +293,8 @@ def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> 
     if not snap.get("started"):
         return snap.get("hint", "(no game started)")
     bl = snap.get("blstats", {})
+    hunger_int = bl.get("hunger_state", "?")
+    hunger = HUNGER_LABELS.get(hunger_int, str(hunger_int))
     lines = []
     lines.append(
         f"T={bl.get('time','?')}  "
@@ -294,7 +304,7 @@ def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> 
         f"AC={bl.get('armor_class','?')}  "
         f"$={bl.get('gold','?')}  "
         f"XP={bl.get('experience_level','?')}/{bl.get('experience_points','?')}  "
-        f"Hunger={bl.get('hunger_state','?')}"
+        f"Hunger={hunger}"
     )
     msg = snap.get("message") or ""
     if msg:
