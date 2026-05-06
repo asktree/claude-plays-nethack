@@ -82,6 +82,8 @@ class GameState:
                 "inv_glyphs", "inv_strs", "inv_letters", "inv_oclasses",
                 "screen_descriptions",
                 "glyphs",  # 21x79 NetHack glyph IDs — encode monster/item/terrain type
+                "seenv",   # 21x79 NetHack seenv bitmask — ground truth for "seen this cell"
+                           # (requires our forked NLE; see /Users/em/Coding/nle-fork)
             )
             self.env = gym.make(ENV_ID, observation_keys=obs_keys)
             self.actions_tuple = tuple(self.env.unwrapped.actions)
@@ -139,70 +141,35 @@ class GameState:
         return (bl.get("dungeon_number", 0), bl.get("level_number", 0))
 
     def update_seen(self, obs: dict[str, Any]) -> None:
-        """Mark cells as seen via two complementary rules:
+        """Read NetHack's per-cell seenv bitmask directly into our seen grid.
 
-        1. Any non-blank char in tty_chars: NetHack renders every cell in
-           current LoS as a non-blank glyph (lit rooms fully render on entry;
-           dark rooms render cells you illuminate; corridor cells you walk
-           through render). Remembered terrain also persists as non-blank.
+        seenv is a uint8 per dungeon cell tracking which directions the player
+        has viewed the cell from. Any non-zero value means "seen at least once."
+        This is NetHack's ground truth — much better than our previous
+        chars+diagonal-LoS heuristic. Exposed by our forked NLE (see
+        /Users/em/Coding/nle-fork) which we patched to mirror levl[].seenv into
+        the obs buffer per turn.
 
-        2. Cells immediately around @ that are in proper LoS: cardinals
-           always count (direct adjacency, can't be obstructed); diagonals
-           count UNLESS both cardinal neighbors in that direction are walls
-           — that's NetHack's own diagonal LoS rule (you can't see through
-           an X-corner of walls).
-
-        Rule 2 captures rock cells you walk PAST in a corridor — vanilla
-        NetHack itself doesn't distinguish seen-rock from unseen-rock (both
-        render as ' '), but we want to. Critically, the wall-blocking check
-        prevents the through-walls bug an earlier version had.
-
-        NLE doesn't expose levl[].seenv, so we can't query NetHack's actual
-        per-cell vision history. Rules 1+2 approximate it correctly.
+        seenv shape is 21x79 (DUNGEON_SHAPE) with rows starting at chars row 1.
+        We map seenv[gr][gc] → seen[gr+1][gc] so seen indexing matches tty_chars.
         """
-        if obs is None:
+        if obs is None or "seenv" not in obs:
             return
         key = self._level_key(obs)
         if key is None:
             return
         seen = self.seen_per_level.setdefault(key, [[False] * DUNGEON_COLS for _ in range(DUNGEON_ROWS_END)])
-        chars = obs["tty_chars"]
-        # Rule 1: anything NetHack rendered.
-        for r in range(DUNGEON_ROWS_START, DUNGEON_ROWS_END):
-            row = chars[r]
-            for c in range(DUNGEON_COLS):
-                v = int(row[c])
-                if v != 0 and v != 0x20:
-                    seen[r][c] = True
-        # Rule 2: 8 cells around @, with NetHack's diagonal LoS rule.
-        cy, cx = int(obs["tty_cursor"][0]), int(obs["tty_cursor"][1])
-
-        def _in_bounds(r: int, c: int) -> bool:
-            return DUNGEON_ROWS_START <= r < DUNGEON_ROWS_END and 0 <= c < DUNGEON_COLS
-
-        def _is_wall(r: int, c: int) -> bool:
-            if not _in_bounds(r, c):
-                return True  # off-map = effectively wall
-            v = int(chars[r][c])
-            return v != 0 and chr(v) in "-|"
-
-        # Cardinals — always visible (the cell may BE a wall, that's fine,
-        # walls are visible features).
-        for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            rr, cc = cy + dr, cx + dc
-            if _in_bounds(rr, cc):
-                seen[rr][cc] = True
-        # Diagonals — blocked only if BOTH cardinal neighbors are walls.
-        for dr, dc in ((-1, 1), (-1, -1), (1, 1), (1, -1)):
-            rr, cc = cy + dr, cx + dc
-            if not _in_bounds(rr, cc):
-                continue
-            if _is_wall(cy + dr, cx) and _is_wall(cy, cx + dc):
-                continue  # X-corner blocks LoS
-            seen[rr][cc] = True
-        # @'s own cell.
-        if _in_bounds(cy, cx):
-            seen[cy][cx] = True
+        seenv = obs["seenv"]
+        for gr in range(len(seenv)):
+            row = seenv[gr]
+            cr = gr + 1  # align to tty_chars row indexing
+            if cr >= DUNGEON_ROWS_END:
+                break
+            for gc in range(len(row)):
+                if gc >= DUNGEON_COLS:
+                    break
+                if int(row[gc]) != 0:
+                    seen[cr][gc] = True
 
     def current_seen(self, obs: dict[str, Any]) -> list[list[bool]] | None:
         key = self._level_key(obs)

@@ -33,6 +33,7 @@ The split exists so that:
 ## Stack
 
 - Python 3.12 (brew). NLE rebuilt with `CC=/usr/bin/clang` to dodge a libc++ symbol mismatch — see memory note `nle_build_macos.md`.
+- **Forked NLE** at `/Users/em/Coding/nle-fork` — patched to expose `obs.seenv` (per-cell `levl[].seenv` bitmask, NetHack's ground-truth visibility data). Patches: `include/nletypes.h`, `win/rl/winrl.cc`, `win/rl/pynethack.cc`, `nle/nethack/nethack.py`, `nle/env/base.py`, `CMakeLists.txt` (https sourceware for bzip2 since git:// port 9418 is firewalled). Reinstall via `cd /Users/em/Coding/nle-fork && CC=/usr/bin/clang CXX=/usr/bin/clang++ pip install --no-cache-dir .` from the project venv.
 - FastMCP 3.x for the server. Test in-process via `from fastmcp import Client; Client(mcp)`.
 - Env: `NetHackChallenge-v0` (full 121-action space).
 
