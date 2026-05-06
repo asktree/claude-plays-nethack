@@ -45,19 +45,49 @@ def monsters(obs: dict[str, Any]) -> str:
         return ""
 
     sightings: list[tuple[int, int, int, str, str, bool]] = []  # (dist, r, c, glyph, desc, tame)
-    # Only the dungeon area (rows 1..21). Row 0 is the message line, rows 22-23
-    # are status — those contain alpha characters that aren't monsters.
-    DUNGEON_ROW_START, DUNGEON_ROW_END = 1, 22  # half-open
-    for r in range(DUNGEON_ROW_START, min(DUNGEON_ROW_END, len(chars))):
-        row = chars[r]
-        for c, ch_int in enumerate(row):
-            ch = chr(ch_int) if ch_int else " "
-            if not ch.isalpha() or ch == PLAYER:
-                continue
-            desc = desc_at(r, c)
-            tame = desc.startswith("tame ")
-            d = max(abs(r - pr), abs(c - pc))  # Chebyshev = NetHack moves
-            sightings.append((d, r, c, ch, desc or f"unknown {ch!r}", tame))
+    # Use NLE's glyph predicates so we don't false-positive on statues
+    # (they render as their monster letter, e.g. `H` for a giant statue).
+    glyphs = obs.get("glyphs") or []
+    use_glyphs = False
+    _nh = None
+    if glyphs:
+        try:
+            from nle import nethack as _nh  # type: ignore
+            use_glyphs = True
+        except ImportError:
+            _nh = None
+
+    if use_glyphs:
+        for gr in range(len(glyphs)):
+            row = glyphs[gr]
+            for gc in range(len(row)):
+                g = int(row[gc])
+                if not _nh.glyph_is_normal_monster(g):
+                    continue
+                tame = bool(_nh.glyph_is_pet(g))
+                cr = gr + 1  # glyphs[gr] aligns to chars[gr+1]
+                ch_int = chars[cr][gc] if cr < len(chars) and gc < len(chars[cr]) else 0
+                ch = chr(ch_int) if ch_int else "?"
+                if ch == PLAYER:
+                    continue
+                desc = desc_at(cr, gc)
+                d = max(abs(cr - pr), abs(gc - pc))
+                sightings.append((d, cr, gc, ch, desc or f"unknown {ch!r}", tame))
+    else:
+        # Fallback: chars+descriptions heuristic. Filters statues by description
+        # ("statue of ...") since glyphs aren't available.
+        for r in range(1, min(22, len(chars))):
+            row = chars[r]
+            for c, ch_int in enumerate(row):
+                ch = chr(ch_int) if ch_int else " "
+                if not ch.isalpha() or ch == PLAYER:
+                    continue
+                desc = desc_at(r, c)
+                if desc.startswith("statue"):
+                    continue
+                tame = desc.startswith("tame ")
+                d = max(abs(r - pr), abs(c - pc))
+                sightings.append((d, r, c, ch, desc or f"unknown {ch!r}", tame))
 
     if not sightings:
         return "No monsters visible."

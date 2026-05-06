@@ -39,10 +39,40 @@ class Interrupted(Exception):
 
 
 def _hostile_set(obs: dict[str, Any]) -> set[tuple[str, tuple[int, int]]]:
-    """Set of (glyph, (row, col)) for hostile/peaceful monsters in dungeon area."""
+    """Set of (glyph_char, (chars_row, col)) for actual hostile/peaceful monsters.
+
+    Uses NLE's `glyph_is_normal_monster()` which returns False for statues,
+    pets, objects, terrain, invisible-markers, swallow effects, etc. — only
+    True for real wild/peaceful monsters that can hurt you. Char-based
+    detection (alpha glyphs in dungeon area) trips on statues, which render
+    as their monster letter (e.g. `H` for a giant statue).
+    """
+    glyphs = obs.get("glyphs") or []
     chars = obs.get("chars") or []
-    descs = obs.get("descriptions") or []
     out: set[tuple[str, tuple[int, int]]] = set()
+    if glyphs:
+        try:
+            from nle import nethack as _nh
+            for gr in range(len(glyphs)):
+                row = glyphs[gr]
+                for gc in range(len(row)):
+                    g = int(row[gc])
+                    if not _nh.glyph_is_normal_monster(g):
+                        continue
+                    if _nh.glyph_is_pet(g):
+                        continue
+                    # glyphs[gr] aligns to chars[gr+1] (chars row 0 is the
+                    # message line; glyphs starts at the first dungeon row).
+                    cr = gr + 1
+                    ch_int = chars[cr][gc] if cr < len(chars) and gc < len(chars[cr]) else 0
+                    ch = chr(ch_int) if ch_int else "?"
+                    out.add((ch, (cr, gc)))
+            return out
+        except ImportError:
+            pass
+    # Fallback: chars+descriptions heuristic (trips on statues but better
+    # than nothing if glyphs aren't in scope).
+    descs = obs.get("descriptions") or []
     for r in range(1, min(22, len(chars))):
         row = chars[r]
         for c, ch_int in enumerate(row):
@@ -50,10 +80,8 @@ def _hostile_set(obs: dict[str, Any]) -> set[tuple[str, tuple[int, int]]]:
             if not ch.isalpha() or ch == "@":
                 continue
             dr = r - 1
-            desc = ""
-            if 0 <= dr < len(descs) and 0 <= c < len(descs[dr]):
-                desc = descs[dr][c]
-            if desc.startswith("tame "):
+            desc = descs[dr][c] if 0 <= dr < len(descs) and 0 <= c < len(descs[dr]) else ""
+            if desc.startswith("tame ") or desc.startswith("statue"):
                 continue
             out.add((ch, (r, c)))
     return out
