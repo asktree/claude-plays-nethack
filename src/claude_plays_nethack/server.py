@@ -405,6 +405,10 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
     colors_grid = [[int(c) for c in row] for row in obs["tty_colors"]]
     descs_grid = _decode_screen_descriptions(obs)
     seen_grid = STATE.current_seen(obs)
+    glyphs_grid = (
+        [[int(g) for g in row] for row in obs["glyphs"]]
+        if "glyphs" in obs else None
+    )
     state = {
         "session": snap.get("session"),
         "terminated": snap.get("terminated"),
@@ -416,6 +420,7 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
         "chars": chars_grid,
         "colors": colors_grid,
         "descriptions": descs_grid,
+        "glyphs": glyphs_grid,
         "seen": [list(row) for row in seen_grid] if seen_grid else None,
         "trajectory_log": snap.get("trajectory_log"),
     }
