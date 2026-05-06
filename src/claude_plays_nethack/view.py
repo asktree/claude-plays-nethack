@@ -234,26 +234,46 @@ def _read_state() -> dict[str, Any] | None:
         return None
 
 
+UNSEEN_GLYPH = "░"  # light-shade block; single-width in mac monospace; "fog"
+UNSEEN_STYLE = "grey50"  # rich's standard dim-grey; renders as 50% white
+
+
 def _build_screen(state: dict[str, Any]) -> tuple[Text, int, int]:
     """Render the full colored dungeon map. Returns (text, width, height).
 
-    NetHack's dungeon area is fixed at 21 rows x 80 cols (rows 1..21 of the
-    24-row tty; rows 0 and 22-23 are message and status). We drop those four
-    rows but keep the full 21x80 grid even when mostly blank — position
-    consistency matters for spatial reasoning, and frame-to-frame layout
-    shouldn't shift around as the player explores.
+    NetHack's dungeon is rows 1..21 of the 24-row tty; rows 0 and 22-23 are
+    message + status. We keep the full 21-row grid even when mostly blank so
+    layout doesn't shift as the player explores.
+
+    Cells that have never been in line-of-sight are rendered as a dim-grey
+    `░` (fog), matching the model's text overlay (which uses '°') so the
+    human view and the model view agree on what's frontier vs known void.
     """
     chars = state["chars"]
     colors = state["colors"]
+    seen = state.get("seen")  # may be None for older live states
     rows_chars = chars[1:-2]
     rows_colors = colors[1:-2]
 
     out = Text()
-    for i, (row_chars, row_colors) in enumerate(zip(rows_chars, rows_colors, strict=True)):
-        for ch, col in zip(row_chars, row_colors, strict=True):
-            char = chr(ch) if ch else " "
-            color_name = NH_COLOR_TO_RICH.get(int(col) & 0xF, "white")
-            out.append(char, style=color_name)
+    for i in range(len(rows_chars)):
+        row_chars = rows_chars[i]
+        row_colors = rows_colors[i]
+        actual_r = i + 1  # original tty row index
+        for c in range(len(row_chars)):
+            ch_int = row_chars[c]
+            char = chr(ch_int) if ch_int else " "
+            is_unseen = (
+                seen is not None
+                and actual_r < len(seen)
+                and c < len(seen[actual_r])
+                and not seen[actual_r][c]
+            )
+            if char == " " and is_unseen:
+                out.append(UNSEEN_GLYPH, style=UNSEEN_STYLE)
+            else:
+                color_name = NH_COLOR_TO_RICH.get(int(row_colors[c]) & 0xF, "white")
+                out.append(char, style=color_name)
         if i < len(rows_chars) - 1:
             out.append("\n")
     width = len(rows_chars[0]) if rows_chars else 0
