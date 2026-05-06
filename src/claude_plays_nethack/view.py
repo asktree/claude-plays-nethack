@@ -310,28 +310,35 @@ def _build_inventory(state: dict[str, Any]) -> Panel:
     return Panel(body, title="Inventory", border_style="blue", padding=(0, 1))
 
 
-def _build_stats(state: dict[str, Any]) -> Panel:
-    """NetHack's familiar 2-row status as it would appear in-game.
+def _build_header(state: dict[str, Any]) -> Panel:
+    """Compact header panel that lives in col 1 above the map.
 
-    Row 22: "Agent the Footpad           St:15 Dx:18 Co:15 In:8 Wi:12 Ch:7 Chaotic"
+    Contains the character's full in-game status: NetHack's native 2-row
+    status block (name + class title + attributes + combat) plus the
+    latest message and game-over flag. NOT full-width — sits inside col 1.
+
+    Row 22: "Agent the Footpad     St:15 Dx:18 Co:15 In:8 Wi:12 Ch:7 Chaotic"
     Row 23: "Dlvl:1 $:0 HP:15(15) Pw:2(2) AC:7 Xp:1/0 T:2"
-
-    Includes character name + title (=role/class progression), stats, alignment,
-    and the live combat block. Color rules: HP/Pw bright when full, yellow when
-    below half, red when below quarter; hunger word colored when not Normal.
     """
     rows = state.get("status_rows") or []
-    bl = state.get("blstats", {}) or {}
+    msg = state.get("message", "") or ""
     body = Text()
     for i, row in enumerate(rows):
-        if not row.strip():
-            continue
-        body.append(row, style="bold")
-        if i < len(rows) - 1:
+        if row.strip():
+            body.append(row, style="bold")
             body.append("\n")
-    if not rows:
-        body = Text("(no status)", style="dim")
-    return Panel(body, title="Status", border_style="white", padding=(0, 1))
+    if msg:
+        body.append("msg: ", style="bold dark_orange")
+        body.append(msg, style="dark_orange")
+    elif body.plain.endswith("\n"):
+        # trim trailing newline if no msg follows
+        body = Text.from_markup(body.markup[:-1]) if body.plain else body
+    if state.get("terminated") or state.get("truncated"):
+        body.append("\n** GAME OVER **", style="bold red")
+    if not body.plain:
+        body = Text("(no status yet — waiting for game)", style="dim")
+    session = state.get("session") or "?"
+    return Panel(body, title=f"session={session}", border_style="white", padding=(0, 1))
 
 
 def _build_legend(state: dict[str, Any]) -> Panel:
@@ -446,76 +453,54 @@ def _build_log(
     return Panel(body, title=title, border_style=border, padding=(0, 1))
 
 
-def _build_header(state: dict[str, Any]) -> Panel:
-    """Slim header: session id + current message + game-over flag.
-
-    blstats moved to the col 1 Status panel; no longer duplicated here.
-    """
-    msg = state.get("message", "") or ""
-    session = state.get("session") or "?"
-    body = Text(f"session={session}", style="bold")
-    if msg:
-        body.append("  ")
-        body.append(f"msg: {msg}", style="italic dark_orange")
-    if state.get("terminated") or state.get("truncated"):
-        body.append("\n** GAME OVER **", style="bold red")
-    return Panel(body, border_style="white", padding=(0, 1))
-
-
 def _build_layout(state: dict[str, Any] | None,
                   traj: list[TrajectoryEvent],
                   sess: list[SessionEvent],
                   expanded: bool = False,
                   scroll: int = 0) -> Layout:
-    layout = Layout()
-    layout.split_column(
-        Layout(name="header", size=4),
-        Layout(name="body", ratio=1),
-    )
+    layout = Layout(name="root")
     if state is None:
-        layout["header"].update(Panel(Text(
-            "Waiting for live state... start a game with ./run.sh in another terminal.",
-            style="dim",
-        ), border_style="white"))
-        body = Layout(name="body")
-        body.split_row(
+        layout.split_row(
             Layout(_build_log(traj, sess, expanded=expanded, scroll=scroll), name="left"),
-            Layout(Panel(Text("(no map yet)", style="dim")), name="right", size=40),
+            Layout(
+                Panel(Text(
+                    "Waiting for live state... start a game with ./run.sh in another terminal.",
+                    style="dim",
+                ), border_style="white"),
+                name="right", size=40,
+            ),
         )
-        layout["body"].update(body)
         return layout
-
-    layout["header"].update(_build_header(state))
 
     map_text, map_w, map_h = _build_screen(state)
     map_panel_width = map_w + 4   # +2 borders, +2 padding
     map_panel_height = map_h + 2  # +2 borders
     map_panel = Panel(map_text, title="NetHack", border_style="white", padding=(0, 1), width=map_panel_width)
 
-    # Three-column layout per Iggy:
-    #   col 1: map (top, fixed size) + legend (below, rest of height)
-    #   col 2: activity log (widest, full body height)
-    #   col 3: inventory (~75% of previous 44-cell right-col width = 33)
-    body = Layout(name="body")
-    body.split_row(
+    # Three-column layout (no full-width header — header is INSIDE col 1):
+    #   col 1: header/stats (top) + map + legend (rest)
+    #   col 2: activity log (widest, full height)
+    #   col 3: inventory (33 wide)
+    layout.split_row(
         Layout(name="col1", size=map_panel_width),
-        Layout(name="col2"),  # widest, takes remaining
+        Layout(name="col2"),  # widest, remaining
         Layout(name="col3", size=33),
     )
 
     col1 = Layout(name="col1_inner")
-    # Stats panel: 2 status rows + 2 borders + padding ≈ 4 rows. Title adds 1.
+    # Header panel = NetHack's 2-row status + msg + game-over flag.
+    # Status rows are 2; with title bar + bottom border + msg line that's
+    # ~5-6 rows. Size 6 covers it without crowding the map.
     col1.split_column(
+        Layout(_build_header(state), name="header", size=6),
         Layout(map_panel, name="map", size=map_panel_height),
-        Layout(_build_stats(state), name="stats", size=4),
         Layout(_build_legend(state), name="legend"),
     )
-    body["col1"].update(col1)
+    layout["col1"].update(col1)
 
-    body["col2"].update(_build_log(traj, sess, expanded=expanded, scroll=scroll))
-    body["col3"].update(_build_inventory(state))
+    layout["col2"].update(_build_log(traj, sess, expanded=expanded, scroll=scroll))
+    layout["col3"].update(_build_inventory(state))
 
-    layout["body"].update(body)
     return layout
 
 
