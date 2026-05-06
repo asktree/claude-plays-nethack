@@ -139,24 +139,26 @@ class GameState:
         return (bl.get("dungeon_number", 0), bl.get("level_number", 0))
 
     def update_seen(self, obs: dict[str, Any]) -> None:
-        """Mark cells as seen: any non-blank glyph in chars on this turn.
+        """Mark cells as seen via two complementary rules:
 
-        NetHack renders every cell in current line-of-sight as a non-blank
-        char (lit rooms fully render on entry; dark rooms render the cells
-        you illuminate; corridors render the @'s cell). Cells you've seen
-        before persist as remembered terrain, also non-blank. So "non-blank
-        in chars" cleanly captures everything.
+        1. Any non-blank char in tty_chars: NetHack renders every cell in
+           current LoS as a non-blank glyph (lit rooms fully render on entry;
+           dark rooms render cells you illuminate; corridor cells you walk
+           through render). Remembered terrain also persists as non-blank.
 
-        We previously also marked the 8 cells around @, intended as
-        defensive paranoia for "what if a lit room doesn't render?". But
-        NetHack DOES render lit rooms, and the adjacency rule had no
-        wall-blocking check — when @ stood next to a wall, the cell on
-        the other side got marked seen. Removed: trust chars.
+        2. Cells immediately around @ that are in proper LoS: cardinals
+           always count (direct adjacency, can't be obstructed); diagonals
+           count UNLESS both cardinal neighbors in that direction are walls
+           — that's NetHack's own diagonal LoS rule (you can't see through
+           an X-corner of walls).
 
-        Trade-off: rock cells you walked PAST in corridors stay as
-        unseen (we never get told "yes that's rock there"). Matches
-        vanilla NetHack's own semantic — the game itself doesn't
-        distinguish seen-rock from unseen-rock either.
+        Rule 2 captures rock cells you walk PAST in a corridor — vanilla
+        NetHack itself doesn't distinguish seen-rock from unseen-rock (both
+        render as ' '), but we want to. Critically, the wall-blocking check
+        prevents the through-walls bug an earlier version had.
+
+        NLE doesn't expose levl[].seenv, so we can't query NetHack's actual
+        per-cell vision history. Rules 1+2 approximate it correctly.
         """
         if obs is None:
             return
@@ -165,12 +167,42 @@ class GameState:
             return
         seen = self.seen_per_level.setdefault(key, [[False] * DUNGEON_COLS for _ in range(DUNGEON_ROWS_END)])
         chars = obs["tty_chars"]
+        # Rule 1: anything NetHack rendered.
         for r in range(DUNGEON_ROWS_START, DUNGEON_ROWS_END):
             row = chars[r]
             for c in range(DUNGEON_COLS):
                 v = int(row[c])
                 if v != 0 and v != 0x20:
                     seen[r][c] = True
+        # Rule 2: 8 cells around @, with NetHack's diagonal LoS rule.
+        cy, cx = int(obs["tty_cursor"][0]), int(obs["tty_cursor"][1])
+
+        def _in_bounds(r: int, c: int) -> bool:
+            return DUNGEON_ROWS_START <= r < DUNGEON_ROWS_END and 0 <= c < DUNGEON_COLS
+
+        def _is_wall(r: int, c: int) -> bool:
+            if not _in_bounds(r, c):
+                return True  # off-map = effectively wall
+            v = int(chars[r][c])
+            return v != 0 and chr(v) in "-|"
+
+        # Cardinals — always visible (the cell may BE a wall, that's fine,
+        # walls are visible features).
+        for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            rr, cc = cy + dr, cx + dc
+            if _in_bounds(rr, cc):
+                seen[rr][cc] = True
+        # Diagonals — blocked only if BOTH cardinal neighbors are walls.
+        for dr, dc in ((-1, 1), (-1, -1), (1, 1), (1, -1)):
+            rr, cc = cy + dr, cx + dc
+            if not _in_bounds(rr, cc):
+                continue
+            if _is_wall(cy + dr, cx) and _is_wall(cy, cx + dc):
+                continue  # X-corner blocks LoS
+            seen[rr][cc] = True
+        # @'s own cell.
+        if _in_bounds(cy, cx):
+            seen[cy][cx] = True
 
     def current_seen(self, obs: dict[str, Any]) -> list[list[bool]] | None:
         key = self._level_key(obs)
