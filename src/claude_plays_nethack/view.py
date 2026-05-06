@@ -174,14 +174,34 @@ def _trajectory_record(rec: dict[str, Any]) -> list[TrajectoryEvent]:
 
 
 def _session_record(rec: dict[str, Any]) -> list[SessionEvent]:
-    if rec.get("type") != "assistant":
-        return []
     ts_str = rec.get("timestamp")
     try:
         ts = time.mktime(time.strptime(ts_str.split(".")[0], "%Y-%m-%dT%H:%M:%S")) if ts_str else 0
     except Exception:
         ts = 0
     out: list[SessionEvent] = []
+
+    # User-type messages: pull tool_result content and extract NetHack
+    # `msg: ...` lines so game messages flow into the activity log
+    # alongside thinking/text/tool_use, all from the same session-jsonl
+    # source so they share the same write-cadence.
+    if rec.get("type") == "user":
+        for b in rec.get("message", {}).get("content", []) or []:
+            if not isinstance(b, dict) or b.get("type") != "tool_result":
+                continue
+            content = b.get("content", "")
+            if isinstance(content, list):
+                content = "".join(c.get("text", "") for c in content if isinstance(c, dict))
+            for line in str(content).split("\n"):
+                if line.startswith("msg: "):
+                    msg = line[5:].strip()
+                    if msg:
+                        out.append(SessionEvent(t=ts, kind="msg", text=msg))
+                    break  # only the first msg: line per tool result
+        return out
+
+    if rec.get("type") != "assistant":
+        return []
     msg = rec.get("message", {})
     for block in msg.get("content", []):
         if not isinstance(block, dict):
@@ -339,6 +359,7 @@ def _build_log(
         "think": ("yellow", "💭"),
         "say":   ("cyan", "💬"),
         "call":  ("bright_blue", "🛠"),
+        "msg":   ("bright_yellow", "📜"),
     }
     COLLAPSED_CODE_LINES = 6
     COLLAPSED_TEXT_CHARS = 240
@@ -355,7 +376,7 @@ def _build_log(
     for e in visible:
         if e.kind == "thinking" and not e.text:
             continue
-        kind = {"thinking": "think", "text": "say", "tool_use": "call"}.get(e.kind)
+        kind = {"thinking": "think", "text": "say", "tool_use": "call", "msg": "msg"}.get(e.kind)
         if kind is None:
             continue
         color, icon = KIND_STYLE[kind]
@@ -452,30 +473,30 @@ def _build_layout(state: dict[str, Any] | None,
     layout["header"].update(_build_header(state))
 
     map_text, map_w, map_h = _build_screen(state)
-    # Panel adds 2 chars horizontal (borders), 2 vertical, plus our padding=(0,1) → +2 horizontal.
-    map_panel_width = map_w + 4
-    map_panel_height = map_h + 2
+    map_panel_width = map_w + 4   # +2 borders, +2 padding
+    map_panel_height = map_h + 2  # +2 borders
     map_panel = Panel(map_text, title="NetHack", border_style="white", padding=(0, 1), width=map_panel_width)
 
+    # Three-column layout per Iggy:
+    #   col 1: map (top, fixed size) + legend (below, rest of height)
+    #   col 2: activity log (widest, full body height)
+    #   col 3: inventory (~75% of previous 44-cell right-col width = 33)
     body = Layout(name="body")
     body.split_row(
-        Layout(name="left"),
-        Layout(name="right", size=44),
+        Layout(name="col1", size=map_panel_width),
+        Layout(name="col2"),  # widest, takes remaining
+        Layout(name="col3", size=33),
     )
 
-    left = Layout(name="left_inner")
-    left.split_column(
+    col1 = Layout(name="col1_inner")
+    col1.split_column(
         Layout(map_panel, name="map", size=map_panel_height),
-        Layout(_build_log(traj, sess, expanded=expanded, scroll=scroll), name="activity"),
-    )
-    body["left"].update(left)
-
-    right = Layout(name="right_inner")
-    right.split_column(
-        Layout(_build_inventory(state), name="inv"),
         Layout(_build_legend(state), name="legend"),
     )
-    body["right"].update(right)
+    body["col1"].update(col1)
+
+    body["col2"].update(_build_log(traj, sess, expanded=expanded, scroll=scroll))
+    body["col3"].update(_build_inventory(state))
 
     layout["body"].update(body)
     return layout
