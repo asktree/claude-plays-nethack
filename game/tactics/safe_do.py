@@ -49,6 +49,8 @@ def _hostile_set(obs: dict[str, Any]) -> set[tuple[str, tuple[int, int]]]:
     """
     glyphs = obs.get("glyphs") or []
     chars = obs.get("chars") or []
+    cursor = obs.get("cursor") or [0, 0]
+    player_pos = (int(cursor[0]), int(cursor[1]))
     out: set[tuple[str, tuple[int, int]]] = set()
     if glyphs:
         try:
@@ -64,6 +66,11 @@ def _hostile_set(obs: dict[str, Any]) -> set[tuple[str, tuple[int, int]]]:
                     # glyphs[gr] aligns to chars[gr+1] (chars row 0 is the
                     # message line; glyphs starts at the first dungeon row).
                     cr = gr + 1
+                    # NetHack renders the player as their race's monster glyph,
+                    # which IS in the normal_monster range — glyph_is_normal_monster
+                    # returns True for the player. Filter via cursor position.
+                    if (cr, gc) == player_pos:
+                        continue
                     ch_int = chars[cr][gc] if cr < len(chars) and gc < len(chars[cr]) else 0
                     ch = chr(ch_int) if ch_int else "?"
                     out.add((ch, (cr, gc)))

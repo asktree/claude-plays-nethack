@@ -66,10 +66,13 @@ def monsters(obs: dict[str, Any]) -> str:
                     continue
                 tame = bool(_nh.glyph_is_pet(g))
                 cr = gr + 1  # glyphs[gr] aligns to chars[gr+1]
+                # Player is in the normal_monster glyph range too. Filter via
+                # cursor (more robust than ch=='@' check, which would miss a
+                # polymorphed player rendered as a different char).
+                if (cr, gc) == (pr, pc):
+                    continue
                 ch_int = chars[cr][gc] if cr < len(chars) and gc < len(chars[cr]) else 0
                 ch = chr(ch_int) if ch_int else "?"
-                if ch == PLAYER:
-                    continue
                 desc = desc_at(cr, gc)
                 d = max(abs(cr - pr), abs(gc - pc))
                 sightings.append((d, cr, gc, ch, desc or f"unknown {ch!r}", tame))
