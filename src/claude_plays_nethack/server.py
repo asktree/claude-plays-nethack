@@ -33,11 +33,13 @@ if str(GAME_DIR) not in sys.path:
     sys.path.insert(0, str(GAME_DIR))
 
 ENV_ID = os.environ.get("NETHACK_ENV", "NetHackChallenge-v0")
-# Char substituted for `' '` cells we've never had line-of-sight to. ASCII so
-# it's single-width in the model's text view. `?` collides with NetHack's
-# scroll glyph, but scrolls only appear on `.` floor — `?` in the rock-void
-# region is unambiguously unseen-rock by context. Override with env var.
-UNSEEN_CHAR = os.environ.get("NETHACK_UNSEEN_CHAR", "?")
+# Char substituted for `' '` cells we've never had line-of-sight to.
+# `°` (degree sign): Latin-1, guaranteed single-width in any monospace font,
+# and NetHack uses NO `°` anywhere in its glyph set — zero collision.
+# Considered: `?` (scroll collision), `]` (visually too close to `[` armor),
+# emoji like ✦ (Unicode width neutral — renders 2-wide in CJK fonts/terminals
+# and would break grid alignment). Override via env var.
+UNSEEN_CHAR = os.environ.get("NETHACK_UNSEEN_CHAR", "°")
 
 mcp = FastMCP("nethack")
 

@@ -12,7 +12,7 @@ You play through the `nethack` MCP server. Four tools, that's the whole surface.
 ## Observation shape
 
 Each tool returns a dict:
-- `screen` — the rendered TTY screen as a multi-line string. **`?` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** A `?` on a `.` floor cell inside a room is just a scroll item (vanilla NetHack glyph). The harness auto-tracks which cells you've ever seen (per-level) and overlays the marker so you can tell exploration frontier apart from passed-by void. Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
+- `screen` — the rendered TTY screen as a multi-line string. **`°` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** NetHack itself uses no `°` glyph anywhere; it's purely our overlay so you can tell exploration frontier apart from passed-by void. The harness auto-tracks which cells you've ever seen (per-level). Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
 - `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
 - `inventory` — list of `{letter, text}` for what you're carrying. (In `do()` tool results the rendered text dedupes when unchanged — you'll see "(unchanged from last turn)" instead. Call `observe()` to force a full render. The structured `obs.inventory` field is always present for views/tactics inside exec.)
