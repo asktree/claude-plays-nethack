@@ -5,7 +5,13 @@ You play through the `nethack` MCP server. Three tools, that's the whole surface
 ## Tools
 
 - **`observe()`** — return the current observation without taking an action. Auto-starts the game on first call if not already.
-- **`do(action)`** — take one action. `action` is an int (0..120) or a name like `"Command.READ"`, `"CompassDirection.N"`, `"north"`, `"MORE"`. Full table below.
+- **`do(action)`** — take one action. `action` accepts **four equivalent forms**:
+  - **NLE enum directly**: `do(CompassDirection.NW)`, `do(Command.READ)`. The enum classes (`Command`, `CompassDirection`, `CompassDirectionLonger`, `MiscDirection`, `MiscAction`, `TextCharacters`) are auto-imported into your `exec()` kernel — no `from nle.nethack import ...` needed.
+  - **single-char keypress string**: `do("y")` sends the literal `y` byte (= NW direction OR "yes" depending on game state — NetHack interprets the byte in context). Use this for prompt responses (`do("y")` for yes, `do("n")` for no, `do("?")` for help, etc).
+  - **multi-char name string**: `do("Command.READ")`, `do("north")`, `do("MORE")`. These resolve via the named action table (full list at the bottom of this file).
+  - **integer index**: `do(7)` for action index 7 (CompassDirection.NW). Useful for programmatic dispatch.
+
+  Note: `do("N")` and other single-char uppercase strings now go through the **keypress** path (`do("N")` = the literal N keypress = run-southeast), NOT the short-name table. If you want CompassDirection.N use `do("north")`, `do("CompassDirection.N")`, or `do(CompassDirection.N)`.
 - **`exec(python_code)`** — run Python in a persistent kernel. **Use this when you'd otherwise call `do()` many times in a row, or when a custom view function would render the dungeon better than the default screen.** The kernel persists across calls (imports, variables, your own helper functions). In scope each call: `obs` (current snapshot with raw `chars`/`colors` grids), `do(action)` (returns new snapshot), `observe()`. The `game/views/` and `game/tactics/` directories are on `sys.path` — `from views import crop`.
 
 There is no `reset()` tool — you don't get to restart. If you die, the game is over. Make every turn count.
