@@ -10,6 +10,7 @@ dist/
 
 # trajectory + scratch
 game/trajectory/
+game/sessions/
 game/tactics/scratch/
 game/.live_state.json
 game/.live_state.json.tmp
