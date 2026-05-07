@@ -3,7 +3,8 @@ until the level is fully explored or something interesting happens.
 
 Stops on:
   - no remaining frontier cells reachable from `@`
-  - any hostile in view (matches safe_do semantics — let the gamer decide)
+  - any hostile in view (silent or not — message-pause covers attacks but a
+    monster simply walking into LoS may produce no message)
   - max_iters reached (safety cap to prevent runaway)
   - no progress in last iteration (cursor didn't change after travel_to)
 
@@ -15,7 +16,7 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from .safe_do import _hostile_set, safe_do, Interrupted
+from ._hostiles import _hostile_set
 from .travel_to import travel_to
 
 # Opportunistic search burst: when @ stands on/adjacent to a likely-secret-door
@@ -126,7 +127,7 @@ def auto_explore(
     for i in range(max_iters):
         obs = observe()
 
-        # Hostile-in-view check matches safe_do semantics.
+        # Hostile-in-view check: bail on any visible monster, even silent ones.
         threats = _hostile_set(obs)
         if threats:
             top = sorted(threats)[:3]
@@ -141,12 +142,9 @@ def auto_explore(
         cursor = obs.get("cursor") or [0, 0]
         cy, cx = int(cursor[0]), int(cursor[1])
         if (cy, cx) not in burst_done_at and _near_likely_secret(obs, cy, cx):
-            try:
-                done = _search_burst(do, observe, SEARCH_BURST)
-            except Interrupted as e:
-                return {"reason": f"interrupted during search burst: {e.reason}",
-                        "iters": i, "targets": targets, "searches": searches}
-            searches.append((cy, cx, done))
+            for _ in range(SEARCH_BURST):
+                do("Command.SEARCH")
+            searches.append((cy, cx, SEARCH_BURST))
             burst_done_at.add((cy, cx))
             continue  # re-observe; new walkable cells (if any) will appear as frontiers
 
@@ -216,14 +214,3 @@ def _near_likely_secret(obs: dict[str, Any], cy: int, cx: int) -> bool:
     return False
 
 
-def _search_burst(do, observe, n: int) -> int:
-    """Spend up to n Command.SEARCH actions via safe_do. Returns count actually
-    done (may be < n if a `safe_do` interrupt fires; the Interrupted exception
-    is re-raised by safe_do for the caller). Search-recording happens in the
-    post_do hook automatically, so we don't track positions here.
-    """
-    done = 0
-    for _ in range(n):
-        safe_do("Command.SEARCH", do=do, observe=observe)
-        done += 1
-    return done

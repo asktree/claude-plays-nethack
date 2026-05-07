@@ -9,10 +9,9 @@ Imported flat: `from tactics import travel_to`.
 
 from .auto_explore import auto_explore
 from .look_at import look_at, look_at_nearest
-from .safe_do import Interrupted, safe_do
 from .travel_to import travel_to, travel_to_nearest
 
 __all__ = [
-    "Interrupted", "auto_explore", "look_at", "look_at_nearest",
-    "safe_do", "travel_to", "travel_to_nearest",
+    "auto_explore", "look_at", "look_at_nearest",
+    "travel_to", "travel_to_nearest",
 ]
