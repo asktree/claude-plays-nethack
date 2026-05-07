@@ -6,11 +6,16 @@ import builtins
 import contextlib
 import io
 import json
+import linecache
 import os
+import queue as _queue
+import re
 import sys
+import threading
 import time
 import traceback
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -82,6 +87,10 @@ class GameState:
         # so we recover them from the "You are a <align> <gender> <race> <role>."
         # text printed on game start. None until first reset.
         self.character: dict[str, str] | None = None
+        # Currently-paused safe exec, if any. The threaded gamer code is parked
+        # inside its do() call awaiting `continue_exec`; any other MCP tool
+        # call drops it via _drop_paused().
+        self.paused_exec: "PausedExec | None" = None
 
     def ensure_env(self) -> gym.Env:
         if self.env is None:
@@ -779,6 +788,214 @@ def _exec_python(python_code: str) -> dict[str, Any]:
     }
 
 
+# ----------------------------------------------------------------------
+# safe_exec: pause-on-message exec, with continue_exec to resume.
+#
+# The gamer's code runs in a daemon thread. Each `do()` call blocks on a
+# queue; the main thread pumps actions to NLE. If the resulting snap has
+# any non-empty `message`, we PAUSE the parked thread and return to the
+# MCP caller with the message + line/stack info. The gamer either:
+#   - calls `continue_exec()` to wake the thread (do() returns the snap)
+#   - calls any other tool, which drops the parked thread (it dies, NLE
+#     state is fine because the pause boundary is between completed do()s)
+# autocontinue: list of regexes; messages matching any pattern auto-resume
+# without bothering the gamer.
+# ----------------------------------------------------------------------
+
+
+class _Abandon(BaseException):
+    """Injected into a parked safe_exec thread when the gamer moves on.
+    Inherits BaseException (not Exception) so plain `except:` clauses in
+    gamer code don't accidentally swallow it."""
+
+
+@dataclass
+class PausedExec:
+    code: str
+    autocontinue: list[str] = field(default_factory=list)
+    thread: threading.Thread | None = None
+    action_q: _queue.Queue = field(default_factory=lambda: _queue.Queue(maxsize=1))
+    response_q: _queue.Queue = field(default_factory=lambda: _queue.Queue(maxsize=1))
+    last_snap: dict[str, Any] = field(default_factory=dict)
+    last_msg: str = ""
+    error: str | None = None
+
+
+def _drop_paused() -> None:
+    """If a safe_exec is parked, signal it to die and clear the slot.
+    Called by every other MCP tool entry point."""
+    pe = STATE.paused_exec
+    if pe is None:
+        return
+    STATE.paused_exec = None
+    try:
+        pe.response_q.put_nowait(_Abandon())
+    except _queue.Full:
+        pass  # thread already moving; it'll see the next put or just exit
+
+
+def _gamer_pause_location(pe: PausedExec) -> list[dict[str, Any]]:
+    """Walk the parked thread's frames to surface a code-snippet stack.
+    Topmost entry is the deepest frame (closest to the do() that paused).
+    Filters to gamer-authored code only — server internals are hidden."""
+    frames_map = sys._current_frames()
+    if pe.thread is None:
+        return []
+    f = frames_map.get(pe.thread.ident)
+    stack: list[dict[str, Any]] = []
+    while f is not None:
+        fname = f.f_code.co_filename
+        if fname == "<safe_exec>":
+            lines = pe.code.split("\n")
+            text = lines[f.f_lineno - 1].rstrip() if 0 < f.f_lineno <= len(lines) else ""
+            stack.append({"file": "<safe_exec>", "line": f.f_lineno, "code": text})
+        elif str(GAME_DIR) in fname:
+            text = linecache.getline(fname, f.f_lineno).rstrip()
+            display = fname[len(str(GAME_DIR)) + 1:] if fname.startswith(str(GAME_DIR)) else fname
+            stack.append({"file": display, "line": f.f_lineno, "code": text})
+        f = f.f_back
+    return stack
+
+
+def _create_paused_exec(code: str, autocontinue: list[str]) -> PausedExec:
+    pe = PausedExec(code=code, autocontinue=list(autocontinue))
+
+    def _do_blocking(action: int | str) -> dict[str, Any]:
+        pe.action_q.put(("do", action))
+        resp = pe.response_q.get()
+        if isinstance(resp, BaseException):
+            raise resp
+        return resp
+
+    def _observe_passthrough() -> dict[str, Any]:
+        # observe() is read-only on STATE.last_obs; doesn't advance the game,
+        # so it doesn't need to round-trip through the queue. Just snapshot.
+        snap = _snapshot(include_grid=True)
+        _KERNEL["obs"] = snap
+        return snap
+
+    def _run() -> None:
+        try:
+            _load_hooks()
+            _KERNEL["obs"] = _snapshot(include_grid=True)
+            _KERNEL["do"] = _do_blocking
+            _KERNEL["observe"] = _observe_passthrough
+            # Pre-import enums (idempotent — _exec_python does the same).
+            if "Command" not in _KERNEL:
+                from nle import nethack as _nh
+                _KERNEL["Command"] = _nh.Command
+                _KERNEL["CompassDirection"] = _nh.CompassDirection
+                _KERNEL["CompassDirectionLonger"] = _nh.CompassDirectionLonger
+                _KERNEL["MiscDirection"] = _nh.MiscDirection
+                _KERNEL["MiscAction"] = _nh.MiscAction
+                _KERNEL["TextCharacters"] = _nh.TextCharacters
+            builtins.exec(compile(code, "<safe_exec>", "exec"), _KERNEL)
+        except _Abandon:
+            pass  # gamer dropped us; clean exit
+        except BaseException:
+            pe.error = traceback.format_exc()
+        finally:
+            try:
+                pe.action_q.put_nowait(("done", None))
+            except _queue.Full:
+                pass
+
+    pe.thread = threading.Thread(target=_run, daemon=True, name="safe_exec")
+    return pe
+
+
+def _drive_paused(pe: PausedExec) -> dict[str, Any]:
+    """Run the main-thread loop: receive actions, step NLE, decide pause/resume.
+    Returns when the thread completes, errors, or pauses for the gamer."""
+    while True:
+        try:
+            kind, payload = pe.action_q.get(timeout=30.0)
+        except _queue.Empty:
+            STATE.paused_exec = None
+            return {"status": "error", "error": "safe_exec thread stalled (no action in 30s)"}
+        if kind == "done":
+            STATE.paused_exec = None
+            if pe.error:
+                return {"status": "error", "error": pe.error}
+            return {"status": "complete"}
+        # Step NLE; on exception, propagate back into the thread.
+        try:
+            snap = _do(payload)
+        except BaseException as e:
+            pe.response_q.put(e)
+            continue
+        msg = snap.get("message", "").strip()
+        if msg:
+            matched = False
+            for pat in pe.autocontinue:
+                try:
+                    if re.search(pat, msg):
+                        matched = True
+                        break
+                except re.error:
+                    continue
+            if matched:
+                pe.response_q.put(snap)
+                continue
+            # No autocontinue match — pause for the gamer.
+            pe.last_snap = snap
+            pe.last_msg = msg
+            STATE.paused_exec = pe
+            return {
+                "status": "paused",
+                "message": msg,
+                "post_obs": snap,
+                "stack": _gamer_pause_location(pe),
+                "autocontinue": list(pe.autocontinue),
+            }
+        # Silent step — let the thread proceed.
+        pe.response_q.put(snap)
+
+
+def _safe_exec_python(code: str, autocontinue: list[str] | None = None) -> dict[str, Any]:
+    _drop_paused()
+    pe = _create_paused_exec(code, autocontinue or [])
+    pe.thread.start()
+    return _drive_paused(pe)
+
+
+def _continue_exec(autocontinue: list[str] | None = None) -> dict[str, Any]:
+    pe = STATE.paused_exec
+    if pe is None:
+        return {"status": "error", "error": "no execution paused"}
+    if autocontinue is not None:
+        pe.autocontinue = list(autocontinue)
+    pe.response_q.put(pe.last_snap)
+    return _drive_paused(pe)
+
+
+def _format_safe_exec_result(out: dict[str, Any]) -> str:
+    """Render a safe_exec/continue_exec result for the model."""
+    status = out.get("status", "?")
+    parts: list[str] = [f"=== status: {status} ==="]
+    if status == "paused":
+        parts.append("=== message ===\n" + str(out.get("message", "")))
+        stack = out.get("stack") or []
+        if stack:
+            lines = []
+            for frame in stack:
+                fp = frame.get("file", "?")
+                ln = frame.get("line", "?")
+                code = frame.get("code", "")
+                lines.append(f"  {fp}:{ln}    {code}")
+            parts.append("=== paused at ===\n" + "\n".join(lines))
+        autoc = out.get("autocontinue") or []
+        if autoc:
+            parts.append("=== autocontinue patterns ===\n" + "\n".join(f"  {p}" for p in autoc))
+        parts.append("=== post-step state ===\n" + _format_for_text(out.get("post_obs") or {}))
+    elif status == "error":
+        parts.append("=== error ===\n" + str(out.get("error", "")).rstrip())
+        parts.append("=== post-state ===\n" + _format_for_text(_snapshot()))
+    elif status == "complete":
+        parts.append("=== post-state ===\n" + _format_for_text(_snapshot()))
+    return "\n\n".join(parts)
+
+
 def _format_exec_result(out: dict[str, Any]) -> str:
     parts: list[str] = []
     if out.get("stdout"):
@@ -821,6 +1038,7 @@ def observe() -> ToolResult:
     confirmed full view, e.g. after `do()` reported inventory unchanged
     but you want to double-check.
     """
+    _drop_paused()
     return _tool_result(_observe(), dedup_inventory=False)
 
 
@@ -835,22 +1053,62 @@ def do(action: int | str) -> ToolResult:
     you'll see "Inventory: (unchanged...)" instead of the full list. Call
     `observe()` to force a full render.
     """
+    _drop_paused()
     return _tool_result(_do(action), dedup_inventory=True)
 
 
 @mcp.tool
-def exec(python_code: str) -> ToolResult:
-    """Run Python in a persistent kernel. State, imports, defs persist across calls.
+def exec(python_code: str, autocontinue: list[str] | None = None) -> ToolResult:
+    """Run Python in a persistent kernel; PAUSE on any NetHack message.
 
-    In scope each call: `obs` (current observation with raw `chars`/`colors` grids),
-    `do(action)` (take an action, returns new snapshot), `observe()` (re-read state).
-    `game/views/` and `game/tactics/` are on sys.path — `from views import crop`.
+    Same persistent kernel as `exec_raw`, but every `do()` whose result
+    carries a non-empty `message` parks the thread right there and returns
+    {"status": "paused", "message", "post_obs", "stack"}. Call
+    `continue_exec()` to wake it up; call any other tool to drop it.
 
-    Returns: stdout + final expression value + traceback (if any) + post-exec state.
+    `autocontinue`: list of regex patterns; messages matching any pattern
+    auto-resume without bothering you. Useful for routine chatter like
+    "You hear ...", "You see here ...". Patterns persist for this exec
+    until you replace them via `continue_exec(autocontinue=[...])`.
 
-    Use this when you'd otherwise call do() many times in a row, or when a view
-    function would render the dungeon better than the default screen.
+    Use this for any multi-step plan; `exec_raw` only when you need full
+    control and don't want pauses (e.g., scripted item interactions).
     """
+    return ToolResult(
+        content=[TextContent(type="text",
+                             text=_format_safe_exec_result(_safe_exec_python(python_code, autocontinue)))],
+    )
+
+
+@mcp.tool
+def continue_exec(autocontinue: list[str] | None = None) -> ToolResult:
+    """Resume a paused `exec`. The paused do() returns its snap; gamer code
+    continues to the next line. If the next do() also produces a message,
+    pauses again — call this repeatedly.
+
+    `autocontinue`: if provided, REPLACES the pattern list for the rest of
+    this exec. Omit to keep using the existing list.
+
+    Errors if no exec is currently paused.
+    """
+    return ToolResult(
+        content=[TextContent(type="text",
+                             text=_format_safe_exec_result(_continue_exec(autocontinue)))],
+    )
+
+
+@mcp.tool
+def exec_raw(python_code: str) -> ToolResult:
+    """Run Python in the persistent kernel WITHOUT message-pausing.
+
+    Same kernel as `exec`, but `do()` never pauses on messages — you get
+    the snap back regardless. Use only when you genuinely want full
+    control over message handling, or for one-shot scripted sequences.
+
+    Returns: stdout + final expression value + traceback (if any) +
+    post-exec state.
+    """
+    _drop_paused()
     return ToolResult(
         content=[TextContent(type="text", text=_format_exec_result(_exec_python(python_code)))],
     )

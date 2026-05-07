@@ -12,9 +12,15 @@ You play through the `nethack` MCP server. Three tools, that's the whole surface
   - **integer index**: `do(7)` for action index 7 (CompassDirection.NW). Useful for programmatic dispatch.
 
   Note: `do("N")` and other single-char uppercase strings now go through the **keypress** path (`do("N")` = the literal N keypress = run-southeast), NOT the short-name table. If you want CompassDirection.N use `do("north")`, `do("CompassDirection.N")`, or `do(CompassDirection.N)`.
-- **`exec(python_code)`** — run Python in a persistent kernel. **Use this when you'd otherwise call `do()` many times in a row, or when a custom view function would render the dungeon better than the default screen.** The kernel persists across calls (imports, variables, your own helper functions). In scope each call: `obs` (current snapshot with raw `chars`/`colors` grids), `do(action)` (returns new snapshot), `observe()`. The `game/views/` and `game/tactics/` directories are on `sys.path` — `from views import crop`.
+- **`exec(python_code, autocontinue=None)`** — run Python in a persistent kernel, **pausing on any NetHack message**. Each `do()` call inside whose result has a non-empty `message` parks the thread and returns `{status: "paused", message, post_obs, stack: [{file, line, code}]}`. The `stack` shows where execution paused — gamer's `<safe_exec>` line + any tactic frames. The kernel persists across calls (imports, variables, your own helper functions). In scope each call: `obs` (current snapshot with raw `chars`/`colors` grids), `do(action)` (returns new snapshot), `observe()`. The `game/views/`, `game/tactics/`, `game/hooks/` and game-side modules are on `sys.path` — `from views import crop`.
+  - **`autocontinue=[r"^You hear ", r"^You feel "]`** — list of regex patterns; matching messages auto-resume without bothering you. Useful for routine chatter.
+  - **Use `exec` for any multi-step plan.** A pause means *something interesting just happened* — you read the message and decide.
+- **`continue_exec(autocontinue=None)`** — resume a paused `exec`. The paused `do()` returns its snap, code keeps marching to the next line. If the next `do()` also produces a message, pauses again — call repeatedly. Pass `autocontinue=[...]` to replace the pattern list for the rest of the run.
+- **`exec_raw(python_code)`** — same kernel as `exec` but `do()` never pauses on messages. Use only when you genuinely want full control (one-shot scripted item interactions, etc).
 
 There is no `reset()` tool — you don't get to restart. If you die, the game is over. Make every turn count.
+
+**Important**: any tool call other than `continue_exec` (i.e. `do`, `observe`, `exec`, `exec_raw`) drops the currently-paused exec, abandoning whatever lines were left in it. NLE state is consistent at the pause boundary; you take over from there.
 
 ## Observation shape
 
@@ -68,17 +74,14 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
 
 - **`look_at(row, col)`** / **`look_at_nearest(symbol, index=0)`** — uses NetHack's `Command.GLANCE` to identify what's at a cell. Returns the post-glance snapshot whose `message` is NetHack's description (e.g. `"kobold; a small humanoid"`, `"(a fountain)"`). Useful when a glyph is ambiguous from `chars` alone.
 
-- **`safe_do(action)`** — a wrapped `do()` that **raises `Interrupted`** if a watched condition fires after the step. Use this for non-Travel sequences (search loops, kicking, item interactions, etc.) so you don't blindly chain past new threats.
+- **`safe_do(action)`** — historical wrapper that raises `Interrupted` on hostile-in-view / HP drop / hunger-critical / game-over. Mostly redundant under the new `exec` (message-based pauses cover hostile attacks, HP-loss messages, hunger transitions, etc.) but useful for the rare *silent* cases — e.g. a hostile that walks into LoS without producing a message. You can still use it inside `exec` if you want belt-and-suspenders safety.
 
+  Under `exec` (the safe-by-default tool above), the loop pattern is just:
   ```python
-  from tactics import safe_do
   for _ in range(10):
-      safe_do("Command.SEARCH")    # raises if a hidden monster reveals
+      do("Command.SEARCH")    # message → exec pauses, gamer reacts
   ```
-
-  Default interrupts: **new monster in view** (vs the obs taken just before the step), **HP dropped >25%** in one step, **game over**. When raised, this exec call ends with an error — you'll see the abort reason in the result. Override the default set with `safe_do(action, interrupts=[...])`.
-
-  **Rule: inside any loop in `exec()`, you MUST use `safe_do` (or `travel_to` / `auto_explore`, which already include safety). Never bare `do()` in a loop.** Bare `do()` is for one-off deliberate actions outside loops, and for the action you take *after* a safe_do interrupt (e.g. attacking the bat that interrupted your search). The most recent gamer death (Valkyrie, food-crisis after wall-searching with bare `do()`) traces directly to this rule being violated.
+  No try/except, no safe_do wrapper. Pause-and-react replaces interrupt-on-event.
 
 **You can write new tactics** in `game/tactics/`. Side effects are fine and expected — that's what differentiates tactics from views.
 
