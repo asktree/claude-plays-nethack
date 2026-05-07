@@ -313,58 +313,70 @@ def _build_inventory(state: dict[str, Any]) -> Panel:
 def _build_header(state: dict[str, Any]) -> Panel:
     """Compact header panel that lives in col 1 above the map.
 
-    Renders 3 status lines (name+race / attrs / combat) followed by the
-    latest message and game-over flag.
+    Renders 3 thematic status lines from structured blstats + character info
+    (no longer parses NetHack's tty status_rows directly), then message and
+    game-over flag.
 
-    Line 1: "Agent the Hatamoto (human Samurai)"           ← name+title from
-            row 22, race+role appended from STATE.character (parsed from the
-            welcome message at reset).
-    Line 2: "St:18/01 Dx:14 Co:14 In:8 Wi:11 Ch:7 Lawful"   ← attribute
-            portion of row 22 (from "St:" onward).
-    Line 3: "Dlvl:1 $:0 HP:15(15) Pw:2(2) AC:4 Xp:1/4 T:98" ← row 23 verbatim.
+    Line 1 — IDENTITY:    "Agent the Hatamoto (lawful human Samurai)"
+    Line 2 — VITALS:      "HP:15(15)  Pw:2(2)  AC:4  Hunger:Normal"
+    Line 3 — PROGRESSION: "Dlvl:1  T:98  $:0  Xp:1/4  ·  St:18/01 Dx:14 Co:14 In:8 Wi:11 Ch:7"
     """
     import re
     rows = state.get("status_rows") or []
+    bl = state.get("blstats", {}) or {}
     msg = state.get("message", "") or ""
     char = state.get("character") or {}
     body = Text()
 
-    if rows:
-        # Split row 22 into (name+title, attribute scores). NetHack always
-        # leads attributes with "  St:..." — that's the splitter.
-        row1 = rows[0] if len(rows) > 0 else ""
-        row2 = rows[1] if len(rows) > 1 else ""
-        m = re.search(r"\s+St:", row1)
-        if m:
-            name_part = row1[:m.start()].rstrip()
-            attrs_part = row1[m.start():].lstrip()
-        else:
-            name_part = row1.rstrip()
-            attrs_part = ""
+    # Line 1 — identity. Name+title comes from NetHack's row 22 (the rank
+    # title like "Hatamoto" advances with experience; not in blstats), then
+    # we append (alignment race role) from the parsed welcome message.
+    row22 = rows[0] if rows else ""
+    m = re.search(r"\s+St:", row22)
+    name_part = row22[:m.start()].rstrip() if m else row22.rstrip()
+    align = char.get("alignment") or ""
+    race = char.get("race") or ""
+    role = char.get("role") or ""
+    inner_parts = [x for x in (align, race, role) if x]
+    if inner_parts:
+        body.append(f"{name_part} ({' '.join(inner_parts)})", style="bold")
+    elif name_part:
+        body.append(name_part, style="bold")
+    body.append("\n")
 
-        race = char.get("race") or ""
-        role = char.get("role") or ""
-        suffix = ""
-        if race or role:
-            inner = " ".join(x for x in (race, role) if x)
-            suffix = f" ({inner})"
-        body.append(name_part + suffix, style="bold")
+    if bl:
+        from .server import HUNGER_LABELS  # type: ignore
+        hunger = HUNGER_LABELS.get(bl.get("hunger_state"), str(bl.get("hunger_state", "?")))
+
+        # Line 2 — vitals + hunger. The "is the player about to die?" row.
+        body.append(
+            f"HP:{bl.get('hitpoints','?')}({bl.get('max_hitpoints','?')})  "
+            f"Pw:{bl.get('energy','?')}({bl.get('max_energy','?')})  "
+            f"AC:{bl.get('armor_class','?')}  "
+            f"Hunger:{hunger}",
+            style="bold",
+        )
         body.append("\n")
-        if attrs_part:
-            body.append(attrs_part, style="bold")
-            body.append("\n")
-        if row2.strip():
-            # NetHack only displays hunger when it's not "Normal"/"Satiated",
-            # which means the most common state is invisible. Always append a
-            # Hunger=<label> tail so the gamer can read it without inferring.
-            bl = state.get("blstats") or {}
-            from .server import HUNGER_LABELS  # type: ignore
-            hunger_label = HUNGER_LABELS.get(bl.get("hunger_state", 1), "?")
-            row2_out = row2
-            if hunger_label and hunger_label.lower() not in row2.lower():
-                row2_out = f"{row2}  Hunger={hunger_label}"
-            body.append(row2_out, style="bold")
-            body.append("\n")
+
+        # Line 3 — progression + attributes. The "where am I and what am I
+        # made of?" row. Strength formats as 18/NN when at the percentile tier.
+        str_int = bl.get("strength")
+        str_pct = bl.get("strength_pct") or 0
+        if str_int == 18 and str_pct:
+            str_str = f"18/{int(str_pct):02d}"
+        elif str_int is not None:
+            str_str = str(str_int)
+        else:
+            str_str = "?"
+        body.append(
+            f"Dlvl:{bl.get('depth','?')}  T:{bl.get('time','?')}  "
+            f"$:{bl.get('gold','?')}  "
+            f"Xp:{bl.get('experience_level','?')}/{bl.get('experience_points','?')}  "
+            f"·  St:{str_str} Dx:{bl.get('dexterity','?')} Co:{bl.get('constitution','?')} "
+            f"In:{bl.get('intelligence','?')} Wi:{bl.get('wisdom','?')} Ch:{bl.get('charisma','?')}",
+            style="bold",
+        )
+        body.append("\n")
 
     if msg:
         body.append("msg: ", style="bold dark_orange")

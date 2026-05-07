@@ -1111,6 +1111,19 @@ class _Abandon(BaseException):
     gamer code don't accidentally swallow it."""
 
 
+# Patterns that match purely-internal harness prompts — messages that
+# arise from harness machinery (Travel command setup, etc.) rather than
+# real game events. Auto-continue past these so tactics like travel_to
+# don't pause the gamer on every internal step. User-supplied
+# autocontinue patterns extend this list, never replace it.
+DEFAULT_AUTOCONTINUE: list[str] = [
+    # Command.TRAVEL prompt — fired by `do("Command.TRAVEL")` to enter
+    # travel mode. travel_to handles the prompt internally with direction
+    # nudges + WAIT; the gamer never needs to react to the prompt itself.
+    r"^Where do you want to travel to\?",
+]
+
+
 @dataclass
 class PausedExec:
     code: str
@@ -1254,9 +1267,17 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
         pe.response_q.put(snap)
 
 
+def _merge_autocontinue(user_patterns: list[str] | None) -> list[str]:
+    """Combine DEFAULT_AUTOCONTINUE with whatever the gamer passed.
+    Defaults always win — gamer can only add to the ignore set, not remove
+    from it. (Removing a default would mean pausing on Travel-mode prompt
+    setup, which has no useful gamer-decision attached.)"""
+    return list(DEFAULT_AUTOCONTINUE) + list(user_patterns or [])
+
+
 def _safe_exec_python(code: str, autocontinue: list[str] | None = None) -> dict[str, Any]:
     _drop_paused()
-    pe = _create_paused_exec(code, autocontinue or [])
+    pe = _create_paused_exec(code, _merge_autocontinue(autocontinue))
     pe.thread.start()
     return _drive_paused(pe)
 
@@ -1266,7 +1287,7 @@ def _continue_exec(autocontinue: list[str] | None = None) -> dict[str, Any]:
     if pe is None:
         return {"status": "error", "error": "no execution paused"}
     if autocontinue is not None:
-        pe.autocontinue = list(autocontinue)
+        pe.autocontinue = _merge_autocontinue(autocontinue)
     pe.response_q.put(pe.last_snap)
     return _drive_paused(pe)
 
