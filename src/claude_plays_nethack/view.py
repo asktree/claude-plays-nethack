@@ -313,30 +313,66 @@ def _build_inventory(state: dict[str, Any]) -> Panel:
 def _build_header(state: dict[str, Any]) -> Panel:
     """Compact header panel that lives in col 1 above the map.
 
-    Contains the character's full in-game status: NetHack's native 2-row
-    status block (name + class title + attributes + combat) plus the
-    latest message and game-over flag. NOT full-width — sits inside col 1.
+    Renders 3 status lines (name+race / attrs / combat) followed by the
+    latest message and game-over flag.
 
-    Row 22: "Agent the Footpad     St:15 Dx:18 Co:15 In:8 Wi:12 Ch:7 Chaotic"
-    Row 23: "Dlvl:1 $:0 HP:15(15) Pw:2(2) AC:7 Xp:1/0 T:2"
+    Line 1: "Agent the Hatamoto (human Samurai)"           ← name+title from
+            row 22, race+role appended from STATE.character (parsed from the
+            welcome message at reset).
+    Line 2: "St:18/01 Dx:14 Co:14 In:8 Wi:11 Ch:7 Lawful"   ← attribute
+            portion of row 22 (from "St:" onward).
+    Line 3: "Dlvl:1 $:0 HP:15(15) Pw:2(2) AC:4 Xp:1/4 T:98" ← row 23 verbatim.
     """
+    import re
     rows = state.get("status_rows") or []
     msg = state.get("message", "") or ""
+    char = state.get("character") or {}
     body = Text()
-    for i, row in enumerate(rows):
-        if row.strip():
-            body.append(row, style="bold")
+
+    if rows:
+        # Split row 22 into (name+title, attribute scores). NetHack always
+        # leads attributes with "  St:..." — that's the splitter.
+        row1 = rows[0] if len(rows) > 0 else ""
+        row2 = rows[1] if len(rows) > 1 else ""
+        m = re.search(r"\s+St:", row1)
+        if m:
+            name_part = row1[:m.start()].rstrip()
+            attrs_part = row1[m.start():].lstrip()
+        else:
+            name_part = row1.rstrip()
+            attrs_part = ""
+
+        race = char.get("race") or ""
+        role = char.get("role") or ""
+        suffix = ""
+        if race or role:
+            inner = " ".join(x for x in (race, role) if x)
+            suffix = f" ({inner})"
+        body.append(name_part + suffix, style="bold")
+        body.append("\n")
+        if attrs_part:
+            body.append(attrs_part, style="bold")
             body.append("\n")
+        if row2.strip():
+            # NetHack only displays hunger when it's not "Normal"/"Satiated",
+            # which means the most common state is invisible. Always append a
+            # Hunger=<label> tail so the gamer can read it without inferring.
+            bl = state.get("blstats") or {}
+            from .server import HUNGER_LABELS  # type: ignore
+            hunger_label = HUNGER_LABELS.get(bl.get("hunger_state", 1), "?")
+            row2_out = row2
+            if hunger_label and hunger_label.lower() not in row2.lower():
+                row2_out = f"{row2}  Hunger={hunger_label}"
+            body.append(row2_out, style="bold")
+            body.append("\n")
+
     if msg:
         body.append("msg: ", style="bold dark_orange")
         body.append(msg, style="dark_orange")
-    elif body.plain.endswith("\n"):
-        # trim trailing newline if no msg follows
-        body = Text.from_markup(body.markup[:-1]) if body.plain else body
     if state.get("terminated") or state.get("truncated"):
         body.append("\n** GAME OVER **", style="bold red")
     if not body.plain:
-        body = Text("(no status yet — waiting for game)", style="dim")
+        body = Text("(waiting for game state…)", style="dim")
     session = state.get("session") or "?"
     return Panel(body, title=f"session={session}", border_style="white", padding=(0, 1))
 
@@ -344,18 +380,16 @@ def _build_header(state: dict[str, Any]) -> Panel:
 def _build_legend(state: dict[str, Any]) -> Panel:
     chars = state["chars"]
     descs = state.get("descriptions") or []
-    # NLE's screen_descriptions is 21x79 and starts at chars row 1 (top message
-    # line is not in descriptions); align by offset.
+    # Post-unification both are 21×79 dungeon-relative — same indexing.
     seen: dict[str, str] = {}
     for r, row in enumerate(chars):
         for c, ch in enumerate(row):
             char = chr(ch) if ch else " "
             if char in LEGEND_SKIP or char in seen:
                 continue
-            dr, dc = r - 1, c
             desc = ""
-            if 0 <= dr < len(descs) and 0 <= dc < len(descs[dr]):
-                desc = descs[dr][dc]
+            if r < len(descs) and c < len(descs[r]):
+                desc = descs[r][c]
             if desc:
                 seen[char] = desc
     if not seen:
@@ -445,7 +479,7 @@ def _build_log(
     if scroll > 0:
         # Show "scrolled back N of total" with a different border color so it's
         # obvious we're not live anymore.
-        title = f"{base} — scrolled back {scroll}/{len(reverse_chrono)} — [↑↓ PgUpDn  G=live] [Ctrl+O] {'collapse' if expanded else 'expand'}"
+        title = f"{base} — scrolled back {scroll}/{len(reverse_chrono)} — [↑↓ PgUpDn  g=live G=oldest] [Ctrl+O] {'collapse' if expanded else 'expand'}"
         border = "yellow"
     else:
         title = f"{base} (newest ↑) — [↑↓ PgUpDn] [Ctrl+O] {'collapse' if expanded else 'expand'} — q quit"
@@ -475,7 +509,23 @@ def _build_layout(state: dict[str, Any] | None,
     map_text, map_w, map_h = _build_screen(state)
     map_panel_width = map_w + 4   # +2 borders, +2 padding
     map_panel_height = map_h + 2  # +2 borders
-    map_panel = Panel(map_text, title="NetHack", border_style="white", padding=(0, 1), width=map_panel_width)
+
+    # Mouse hover → dungeon (row, col), shown in the map panel title.
+    # Layout offsets within col 1: header takes 6 rows, then map panel; map
+    # content starts at term_row=7 (6 header + 1 top border) and term_col=2
+    # (panel left border + 1-col padding). SGR mouse coords are 1-indexed.
+    map_title = "NetHack"
+    mouse = _UI_STATE.get("mouse_term")
+    if mouse:
+        mr, mc = mouse
+        # 1-indexed terminal coords. Map content occupies term rows 7..7+map_h-1
+        # and term cols 2..2+map_w-1 (using 0-indexed internally; mouse is 1-indexed).
+        dr = mr - 1 - 7      # to 0-indexed dungeon row
+        dc = mc - 1 - 2      # to 0-indexed dungeon col
+        if 0 <= dr < map_h and 0 <= dc < map_w:
+            map_title = f"NetHack — hover ({dr},{dc})"
+
+    map_panel = Panel(map_text, title=map_title, border_style="white", padding=(0, 1), width=map_panel_width)
 
     # Three-column layout (no full-width header — header is INSIDE col 1):
     #   col 1: header/stats (top) + map + legend (rest)
@@ -492,7 +542,7 @@ def _build_layout(state: dict[str, Any] | None,
     # Status rows are 2; with title bar + bottom border + msg line that's
     # ~5-6 rows. Size 6 covers it without crowding the map.
     col1.split_column(
-        Layout(_build_header(state), name="header", size=6),
+        Layout(_build_header(state), name="header", size=7),
         Layout(map_panel, name="map", size=map_panel_height),
         Layout(_build_legend(state), name="legend"),
     )
@@ -509,7 +559,13 @@ _UI_STATE = {
     "quit": False,
     "scroll": 0,        # how many events scrolled back from newest
     "last_count": 0,    # session event count at last render (for scroll-pinning)
+    "mouse_term": None, # (term_row, term_col) of latest mouse position, or None
 }
+
+# SGR mouse tracking enable/disable sequences.
+# 1003 = report any motion (not just clicks); 1006 = SGR (extended) coord encoding.
+_MOUSE_ENABLE = "\x1b[?1003h\x1b[?1006h"
+_MOUSE_DISABLE = "\x1b[?1003l\x1b[?1006l"
 _DEBUG_LOG = os.environ.get("NETHACK_VIEW_DEBUG")  # path to write key events to
 
 
@@ -559,28 +615,42 @@ def _key_listener(fd: int) -> None:
         _dbg(f"got byte: {ch!r}")
         if ch == b"\x1b":
             second = _try_read(fd)
-            if second in (b"[", b"O"):
-                third = _try_read(fd)
-                if third == b"A":
-                    _UI_STATE["scroll"] += 1
-                    _dbg(f"  → scroll up (now {_UI_STATE['scroll']})")
-                elif third == b"B":
-                    _UI_STATE["scroll"] = max(0, _UI_STATE["scroll"] - 1)
-                    _dbg(f"  → scroll down (now {_UI_STATE['scroll']})")
-                elif third in (b"5", b"6"):
-                    _try_read(fd)  # consume trailing '~'
-                    if third == b"5":
-                        _UI_STATE["scroll"] += 10
-                        _dbg(f"  → PageUp (now {_UI_STATE['scroll']})")
-                    else:
-                        _UI_STATE["scroll"] = max(0, _UI_STATE["scroll"] - 10)
-                        _dbg(f"  → PageDown (now {_UI_STATE['scroll']})")
-                elif third == b"H":
-                    _UI_STATE["scroll"] = 99999  # clamp on render
-                    _dbg("  → Home (top/oldest)")
-                elif third == b"F":
-                    _UI_STATE["scroll"] = 0
-                    _dbg("  → End (live)")
+            if second not in (b"[", b"O"):
+                continue  # bare ESC or unknown sequence
+            third = _try_read(fd)
+            # SGR mouse:  ESC [ < button ; col ; row (M|m)
+            if second == b"[" and third == b"<":
+                buf = b""
+                while True:
+                    b2 = _try_read(fd, 0.05)
+                    if not b2:
+                        break
+                    buf += b2
+                    if b2 in (b"M", b"m"):
+                        break
+                _dbg(f"  mouse SGR raw: {buf!r}")
+                try:
+                    parts = buf[:-1].decode("ascii", errors="replace").split(";")
+                    if len(parts) == 3:
+                        _UI_STATE["mouse_term"] = (int(parts[2]), int(parts[1]))
+                        _dbg(f"  → mouse_term={_UI_STATE['mouse_term']}")
+                except (ValueError, IndexError) as e:
+                    _dbg(f"  mouse parse failed: {e}")
+                continue
+            if third == b"A":
+                _UI_STATE["scroll"] += 1
+            elif third == b"B":
+                _UI_STATE["scroll"] = max(0, _UI_STATE["scroll"] - 1)
+            elif third in (b"5", b"6"):
+                _try_read(fd)  # consume trailing '~'
+                if third == b"5":
+                    _UI_STATE["scroll"] += 10
+                else:
+                    _UI_STATE["scroll"] = max(0, _UI_STATE["scroll"] - 10)
+            elif third == b"H":
+                _UI_STATE["scroll"] = 99999  # clamp on render
+            elif third == b"F":
+                _UI_STATE["scroll"] = 0
             continue
         if ch == b"\x0f":      # Ctrl+O
             _UI_STATE["expanded"] = not _UI_STATE["expanded"]
@@ -589,10 +659,12 @@ def _key_listener(fd: int) -> None:
             _UI_STATE["quit"] = True
             _dbg("  → quit")
             return
-        elif ch == b"g":   # vim-style: jump oldest
-            _UI_STATE["scroll"] = 99999
-        elif ch == b"G":   # vim-style: jump live
+        elif ch == b"g":   # less/vim-style: jump to TOP of the visible list
+            # Newest is at top in our log (reverse-chrono), so g → live (newest).
             _UI_STATE["scroll"] = 0
+        elif ch == b"G":   # less/vim-style: jump to BOTTOM of the visible list
+            # Bottom of reverse-chrono = oldest event.
+            _UI_STATE["scroll"] = 99999
 
 
 def _setup_input_thread() -> None:
@@ -625,25 +697,40 @@ def main() -> None:
     traj_reader = _trajectory_reader()
     sess_reader = _session_reader()
     _setup_input_thread()
+    # Belt-and-suspenders for mouse-mode cleanup: atexit covers abrupt
+    # exits, the finally covers normal Live shutdown.
+    def _disable_mouse() -> None:
+        os.write(1, _MOUSE_DISABLE.encode("ascii"))
+    atexit.register(_disable_mouse)
     with Live(console=console, screen=True, refresh_per_second=5) as live:
-        while not _UI_STATE["quit"]:
-            traj_reader.refresh()
-            sess_reader.refresh()
-            state = _read_state()
-            # Auto-pin: if user is scrolled back and new events arrive,
-            # bump scroll so the visible window stays anchored to the same
-            # absolute events. Without this, new events would shift their
-            # view and "annoy" the user mid-read.
-            count = len(sess_reader.events)
-            if _UI_STATE["scroll"] > 0 and count > _UI_STATE["last_count"]:
-                _UI_STATE["scroll"] += count - _UI_STATE["last_count"]
-            _UI_STATE["last_count"] = count
-            live.update(_build_layout(
-                state, traj_reader.events, sess_reader.events,
-                expanded=_UI_STATE["expanded"],
-                scroll=_UI_STATE["scroll"],
-            ))
-            time.sleep(0.2)
+        # Enable SGR mouse-motion reporting *inside* the alt screen so the
+        # mode is set on the screen we're actually drawing to. Use os.write
+        # against fd 1 directly to avoid any Python stdio buffering or rich
+        # console interaction. Mode 1003 = report any-event mouse motion;
+        # 1006 = SGR encoding (`ESC [ < button ; col ; row M|m`).
+        os.write(1, _MOUSE_ENABLE.encode("ascii"))
+        _dbg(f"mouse-enable bytes written: {_MOUSE_ENABLE!r}")
+        try:
+            while not _UI_STATE["quit"]:
+                traj_reader.refresh()
+                sess_reader.refresh()
+                state = _read_state()
+                # Auto-pin: if user is scrolled back and new events arrive,
+                # bump scroll so the visible window stays anchored to the same
+                # absolute events. Without this, new events would shift their
+                # view and "annoy" the user mid-read.
+                count = len(sess_reader.events)
+                if _UI_STATE["scroll"] > 0 and count > _UI_STATE["last_count"]:
+                    _UI_STATE["scroll"] += count - _UI_STATE["last_count"]
+                _UI_STATE["last_count"] = count
+                live.update(_build_layout(
+                    state, traj_reader.events, sess_reader.events,
+                    expanded=_UI_STATE["expanded"],
+                    scroll=_UI_STATE["scroll"],
+                ))
+                time.sleep(0.2)
+        finally:
+            os.write(1, _MOUSE_DISABLE.encode("ascii"))
 
 
 if __name__ == "__main__":

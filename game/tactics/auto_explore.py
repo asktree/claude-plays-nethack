@@ -15,8 +15,15 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from .safe_do import _hostile_set
+from .safe_do import _hostile_set, safe_do, Interrupted
 from .travel_to import travel_to
+
+# Opportunistic search burst: when @ stands on/adjacent to a likely-secret-door
+# candidate, do this many SEARCHes before continuing. Two such bursts add up to
+# the canonical 12-search threshold, so a candidate naturally exits the view's
+# fresh list after two visits — no per-call dedup math needed beyond a set of
+# "already burst at this cell during this auto_explore call".
+SEARCH_BURST = 6
 
 
 def _resolve_kernel():
@@ -111,8 +118,11 @@ def auto_explore(
         do, observe = _resolve_kernel()
 
     targets: list[tuple[int, int, str]] = []  # (r, c, glyph)
+    searches: list[tuple[int, int, int]] = []  # (r, c, count_done) for telemetry
     last_pos: tuple[int, int] | None = None
     just_opened_door = False
+    burst_done_at: set[tuple[int, int]] = set()  # in-call dedup of search bursts
+
     for i in range(max_iters):
         obs = observe()
 
@@ -121,7 +131,24 @@ def auto_explore(
         if threats:
             top = sorted(threats)[:3]
             descr = ", ".join(f"'{ch}' at ({r},{c})" for ch, (r, c) in top)
-            return {"reason": f"hostile in view: {descr}", "iters": i, "targets": targets}
+            return {"reason": f"hostile in view: {descr}",
+                    "iters": i, "targets": targets, "searches": searches}
+
+        # Opportunistic search: if @ touches a likely-secret-door candidate AND
+        # we haven't burst here this call, search SEARCH_BURST times before
+        # moving on. Reveal-detection lives in the post_do hook (search_record)
+        # and the view's filter; here we just spend the turns.
+        cursor = obs.get("cursor") or [0, 0]
+        cy, cx = int(cursor[0]), int(cursor[1])
+        if (cy, cx) not in burst_done_at and _near_likely_secret(obs, cy, cx):
+            try:
+                done = _search_burst(do, observe, SEARCH_BURST)
+            except Interrupted as e:
+                return {"reason": f"interrupted during search burst: {e.reason}",
+                        "iters": i, "targets": targets, "searches": searches}
+            searches.append((cy, cx, done))
+            burst_done_at.add((cy, cx))
+            continue  # re-observe; new walkable cells (if any) will appear as frontiers
 
         frontier = _best_frontier(obs)
         if frontier is None:
@@ -132,8 +159,7 @@ def auto_explore(
         # No-progress check. If we didn't move since last iter AND we didn't
         # *just* open a door (that doesn't change cursor pos), we're stuck —
         # try opening an adjacent door. If even that fails, bail.
-        cursor = obs.get("cursor") or [0, 0]
-        cur_pos = (int(cursor[0]), int(cursor[1]))
+        cur_pos = (cy, cx)
         if last_pos is not None and cur_pos == last_pos and not just_opened_door:
             if open_doors:
                 opened = _open_adjacent_door(do, observe)
@@ -142,7 +168,7 @@ def auto_explore(
                     targets.append((cur_pos[0], cur_pos[1], f"door-{opened}"))
                     continue
             return {"reason": f"no progress (stuck at {cur_pos}, target was unreachable)",
-                    "iters": i, "targets": targets}
+                    "iters": i, "targets": targets, "searches": searches}
         last_pos = cur_pos
         just_opened_door = False
 
@@ -150,4 +176,54 @@ def auto_explore(
         travel_to(tr, tc, do=do, observe=observe)
 
     return {"reason": f"max_iters={max_iters} reached",
-            "iters": max_iters, "targets": targets}
+            "iters": max_iters, "targets": targets, "searches": searches}
+
+
+def _near_likely_secret(obs: dict[str, Any], cy: int, cx: int) -> bool:
+    """True if any unexhausted likely-secret-door candidate sits in the 3×3
+    around (cy, cx) — i.e. within a single Command.SEARCH's reveal radius.
+    Reuses views.likely_secret_doors's internal dead-end and sealed-room
+    detectors so the criterion is identical.
+    """
+    try:
+        from views.likely_secret_doors import _dead_ends, _sealed_rooms
+    except ImportError:
+        return False
+    try:
+        from search_memory import count_at, EXHAUSTED_THRESHOLD
+    except ImportError:
+        count_at = lambda *a, **kw: 0  # type: ignore
+        EXHAUSTED_THRESHOLD = 12
+
+    chars = obs.get("chars") or []
+    if not chars:
+        return False
+    bl = obs.get("blstats") or {}
+    dnum = int(bl.get("dungeon_number", 0))
+    dlevel = int(bl.get("level_number", 0))
+
+    def in_3x3(r: int, c: int) -> bool:
+        return abs(r - cy) <= 1 and abs(c - cx) <= 1
+
+    for r, c, _hint in _dead_ends(chars):
+        if in_3x3(r, c) and count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD:
+            return True
+    for r1, c1, r2, c2, _area in _sealed_rooms(chars):
+        # @ is "near" a sealed room if any of its perimeter wall cells are in
+        # the 3×3. The room's bounding box gives an OK approximation.
+        if cy >= r1 - 1 and cy <= r2 + 1 and cx >= c1 - 1 and cx <= c2 + 1:
+            return True
+    return False
+
+
+def _search_burst(do, observe, n: int) -> int:
+    """Spend up to n Command.SEARCH actions via safe_do. Returns count actually
+    done (may be < n if a `safe_do` interrupt fires; the Interrupted exception
+    is re-raised by safe_do for the caller). Search-recording happens in the
+    post_do hook automatically, so we don't track positions here.
+    """
+    done = 0
+    for _ in range(n):
+        safe_do("Command.SEARCH", do=do, observe=observe)
+        done += 1
+    return done

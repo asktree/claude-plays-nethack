@@ -103,19 +103,60 @@ def likely_secret_doors(obs: dict[str, Any]) -> str:
     if not chars:
         return "(likely_secret_doors unavailable: obs has no `chars`; call from inside game.exec)"
 
-    dead_ends = _dead_ends(chars)
+    bl = obs.get("blstats") or {}
+    dnum = int(bl.get("dungeon_number", 0))
+    dlevel = int(bl.get("level_number", 0))
+
+    # Drop dead-end candidates already searched to the threshold (default 12).
+    # Dead-end's standing cell IS the candidate cell, so the per-cell count
+    # is exactly the right key.
+    try:
+        from search_memory import count_at, EXHAUSTED_THRESHOLD
+    except ImportError:
+        count_at = lambda *a, **kw: 0  # type: ignore
+        EXHAUSTED_THRESHOLD = 12
+
+    raw_dead_ends = _dead_ends(chars)
+    fresh_dead_ends = [(r, c, h) for (r, c, h) in raw_dead_ends
+                       if count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD]
+    exhausted_dead_ends = len(raw_dead_ends) - len(fresh_dead_ends)
+
     sealed = _sealed_rooms(chars)
+    # For sealed rooms, we don't know exactly which perimeter floor cells the
+    # gamer will stand on. Heuristic: drop the room only if EVERY interior
+    # floor cell is already exhausted (rare). Otherwise keep showing it.
+    fresh_sealed: list[tuple[int, int, int, int, int]] = []
+    exhausted_sealed = 0
+    for r1, c1, r2, c2, area in sealed:
+        all_exhausted = True
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                if _ch(chars, r, c) == "." and count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD:
+                    all_exhausted = False
+                    break
+            if not all_exhausted:
+                break
+        if all_exhausted:
+            exhausted_sealed += 1
+        else:
+            fresh_sealed.append((r1, c1, r2, c2, area))
 
     out: list[str] = []
-    if dead_ends:
-        out.append(f"Dead-end corridors ({len(dead_ends)}) — search at the wall side:")
-        for r, c, hint in dead_ends[:8]:
-            out.append(f"  ({r:>2},{c:>2}){hint}")
-    if sealed:
+    if fresh_dead_ends:
+        out.append(f"Dead-end corridors ({len(fresh_dead_ends)}) — search at the wall side:")
+        for r, c, hint in fresh_dead_ends[:8]:
+            n = count_at(dnum, dlevel, r, c)
+            tail = f"  [searched {n}/{EXHAUSTED_THRESHOLD}]" if n else ""
+            out.append(f"  ({r:>2},{c:>2}){hint}{tail}")
+    if fresh_sealed:
         out.append("")
-        out.append(f"Sealed rooms (fully-walled, no visible door, {len(sealed)}) — search the walls:")
-        for r1, c1, r2, c2, area in sealed[:5]:
+        out.append(f"Sealed rooms (fully-walled, no visible door, {len(fresh_sealed)}) — search the walls:")
+        for r1, c1, r2, c2, area in fresh_sealed[:5]:
             out.append(f"  rows {r1}–{r2}, cols {c1}–{c2}, {area} floor cells")
+    exhausted_total = exhausted_dead_ends + exhausted_sealed
+    if exhausted_total:
+        out.append("")
+        out.append(f"({exhausted_total} candidate(s) already searched ≥{EXHAUSTED_THRESHOLD} times — dropped)")
     if not out:
         return "No obvious secret-door candidates visible. Reveal more map first, then re-check."
     return "\n".join(out)

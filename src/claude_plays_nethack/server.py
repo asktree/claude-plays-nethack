@@ -77,6 +77,11 @@ class GameState:
         # render substitutes UNSEEN_CHAR for `' '` cells where seen is False,
         # so the gamer can distinguish unexplored frontier from known void.
         self.seen_per_level: dict[tuple[int, int], list[list[bool]]] = {}
+        # Role/race/gender/alignment parsed from the welcome message at reset.
+        # NLE doesn't expose these in `obs` directly (only alignment via blstats),
+        # so we recover them from the "You are a <align> <gender> <race> <role>."
+        # text printed on game start. None until first reset.
+        self.character: dict[str, str] | None = None
 
     def ensure_env(self) -> gym.Env:
         if self.env is None:
@@ -208,9 +213,10 @@ def _render_screen(obs: dict[str, Any]) -> str:
     """Render the dungeon map, with `' '` cells replaced by UNSEEN_CHAR when
     they've never been in line-of-sight on the current level.
 
-    Reads from the raw 24×80 tty_chars (slicing rows 1..21, cols 0..78 — the
-    dungeon area — and dropping col 79 padding). seen[r][c] is the
-    dungeon-relative 21×79 grid, indexed directly.
+    Output invariant: always exactly 21 lines (one per dungeon row), so
+    `screen.split('\\n')[r]` is `chars[r]`. No leading/trailing rows are
+    stripped — that would silently shift the gamer's mental row counts.
+    Trailing whitespace within a row is still rstrip'd (no info loss).
     """
     chars = obs["tty_chars"]
     seen = STATE.current_seen(obs)
@@ -225,12 +231,7 @@ def _render_screen(obs: dict[str, Any]) -> str:
             if ch == " " and seen is not None and not seen[gr][gc]:
                 ch = UNSEEN_CHAR
             line.append(ch)
-        # rstrip ' ' and unseen marker — trailing run carries no info.
         map_rows.append("".join(line).rstrip(decorative))
-    while map_rows and not map_rows[0]:
-        map_rows.pop(0)
-    while map_rows and not map_rows[-1]:
-        map_rows.pop()
     return "\n".join(map_rows)
 
 
@@ -295,6 +296,28 @@ HUNGER_LABELS = {
     0: "Satiated", 1: "Normal", 2: "Hungry",
     3: "Weak", 4: "Fainting", 5: "Fainted", 6: "Starved",
 }
+
+
+def _parse_welcome_message(msg: str) -> dict[str, str] | None:
+    """Pull role/race/gender/alignment from NetHack's welcome line.
+
+    Format examples:
+      "Hello Agent, welcome to NetHack!  You are a chaotic male orcish Wizard."
+      "Konnichi wa Agent, welcome to NetHack!  You are a lawful female human Samurai."
+      "Salutations Agent, welcome to NetHack!  You are a neutral human Priestess."  (no gender word for some)
+    """
+    import re
+    # 4-word form: align + gender + race + role
+    m = re.search(r"You are an? (\w+) (\w+) (\w+) (\w+)\.", msg)
+    if m:
+        return {"alignment": m.group(1), "gender": m.group(2),
+                "race": m.group(3), "role": m.group(4)}
+    # 3-word fallback: align + race + role (no gender; rare)
+    m = re.search(r"You are an? (\w+) (\w+) (\w+)\.", msg)
+    if m:
+        return {"alignment": m.group(1), "gender": "",
+                "race": m.group(2), "role": m.group(3)}
+    return None
 
 
 def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> str:
@@ -424,6 +447,7 @@ def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
         "glyphs": glyphs_grid,
         "seen": [list(row) for row in seen_grid] if seen_grid else None,
         "status_rows": status_rows,
+        "character": STATE.character,
         "trajectory_log": snap.get("trajectory_log"),
     }
     tmp = LIVE_STATE_PATH.with_suffix(LIVE_STATE_PATH.suffix + ".tmp")
@@ -496,6 +520,10 @@ def _reset() -> dict[str, Any]:
     STATE.terminated = False
     STATE.truncated = False
     STATE.update_seen(obs)
+    # Capture role/race/gender/alignment from the welcome message before any
+    # subsequent action overwrites it. obs["message"] right after reset holds
+    # NetHack's "You are a <align> <gender> <race> <role>." greeting.
+    STATE.character = _parse_welcome_message(_decode_message(obs))
     # Roll the trajectory file: every game gets its own <timestamp>-<seed>.jsonl
     # so post-hoc analysis splits naturally per game (vs per server-session).
     STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{seed}.jsonl"
@@ -512,6 +540,11 @@ def _reset() -> dict[str, Any]:
     })
     snap = _snapshot()
     _write_live_state(STATE.last_obs, snap)
+    _fire_hook("post_reset", {
+        "seed": seed,
+        "obs": _snapshot(include_grid=True) if _has_hooks("post_reset") else None,
+        "character": STATE.character,
+    })
     return snap
 
 
@@ -532,8 +565,13 @@ def _do(action: int | str) -> dict[str, Any]:
             "game over — restart the harness (./run.sh) to start a new game"
         )
 
+    _load_hooks()  # idempotent; covers direct MCP do() calls before any exec
     idx = STATE.resolve_action(action)
     action_enum = STATE.actions_tuple[idx]
+    # Snapshot pre-step state if any post_do hook is registered (cost: one
+    # extra grid build per step, ~10KB; skipped when no hooks need it).
+    fire_post_do = _has_hooks("post_do")
+    pre_snap = _snapshot(include_grid=True) if fire_post_do else None
     obs, reward, terminated, truncated, info = env.step(idx)
     STATE.last_obs = obs
     STATE.last_info = info
@@ -587,6 +625,17 @@ def _do(action: int | str) -> dict[str, Any]:
     snap["reward"] = float(reward)
     snap["message"] = combined  # override with full accumulated text
     _write_live_state(STATE.last_obs, snap)
+    if fire_post_do:
+        post_snap = _snapshot(include_grid=True)
+        _fire_hook("post_do", {
+            "action": action,
+            "action_name": f"{type(action_enum).__name__}.{action_enum.name}",
+            "pre_obs": pre_snap,
+            "post_obs": post_snap,
+            "reward": float(reward),
+            "terminated": STATE.terminated,
+            "auto_more_count": auto_more_count,
+        })
     return snap
 
 
@@ -596,14 +645,64 @@ def _do(action: int | str) -> dict[str, Any]:
 _KERNEL: dict[str, Any] = {"__name__": "__nethack_kernel__"}
 
 
+# Hooks system: gamer-side files at game/hooks/*.py register callbacks that
+# fire on lifecycle events (post_do, post_reset, ...). This is how we encode
+# rules deterministically — e.g. record every Command.SEARCH into a per-level
+# memory map so the AI doesn't have to remember to do it manually.
+HOOKS: dict[str, list[Any]] = {"post_do": [], "post_reset": [], "post_observe": []}
+_HOOKS_LOADED: bool = False
+
+
+def register_hook(event: str, fn: Any) -> None:
+    """Register a callback for a lifecycle event. Called by game/hooks/*.py."""
+    HOOKS.setdefault(event, []).append(fn)
+
+
+def _fire_hook(event: str, payload: dict[str, Any]) -> None:
+    """Dispatch all registered callbacks for `event`. Buggy hooks are caught
+    and logged but never break the game step."""
+    # Snapshot the list so hooks can safely register new hooks without mutation issues.
+    for fn in list(HOOKS.get(event, [])):
+        try:
+            fn(payload)
+        except Exception as e:
+            # Log to trajectory so post-hoc analysis catches it; never raise.
+            STATE.log({"event": "hook_error", "hook_event": event,
+                       "hook": getattr(fn, "__name__", repr(fn)), "error": str(e)})
+
+
+def _has_hooks(event: str) -> bool:
+    return bool(HOOKS.get(event))
+
+
+def _load_hooks() -> None:
+    """One-time discovery: import every game/hooks/*.py so they can call
+    register_hook() at module load. Idempotent — guarded by _HOOKS_LOADED.
+    """
+    global _HOOKS_LOADED
+    if _HOOKS_LOADED:
+        return
+    _HOOKS_LOADED = True
+    hooks_dir = GAME_DIR / "hooks"
+    if not hooks_dir.is_dir():
+        return
+    import importlib.util
+    for path in sorted(hooks_dir.glob("*.py")):
+        if path.name.startswith("_"):
+            continue
+        spec = importlib.util.spec_from_file_location(f"hooks.{path.stem}", path)
+        if not spec or not spec.loader:
+            continue
+        mod = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(mod)
+        except Exception as e:
+            STATE.log({"event": "hook_load_error", "file": path.name, "error": str(e)})
+
+
 def _kernel_do(action: int | str) -> dict[str, Any]:
     """Wrap _do so the kernel's `obs` global stays fresh after each step.
-
-    Without this wrapper, the loop pattern
-        while obs['blstats']['x'] > target: do(...)
-    becomes infinite — `obs` is captured at exec entry and never updates,
-    so the predicate is fixed and the loop bumps the same wall forever
-    until NLE truncates the episode. Real bug, hit by the first gamer run.
+    (post_do hooks fire inside _do itself, so all do() paths trigger them.)
     """
     slim = _do(action)
     _KERNEL["obs"] = _snapshot(include_grid=True)
@@ -623,6 +722,7 @@ def _exec_python(python_code: str) -> dict[str, Any]:
     AUTO-REFRESHED after every kernel do() call), `do(action)`, `observe()`.
     Imports persist across calls (e.g. `from views import crop`).
     """
+    _load_hooks()  # idempotent; first exec or first do() loads game/hooks/*.py
     _KERNEL["obs"] = _snapshot(include_grid=True)
     _KERNEL["do"] = _kernel_do
     _KERNEL["observe"] = _kernel_observe

@@ -19,7 +19,7 @@ There is no `reset()` tool — you don't get to restart. If you die, the game is
 ## Observation shape
 
 Each tool returns a dict:
-- `screen` — the rendered TTY screen as a multi-line string. **`°` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** NetHack itself uses no `°` glyph anywhere; it's purely our overlay so you can tell exploration frontier apart from passed-by void. The harness auto-tracks which cells you've ever seen (per-level). Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
+- `screen` — the rendered TTY screen as a multi-line string. **Always exactly 21 lines**, one per dungeon row, so `screen.split("\n")[r]` is `chars[r]` (no leading/trailing rows are stripped, even if they're entirely unseen). **`°` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** NetHack itself uses no `°` glyph anywhere; it's purely our overlay so you can tell exploration frontier apart from passed-by void. The harness auto-tracks which cells you've ever seen (per-level). Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
 - `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
 - `inventory` — list of `{letter, text}` for what you're carrying. (In `do()` tool results the rendered text dedupes when unchanged — you'll see "(unchanged from last turn)" instead. Call `observe()` to force a full render. The structured `obs.inventory` field is always present for views/tactics inside exec.)
@@ -32,9 +32,8 @@ Each tool returns a dict:
   - `descriptions[r][c]` — per-cell description text (e.g. "fountain", "tame kitten").
   - `glyphs[r][c]` — NetHack glyph id (use `from nle import nethack; nethack.glyph_is_normal_monster(g)` etc to classify).
   - `seen[r][c]` — bool: ever had LoS on this cell on this level (NetHack's `seenv != 0`).
-  - `chars` (24×80) and `colors` (24×80): the rendered tty grid.
-  - `descriptions` (21×79): per-cell text descriptions (NetHack's `;` glance text).
-  - `glyphs` (21×79): NetHack glyph IDs encoding type/identity (monsters/items only present when in LoS, terrain persists as remembered). Use with `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) to distinguish currently-visible from remembered terrain. **Don't `print(obs["glyphs"])`** — it's 1600 ints (~11KB) and would bloat your context. Iterate it programmatically and print summaries instead.
+
+  Use `nle.nethack` helpers (`from nle import nethack; nethack.glyph_is_normal_monster(g)`, `glyph_is_object`, `glyph_is_pet`, etc.) on `glyphs[r][c]` to distinguish currently-visible from remembered terrain. **Don't `print(obs["glyphs"])`** — it's 1659 ints (~11KB) and would bloat your context. Iterate it programmatically and print summaries instead.
 
 ## How to play
 
@@ -65,7 +64,7 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
 
 - **`travel_to_nearest(symbol, index=0)`** — find the nth-nearest cell with that glyph and travel_to it. Great for grabbing items: `travel_to_nearest('$')` for gold, `travel_to_nearest('!')` for a potion, `travel_to_nearest('?')` for a scroll. `index=1` is the 2nd-nearest, etc.
 
-- **`auto_explore()`** — repeatedly travels to the nearest unexplored frontier on this level until exploration is done OR a hostile comes into view OR no progress is possible. One call to clear a level methodically. Returns a summary dict with `reason`, `iters`, `targets`. Pair with `safe_do`'s philosophy: any visible hostile halts exploration; you choose how to handle.
+- **`auto_explore()`** — repeatedly travels to the nearest unexplored frontier on this level until exploration is done OR a hostile comes into view OR no progress is possible. Each iteration: if `@` is on/adjacent to an unexhausted `likely_secret_doors` candidate, do a brief 6-search burst before moving on (two natural visits hit the canonical 12 searches). One call to clear a level methodically. Returns a summary dict with `reason`, `iters`, `targets`, `searches`. Pair with `safe_do`'s philosophy: any visible hostile halts exploration; you choose how to handle.
 
 - **`look_at(row, col)`** / **`look_at_nearest(symbol, index=0)`** — uses NetHack's `Command.GLANCE` to identify what's at a cell. Returns the post-glance snapshot whose `message` is NetHack's description (e.g. `"kobold; a small humanoid"`, `"(a fountain)"`). Useful when a glyph is ambiguous from `chars` alone.
 
@@ -89,7 +88,7 @@ Inside `exec(...)`, import from `views/`:
 
 - **`crop(obs, radius=4)`** — centered (2r+1)×(2r+1) ASCII window around your `@`. Better for spatial reasoning than parsing the full 80-col screen.
 - **`unexplored(obs)`** — list of explored walkable cells adjacent to unseen space, sorted by distance. Tells you where to go to reveal more map. Returns counts, coordinates `(row, col)`, and bearings (e.g. `"3N+5E"`). Coords are usable with `Command.TRAVEL`: send `_`, then move the cursor to `(row, col)` and `.` to confirm.
-- **`likely_secret_doors(obs)`** — heuristic spots worth searching: dead-end corridors and fully-walled rooms with no visible door. Skips areas that aren't fully revealed yet to avoid false positives.
+- **`likely_secret_doors(obs)`** — heuristic spots worth searching: dead-end corridors and fully-walled rooms with no visible door. Drops candidates already searched ≥12 times (per-cell counts kept in `search_memory`, populated automatically by the search-record hook on every `Command.SEARCH`).
 - **`monsters(obs)`** — visible monsters (excluding `@`) sorted by distance, split into hostile/peaceful vs tame, named via NetHack's per-cell descriptions ("kobold", "tame little dog called Hachi"). Handy before deciding to charge or retreat.
 
 You can write new views — pure functions over `obs` returning strings or simple data. Add them in `game/views/`. Don't put side-effecting code in views; that belongs in tactics (later).
