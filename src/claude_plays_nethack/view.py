@@ -81,9 +81,12 @@ class TrajectoryEvent:
 @dataclass
 class SessionEvent:
     t: float
-    kind: str  # "thinking" | "text" | "tool_use"
+    kind: str  # "thinking" | "text" | "tool_use" | "msg"
     text: str
-    code: str | None = None  # python source for exec() tool_use, None otherwise
+    code: str | None = None  # python source for exec/exec_raw tool_use, None otherwise
+    paused_line: int | None = None  # 1-indexed line in `code` where safe_exec
+                                    # paused. Back-filled from the matching
+                                    # tool_result's "paused at" stack info.
 
 
 EVENT_RETENTION = 500  # cap per reader so old events drop off
@@ -98,9 +101,14 @@ class TailReader:
     session and a 200ms tick, this gradually fell behind real time. Now we parse
     each line exactly once as it's first read, then keep a bounded ring of
     parsed events.
+
+    parse_record receives (rec, prior_events) — prior_events is a *mutable*
+    reference to the existing event ring. Parsers may back-fill fields on
+    prior events (e.g., a tool_result with paused-at info updates the
+    matching tool_use's paused_line attribute).
     """
     directory: Path | None = None
-    parse_record: Callable[[dict[str, Any]], list[Any]] | None = None
+    parse_record: Callable[[dict[str, Any], list[Any]], list[Any]] | None = None
     path: Path | None = None
     offset: int = 0
     pending: str = ""  # last partial line (no trailing newline yet)
@@ -137,7 +145,7 @@ class TailReader:
             except json.JSONDecodeError:
                 continue
             if self.parse_record is not None:
-                new = self.parse_record(rec)
+                new = self.parse_record(rec, self.events)
                 if new:
                     self.events.extend(new)
         if len(self.events) > EVENT_RETENTION:
@@ -151,7 +159,7 @@ def _latest_jsonl(directory: Path | None) -> Path | None:
     return candidates[0] if candidates else None
 
 
-def _trajectory_record(rec: dict[str, Any]) -> list[TrajectoryEvent]:
+def _trajectory_record(rec: dict[str, Any], _prior: list[Any]) -> list[TrajectoryEvent]:
     if rec.get("event") == "do":
         return [TrajectoryEvent(
             t=float(rec.get("t", 0)),
@@ -173,7 +181,10 @@ def _trajectory_record(rec: dict[str, Any]) -> list[TrajectoryEvent]:
     return []
 
 
-def _session_record(rec: dict[str, Any]) -> list[SessionEvent]:
+_PAUSED_AT_RE = re.compile(r"<safe_exec>:(\d+)")
+
+
+def _session_record(rec: dict[str, Any], prior_events: list[SessionEvent]) -> list[SessionEvent]:
     ts_str = rec.get("timestamp")
     try:
         ts = time.mktime(time.strptime(ts_str.split(".")[0], "%Y-%m-%dT%H:%M:%S")) if ts_str else 0
@@ -192,7 +203,18 @@ def _session_record(rec: dict[str, Any]) -> list[SessionEvent]:
             content = b.get("content", "")
             if isinstance(content, list):
                 content = "".join(c.get("text", "") for c in content if isinstance(c, dict))
-            for line in str(content).split("\n"):
+            content_str = str(content)
+            # Back-fill paused_line on the most recent tool_use exec event.
+            # The result text contains "=== paused at ===\n  <safe_exec>:N  ..."
+            # for safe-exec pauses; first match is the deepest gamer frame.
+            m = _PAUSED_AT_RE.search(content_str)
+            if m:
+                paused_line = int(m.group(1))
+                for ev in reversed(prior_events):
+                    if ev.kind == "tool_use" and ev.code is not None:
+                        ev.paused_line = paused_line
+                        break
+            for line in content_str.split("\n"):
                 if line.startswith("msg: "):
                     msg = line[5:].strip()
                     if msg:
@@ -220,15 +242,30 @@ def _session_record(rec: dict[str, Any]) -> list[SessionEvent]:
             inp = block.get("input", {})
             if "nethack" in name:
                 short = name.replace("mcp__nethack__", "")
-                if short == "exec" and isinstance(inp, dict):
+                if short in ("exec", "exec_raw") and isinstance(inp, dict):
                     code = (inp.get("python_code") or "").rstrip()
                     n_lines = len(code.splitlines()) if code else 0
+                    autoc = inp.get("autocontinue") if short == "exec" else None
+                    suffix = ""
+                    if autoc:
+                        suffix = f" autocontinue={len(autoc)}"
                     out.append(SessionEvent(
                         t=ts,
                         kind="tool_use",
-                        text=f"exec [{n_lines} line{'' if n_lines == 1 else 's'}]",
+                        text=f"{short} [{n_lines} line{'' if n_lines == 1 else 's'}]{suffix}",
                         code=code,
                     ))
+                elif short == "continue_exec":
+                    autoc = inp.get("autocontinue") if isinstance(inp, dict) else None
+                    if autoc:
+                        out.append(SessionEvent(
+                            t=ts, kind="tool_use",
+                            text=f"continue_exec(autocontinue={len(autoc)})",
+                        ))
+                    else:
+                        out.append(SessionEvent(
+                            t=ts, kind="tool_use", text="continue_exec()",
+                        ))
                 else:
                     arg = inp.get("action") if isinstance(inp, dict) else inp
                     out.append(SessionEvent(
@@ -514,14 +551,22 @@ def _build_log(
                     flat = flat[:COLLAPSED_TEXT_CHARS - 1] + "…"
                 body.append(f"{flat}\n", style=color)
         else:  # call
-            body.append(f"{e.text}\n", style=color)
+            head = e.text
+            if e.paused_line:
+                head = f"{head}  ⏸ paused at line {e.paused_line}"
+            body.append(f"{head}\n", style=color)
             if e.code:
                 code_lines = e.code.splitlines()
                 shown = code_lines if expanded else code_lines[:COLLAPSED_CODE_LINES]
-                for ln in shown:
+                for i, ln in enumerate(shown, start=1):
                     if len(ln) > LINE_CAP:
                         ln = ln[:LINE_CAP - 1] + "…"
-                    body.append(f"     │ {ln}\n", style="dim cyan")
+                    if e.paused_line == i:
+                        # Highlight via brightness only (bold cyan vs the
+                        # surrounding dim cyan), with ⏸ in the gutter.
+                        body.append(f"   ⏸ │ {ln}\n", style="bold cyan")
+                    else:
+                        body.append(f"     │ {ln}\n", style="dim cyan")
                 if not expanded and len(code_lines) > COLLAPSED_CODE_LINES:
                     body.append(f"     └ (+{len(code_lines)-COLLAPSED_CODE_LINES} more lines)\n", style="dim")
         rendered += 1

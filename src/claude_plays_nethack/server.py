@@ -146,6 +146,11 @@ class GameState:
             "glyphs",  # 21x79 NetHack glyph IDs — encode monster/item/terrain type
             "seenv",   # 21x79 NetHack seenv bitmask — ground truth for "seen this cell"
                        # (requires our forked NLE; see /Users/em/Coding/nle-fork)
+            "internal", # NLE_INTERNAL_SIZE=9 ints; we use [1]=in_yn_function,
+                        # [2]=in_getlin to skip pausing on "Yes/no?" / "What
+                        # do you want to eat?"-style prompts where NLE is
+                        # awaiting gamer input — the gamer's next action is
+                        # the response, no pause needed.
         )
         from nle import nethack as _nh
         self.env = gym.make(
@@ -153,6 +158,15 @@ class GameState:
             observation_keys=obs_keys,
             actions=_nh.ACTIONS,   # full 121-action set; default for NetHack-v0 too
             character=target,
+            # fix_moon_phase=True derives time_seed from the core seed instead
+            # of the wall clock — required for replay determinism. Without it,
+            # two envs built at the same seed differ in moon-phase-dependent
+            # state and subsequent gameplay diverges.
+            fix_moon_phase=True,
+            # allow_all_modes=True lets Command.ATTRIBUTES (^X) display the
+            # enlightenment popup, which we parse for role/race/alignment at
+            # game start. Without it, ^X is a no-op.
+            allow_all_modes=True,
         )
         self.env_character = target
         self.actions_tuple = tuple(self.env.unwrapped.actions)
@@ -317,6 +331,24 @@ def _chars_to_strings(obs: dict[str, Any]) -> list[str]:
     return out
 
 
+def _is_awaiting_input(obs: dict[str, Any]) -> bool:
+    """True when NLE is parked in a yn_function or getlin prompt
+    (`obs['internal'][1]=in_yn_function`, `[2]=in_getlin`).
+
+    NOT used for auto-skipping pauses anymore — that turned out too
+    aggressive: ENGRAVE/EAT/READ etc. yn-prompts are genuine decisions
+    the gamer needs to *see* before responding. Skipping them silently
+    parked NetHack at a prompt and the gamer's next action got consumed
+    as a (usually invalid) response, producing 'Never mind.' immediately.
+
+    Helper kept for future use cases that legitimately want this signal.
+    """
+    internal = obs.get("internal")
+    if internal is None or len(internal) < 3:
+        return False
+    return bool(int(internal[1])) or bool(int(internal[2]))
+
+
 def _has_more_prompt(obs: dict[str, Any]) -> bool:
     """True if the top tty row shows --More-- (a flush-the-message-buffer prompt).
 
@@ -360,6 +392,129 @@ HUNGER_LABELS = {
     0: "Satiated", 1: "Normal", 2: "Hungry",
     3: "Weak", 4: "Fainting", 5: "Fainted", 6: "Starved",
 }
+
+
+# NetHack character-spec component lookups. The spec passed to NLE is a
+# 3-letter code like "val-hum-fem-law"; we expand to human-readable names
+# for header rendering.
+_ROLE_NAMES = {
+    "arc": "Archeologist", "bar": "Barbarian", "cav": "Caveman",
+    "hea": "Healer", "kni": "Knight", "mon": "Monk", "pri": "Priest",
+    "ran": "Ranger", "rog": "Rogue", "sam": "Samurai", "tou": "Tourist",
+    "val": "Valkyrie", "wiz": "Wizard",
+}
+_RACE_NAMES = {"hum": "human", "elf": "elven", "dwa": "dwarven",
+               "gno": "gnomish", "orc": "orcish"}
+_GENDER_NAMES = {"mal": "male", "fem": "female"}
+_ALIGN_NAMES = {"law": "lawful", "neu": "neutral", "cha": "chaotic"}
+
+
+def _parse_character_spec(spec: str) -> dict[str, str] | None:
+    """Expand a NLE character spec like 'val-hum-fem-law' into role/race/
+    gender/alignment full names. Returns None for '@' (random) — caller
+    falls back to parsing the welcome message in that case."""
+    if not spec or spec == "@":
+        return None
+    parts = spec.lower().split("-")
+    out: dict[str, str] = {}
+    if len(parts) > 0 and parts[0] in _ROLE_NAMES:
+        out["role"] = _ROLE_NAMES[parts[0]]
+    if len(parts) > 1 and parts[1] in _RACE_NAMES:
+        out["race"] = _RACE_NAMES[parts[1]]
+    if len(parts) > 2 and parts[2] in _GENDER_NAMES:
+        out["gender"] = _GENDER_NAMES[parts[2]]
+    if len(parts) > 3 and parts[3] in _ALIGN_NAMES:
+        out["alignment"] = _ALIGN_NAMES[parts[3]]
+    return out or None
+
+
+def _has_attributes_popup(obs: dict[str, Any]) -> bool:
+    """The ^X enlightenment popup is identifiable by '(N of M)' on the bottom."""
+    tty = obs.get("tty_chars")
+    if tty is None:
+        return False
+    for row in tty:
+        line = bytes(row).rstrip(b"\x00").decode("latin-1", errors="replace")
+        if re.search(r"\(\d+ of \d+\)", line):
+            return True
+    return False
+
+
+def _parse_attributes_popup(obs: dict[str, Any]) -> dict[str, str] | None:
+    """Parse role/race/alignment from the ^X enlightenment popup.
+
+    The relevant lines are:
+      "You are a Stripling, a level 1 human Valkyrie."
+      "You are lawful, on a mission for Tyr"
+    Only role+race+alignment are recoverable; gender isn't displayed unless
+    the role name is gender-specific (Priestess, Cavewoman).
+    """
+    tty = obs.get("tty_chars")
+    if tty is None:
+        return None
+    text = "\n".join(
+        bytes(row).rstrip(b"\x00").decode("latin-1", errors="replace")
+        for row in tty
+    )
+    # "You are a Stripling, a level 1 human Valkyrie." (no gender word)
+    # "You are a Plunderess, a level 1 female human Barbarian." (with gender)
+    m_rr = re.search(
+        r"You are an? \w+, a level \d+ (?:(female|male) )?(\w+) (\w+)\.",
+        text,
+    )
+    if not m_rr:
+        return None
+    out: dict[str, str] = {"race": m_rr.group(2).lower(), "role": m_rr.group(3)}
+    if m_rr.group(1):
+        out["gender"] = m_rr.group(1).lower()
+    m_a = re.search(r"You are (lawful|neutral|chaotic),", text, re.IGNORECASE)
+    if m_a:
+        out["alignment"] = m_a.group(1).lower()
+    # Gender-specific role names imply gender even when the row didn't say.
+    if "gender" not in out:
+        if out["role"] in ("Priestess", "Cavewoman", "Plunderess"):
+            out["gender"] = "female"
+        elif out["role"] in ("Priest", "Caveman"):
+            out["gender"] = "male"
+    return out
+
+
+def _capture_character_via_attributes() -> dict[str, str] | None:
+    """Send Command.ATTRIBUTES at game start, parse role/race/alignment from
+    the popup, pump SPACE through pages to dismiss.
+
+    Calls `env.step` directly — does NOT log step events to the trajectory
+    or bump STATE.step_n. The probe is purely informational (^X is a
+    non-turn-advancing query in NetHack), and we record the parsed result
+    in the trajectory header (`character_parsed`), so replay can recover
+    the info without re-running the probe. Skipping the probe events in
+    the trajectory keeps step_n equal to the gamer's action count.
+    """
+    env = STATE.env
+    if env is None:
+        return None
+    attrs_idx = STATE.action_table.get("Command.ATTRIBUTES")
+    if attrs_idx is None:
+        return None
+    more_idx = STATE.action_table.get("MORE")
+
+    parsed: dict[str, str] | None = None
+    obs, *_ = env.step(attrs_idx)
+    STATE.last_obs = obs
+    parsed = _parse_attributes_popup(obs)
+
+    SAFETY = 6
+    for _ in range(SAFETY):
+        if not _has_attributes_popup(obs):
+            break
+        if more_idx is None:
+            break
+        obs, *_ = env.step(more_idx)
+        STATE.last_obs = obs
+        if parsed is None:
+            parsed = _parse_attributes_popup(obs)
+
+    return parsed
 
 
 def _parse_welcome_message(msg: str) -> dict[str, str] | None:
@@ -693,6 +848,19 @@ def _reset() -> dict[str, Any]:
     replay_to_env = os.environ.get("NETHACK_REPLAY_TO")
     replay_to = int(replay_to_env) if replay_to_env else None
 
+    # Always start with a fresh env. Calling env.unwrapped.seed() +
+    # env.reset() on a previously-used env produces non-deterministic
+    # state in NLE (something about ttyrec or save-state lingers across
+    # resets even with reseed=False). _reset is called at most once per
+    # server boot in production; the ~1s rebuild cost is negligible.
+    if STATE.env is not None:
+        try:
+            STATE.env.close()
+        except Exception:
+            pass
+        STATE.env = None
+        STATE.env_character = None
+
     # Reset per-game STATE bookkeeping.
     STATE.seen_per_level.clear()
     STATE.step_n = 0
@@ -761,7 +929,12 @@ def _reset() -> dict[str, Any]:
         STATE.last_obs = obs
         STATE.last_info = info
         STATE.update_seen(obs)
-        STATE.character = _parse_welcome_message(_decode_message(obs))
+        # Prefer the parsed character info recorded in the header (probed
+        # via ^X at original-game time). Falls back to spec/welcome when
+        # the trajectory pre-dates the character_parsed field.
+        STATE.character = (header.get("character_parsed")
+                           or _parse_character_spec(character)
+                           or _parse_welcome_message(_decode_message(obs)))
 
         # Silent replay of every recorded step. Validate against the recording.
         STATE.replaying = True
@@ -795,10 +968,23 @@ def _reset() -> dict[str, Any]:
     STATE.last_obs = obs
     STATE.last_info = info
     STATE.update_seen(obs)
-    STATE.character = _parse_welcome_message(_decode_message(obs))
-
-    # Open a fresh trajectory file with v2 header.
+    # Open the trajectory file early so _log_step (called by the ^X probe
+    # below) has somewhere to write. The header itself is appended a few
+    # lines down once we've captured all the metadata.
     STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{core}-{STATE.session_id}.jsonl"
+    # Recover role/race/alignment. Spec parser handles pinned chars
+    # robustly. For '@' we probe via Command.ATTRIBUTES — reliable across
+    # all spawns (welcome-message parsing is clobbered by autopickup).
+    spec_char = _parse_character_spec(character)
+    if spec_char and {"role", "race", "alignment"}.issubset(spec_char):
+        STATE.character = spec_char
+    else:
+        probed = _capture_character_via_attributes()
+        STATE.character = probed or spec_char or _parse_welcome_message(_decode_message(obs))
+
+    # Trajectory path was set above (before the ^X probe). Write the v2
+    # header now — it includes character_parsed so resumed sessions don't
+    # need to re-probe.
     gamer_session_dir = Path.home() / ".claude" / "projects" / str(GAME_DIR).replace("/", "-")
     STATE.log({
         "event": "header",
@@ -807,7 +993,8 @@ def _reset() -> dict[str, Any]:
         "disp": disp,
         "reseed": reseed,
         "lgen": lgen,
-        "character": character,
+        "character": character,                      # spec string
+        "character_parsed": STATE.character,         # role/race/alignment dict
         "env_id": ENV_ID,
         "originating_session_id": STATE.session_id,
         "claude_session_jsonl": str(gamer_session_dir),
@@ -1293,29 +1480,35 @@ def _continue_exec(autocontinue: list[str] | None = None) -> dict[str, Any]:
 
 
 def _format_safe_exec_result(out: dict[str, Any]) -> str:
-    """Render a safe_exec/continue_exec result for the model."""
+    """Render a safe_exec/continue_exec result for the model. Pauses are
+    formatted concisely: one-liner with file:line + message, then state."""
     status = out.get("status", "?")
-    parts: list[str] = [f"=== status: {status} ==="]
+    parts: list[str] = []
     if status == "paused":
-        parts.append("=== message ===\n" + str(out.get("message", "")))
         stack = out.get("stack") or []
+        # Deepest gamer frame (closest to the do() that triggered the pause).
+        loc = "?"
         if stack:
-            lines = []
-            for frame in stack:
-                fp = frame.get("file", "?")
-                ln = frame.get("line", "?")
-                code = frame.get("code", "")
-                lines.append(f"  {fp}:{ln}    {code}")
-            parts.append("=== paused at ===\n" + "\n".join(lines))
-        autoc = out.get("autocontinue") or []
-        if autoc:
-            parts.append("=== autocontinue patterns ===\n" + "\n".join(f"  {p}" for p in autoc))
-        parts.append("=== post-step state ===\n" + _format_for_text(out.get("post_obs") or {}))
+            f0 = stack[0]
+            loc = f"{f0.get('file', '?')}:{f0.get('line', '?')}"
+        msg = str(out.get("message", "")).strip()
+        parts.append(f"*** PAUSED at {loc} — {msg}")
+        parts.append("(continue_exec() resumes; any other tool drops the parked code)")
+        if len(stack) > 1:
+            # Tactic frames worth showing — gamer's call site is in the
+            # tail of the stack, the immediate do() is at the head.
+            chain = " ← ".join(f"{f.get('file','?')}:{f.get('line','?')}" for f in stack)
+            parts.append(f"stack: {chain}")
+        parts.append(_format_for_text(out.get("post_obs") or {}))
     elif status == "error":
-        parts.append("=== error ===\n" + str(out.get("error", "")).rstrip())
-        parts.append("=== post-state ===\n" + _format_for_text(_snapshot()))
+        parts.append("*** ERROR ***")
+        parts.append(str(out.get("error", "")).rstrip())
+        parts.append(_format_for_text(_snapshot()))
     elif status == "complete":
-        parts.append("=== post-state ===\n" + _format_for_text(_snapshot()))
+        parts.append("*** complete ***")
+        parts.append(_format_for_text(_snapshot()))
+    else:
+        parts.append(f"*** {status} ***")
     return "\n\n".join(parts)
 
 
