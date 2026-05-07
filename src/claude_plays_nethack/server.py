@@ -28,8 +28,14 @@ from nle import nethack
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GAME_DIR = REPO_ROOT / "game"
-TRAJECTORY_DIR = Path(os.environ.get("NETHACK_TRAJECTORY_DIR", GAME_DIR / "trajectory"))
-TRAJECTORY_DIR.mkdir(parents=True, exist_ok=True)
+def _trajectory_dir() -> Path:
+    """Resolve the trajectory directory fresh each time (NOT a module
+    constant). Tests monkeypatch NETHACK_TRAJECTORY_DIR per test; freezing
+    at import would pin all tests to the first one's tmp_path and cause
+    cross-test file collisions in the shared dir."""
+    d = Path(os.environ.get("NETHACK_TRAJECTORY_DIR", str(GAME_DIR / "trajectory")))
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 LIVE_STATE_PATH = Path(os.environ.get("NETHACK_LIVE_STATE", GAME_DIR / ".live_state.json"))
 LIVE_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -82,8 +88,11 @@ class GameState:
         self.last_info: dict[str, Any] | None = None
         self.terminated: bool = False
         self.truncated: bool = False
+        # session_id and trajectory_path are placeholders here — _reset()
+        # rerolls them per game so multiple games in one process (tests, or
+        # future scenarios) get unique identifiers and unique filenames.
         self.session_id: str = uuid.uuid4().hex[:8]
-        self.trajectory_path: Path = TRAJECTORY_DIR / f"{int(time.time())}-{self.session_id}.jsonl"
+        self.trajectory_path: Path = _trajectory_dir() / f"placeholder-{self.session_id}.jsonl"
         self.action_table: dict[str, int] = {}
         self.actions_tuple: tuple = ()
         # For inventory dedup in formatted text: track the last inventory we
@@ -426,16 +435,11 @@ def _parse_character_spec(spec: str) -> dict[str, str] | None:
     return out or None
 
 
-def _has_attributes_popup(obs: dict[str, Any]) -> bool:
-    """The ^X enlightenment popup is identifiable by '(N of M)' on the bottom."""
-    tty = obs.get("tty_chars")
-    if tty is None:
-        return False
-    for row in tty:
-        line = bytes(row).rstrip(b"\x00").decode("latin-1", errors="replace")
-        if re.search(r"\(\d+ of \d+\)", line):
-            return True
-    return False
+# Removed _has_attributes_popup: NLE's internal[3] (xwaitforspace) sticks
+# at 1 even after the popup is dismissed, so we can't use it for end
+# detection. The popup is reliably 2 pages; we pump a fixed budget of
+# MOREs in _capture_character_via_attributes — extras are harmless
+# Enter-presses in moveloop.
 
 
 def _parse_attributes_popup(obs: dict[str, Any]) -> dict[str, str] | None:
@@ -478,40 +482,28 @@ def _parse_attributes_popup(obs: dict[str, Any]) -> dict[str, str] | None:
 
 
 def _capture_character_via_attributes() -> dict[str, str] | None:
-    """Send Command.ATTRIBUTES at game start, parse role/race/alignment from
-    the popup, pump SPACE through pages to dismiss.
+    """Send Command.ATTRIBUTES, parse role/race/alignment from the popup,
+    dismiss with ESC. ^X + ESC is a true no-op on game state (verified
+    empirically: same final blstats with vs without probe), so we go
+    direct to env.step and don't log either action — there's nothing
+    for replay to reproduce.
 
-    Calls `env.step` directly — does NOT log step events to the trajectory
-    or bump STATE.step_n. The probe is purely informational (^X is a
-    non-turn-advancing query in NetHack), and we record the parsed result
-    in the trajectory header (`character_parsed`), so replay can recover
-    the info without re-running the probe. Skipping the probe events in
-    the trajectory keeps step_n equal to the gamer's action count.
+    Dismiss MUST be ESC, not MORE/SPACE: with allow_all_modes=True NLE
+    does not auto-handle popups, and MORE leaks into moveloop and
+    silently swallows subsequent gamer actions.
     """
     env = STATE.env
     if env is None:
         return None
     attrs_idx = STATE.action_table.get("Command.ATTRIBUTES")
-    if attrs_idx is None:
+    esc_idx = STATE.action_table.get("Command.ESC")
+    if attrs_idx is None or esc_idx is None:
         return None
-    more_idx = STATE.action_table.get("MORE")
-
-    parsed: dict[str, str] | None = None
     obs, *_ = env.step(attrs_idx)
     STATE.last_obs = obs
     parsed = _parse_attributes_popup(obs)
-
-    SAFETY = 6
-    for _ in range(SAFETY):
-        if not _has_attributes_popup(obs):
-            break
-        if more_idx is None:
-            break
-        obs, *_ = env.step(more_idx)
-        STATE.last_obs = obs
-        if parsed is None:
-            parsed = _parse_attributes_popup(obs)
-
+    obs, *_ = env.step(esc_idx)
+    STATE.last_obs = obs
     return parsed
 
 
@@ -757,9 +749,8 @@ def _read_traj_header(path: Path) -> dict[str, Any] | None:
 
 
 def _read_traj_steps(path: Path) -> list[dict[str, Any]]:
-    """Return all step events from a trajectory in order. Skips header/reset/
-    other event types. Each entry is the parsed JSON with action_index and
-    the recorded blstats/message for replay validation."""
+    """Return all step events from a trajectory in order. Skips header/
+    reset/other metadata."""
     out: list[dict[str, Any]] = []
     with path.open() as fh:
         for line in fh:
@@ -777,18 +768,19 @@ def _read_traj_steps(path: Path) -> list[dict[str, Any]]:
 
 def _resolve_traj_path(value: str | None) -> Path | None:
     """Resolve NETHACK_TRAJ. Accepts None, an absolute/relative path, or the
-    literal string 'latest' (= most-recent file in TRAJECTORY_DIR by mtime)."""
+    literal string 'latest' (= most-recent .jsonl in the trajectory dir)."""
     if not value:
         return None
+    traj_dir = _trajectory_dir()
     if value == "latest":
-        candidates = sorted(TRAJECTORY_DIR.glob("*.jsonl"),
+        candidates = sorted(traj_dir.glob("*.jsonl"),
                             key=lambda p: p.stat().st_mtime, reverse=True)
         if not candidates:
-            raise RuntimeError(f"NETHACK_TRAJ=latest but no .jsonl files in {TRAJECTORY_DIR}")
+            raise RuntimeError(f"NETHACK_TRAJ=latest but no .jsonl files in {traj_dir}")
         return candidates[0]
     p = Path(value)
     if not p.is_absolute():
-        p = (TRAJECTORY_DIR / p).resolve()
+        p = (traj_dir / p).resolve()
     if not p.exists():
         raise RuntimeError(f"NETHACK_TRAJ={value} does not exist (resolved to {p})")
     return p
@@ -822,10 +814,12 @@ def _validate_replay_step(recorded: dict[str, Any], live_obs: dict[str, Any]) ->
     rec_bl = recorded.get("blstats")
     live_bl = _decode_blstats(live_obs)
     if rec_bl is not None and rec_bl != live_bl:
+        # Show the diff so we can see WHAT differs.
+        diff = {k: (rec_bl.get(k), live_bl.get(k)) for k in set(rec_bl) | set(live_bl)
+                if rec_bl.get(k) != live_bl.get(k)}
         raise RuntimeError(
             f"replay divergence at step n={recorded.get('n')}: "
-            f"recorded blstats != live blstats (this means the seed/character/"
-            f"NLE-version produced a different game state than was recorded)"
+            f"blstats differ in {len(diff)} fields: {diff}"
         )
 
 
@@ -892,9 +886,9 @@ def _reset() -> dict[str, Any]:
         character = header["character"]
         prior_steps = _read_traj_steps(traj_path)
 
-        # Branch by copy if replay_to is set and shorter than full history.
+        # Branch by copy if replay_to is set and shorter than full step history.
         if replay_to is not None and replay_to < len(prior_steps):
-            new_path = TRAJECTORY_DIR / f"{int(time.time())}-{STATE.session_id}-branch-from-{traj_path.stem}.jsonl"
+            new_path = _trajectory_dir() / f"{int(time.time())}-{STATE.session_id}-branch-from-{traj_path.stem}.jsonl"
             shutil.copy(traj_path, new_path)
             # Truncate new file to header + first `replay_to` step events.
             with new_path.open("r") as fh:
@@ -927,14 +921,14 @@ def _reset() -> dict[str, Any]:
         STATE.last_obs = obs
         STATE.last_info = info
         STATE.update_seen(obs)
-        # Prefer the parsed character info recorded in the header (probed
-        # via ^X at original-game time). Falls back to spec/welcome when
-        # the trajectory pre-dates the character_parsed field.
+        # Header has character_parsed (recorded by the original run after
+        # ^X for '@', or written directly for pinned specs). No re-probe.
         STATE.character = (header.get("character_parsed")
                            or _parse_character_spec(character)
                            or _parse_welcome_message(_decode_message(obs)))
 
-        # Silent replay of every recorded step. Validate against the recording.
+        # Silent replay of every recorded step. Validated against the
+        # recording so divergence (NLE version mismatch etc.) errors loudly.
         STATE.replaying = True
         try:
             for rec in prior_steps:
@@ -966,23 +960,23 @@ def _reset() -> dict[str, Any]:
     STATE.last_obs = obs
     STATE.last_info = info
     STATE.update_seen(obs)
-    # Open the trajectory file early so _log_step (called by the ^X probe
-    # below) has somewhere to write. The header itself is appended a few
-    # lines down once we've captured all the metadata.
-    STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{core}-{STATE.session_id}.jsonl"
-    # Recover role/race/alignment. Spec parser handles pinned chars
-    # robustly. For '@' we probe via Command.ATTRIBUTES — reliable across
-    # all spawns (welcome-message parsing is clobbered by autopickup).
+    # Reroll session_id per game so multiple games in one process (tests
+    # mostly, but also future scenarios) get unique IDs and unique
+    # trajectory filenames. Filename includes a uuid hex suffix so even
+    # sub-second collisions are vanishingly unlikely.
+    STATE.session_id = uuid.uuid4().hex[:8]
+    STATE.trajectory_path = _trajectory_dir() / f"{int(time.time())}-{core}-{STATE.session_id}.jsonl"
+
+    # Spec parser handles pinned chars; '@' falls back to ^X probe.
+    # The probe (^X + ESC) is a no-op on game state, so we don't log it.
     spec_char = _parse_character_spec(character)
     if spec_char and {"role", "race", "alignment"}.issubset(spec_char):
         STATE.character = spec_char
     else:
-        probed = _capture_character_via_attributes()
-        STATE.character = probed or spec_char or _parse_welcome_message(_decode_message(obs))
+        STATE.character = (_capture_character_via_attributes()
+                           or _parse_welcome_message(_decode_message(STATE.last_obs)))
 
-    # Trajectory path was set above (before the ^X probe). Write the v2
-    # header now — it includes character_parsed so resumed sessions don't
-    # need to re-probe.
+    # Header line 0 with character info already populated.
     gamer_session_dir = Path.home() / ".claude" / "projects" / str(GAME_DIR).replace("/", "-")
     STATE.log({
         "event": "header",
@@ -992,7 +986,7 @@ def _reset() -> dict[str, Any]:
         "reseed": reseed,
         "lgen": lgen,
         "character": character,                      # spec string
-        "character_parsed": STATE.character,         # role/race/alignment dict
+        "character_parsed": STATE.character,         # role/race/alignment
         "env_id": ENV_ID,
         "originating_session_id": STATE.session_id,
         "claude_session_jsonl": str(gamer_session_dir),
@@ -1000,10 +994,10 @@ def _reset() -> dict[str, Any]:
     })
     STATE.log({
         "event": "reset",
-        "blstats": _decode_blstats(obs),
-        "message": _decode_message(obs),
-        "chars": _chars_to_strings(obs),
-        "cursor": [int(x) for x in obs["tty_cursor"]],
+        "blstats": _decode_blstats(STATE.last_obs),
+        "message": _decode_message(STATE.last_obs),
+        "chars": _chars_to_strings(STATE.last_obs),
+        "cursor": [int(x) for x in STATE.last_obs["tty_cursor"]],
     })
     snap = _snapshot()
     _write_live_state(STATE.last_obs, snap)

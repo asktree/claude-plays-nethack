@@ -234,3 +234,51 @@ def test_replay_reproduces_state(fresh_server, monkeypatch):
     # step_n during replay = number of step events in the trajectory.
     assert server.STATE.step_n == expected_steps, \
         f"step_n={server.STATE.step_n}, expected={expected_steps}, orig_in_memory={orig_step_n}"
+
+
+# --- Auto-skip on in_yn/in_getlin prompts ----------------------------------
+
+def test_yn_prompt_pauses_when_no_followup(fresh_server):
+    """A bare `do('Command.ENGRAVE')` produces a yn-prompt and PARKS NetHack
+    there. With our auto-skip on in_yn (allow_all_modes=True so NLE doesn't
+    auto-ESC), the safe_exec thread completes silently — the next gamer
+    action would be the prompt response."""
+    server = fresh_server(seed=5)
+    out = server._safe_exec_python("do('Command.ENGRAVE')")
+    # Auto-skip suppresses the pause; thread runs to end of body.
+    assert out["status"] == "complete"
+    # NetHack still parked at the engrave-tool prompt.
+    internal = server.STATE.last_obs.get("internal")
+    assert internal is not None
+    assert int(internal[1]) == 1, "expected in_yn_function=1 (engrave tool prompt)"
+
+
+def test_engrave_full_sequence_runs_to_completion(fresh_server):
+    """Pre-written multi-step engrave: tool '-' (fingers), text 'Hi', then \\r
+    to commit. Auto-skip lets the whole sequence run as one block without
+    safe_exec round-trips. Verifies the no-pause-on-prompt path end-to-end
+    AND that allow_all_modes=True is in effect (otherwise NLE would auto-ESC
+    the prompts and the sequence would never reach the writing stage)."""
+    server = fresh_server(seed=5)
+    out = server._safe_exec_python(
+        "do('Command.ENGRAVE')\n"
+        "do('-')\n"               # use fingers (engrave in dust)
+        "do('H'); do('i')\n"      # text input "Hi"
+        "do('\\r')\n"              # commit getlin
+    )
+    assert out["status"] == "complete"
+    # NetHack should have left the prompt; in_yn / in_getlin both clear.
+    internal = server.STATE.last_obs.get("internal")
+    assert internal is not None
+    assert int(internal[1]) == 0
+    assert int(internal[2]) == 0
+    # The recorded trajectory should include the gamer's actions plus the
+    # auto-MORE pump that fires after the "You write in the dust..." message.
+    import json
+    step_kinds = []
+    for line in server.STATE.trajectory_path.open():
+        obj = json.loads(line)
+        if obj.get("event") == "step":
+            step_kinds.append(obj["kind"])
+    assert step_kinds.count("gamer") == 5  # ENGRAVE, '-', 'H', 'i', '\r'
+    assert step_kinds.count("auto_more") >= 1  # the dust-message --More--
