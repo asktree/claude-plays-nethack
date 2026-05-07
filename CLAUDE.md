@@ -30,12 +30,34 @@ The split exists so that:
 
 `./run.sh` from the project root cd's into `game/` and launches `claude` there. Gamer picks up `game/CLAUDE.md` and `game/.mcp.json` automatically.
 
+Env vars that change harness behavior at startup:
+
+| var | meaning |
+|---|---|
+| `NETHACK_TRAJ=<path>` | resume the game in this trajectory file (replays all logged steps, then live mode). `latest` = most recent file in `game/trajectory/`. |
+| `NETHACK_REPLAY_TO=<n>` | with `NETHACK_TRAJ`, branches the trajectory: cp + truncate to first `n` step events, then live. Original file untouched. |
+| `NETHACK_SEED_CORE=<int>` | core seed for fresh runs (drives all NetHack RNG including character selection when `NETHACK_CHARACTER=@`). |
+| `NETHACK_SEED_DISP=<int>` | disp seed (anti-TAS RNG). Defaults to core if omitted. |
+| `NETHACK_SEED_LGEN=<int>` | optional level-gen seed; if unset, level gen rolls off the core RNG. |
+| `NETHACK_CHARACTER=<spec>` | character spec passed to NLE. `@` (default) = random role/race/gender/align (deterministic given seed). `val-hum-fem-law` etc pins all four. Errors if conflicts with a resume-mode trajectory header. |
+| `NETHACK_NO_PROGRESS_LIMIT=<n>` | abort after this many `_do` calls in a row without the in-game clock advancing. Default 10000. |
+| `NETHACK_SEED=<int>` | shorthand: sets both core and disp to the same int. |
+
 ## Stack
 
 - Python 3.12 (brew). NLE rebuilt with `CC=/usr/bin/clang` to dodge a libc++ symbol mismatch — see memory note `nle_build_macos.md`.
 - **Forked NLE** at `/Users/em/Coding/nle-fork` — patched to expose `obs.seenv` (per-cell `levl[].seenv` bitmask, NetHack's ground-truth visibility data). Patches: `include/nletypes.h`, `win/rl/winrl.cc`, `win/rl/pynethack.cc`, `nle/nethack/nethack.py`, `nle/env/base.py`, `CMakeLists.txt` (https sourceware for bzip2 since git:// port 9418 is firewalled). Reinstall via `cd /Users/em/Coding/nle-fork && CC=/usr/bin/clang CXX=/usr/bin/clang++ pip install --no-cache-dir .` from the project venv.
 - FastMCP 3.x for the server. Test in-process via `from fastmcp import Client; Client(mcp)`.
-- Env: `NetHackChallenge-v0` (full 121-action space).
+- Env: `NetHack-v0` (the base NLE env — full 121-action space, supports `env.seed(core, disp, reseed=False, lgen)` for full determinism). We re-implement Challenge's no-progress timeout at the harness level.
+
+## Trajectory format (v2)
+
+Line 0 is a `header` event with seeds, character spec, env id, originating session. Subsequent lines are `step` events — one per `env.step()` call:
+
+- `kind="gamer"` — the gamer issued this action via `_do`.
+- `kind="auto_more"` — the harness pumped a `--More--` prompt automatically.
+
+Replay = read each step event in order, call `env.step(action_index)`, validate post-step `blstats`/`message` against the recording. Errors loudly on divergence (NLE version mismatch, fork drift, etc).
 
 ## Design principles (don't drift from these without redesign)
 

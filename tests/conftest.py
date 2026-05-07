@@ -1,18 +1,15 @@
 """Shared fixtures for the test suite.
 
-We test against real NLE — no mocks, no hand-crafted obs. Each test gets a
-deterministic game via `fresh_server(seed=N)`, which:
-  - clears server STATE singletons (last_obs, character, seen_per_level,
-    paused_exec, hooks)
-  - points trajectory + live_state at tmp paths so the production
-    game/trajectory dir is never touched
-  - reloads game/hooks/*.py so hook state is identical regardless of test order
-  - clears search_memory's module-level dict
-  - calls _reset() with the requested seed
+Tests run against a real NetHack-v0 env with explicit `env.unwrapped.seed(
+core, disp, reseed=False)` per test, so:
+  - Same seed → same role/race/dungeon/monster/item — every detail.
+  - Tests can assert specific NetHack message text without role flakiness.
+  - One env per session, reseed-and-reset per test (no env-recreate cost).
 
-Tests express "play to a setup state" via seed + scripted prefix actions;
-fixture-files for very long setups go in tests/fixtures/ if and when they
-become painful.
+Default character is pinned to "val-hum-fem-law" (Valkyrie-Human-Female-
+Lawful) so tests don't depend on whatever role "@" produces — Valkyrie
+spawns with the same starting kit/items deterministically. Override per
+test by passing `character="..."` to fresh_server.
 """
 
 from __future__ import annotations
@@ -26,45 +23,53 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GAME_DIR = REPO_ROOT / "game"
 
-# Make game-side modules importable for tests (search_memory, views, tactics).
 if str(GAME_DIR) not in sys.path:
     sys.path.insert(0, str(GAME_DIR))
 
 
 @pytest.fixture
 def fresh_server(tmp_path, monkeypatch):
-    """Reset all server-side singletons and start a clean game at the
-    requested seed. Returns the server module so tests call helpers
+    """Reset all server-side STATE singletons and start a clean game at the
+    requested seed/character. Returns the server module so tests call helpers
     directly (server._do, server._safe_exec_python, etc).
 
     Usage:
         def test_something(fresh_server):
-            server = fresh_server(seed=42)
-            snap = server._observe()
+            server = fresh_server(seed=42)  # Valkyrie by default
+            ...
+        def test_alt_role(fresh_server):
+            server = fresh_server(seed=42, character="wiz-elf-mal-cha")
             ...
     """
     monkeypatch.setenv("NETHACK_TRAJECTORY_DIR", str(tmp_path / "traj"))
     monkeypatch.setenv("NETHACK_LIVE_STATE", str(tmp_path / "live.json"))
     (tmp_path / "traj").mkdir()
 
-    # Import here so monkeypatched env vars are picked up.
     from claude_plays_nethack import server
 
-    def _start(seed: int):
-        monkeypatch.setenv("NETHACK_SEED", str(seed))
-        # NetHackChallenge disables `set_initial_seeds`, so calling
-        # env.reset(seed=N) repeatedly on the same env doesn't truly reseed
-        # NetHack's internal RNG — multiple resets at the same seed produce
-        # different states. Workaround: close the env and recreate it.
-        # Cost: ~1s per test (dlopen of nethack.so), acceptable for our
-        # suite size and bought in exchange for full determinism.
+    def _start(seed: int, character: str = "val-hum-fem-law"):
+        # Tell the harness which seed/character to use. Cleared at fixture
+        # teardown via monkeypatch.
+        monkeypatch.setenv("NETHACK_SEED_CORE", str(seed))
+        monkeypatch.setenv("NETHACK_SEED_DISP", str(seed))
+        monkeypatch.setenv("NETHACK_CHARACTER", character)
+        # Make sure no resume-mode env vars leak in.
+        monkeypatch.delenv("NETHACK_TRAJ", raising=False)
+        monkeypatch.delenv("NETHACK_REPLAY_TO", raising=False)
+        # Force a fresh env per test. Reusing the env across tests is
+        # supposed to be safe (env.unwrapped.seed() + env.reset() is
+        # deterministic in isolation), but pytest's stdout capture seems
+        # to interact with NLE's ttyrec/save-state in a way that produces
+        # nondeterministic blstats across tests when reused. Closing and
+        # rebuilding per test costs ~1s but eliminates the flake.
         if server.STATE.env is not None:
             try:
                 server.STATE.env.close()
             except Exception:
                 pass
             server.STATE.env = None
-        # Wipe singletons that survive across resets.
+            server.STATE.env_character = None
+        # Reset STATE singletons.
         server.STATE.last_obs = None
         server.STATE.last_info = None
         server.STATE.seen_per_level.clear()
@@ -72,19 +77,24 @@ def fresh_server(tmp_path, monkeypatch):
         server.STATE.terminated = False
         server.STATE.truncated = False
         server.STATE.paused_exec = None
-        # Reload hooks so all tests start from the same registry state.
+        server.STATE.step_n = 0
+        server.STATE.no_progress_count = 0
+        server.STATE.last_time = None
+        server.STATE.replaying = False
+        # Hooks: clear and re-load for predictable per-test state.
         server.HOOKS = {"post_do": [], "post_reset": [], "post_observe": []}
         server._HOOKS_LOADED = False
         server._load_hooks()
-        # Clear search_memory across tests so counts don't bleed.
+        # search_memory module-level state.
         if "search_memory" in sys.modules:
             sys.modules["search_memory"]._counts.clear()
+        # _reset will close+rebuild env if character changed; otherwise reseed
+        # the existing one. NetHack-v0 supports env.unwrapped.seed().
         server._reset()
         return server
 
     yield _start
 
-    # Cleanup: kill any thread the test left parked.
     try:
         from claude_plays_nethack import server as _s
         _s._drop_paused()
@@ -94,10 +104,10 @@ def fresh_server(tmp_path, monkeypatch):
 
 @pytest.fixture
 def play(fresh_server):
-    """Convenience: start a game at `seed`, optionally play `actions`,
-    return (server, last_snap)."""
-    def _play(seed: int, actions=()):
-        server = fresh_server(seed)
+    """Convenience: start at seed/character, optionally play actions, return
+    (server, last_snap)."""
+    def _play(seed: int, actions=(), character: str = "val-hum-fem-law"):
+        server = fresh_server(seed, character=character)
         snap = server._observe()
         for a in actions:
             snap = server._do(a)

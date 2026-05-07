@@ -37,7 +37,20 @@ LIVE_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
 if str(GAME_DIR) not in sys.path:
     sys.path.insert(0, str(GAME_DIR))
 
-ENV_ID = os.environ.get("NETHACK_ENV", "NetHackChallenge-v0")
+# NetHack-v0 is the base NLE env (no Challenge/Score wrappers). We switched
+# off NetHackChallenge-v0 to get back env.seed() — Challenge clobbers
+# set_initial_seeds for fairness, which makes deterministic replay impossible.
+# We re-implement what Challenge gave us (no-progress timeout, full action
+# space) at the harness level. Override via NETHACK_ENV.
+ENV_ID = os.environ.get("NETHACK_ENV", "NetHack-v0")
+# Character spec — read fresh each game start (so test fixtures and resume
+# can override). "@" = random role/race/gender/alignment chosen via the
+# core RNG (seeded). A specific spec like "val-hum-fem-law" pins all four.
+def _current_character() -> str:
+    return os.environ.get("NETHACK_CHARACTER", "@")
+# No-progress timeout: abort after this many _do calls in a row without
+# the in-game clock changing. Re-implements NetHackChallenge's safety net.
+NO_PROGRESS_LIMIT = int(os.environ.get("NETHACK_NO_PROGRESS_LIMIT", "10000"))
 # NetHack tty geometry. tty_chars is 24x80 total (NLE keeps the full VT100
 # layout). Dungeon proper is at tty rows 1..21 cols 0..78 — row 0 is the
 # message line, rows 22-23 are status, col 79 is unused padding.
@@ -91,21 +104,59 @@ class GameState:
         # inside its do() call awaiting `continue_exec`; any other MCP tool
         # call drops it via _drop_paused().
         self.paused_exec: "PausedExec | None" = None
+        # The character spec the current env was constructed with. Recreating
+        # the env is required if the desired spec changes (e.g., a resume
+        # whose trajectory header pinned a specific role).
+        self.env_character: str | None = None
+        # NLE step counter — every env.step bumps this, including auto-MOREs.
+        # Logged in trajectory step events as `n`.
+        self.step_n: int = 0
+        # Consecutive _do calls where in-game clock stayed put. Trips the
+        # no-progress safety net.
+        self.no_progress_count: int = 0
+        # Last seen blstats[NLE_BL_TIME] for the no-progress check.
+        self.last_time: int | None = None
+        # Set during silent replay so _do/post_do hooks/live_state writes
+        # are skipped. Trajectory events are NOT appended either — the
+        # events being replayed are already in the file.
+        self.replaying: bool = False
 
-    def ensure_env(self) -> gym.Env:
-        if self.env is None:
-            obs_keys = (
-                "tty_chars", "tty_colors", "tty_cursor",
-                "blstats", "message",
-                "inv_glyphs", "inv_strs", "inv_letters", "inv_oclasses",
-                "screen_descriptions",
-                "glyphs",  # 21x79 NetHack glyph IDs — encode monster/item/terrain type
-                "seenv",   # 21x79 NetHack seenv bitmask — ground truth for "seen this cell"
-                           # (requires our forked NLE; see /Users/em/Coding/nle-fork)
-            )
-            self.env = gym.make(ENV_ID, observation_keys=obs_keys)
-            self.actions_tuple = tuple(self.env.unwrapped.actions)
-            self._build_action_table()
+    def ensure_env(self, character: str | None = None) -> gym.Env:
+        """Return the gym env. NLE bakes the character spec at construction,
+        so changing it requires close+rebuild. Passing `character=None` from
+        helpers that don't care (e.g., _replay_step) always returns the
+        existing env. _reset is the only caller that passes an explicit
+        character, picked from NETHACK_CHARACTER for fresh runs or from the
+        trajectory header for resume."""
+        if self.env is not None and (character is None or self.env_character == character):
+            return self.env
+        # Either env doesn't exist yet, or explicit character mismatch — build/rebuild.
+        target = character if character is not None else _current_character()
+        if self.env is not None:
+            try:
+                self.env.close()
+            except Exception:
+                pass
+            self.env = None
+        obs_keys = (
+            "tty_chars", "tty_colors", "tty_cursor",
+            "blstats", "message",
+            "inv_glyphs", "inv_strs", "inv_letters", "inv_oclasses",
+            "screen_descriptions",
+            "glyphs",  # 21x79 NetHack glyph IDs — encode monster/item/terrain type
+            "seenv",   # 21x79 NetHack seenv bitmask — ground truth for "seen this cell"
+                       # (requires our forked NLE; see /Users/em/Coding/nle-fork)
+        )
+        from nle import nethack as _nh
+        self.env = gym.make(
+            ENV_ID,
+            observation_keys=obs_keys,
+            actions=_nh.ACTIONS,   # full 121-action set; default for NetHack-v0 too
+            character=target,
+        )
+        self.env_character = target
+        self.actions_tuple = tuple(self.env.unwrapped.actions)
+        self._build_action_table()
         return self.env
 
     def _build_action_table(self) -> None:
@@ -210,6 +261,10 @@ class GameState:
         return self.seen_per_level.get(key) if key is not None else None
 
     def log(self, record: dict[str, Any]) -> None:
+        # During silent replay we never append — the events are already in
+        # the file, that's literally what we're replaying.
+        if self.replaying:
+            return
         record = {"t": time.time(), "session": self.session_id, **record}
         with self.trajectory_path.open("a") as fh:
             fh.write(json.dumps(record, default=str) + "\n")
@@ -517,40 +572,258 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
     return snap
 
 
-def _reset() -> dict[str, Any]:
+# ---- Trajectory format v2 -----------------------------------------------
+# Line 0: header event with seeds, character, env_id, timestamps.
+# Subsequent lines: step events, ONE PER env.step() call.
+#   - kind="gamer" for actions the gamer issued via _do
+#   - kind="auto_more" for prompts the harness pumped automatically
+# Replay reads each step event and calls env.step(action_index) — no
+# auto-MORE re-derivation needed at replay time. blstats+message on each
+# step are validated against the live env to catch divergence (NLE version
+# mismatch, format breakage, etc).
+# Legacy v1 trajectories have no header; we tag them as unreplayable.
+TRAJ_VERSION = 2
+
+
+def _read_traj_header(path: Path) -> dict[str, Any] | None:
+    """Read line 0 of a trajectory if it's a header event. Returns None for
+    legacy (v1) trajectories that have no header."""
+    if not path.exists():
+        return None
+    with path.open() as fh:
+        first = fh.readline().strip()
+    if not first:
+        return None
+    try:
+        obj = json.loads(first)
+    except json.JSONDecodeError:
+        return None
+    if obj.get("event") != "header":
+        return None
+    return obj
+
+
+def _read_traj_steps(path: Path) -> list[dict[str, Any]]:
+    """Return all step events from a trajectory in order. Skips header/reset/
+    other event types. Each entry is the parsed JSON with action_index and
+    the recorded blstats/message for replay validation."""
+    out: list[dict[str, Any]] = []
+    with path.open() as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if obj.get("event") == "step":
+                out.append(obj)
+    return out
+
+
+def _resolve_traj_path(value: str | None) -> Path | None:
+    """Resolve NETHACK_TRAJ. Accepts None, an absolute/relative path, or the
+    literal string 'latest' (= most-recent file in TRAJECTORY_DIR by mtime)."""
+    if not value:
+        return None
+    if value == "latest":
+        candidates = sorted(TRAJECTORY_DIR.glob("*.jsonl"),
+                            key=lambda p: p.stat().st_mtime, reverse=True)
+        if not candidates:
+            raise RuntimeError(f"NETHACK_TRAJ=latest but no .jsonl files in {TRAJECTORY_DIR}")
+        return candidates[0]
+    p = Path(value)
+    if not p.is_absolute():
+        p = (TRAJECTORY_DIR / p).resolve()
+    if not p.exists():
+        raise RuntimeError(f"NETHACK_TRAJ={value} does not exist (resolved to {p})")
+    return p
+
+
+def _replay_step(action_idx: int) -> dict[str, Any]:
+    """Step the env without trajectory append, hook fire, or live_state write.
+    Used during silent replay. Returns the post-step obs."""
     env = STATE.ensure_env()
-    # Generate and log a known seed so the run is reproducible from the trajectory.
-    import random
-    seed = int(os.environ.get("NETHACK_SEED") or random.randint(0, 2**31 - 1))
-    STATE.seen_per_level.clear()  # fresh game, fresh memory
-    obs, info = env.reset(seed=seed)
+    obs, _reward, terminated, truncated, info = env.step(action_idx)
     STATE.last_obs = obs
     STATE.last_info = info
+    STATE.terminated = bool(terminated)
+    STATE.truncated = bool(truncated)
+    STATE.step_n += 1
+    STATE.update_seen(obs)
+    return obs
+
+
+def _validate_replay_step(recorded: dict[str, Any], live_obs: dict[str, Any]) -> None:
+    """Compare a recorded step's blstats and message against what the env
+    actually produced. Raises RuntimeError on divergence — replay is meant
+    to be exact. Catches NLE-version mismatches, fork drift, etc."""
+    rec_msg = recorded.get("message", "")
+    live_msg = _decode_message(live_obs)
+    if rec_msg != live_msg:
+        raise RuntimeError(
+            f"replay divergence at step n={recorded.get('n')}: "
+            f"recorded message {rec_msg!r} != live {live_msg!r}"
+        )
+    rec_bl = recorded.get("blstats")
+    live_bl = _decode_blstats(live_obs)
+    if rec_bl is not None and rec_bl != live_bl:
+        raise RuntimeError(
+            f"replay divergence at step n={recorded.get('n')}: "
+            f"recorded blstats != live blstats (this means the seed/character/"
+            f"NLE-version produced a different game state than was recorded)"
+        )
+
+
+def _reset() -> dict[str, Any]:
+    """Start (or resume) a game. Three modes via env vars:
+      - NETHACK_TRAJ=<path>          → resume; replay all logged steps
+      - NETHACK_TRAJ=<path> +
+        NETHACK_REPLAY_TO=<n>        → replay first n steps, branch the
+                                       trajectory (cp + truncate), then live
+      - (neither set)                → fresh run; pick seeds from
+                                       NETHACK_SEED_CORE/DISP/LGEN env vars
+                                       or random
+    """
+    import random
+    import shutil
+
+    traj_path = _resolve_traj_path(os.environ.get("NETHACK_TRAJ"))
+    replay_to_env = os.environ.get("NETHACK_REPLAY_TO")
+    replay_to = int(replay_to_env) if replay_to_env else None
+
+    # Reset per-game STATE bookkeeping.
+    STATE.seen_per_level.clear()
+    STATE.step_n = 0
+    STATE.no_progress_count = 0
+    STATE.last_time = None
     STATE.terminated = False
     STATE.truncated = False
+
+    if traj_path is not None:
+        # ----- Resume / replay mode -----
+        header = _read_traj_header(traj_path)
+        if header is None:
+            raise RuntimeError(
+                f"trajectory {traj_path} has no v2 header — legacy file, "
+                f"unreplayable (seeds unknown). Start a fresh run instead."
+            )
+        # Conflict-check env vars against the header.
+        env_char = os.environ.get("NETHACK_CHARACTER")
+        if env_char is not None and env_char != header["character"]:
+            raise RuntimeError(
+                f"NETHACK_CHARACTER={env_char!r} conflicts with header "
+                f"character={header['character']!r}"
+            )
+        for k_env, k_hdr in [("NETHACK_SEED_CORE", "core"), ("NETHACK_SEED_DISP", "disp")]:
+            if os.environ.get(k_env) and int(os.environ[k_env]) != header[k_hdr]:
+                raise RuntimeError(f"{k_env} conflicts with header {k_hdr}={header[k_hdr]}")
+
+        core, disp = header["core"], header["disp"]
+        reseed = header.get("reseed", False)
+        lgen = header.get("lgen")
+        character = header["character"]
+        prior_steps = _read_traj_steps(traj_path)
+
+        # Branch by copy if replay_to is set and shorter than full history.
+        if replay_to is not None and replay_to < len(prior_steps):
+            new_path = TRAJECTORY_DIR / f"{int(time.time())}-{STATE.session_id}-branch-from-{traj_path.stem}.jsonl"
+            shutil.copy(traj_path, new_path)
+            # Truncate new file to header + first `replay_to` step events.
+            with new_path.open("r") as fh:
+                lines = fh.readlines()
+            kept: list[str] = []
+            step_count = 0
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                try:
+                    obj = json.loads(stripped)
+                except json.JSONDecodeError:
+                    continue
+                if obj.get("event") == "step":
+                    if step_count >= replay_to:
+                        break
+                    step_count += 1
+                kept.append(line if line.endswith("\n") else line + "\n")
+            new_path.write_text("".join(kept))
+            traj_path = new_path
+            prior_steps = prior_steps[:replay_to]
+
+        STATE.trajectory_path = traj_path
+
+        # Build env with the right character; seed; reset.
+        env = STATE.ensure_env(character=character)
+        env.unwrapped.seed(core=core, disp=disp, reseed=reseed, lgen=lgen)
+        obs, info = env.reset()
+        STATE.last_obs = obs
+        STATE.last_info = info
+        STATE.update_seen(obs)
+        STATE.character = _parse_welcome_message(_decode_message(obs))
+
+        # Silent replay of every recorded step. Validate against the recording.
+        STATE.replaying = True
+        try:
+            for rec in prior_steps:
+                live_obs = _replay_step(rec["action_index"])
+                _validate_replay_step(rec, live_obs)
+        finally:
+            STATE.replaying = False
+
+        # Caught up. Live mode resumes from here; new gamer actions append to
+        # this trajectory file (the branched one if branched, original on
+        # straight resume).
+        snap = _snapshot()
+        _write_live_state(STATE.last_obs, snap)
+        return snap
+
+    # ----- Fresh run -----
+    core_env = os.environ.get("NETHACK_SEED_CORE") or os.environ.get("NETHACK_SEED")
+    disp_env = os.environ.get("NETHACK_SEED_DISP") or os.environ.get("NETHACK_SEED")
+    core = int(core_env) if core_env else random.randrange(2**31)
+    disp = int(disp_env) if disp_env else core
+    lgen_env = os.environ.get("NETHACK_SEED_LGEN")
+    lgen = int(lgen_env) if lgen_env else None
+    reseed = False  # reproducibility — never let NetHack auto-reseed
+    character = _current_character()
+
+    env = STATE.ensure_env(character=character)
+    env.unwrapped.seed(core=core, disp=disp, reseed=reseed, lgen=lgen)
+    obs, info = env.reset()
+    STATE.last_obs = obs
+    STATE.last_info = info
     STATE.update_seen(obs)
-    # Capture role/race/gender/alignment from the welcome message before any
-    # subsequent action overwrites it. obs["message"] right after reset holds
-    # NetHack's "You are a <align> <gender> <race> <role>." greeting.
     STATE.character = _parse_welcome_message(_decode_message(obs))
-    # Roll the trajectory file: every game gets its own <timestamp>-<seed>.jsonl
-    # so post-hoc analysis splits naturally per game (vs per server-session).
-    STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{seed}.jsonl"
-    # Reference where the corresponding Claude Code conversation lives; the
-    # gamer-Claude session jsonl path is encoded from the gamer cwd.
+
+    # Open a fresh trajectory file with v2 header.
+    STATE.trajectory_path = TRAJECTORY_DIR / f"{int(time.time())}-{core}-{STATE.session_id}.jsonl"
     gamer_session_dir = Path.home() / ".claude" / "projects" / str(GAME_DIR).replace("/", "-")
     STATE.log({
+        "event": "header",
+        "version": TRAJ_VERSION,
+        "core": core,
+        "disp": disp,
+        "reseed": reseed,
+        "lgen": lgen,
+        "character": character,
+        "env_id": ENV_ID,
+        "originating_session_id": STATE.session_id,
+        "claude_session_jsonl": str(gamer_session_dir),
+        "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    })
+    STATE.log({
         "event": "reset",
-        "env": ENV_ID,
-        "seed": seed,
-        "claude_session_dir": str(gamer_session_dir),
+        "blstats": _decode_blstats(obs),
+        "message": _decode_message(obs),
         "chars": _chars_to_strings(obs),
         "cursor": [int(x) for x in obs["tty_cursor"]],
     })
     snap = _snapshot()
     _write_live_state(STATE.last_obs, snap)
     _fire_hook("post_reset", {
-        "seed": seed,
+        "seed": core,
         "obs": _snapshot(include_grid=True) if _has_hooks("post_reset") else None,
         "character": STATE.character,
     })
@@ -565,6 +838,42 @@ def _observe() -> dict[str, Any]:
     return _snapshot()
 
 
+def _log_step(action_idx: int, action_enum: Any, kind: str, reward: float,
+              obs: dict[str, Any]) -> None:
+    """Append one step event to the trajectory. One per env.step call —
+    auto-MORE pumps each get their own event with kind='auto_more'."""
+    STATE.step_n += 1
+    STATE.log({
+        "event": "step",
+        "n": STATE.step_n,
+        "action_index": int(action_idx),
+        "action_name": f"{type(action_enum).__name__}.{action_enum.name}",
+        "action_keycode": int(action_enum.value),
+        "kind": kind,
+        "session_id": STATE.session_id if kind == "gamer" else None,
+        "reward": float(reward),
+        "blstats": _decode_blstats(obs),
+        "message": _decode_message(obs),
+        "cursor": [int(x) for x in obs["tty_cursor"]],
+    })
+
+
+def _check_no_progress(obs: dict[str, Any]) -> bool:
+    """Increment STATE.no_progress_count when blstats time hasn't advanced.
+    Returns True if the no-progress limit was hit (and sets STATE.truncated)."""
+    bl = _decode_blstats(obs)
+    t = bl.get("time")
+    if t == STATE.last_time:
+        STATE.no_progress_count += 1
+    else:
+        STATE.no_progress_count = 0
+        STATE.last_time = t
+    if STATE.no_progress_count >= NO_PROGRESS_LIMIT:
+        STATE.truncated = True
+        return True
+    return False
+
+
 def _do(action: int | str) -> dict[str, Any]:
     env = STATE.ensure_env()
     if STATE.last_obs is None:
@@ -577,23 +886,23 @@ def _do(action: int | str) -> dict[str, Any]:
     _load_hooks()  # idempotent; covers direct MCP do() calls before any exec
     idx = STATE.resolve_action(action)
     action_enum = STATE.actions_tuple[idx]
-    # Snapshot pre-step state if any post_do hook is registered (cost: one
-    # extra grid build per step, ~10KB; skipped when no hooks need it).
     fire_post_do = _has_hooks("post_do")
     pre_snap = _snapshot(include_grid=True) if fire_post_do else None
+    more_idx = STATE.action_table.get("MORE")
+    more_action_enum = STATE.actions_tuple[more_idx] if more_idx is not None else None
+
+    # Initial gamer-issued step.
     obs, reward, terminated, truncated, info = env.step(idx)
     STATE.last_obs = obs
     STATE.last_info = info
     STATE.update_seen(obs)
+    _log_step(idx, action_enum, "gamer", reward, obs)
 
-    # Auto-MORE: when NetHack shows --More-- on the top line, the only useful
-    # input is to advance. Loop press MORE until the prompt clears, accumulating
-    # the messages so the gamer sees them all.
+    # Auto-MORE: pump --More-- prompts. Each pump is its own trajectory step.
     messages: list[str] = []
     initial_msg = _decode_message(obs).strip()
     if initial_msg:
         messages.append(initial_msg)
-    more_idx = STATE.action_table.get("MORE")
     SAFETY = 50  # absolute cap to prevent infinite loop on weird states
     auto_more_count = 0
     if more_idx is not None:
@@ -607,6 +916,7 @@ def _do(action: int | str) -> dict[str, Any]:
             STATE.last_obs = obs
             STATE.last_info = info
             STATE.update_seen(obs)
+            _log_step(more_idx, more_action_enum, "auto_more", more_reward, obs)
             new_msg = _decode_message(obs).strip()
             if new_msg:
                 messages.append(new_msg)
@@ -616,20 +926,12 @@ def _do(action: int | str) -> dict[str, Any]:
     combined = " | ".join(messages)
     STATE.terminated = bool(terminated)
     STATE.truncated = bool(truncated)
-    STATE.log({
-        "event": "do",
-        "action_index": int(idx),
-        "action_name": f"{type(action_enum).__name__}.{action_enum.name}",
-        "action_keycode": int(action_enum.value),
-        "reward": float(reward),
-        "terminated": STATE.terminated,
-        "truncated": STATE.truncated,
-        "blstats": _decode_blstats(obs),
-        "message": combined,
-        "auto_more_count": auto_more_count,
-        "chars": _chars_to_strings(obs),
-        "cursor": [int(x) for x in obs["tty_cursor"]],
-    })
+    # No-progress timeout (replaces what NetHackChallenge gave us).
+    if not STATE.terminated and not STATE.truncated:
+        if _check_no_progress(obs):
+            STATE.log({"event": "no_progress_abort",
+                       "limit": NO_PROGRESS_LIMIT, "n": STATE.step_n})
+
     snap = _snapshot()
     snap["reward"] = float(reward)
     snap["message"] = combined  # override with full accumulated text
