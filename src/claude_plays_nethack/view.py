@@ -313,24 +313,27 @@ def _build_inventory(state: dict[str, Any]) -> Panel:
 def _build_header(state: dict[str, Any]) -> Panel:
     """Compact header panel that lives in col 1 above the map.
 
-    Renders 3 thematic status lines from structured blstats + character info
-    (no longer parses NetHack's tty status_rows directly), then message and
-    game-over flag.
+    4 thematic status lines built from structured blstats + character info,
+    then message and game-over flag.
 
-    Line 1 — IDENTITY:    "Agent the Hatamoto (lawful human Samurai)"
-    Line 2 — VITALS:      "HP:15(15)  Pw:2(2)  AC:4  Hunger:Normal"
-    Line 3 — PROGRESSION: "Dlvl:1  T:98  $:0  Xp:1/4  ·  St:18/01 Dx:14 Co:14 In:8 Wi:11 Ch:7"
+      Line 1 — IDENTITY (left) + SCORE (right)
+      Line 2 — VITALS:      HP / Pw / AC / Hunger
+      Line 3 — PROGRESSION: Dlvl / T / $ / Xp
+      Line 4 — ATTRIBUTES:  St / Dx / Co / In / Wi / Ch
+
+    Stat *labels* are colored to make scanning easier; numbers stay default
+    so they remain unambiguously readable.
     """
     import re
+    from rich.console import Group
+    from rich.table import Table
+
     rows = state.get("status_rows") or []
     bl = state.get("blstats", {}) or {}
     msg = state.get("message", "") or ""
     char = state.get("character") or {}
-    body = Text()
 
-    # Line 1 — identity. Name+title comes from NetHack's row 22 (the rank
-    # title like "Hatamoto" advances with experience; not in blstats), then
-    # we append (alignment race role) from the parsed welcome message.
+    # ------ Line 1: identity (left) + score (right) ------
     row22 = rows[0] if rows else ""
     m = re.search(r"\s+St:", row22)
     name_part = row22[:m.start()].rstrip() if m else row22.rstrip()
@@ -338,28 +341,58 @@ def _build_header(state: dict[str, Any]) -> Panel:
     race = char.get("race") or ""
     role = char.get("role") or ""
     inner_parts = [x for x in (align, race, role) if x]
+    identity_text = Text()
     if inner_parts:
-        body.append(f"{name_part} ({' '.join(inner_parts)})", style="bold")
+        identity_text.append(f"{name_part} ({' '.join(inner_parts)})", style="bold")
     elif name_part:
-        body.append(name_part, style="bold")
-    body.append("\n")
+        identity_text.append(name_part, style="bold")
+
+    score_text = Text()
+    if bl.get("score") is not None:
+        score_text.append("Score:", style="bold bright_yellow")
+        score_text.append(str(bl["score"]), style="bold")
+
+    # Use Table.grid for the left/right split — single Text can't right-justify
+    # when total width depends on the panel.
+    line1 = Table.grid(expand=True)
+    line1.add_column(justify="left")
+    line1.add_column(justify="right")
+    line1.add_row(identity_text, score_text)
+
+    renderables: list[Any] = [line1]
 
     if bl:
         from .server import HUNGER_LABELS  # type: ignore
         hunger = HUNGER_LABELS.get(bl.get("hunger_state"), str(bl.get("hunger_state", "?")))
 
-        # Line 2 — vitals + hunger. The "is the player about to die?" row.
-        body.append(
-            f"HP:{bl.get('hitpoints','?')}({bl.get('max_hitpoints','?')})  "
-            f"Pw:{bl.get('energy','?')}({bl.get('max_energy','?')})  "
-            f"AC:{bl.get('armor_class','?')}  "
-            f"Hunger:{hunger}",
+        # ------ Line 2: vitals ------
+        vitals = Text()
+        vitals.append("HP:", style="bold red")
+        vitals.append(f"{bl.get('hitpoints','?')}({bl.get('max_hitpoints','?')})  ", style="bold")
+        vitals.append("Pw:", style="bold blue")
+        vitals.append(f"{bl.get('energy','?')}({bl.get('max_energy','?')})  ", style="bold")
+        vitals.append("AC:", style="bold yellow")
+        vitals.append(f"{bl.get('armor_class','?')}  ", style="bold")
+        vitals.append("Hunger:", style="bold magenta")
+        vitals.append(hunger, style="bold")
+        renderables.append(vitals)
+
+        # ------ Line 3: progression ------
+        prog = Text()
+        prog.append("Dlvl:", style="bold cyan")
+        prog.append(f"{bl.get('depth','?')}  ", style="bold")
+        prog.append("T:", style="bold dim")
+        prog.append(f"{bl.get('time','?')}  ", style="bold dim")
+        prog.append("$:", style="bold yellow")
+        prog.append(f"{bl.get('gold','?')}  ", style="bold")
+        prog.append("Xp:", style="bold green")
+        prog.append(
+            f"{bl.get('experience_level','?')}/{bl.get('experience_points','?')}",
             style="bold",
         )
-        body.append("\n")
+        renderables.append(prog)
 
-        # Line 3 — progression + attributes. The "where am I and what am I
-        # made of?" row. Strength formats as 18/NN when at the percentile tier.
+        # ------ Line 4: attributes ------
         str_int = bl.get("strength")
         str_pct = bl.get("strength_pct") or 0
         if str_int == 18 and str_pct:
@@ -368,25 +401,34 @@ def _build_header(state: dict[str, Any]) -> Panel:
             str_str = str(str_int)
         else:
             str_str = "?"
-        body.append(
-            f"Dlvl:{bl.get('depth','?')}  T:{bl.get('time','?')}  "
-            f"$:{bl.get('gold','?')}  "
-            f"Xp:{bl.get('experience_level','?')}/{bl.get('experience_points','?')}  "
-            f"·  St:{str_str} Dx:{bl.get('dexterity','?')} Co:{bl.get('constitution','?')} "
-            f"In:{bl.get('intelligence','?')} Wi:{bl.get('wisdom','?')} Ch:{bl.get('charisma','?')}",
-            style="bold",
-        )
-        body.append("\n")
+        attrs = Text()
+        for label, value in (
+            ("St:", str_str),
+            ("Dx:", str(bl.get("dexterity", "?"))),
+            ("Co:", str(bl.get("constitution", "?"))),
+            ("In:", str(bl.get("intelligence", "?"))),
+            ("Wi:", str(bl.get("wisdom", "?"))),
+            ("Ch:", str(bl.get("charisma", "?"))),
+        ):
+            attrs.append(label, style="bold dim")
+            attrs.append(f"{value}  ", style="bold")
+        renderables.append(attrs)
 
     if msg:
-        body.append("msg: ", style="bold dark_orange")
-        body.append(msg, style="dark_orange")
+        msg_text = Text()
+        msg_text.append("msg: ", style="bold dark_orange")
+        msg_text.append(msg, style="dark_orange")
+        renderables.append(msg_text)
+
     if state.get("terminated") or state.get("truncated"):
-        body.append("\n** GAME OVER **", style="bold red")
-    if not body.plain:
-        body = Text("(waiting for game state…)", style="dim")
+        renderables.append(Text("** GAME OVER **", style="bold red"))
+
+    if not renderables:
+        renderables.append(Text("(waiting for game state…)", style="dim"))
+
     session = state.get("session") or "?"
-    return Panel(body, title=f"session={session}", border_style="white", padding=(0, 1))
+    return Panel(Group(*renderables), title=f"session={session}",
+                 border_style="white", padding=(0, 1))
 
 
 def _build_legend(state: dict[str, Any]) -> Panel:
@@ -554,7 +596,7 @@ def _build_layout(state: dict[str, Any] | None,
     # Status rows are 2; with title bar + bottom border + msg line that's
     # ~5-6 rows. Size 6 covers it without crowding the map.
     col1.split_column(
-        Layout(_build_header(state), name="header", size=7),
+        Layout(_build_header(state), name="header", size=8),
         Layout(map_panel, name="map", size=map_panel_height),
         Layout(_build_legend(state), name="legend"),
     )
