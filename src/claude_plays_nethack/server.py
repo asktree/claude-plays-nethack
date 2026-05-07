@@ -333,15 +333,13 @@ def _chars_to_strings(obs: dict[str, Any]) -> list[str]:
 
 def _is_awaiting_input(obs: dict[str, Any]) -> bool:
     """True when NLE is parked in a yn_function or getlin prompt
-    (`obs['internal'][1]=in_yn_function`, `[2]=in_getlin`).
+    (`obs['internal'][1]=in_yn_function`, `[2]=in_getlin`). Used to
+    auto-skip the safe_exec pause on prompts — the gamer's next do()
+    becomes the response, so pausing adds nothing.
 
-    NOT used for auto-skipping pauses anymore — that turned out too
-    aggressive: ENGRAVE/EAT/READ etc. yn-prompts are genuine decisions
-    the gamer needs to *see* before responding. Skipping them silently
-    parked NetHack at a prompt and the gamer's next action got consumed
-    as a (usually invalid) response, producing 'Never mind.' immediately.
-
-    Helper kept for future use cases that legitimately want this signal.
+    Requires `allow_all_modes=True` at env construction; otherwise NLE
+    itself auto-ESCs prompts to keep the env in moveloop, producing
+    'Never mind.' before the gamer ever sees the prompt.
     """
     internal = obs.get("internal")
     if internal is None or len(internal) < 3:
@@ -1428,6 +1426,17 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
             continue
         msg = snap.get("message", "").strip()
         if msg:
+            # If NLE is parked at a yn/getlin prompt, the gamer's next
+            # do() call IS the response — pausing on the prompt would
+            # just add a round-trip with no decision attached on the
+            # safe_exec layer. Auto-skip is purely a NO-OP on the game:
+            # NetHack stays at the prompt; the next env.step the gamer
+            # issues becomes the response. (Requires allow_all_modes=True
+            # at env construction so NLE doesn't itself auto-ESC the
+            # prompt — see ensure_env.)
+            if _is_awaiting_input(STATE.last_obs or {}):
+                pe.response_q.put(snap)
+                continue
             matched = False
             for pat in pe.autocontinue:
                 try:
