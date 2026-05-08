@@ -18,6 +18,31 @@ from pathlib import Path
 FIXTURE = Path(__file__).parent / "fixtures" / "stuck_game.jsonl"
 
 
+def test_visible_hostiles_excludes_player_during_travel_cursor(resume_server):
+    """Regression: when Command.TRAVEL is followed by direction keys to
+    position the target cursor, tty_cursor moves AWAY from the player.
+    Cursor-based player-exclusion would then leak the @ glyph into
+    _visible_hostiles, firing a synth "you see dwarven valkyrie come into
+    view" on the next step. blstats[x,y] is the in-game player position
+    and is invariant across cursor wandering, so it's the right key for
+    the exclusion check."""
+    server = resume_server(FIXTURE)
+    # TRAVEL command: cursor enters target-picking mode
+    server._do('Command.TRAVEL')
+    # Move target cursor several cells away from player
+    for _ in range(5):
+        server._do('east')
+    # Cursor is now far from the player. _visible_hostiles must NOT include
+    # the player @ glyph. The fixture has only peacefuls in view, so the
+    # set should be empty.
+    threats = server._visible_hostiles(server.STATE.last_obs)
+    assert threats == [], (
+        f"player @ leaked into _visible_hostiles during TRAVEL cursor "
+        f"positioning: {threats}. tty_cursor was likely off-player; "
+        f"exclusion must use blstats x/y instead."
+    )
+
+
 def test_visible_hostiles_excludes_peacefuls(resume_server):
     """At the resumed state, two peacefuls are in view (peaceful gnome + peaceful
     hobbit, verified empirically). _visible_hostiles must filter them via the

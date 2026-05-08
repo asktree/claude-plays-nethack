@@ -634,12 +634,18 @@ def _visible_hostiles(obs: dict[str, Any]) -> list[tuple[str, int, int]]:
 
     Operates on the raw NLE env obs. Coordinates are dungeon-relative (chars
     indexing). Filter chain:
-      - `glyph_is_normal_monster` drops statues, objects, pets, swallow
-        effects, and the player itself (well, the player cell is also
-        filtered by cursor match)
+      - `glyph_is_normal_monster` drops statues, objects, swallow effects.
+        The PLAYER's `@` glyph is also `glyph_is_normal_monster=True` (NetHack
+        treats the hero as just another monster internally), so we exclude
+        the player cell explicitly via `blstats[x,y]`. Cursor isn't safe to
+        use here — at yn/getlin prompts the cursor sits on the message line,
+        not on the player, so cursor-based exclusion would let `@` slip
+        through and synth would announce "you see dwarven valkyrie come into
+        view" on every step.
       - `descriptions.startswith("peaceful ")` drops e.g. "peaceful gnome",
         "peaceful shopkeeper" — NetHack tags every peaceful with that prefix
-      - `descriptions.startswith("tame ")` belt-and-suspenders pet check
+      - `descriptions.startswith("tame ")` drops your pet (also caught by
+        `glyph_is_pet`, but desc-check is cheap insurance)
 
     Used by `_do` to detect newly-visible hostiles between steps and
     synthesize a message — NetHack does NOT always emit one when a wild
@@ -649,11 +655,14 @@ def _visible_hostiles(obs: dict[str, Any]) -> list[tuple[str, int, int]]:
     if glyphs is None:
         return []
     chars = obs.get("chars")
-    tty_cursor = obs.get("tty_cursor")
-    if tty_cursor is None:
+    bl = obs.get("blstats")
+    if bl is None or len(bl) < 2:
         return []
-    # tty_cursor row is +1 vs the dungeon-frame chars/glyphs grids.
-    pr, pc = int(tty_cursor[0]) - 1, int(tty_cursor[1])
+    # blstats[0] = x (col), blstats[1] = y (row) — player's actual dungeon
+    # position per NetHack's internal model. Reliable across yn/getlin/MORE
+    # prompts where the rendering cursor wanders.
+    player_col = int(bl[0])
+    player_row = int(bl[1])
     descs = _decode_screen_descriptions(obs)
     try:
         from nle import nethack as nh  # type: ignore
@@ -666,7 +675,9 @@ def _visible_hostiles(obs: dict[str, Any]) -> list[tuple[str, int, int]]:
             g = int(row[c])
             if not nh.glyph_is_normal_monster(g):
                 continue
-            if (r, c) == (pr, pc):
+            if (r, c) == (player_row, player_col):
+                continue
+            if nh.glyph_is_pet(g):
                 continue
             desc = descs[r][c] if r < len(descs) and c < len(descs[r]) else ""
             if desc.startswith("peaceful ") or desc.startswith("tame "):

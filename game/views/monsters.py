@@ -31,8 +31,14 @@ def monsters(obs: dict[str, Any]) -> str:
     """
     chars = obs.get("chars") or []
     descriptions = obs.get("descriptions") or []
-    cursor = obs.get("cursor") or [0, 0]
-    pr, pc = int(cursor[0]), int(cursor[1])
+    # Use blstats (x=col, y=row) for player position rather than `cursor`.
+    # At yn/getlin/MORE prompts the rendering cursor sits on the message
+    # line, not on @, so cursor-based exclusion would leak the player's
+    # own glyph into the monsters list (it's `glyph_is_normal_monster=True`
+    # internally — NetHack treats the hero as just another monster).
+    bl = obs.get("blstats") or {}
+    pr = int(bl.get("y", 0))
+    pc = int(bl.get("x", 0))
 
     if not chars:
         return "(monsters unavailable: obs has no `chars`; call from inside game.exec)"
