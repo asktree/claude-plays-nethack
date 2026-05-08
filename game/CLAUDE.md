@@ -58,6 +58,8 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
   - **stops automatically on hostiles, items, or level boundaries**
   - is one call instead of N
 
+  Raises `TravelStalled` (from `tactics.travel_to`) if Travel halts silently with under-progress — typically a visible monster (NetHack's `lookaround` halts on any monster in LoS, peaceful or hostile) or a terrain rule. Re-evaluate (clear/displace the blocker, or pick a closer target) before retrying. Opt out with `travel_to(r, c, assert_progress=False)` if you genuinely expect zero/low progress.
+
   Pair it with `unexplored(obs)` to navigate the dungeon:
 
   ```python

@@ -5,7 +5,16 @@ from __future__ import annotations
 from typing import Any
 
 
-def travel_to(row: int, col: int, *, observe=None, do=None) -> dict[str, Any]:
+class TravelStalled(RuntimeError):
+    """Travel ran but made no progress toward the destination — typically
+    because NetHack's Travel halted silently on a visible monster (peaceful
+    or hostile) via lookaround()→nomul(0), or hit a doorway/diagonal rule.
+    Caller should re-evaluate before retrying instead of racing the next
+    `do(d)` into the same blockage."""
+
+
+def travel_to(row: int, col: int, *, assert_progress: bool = True,
+              observe=None, do=None) -> dict[str, Any]:
     """Auto-path to the given dungeon (row, col) via NetHack's Travel command.
 
     Travel is NetHack's built-in pathfinder: it routes through known terrain
@@ -16,22 +25,25 @@ def travel_to(row: int, col: int, *, observe=None, do=None) -> dict[str, Any]:
     Usage inside game.exec():
         from tactics import travel_to
         from views import unexplored
-        # frontier returns rows like "  d= 5  (12,34)  '.'  3N+5E"
-        # parse the (row, col), then:
         result = travel_to(12, 34)
-        # result is the post-travel snapshot
 
     Mechanics: presses `_` (TRAVEL), moves the cursor to (row, col) using
     cardinal direction keys, then sends `.` to confirm and start moving.
     NetHack handles the actual stepping.
+
+    `assert_progress` (default True): raise TravelStalled if Travel made
+    ZERO movement when at least one cell was requested. NetHack's Travel
+    halts SILENTLY on visible monsters (lookaround → nomul(0)) and certain
+    terrain rules; without this check, a stalled Travel returns an empty
+    message and your outer loop blindly issues the next `do(d)` into the
+    same situation. Pass False if you genuinely expect zero progress (e.g.
+    chained Travels where the first might land exactly on target).
 
     Returns the post-travel observation snapshot.
     """
     # `do` and `observe` are injected by the kernel (game.exec sets them as
     # globals). Allow them to be passed in for testability/explicitness.
     if do is None or observe is None:
-        # Resolve from caller's exec frame globals
-        import builtins
         frame_globals = _caller_kernel_globals()
         do = do or frame_globals.get("do")
         observe = observe or frame_globals.get("observe")
@@ -41,8 +53,9 @@ def travel_to(row: int, col: int, *, observe=None, do=None) -> dict[str, Any]:
     obs = observe()
     cursor = obs.get("cursor") or [0, 0]
     cy, cx = int(cursor[0]), int(cursor[1])
+    start = (cy, cx)
 
-    if (cy, cx) == (row, col):
+    if start == (row, col):
         return obs  # already there
 
     # Step 1: enter Travel mode. The cursor in travel mode starts at @.
@@ -59,7 +72,31 @@ def travel_to(row: int, col: int, *, observe=None, do=None) -> dict[str, Any]:
     # Step 3: confirm with `.` (period — the MiscDirection.WAIT keypress is the
     # same byte). NetHack interprets `.` in travel-cursor mode as "confirm
     # destination" and starts auto-stepping. Outside travel mode, `.` is rest.
-    return do("MiscDirection.WAIT")
+    snap = do("MiscDirection.WAIT")
+
+    if assert_progress:
+        end_cursor = snap.get("cursor") or [cy, cx]
+        end = (int(end_cursor[0]), int(end_cursor[1]))
+        moved = max(abs(end[0] - start[0]), abs(end[1] - start[1]))
+        intended = max(abs(row - start[0]), abs(col - start[1]))
+        msg = (snap.get("message") or "").strip()
+        # Stall = under-progress + silent halt. If a message fired (real
+        # NetHack msg or our synth hostile-LoS msg), safe_exec already paused
+        # on it; the gamer is in the loop. The dangerous case is the SILENT
+        # halt — empty message, cursor barely moved, gamer's outer loop
+        # races on without realizing. NetHack's lookaround → nomul(0) on
+        # visible monsters frequently triggers this.
+        if moved < intended and not msg:
+            raise TravelStalled(
+                f"travel_to({row},{col}): silent halt at {end} after {moved}/"
+                f"{intended} cells (start={start}). NetHack Travel stopped "
+                f"without printing — likely a visible monster (lookaround "
+                f"halts on any monster in LoS, peaceful or hostile) or a "
+                f"terrain rule. Re-evaluate (clear/displace the monster, or "
+                f"pick a closer target) before retrying. Pass "
+                f"assert_progress=False to opt out."
+            )
+    return snap
 
 
 def _caller_kernel_globals() -> dict:
@@ -69,7 +106,9 @@ def _caller_kernel_globals() -> dict:
     return frame.f_globals
 
 
-def travel_to_nearest(symbol: str, index: int = 0, *, observe=None, do=None) -> dict[str, Any]:
+def travel_to_nearest(symbol: str, index: int = 0, *,
+                      assert_progress: bool = True,
+                      observe=None, do=None) -> dict[str, Any]:
     """Find the nth-nearest occurrence of `symbol` in view, then travel_to it.
 
     `index=0` (default) is the nearest. Distance is Chebyshev (NetHack moves).
@@ -104,4 +143,4 @@ def travel_to_nearest(symbol: str, index: int = 0, *, observe=None, do=None) -> 
             f"only {len(matches)} occurrence(s) of {symbol!r} in view; requested index {index}"
         )
     _, r, c = matches[index]
-    return travel_to(r, c, do=do, observe=observe)
+    return travel_to(r, c, assert_progress=assert_progress, do=do, observe=observe)

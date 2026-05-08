@@ -165,7 +165,11 @@ def auto_explore(
         just_opened_door = False
 
         targets.append((tr, tc, glyph))
-        travel_to(tr, tc, do=do, observe=observe)
+        # assert_progress=False: auto_explore has its own no-progress branch
+        # below (cur_pos==last_pos opens an adjacent door or returns
+        # "no progress"), so a stalled Travel here doesn't need to also
+        # raise TravelStalled — it'd just be redundant noise inside the loop.
+        travel_to(tr, tc, assert_progress=False, do=do, observe=observe)
 
     return {"reason": f"max_iters={max_iters} reached",
             "iters": max_iters, "targets": targets, "searches": searches}

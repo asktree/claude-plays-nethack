@@ -73,6 +73,41 @@ def test_resume_replays_to_recorded_state(resume_server):
     assert bl["depth"] == 5, f"depth mismatch: {bl['depth']}"
 
 
+def test_travel_to_raises_on_silent_stall(resume_server):
+    """At the resumed state, peaceful gnome + hobbit are visible. NetHack's
+    Travel halts on any visible monster (peaceful counts) and emits no
+    top-line message — the obs comes back with cursor unchanged and
+    message=''. travel_to(assert_progress=True) must raise so the gamer
+    notices instead of blindly racing the next do(d) into the same cell."""
+    server = resume_server(FIXTURE)
+    out = server._safe_exec_python(
+        "from tactics import travel_to\n"
+        "from tactics.travel_to import TravelStalled\n"
+        "try:\n"
+        "    # (12, 50) is far across the map; Travel will halt on the\n"
+        "    # peaceful gnome and make zero progress.\n"
+        "    travel_to(12, 50)\n"
+        "    print('UNEXPECTED: travel succeeded')\n"
+        "except TravelStalled as e:\n"
+        "    print(f'GOOD: TravelStalled raised — {e}')\n"
+    )
+    assert out["status"] == "complete", out
+    assert "GOOD: TravelStalled raised" in (out.get("stdout") or ""), out.get("stdout")
+
+
+def test_travel_to_assert_progress_opt_out(resume_server):
+    """assert_progress=False: gamer wants to chain Travels and accepts that
+    one might no-op. No raise, just returns the post-travel snap."""
+    server = resume_server(FIXTURE)
+    out = server._safe_exec_python(
+        "from tactics import travel_to\n"
+        "snap = travel_to(12, 50, assert_progress=False)\n"
+        "print(f'cursor after = {snap[\"cursor\"]}')\n"
+    )
+    assert out["status"] == "complete", out
+    assert "cursor after =" in (out.get("stdout") or "")
+
+
 def test_auto_explore_from_stuck_state(resume_server):
     """Run auto_explore from the resumed state. Diagnostic — emits the
     captured gamer stdout via stderr so `pytest -s` surfaces it cleanly.
