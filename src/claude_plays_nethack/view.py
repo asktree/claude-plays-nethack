@@ -1,10 +1,13 @@
 """Live-watch TUI for the NetHack gamer.
 
-Reads three live streams:
+Reads two live streams:
   - game/.live_state.json      (the MCP server writes this each turn)
-  - game/trajectory/<latest>.jsonl  (per-action game log)
   - ~/.claude/projects/-Users-em-Coding-claude-plays-nethack-game/<latest>.jsonl
     (gamer-Claude's session transcript: tool calls + reasoning + thinking)
+
+The session-jsonl is the sole source for the activity log; game messages
+flow into it via the gamer's tool_result text (the MCP server formats
+`msg: ...` lines into each result).
 
 Renders with rich.Live: colored map + inventory + auto-derived legend +
 unified action/reasoning log.
@@ -37,9 +40,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 LIVE_STATE_PATH = Path(
     os.environ.get("NETHACK_LIVE_STATE", REPO_ROOT / "game" / ".live_state.json")
 )
-TRAJECTORY_DIR = Path(
-    os.environ.get("NETHACK_TRAJECTORY_DIR", REPO_ROOT / "game" / "trajectory")
-)
 GAMER_SESSION_DIR = Path(os.path.expanduser(
     "~/.claude/projects/-Users-em-Coding-claude-plays-nethack-game"
 ))
@@ -69,16 +69,6 @@ LEGEND_SKIP = set(" .#-|+@<>")
 
 
 @dataclass
-class TrajectoryEvent:
-    t: float
-    turn: int | None
-    action_name: str | None
-    reward: float | None
-    message: str
-    raw: dict[str, Any]
-
-
-@dataclass
 class SessionEvent:
     t: float
     kind: str  # "thinking" | "text" | "tool_use" | "msg"
@@ -87,6 +77,8 @@ class SessionEvent:
     paused_line: int | None = None  # 1-indexed line in `code` where safe_exec
                                     # paused. Back-filled from the matching
                                     # tool_result's "paused at" stack info.
+    is_latest_msg: bool = False     # `kind="msg"`: True for the most-recent
+                                    # message in an exec segment (rendered bold).
 
 
 EVENT_RETENTION = 500  # cap per reader so old events drop off
@@ -159,29 +151,36 @@ def _latest_jsonl(directory: Path | None) -> Path | None:
     return candidates[0] if candidates else None
 
 
-def _trajectory_record(rec: dict[str, Any], _prior: list[Any]) -> list[TrajectoryEvent]:
-    if rec.get("event") == "do":
-        return [TrajectoryEvent(
-            t=float(rec.get("t", 0)),
-            turn=rec.get("blstats", {}).get("time"),
-            action_name=rec.get("action_name"),
-            reward=rec.get("reward"),
-            message=rec.get("message", "") or "",
-            raw=rec,
-        )]
-    if rec.get("event") == "reset":
-        return [TrajectoryEvent(
-            t=float(rec.get("t", 0)),
-            turn=None,
-            action_name="<reset>",
-            reward=None,
-            message="",
-            raw=rec,
-        )]
-    return []
-
-
 _PAUSED_AT_RE = re.compile(r"<safe_exec>:(\d+)")
+_MESSAGES_BLOCK_RE = re.compile(r"^=== messages \(\d+\) ===$")
+
+
+def _extract_messages_block(text: str) -> list[tuple[bool, str]]:
+    """Find the `=== messages (N) ===` block emitted by safe_exec when an
+    exec segment produced 2+ messages. Returns [(is_latest, msg), ...]
+    in chronological order. Empty list if no block.
+
+    Lines in the block are formatted as `  msg` (regular) or `→ msg`
+    (most-recent). Block ends at the first non-conforming line.
+    """
+    out: list[tuple[bool, str]] = []
+    lines = text.split("\n")
+    i = 0
+    while i < len(lines):
+        if _MESSAGES_BLOCK_RE.match(lines[i]):
+            i += 1
+            while i < len(lines):
+                ln = lines[i]
+                if ln.startswith("→ "):
+                    out.append((True, ln[2:].strip()))
+                elif ln.startswith("  "):
+                    out.append((False, ln.strip()))
+                else:
+                    return out
+                i += 1
+            return out
+        i += 1
+    return out
 
 
 def _session_record(rec: dict[str, Any], prior_events: list[SessionEvent]) -> list[SessionEvent]:
@@ -214,12 +213,24 @@ def _session_record(rec: dict[str, Any], prior_events: list[SessionEvent]) -> li
                     if ev.kind == "tool_use" and ev.code is not None:
                         ev.paused_line = paused_line
                         break
-            for line in content_str.split("\n"):
-                if line.startswith("msg: "):
-                    msg = line[5:].strip()
+            # Prefer the explicit `=== messages (N) ===` block when the exec
+            # segment had 2+ messages — it carries the full history with the
+            # latest flagged. Otherwise fall back to the post_state's first
+            # `msg: ...` line (always the latest by definition).
+            block = _extract_messages_block(content_str)
+            if block:
+                for is_latest, msg in block:
                     if msg:
-                        out.append(SessionEvent(t=ts, kind="msg", text=msg))
-                    break  # only the first msg: line per tool result
+                        out.append(SessionEvent(t=ts, kind="msg", text=msg,
+                                                is_latest_msg=is_latest))
+            else:
+                for line in content_str.split("\n"):
+                    if line.startswith("msg: "):
+                        msg = line[5:].strip()
+                        if msg:
+                            out.append(SessionEvent(t=ts, kind="msg", text=msg,
+                                                    is_latest_msg=True))
+                        break  # only the first msg: line per tool result
         return out
 
     if rec.get("type") != "assistant":
@@ -274,10 +285,6 @@ def _session_record(rec: dict[str, Any], prior_events: list[SessionEvent]) -> li
                         text=f"{short}({arg!r})" if arg is not None else f"{short}()",
                     ))
     return out
-
-
-def _trajectory_reader() -> TailReader:
-    return TailReader(directory=TRAJECTORY_DIR, parse_record=_trajectory_record)
 
 
 def _session_reader() -> TailReader:
@@ -494,7 +501,6 @@ def _build_legend(state: dict[str, Any]) -> Panel:
 
 
 def _build_log(
-    _traj: list[TrajectoryEvent],
     sess: list[SessionEvent],
     expanded: bool = False,
     scroll: int = 0,
@@ -536,6 +542,16 @@ def _build_log(
         if kind is None:
             continue
         color, icon = KIND_STYLE[kind]
+        if kind == "msg":
+            # Latest message in a multi-msg exec block reads bold; older
+            # messages from the same segment render in regular weight so
+            # the eye lands on the most-recent thing the gamer reacted to.
+            style = f"bold {color}" if e.is_latest_msg else color
+            body.append(f"{icon} {e.text}\n", style=style)
+            rendered += 1
+            if rendered >= 40:
+                break
+            continue
         body.append(f"{icon} ", style=color)
         if kind in ("think", "say"):
             text = e.text
@@ -587,14 +603,13 @@ def _build_log(
 
 
 def _build_layout(state: dict[str, Any] | None,
-                  traj: list[TrajectoryEvent],
                   sess: list[SessionEvent],
                   expanded: bool = False,
                   scroll: int = 0) -> Layout:
     layout = Layout(name="root")
     if state is None:
         layout.split_row(
-            Layout(_build_log(traj, sess, expanded=expanded, scroll=scroll), name="left"),
+            Layout(_build_log(sess, expanded=expanded, scroll=scroll), name="left"),
             Layout(
                 Panel(Text(
                     "Waiting for live state... start a game with ./run.sh in another terminal.",
@@ -610,16 +625,15 @@ def _build_layout(state: dict[str, Any] | None,
     map_panel_height = map_h + 2  # +2 borders
 
     # Mouse hover → dungeon (row, col), shown in the map panel title.
-    # Layout offsets within col 1: header takes 6 rows, then map panel; map
-    # content starts at term_row=7 (6 header + 1 top border) and term_col=2
-    # (panel left border + 1-col padding). SGR mouse coords are 1-indexed.
+    # Layout offsets within col 1: header takes 8 rows (size=8 in the split
+    # below), then the map panel — its top border occupies one row, so map
+    # content starts at term_row=9 (0-indexed) and term_col=2 (panel left
+    # border + 1-col padding). SGR mouse coords are 1-indexed.
     map_title = "NetHack"
     mouse = _UI_STATE.get("mouse_term")
     if mouse:
         mr, mc = mouse
-        # 1-indexed terminal coords. Map content occupies term rows 7..7+map_h-1
-        # and term cols 2..2+map_w-1 (using 0-indexed internally; mouse is 1-indexed).
-        dr = mr - 1 - 7      # to 0-indexed dungeon row
+        dr = mr - 1 - 9      # to 0-indexed dungeon row
         dc = mc - 1 - 2      # to 0-indexed dungeon col
         if 0 <= dr < map_h and 0 <= dc < map_w:
             map_title = f"NetHack — hover ({dr},{dc})"
@@ -647,7 +661,7 @@ def _build_layout(state: dict[str, Any] | None,
     )
     layout["col1"].update(col1)
 
-    layout["col2"].update(_build_log(traj, sess, expanded=expanded, scroll=scroll))
+    layout["col2"].update(_build_log(sess, expanded=expanded, scroll=scroll))
     layout["col3"].update(_build_inventory(state))
 
     return layout
@@ -793,7 +807,6 @@ def _setup_input_thread() -> None:
 
 def main() -> None:
     console = Console()
-    traj_reader = _trajectory_reader()
     sess_reader = _session_reader()
     _setup_input_thread()
     # Belt-and-suspenders for mouse-mode cleanup: atexit covers abrupt
@@ -811,7 +824,6 @@ def main() -> None:
         _dbg(f"mouse-enable bytes written: {_MOUSE_ENABLE!r}")
         try:
             while not _UI_STATE["quit"]:
-                traj_reader.refresh()
                 sess_reader.refresh()
                 state = _read_state()
                 # Auto-pin: if user is scrolled back and new events arrive,
@@ -823,7 +835,7 @@ def main() -> None:
                     _UI_STATE["scroll"] += count - _UI_STATE["last_count"]
                 _UI_STATE["last_count"] = count
                 live.update(_build_layout(
-                    state, traj_reader.events, sess_reader.events,
+                    state, sess_reader.events,
                     expanded=_UI_STATE["expanded"],
                     scroll=_UI_STATE["scroll"],
                 ))

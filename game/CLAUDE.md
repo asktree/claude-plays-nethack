@@ -16,11 +16,10 @@ You play through the `nethack` MCP server. Three tools, that's the whole surface
   - **`autocontinue=[r"^You hear ", r"^You feel "]`** — list of regex patterns; matching messages auto-resume without bothering you. Useful for routine chatter.
   - **Use `exec` for any multi-step plan.** A pause means *something interesting just happened* — you read the message and decide.
 - **`continue_exec(autocontinue=None)`** — resume a paused `exec`. The paused `do()` returns its snap, code keeps marching to the next line. If the next `do()` also produces a message, pauses again — call repeatedly. Pass `autocontinue=[...]` to replace the pattern list for the rest of the run.
-- **`exec_raw(python_code)`** — same kernel as `exec` but `do()` never pauses on messages. Use only when you genuinely want full control (one-shot scripted item interactions, etc).
 
 There is no `reset()` tool — you don't get to restart. If you die, the game is over. Make every turn count.
 
-**Important**: any tool call other than `continue_exec` (i.e. `do`, `observe`, `exec`, `exec_raw`) drops the currently-paused exec, abandoning whatever lines were left in it. NLE state is consistent at the pause boundary; you take over from there.
+**Important**: any tool call other than `continue_exec` (i.e. `do`, `observe`, `exec`) drops the currently-paused exec, abandoning whatever lines were left in it. NLE state is consistent at the pause boundary; you take over from there.
 
 ## Observation shape
 
@@ -70,7 +69,7 @@ Inside `exec(...)`, import from `tactics/`. Tactics call `do()` internally — t
 
 - **`travel_to_nearest(symbol, index=0)`** — find the nth-nearest cell with that glyph and travel_to it. Great for grabbing items: `travel_to_nearest('$')` for gold, `travel_to_nearest('!')` for a potion, `travel_to_nearest('?')` for a scroll. `index=1` is the 2nd-nearest, etc.
 
-- **`auto_explore()`** — repeatedly travels to the nearest unexplored frontier on this level until exploration is done OR a hostile comes into view OR no progress is possible. Each iteration: if `@` is on/adjacent to an unexhausted `likely_secret_doors` candidate, do a brief 6-search burst before moving on (two natural visits hit the canonical 12 searches). One call to clear a level methodically. Returns a summary dict with `reason`, `iters`, `targets`, `searches`. Halts on any visible hostile (silent or otherwise) so you can decide how to handle.
+- **`auto_explore()`** — repeatedly travels to the nearest unexplored frontier on this level until exploration is done OR no progress is possible. Each iteration: if `@` is on/adjacent to an unexhausted `likely_secret_doors` candidate, do a brief 6-search burst before moving on (two natural visits hit the canonical 12 searches). One call to clear a level methodically. Returns a summary dict with `reason`, `iters`, `targets`, `searches`.
 
 - **`look_at(row, col)`** / **`look_at_nearest(symbol, index=0)`** — uses NetHack's `Command.GLANCE` to identify what's at a cell. Returns the post-glance snapshot whose `message` is NetHack's description (e.g. `"kobold; a small humanoid"`, `"(a fountain)"`). Useful when a glyph is ambiguous from `chars` alone.
 

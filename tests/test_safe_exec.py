@@ -282,3 +282,140 @@ def test_engrave_full_sequence_runs_to_completion(fresh_server):
             step_kinds.append(obj["kind"])
     assert step_kinds.count("gamer") == 5  # ENGRAVE, '-', 'H', 'i', '\r'
     assert step_kinds.count("auto_more") >= 1  # the dust-message --More--
+
+
+# --- stdout capture --------------------------------------------------------
+
+def test_print_output_surfaced_on_complete(fresh_server):
+    """`exec()` is the gamer's primary debugging surface — prints have to come
+    back. Regression: was previously swallowed because _create_paused_exec
+    didn't redirect stdout."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python("print('hello'); print(42)")
+    assert out["status"] == "complete"
+    assert out["stdout"] == "hello\n42\n"
+
+
+def test_print_output_surfaced_on_pause(fresh_server):
+    """Stdout from before a pause is delivered with the pause result, not
+    held until completion."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python(
+        "print('before pickup')\n"
+        "do('Command.PICKUP')\n"   # pauses on PICKUP_ON_STAIRS_MSG
+        "print('after pickup — never runs unless continued')\n"
+    )
+    assert out["status"] == "paused"
+    assert "before pickup" in out["stdout"]
+    assert "after pickup" not in out["stdout"]
+
+
+def test_print_buffer_clears_between_segments(fresh_server):
+    """Each return from _drive_paused flushes the buffer, so the gamer sees
+    only the prints from the segment that just ran — not a cumulative
+    re-delivery."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python(
+        "print('seg1')\n"
+        "do('Command.PICKUP')\n"
+        "print('seg2')\n"
+    )
+    assert out["status"] == "paused"
+    assert "seg1" in out["stdout"]
+    out2 = server._continue_exec()
+    assert out2["status"] == "complete"
+    # seg1 was already delivered; seg2 prints after the pause resumes.
+    assert "seg1" not in out2["stdout"]
+    assert "seg2" in out2["stdout"]
+
+
+def test_format_safe_exec_includes_stdout_block(fresh_server):
+    """The text formatter renders captured stdout as `=== stdout ===` —
+    that's how the gamer actually sees it in their tool_result."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python("print('visible to gamer')")
+    rendered = server._format_safe_exec_result(out)
+    assert "=== stdout ===" in rendered
+    assert "visible to gamer" in rendered
+
+
+# --- messages-from-segment tracking ---------------------------------------
+
+def test_messages_collected_across_pause(fresh_server):
+    """All messages observed during a segment are returned, in order. The
+    `→` marker tags the most-recent one so view.sh can bold it."""
+    server = fresh_server(seed=42)
+    # ENGRAVE produces "What do you want to write with?" (yn-prompt, auto-skip),
+    # then '-' produces another prompt, then 'H'/'i'/\r commit. Each step's
+    # snap message gets recorded — even the auto-skipped ones.
+    out = server._safe_exec_python(
+        "do('Command.ENGRAVE')\n"
+        "do('-')\n"               # use fingers
+        "do('H'); do('i')\n"      # write "Hi"
+        "do('\\r')\n"              # commit
+    )
+    assert out["status"] == "complete"
+    msgs = out.get("messages") or []
+    # Multiple prompts/messages fired across the segment.
+    assert len(msgs) >= 2, f"expected 2+ messages, got {msgs}"
+    # Renderer emits the multi-msg block.
+    rendered = server._format_safe_exec_result(out)
+    assert "=== messages " in rendered
+    assert "→ " in rendered  # latest marker
+
+
+def test_single_message_no_block(fresh_server):
+    """When only one message fires, skip the block — the post_state's
+    `msg: ...` line already carries it."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python("do('Command.PICKUP')")
+    rendered = server._format_safe_exec_result(out)
+    assert "=== messages " not in rendered
+    # PICKUP_ON_STAIRS_MSG still surfaces via the paused-result formatting.
+    assert PICKUP_ON_STAIRS_MSG in rendered
+
+
+def test_do_return_value_has_grids(fresh_server):
+    """`result = do(...)` inside exec must return a complete snapshot —
+    chars/glyphs/etc. — not a slim one. Otherwise gamer code breaks
+    surprisingly when it tries result['chars'] vs the obs global."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python(
+        "result = do('Command.LOOK')\n"
+        "assert 'chars' in result, list(result.keys())\n"
+        "assert 'glyphs' in result\n"
+        "assert 'descriptions' in result\n"
+    )
+    assert out["status"] in ("complete", "paused"), out
+
+
+def test_kernel_obs_refreshed_after_do_inside_safe_exec(fresh_server):
+    """`obs` global inside safe_exec must update after each do() — same
+    behavior as _exec_python's non-pausing kernel. Previously stale.
+
+    Uses seed=5 (clean spawn, no visible hostiles) + Command.SEARCH so the
+    step is silent (no synth message fires) and the assertion line gets
+    a chance to run.
+    """
+    server = fresh_server(seed=5)
+    out = server._safe_exec_python(
+        "before = obs['blstats']['time']\n"
+        "do('Command.SEARCH')\n"
+        "after = obs['blstats']['time']\n"
+        "assert after >= before, f'obs stale: {before} -> {after}'\n"
+    )
+    assert out["status"] == "complete", out
+
+
+def test_messages_buffer_clears_between_segments(fresh_server):
+    """Per-segment isolation: the messages list is flushed each return so
+    a continue_exec sees only post-pause messages."""
+    server = fresh_server(seed=42)
+    out = server._safe_exec_python("do('Command.PICKUP')")
+    assert out["status"] == "paused"
+    msgs1 = out.get("messages") or []
+    out2 = server._continue_exec()
+    msgs2 = out2.get("messages") or []
+    # The PICKUP message is in segment 1, not segment 2.
+    assert any(PICKUP_ON_STAIRS_MSG in m for m in msgs1)
+    assert not any(PICKUP_ON_STAIRS_MSG in m for m in msgs2)

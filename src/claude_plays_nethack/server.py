@@ -15,6 +15,7 @@ import threading
 import time
 import traceback
 import uuid
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -129,6 +130,13 @@ class GameState:
         # are skipped. Trajectory events are NOT appended either — the
         # events being replayed are already in the file.
         self.replaying: bool = False
+        # Last frame's count of visible hostiles, keyed by (glyph_char,
+        # description) so monster MOVEMENT doesn't false-fire the synth
+        # message — only new arrivals do (key absent from the prior counter,
+        # or count went up). Re-seeded after env.reset and after replay
+        # completion so existing monsters at the resume/spawn point don't
+        # trigger spurious arrivals on the gamer's first action.
+        self.last_hostile_counts: Counter[tuple[str, str]] = Counter()
 
     def ensure_env(self, character: str | None = None) -> gym.Env:
         """Return the gym env. NLE bakes the character spec at construction,
@@ -162,6 +170,13 @@ class GameState:
                         # the response, no pause needed.
         )
         from nle import nethack as _nh
+        # NLE caps episodes at 5000 env.steps by default — when hit, NLE force-
+        # quits the game with terminated=True and the "you quit" top-ten screen.
+        # This is meaningless for us (we re-implement our own no-progress timeout
+        # at the harness level via NETHACK_NO_PROGRESS_LIMIT), so override to a
+        # very large number. Configurable via NETHACK_MAX_EPISODE_STEPS for tests
+        # that want to exercise the cap.
+        max_steps = int(os.environ.get("NETHACK_MAX_EPISODE_STEPS", 10**9))
         self.env = gym.make(
             ENV_ID,
             observation_keys=obs_keys,
@@ -177,6 +192,13 @@ class GameState:
             # game start. Without it, ^X is a no-op.
             allow_all_modes=True,
         )
+        # gym.make intercepts `max_episode_steps` for its own TimeLimit
+        # wrapper but doesn't forward it to NLE's __init__, so NLE's internal
+        # cap stays at 5000 regardless. Bump it directly. (NLE's
+        # _check_abort returns True at _steps >= _max_episode_steps and the
+        # env force-quits the game with terminated=True — looks like a
+        # mysterious mid-game crash if you don't know to look for it.)
+        self.env.unwrapped._max_episode_steps = max_steps
         self.env_character = target
         self.actions_tuple = tuple(self.env.unwrapped.actions)
         self._build_action_table()
@@ -288,7 +310,7 @@ class GameState:
         # the file, that's literally what we're replaying.
         if self.replaying:
             return
-        record = {"t": time.time(), "session": self.session_id, **record}
+        record = {"t": time.time(), **record}
         with self.trajectory_path.open("a") as fh:
             fh.write(json.dumps(record, default=str) + "\n")
 
@@ -604,6 +626,79 @@ def _decode_screen_descriptions(obs: dict[str, Any]) -> list[list[str]]:
             row_out.append(text)
         out.append(row_out)
     return out
+
+
+def _visible_hostiles(obs: dict[str, Any]) -> list[tuple[str, int, int]]:
+    """[(glyph_char, dungeon_row, dungeon_col)] for visible non-pet,
+    non-peaceful monsters.
+
+    Operates on the raw NLE env obs. Coordinates are dungeon-relative (chars
+    indexing). Filter chain:
+      - `glyph_is_normal_monster` drops statues, objects, pets, swallow
+        effects, and the player itself (well, the player cell is also
+        filtered by cursor match)
+      - `descriptions.startswith("peaceful ")` drops e.g. "peaceful gnome",
+        "peaceful shopkeeper" — NetHack tags every peaceful with that prefix
+      - `descriptions.startswith("tame ")` belt-and-suspenders pet check
+
+    Used by `_do` to detect newly-visible hostiles between steps and
+    synthesize a message — NetHack does NOT always emit one when a wild
+    monster moves into LoS, so this is the harness's safety net.
+    """
+    glyphs = obs.get("glyphs")
+    if glyphs is None:
+        return []
+    chars = obs.get("chars")
+    tty_cursor = obs.get("tty_cursor")
+    if tty_cursor is None:
+        return []
+    # tty_cursor row is +1 vs the dungeon-frame chars/glyphs grids.
+    pr, pc = int(tty_cursor[0]) - 1, int(tty_cursor[1])
+    descs = _decode_screen_descriptions(obs)
+    try:
+        from nle import nethack as nh  # type: ignore
+    except ImportError:
+        return []
+    out: list[tuple[str, int, int]] = []
+    for r in range(len(glyphs)):
+        row = glyphs[r]
+        for c in range(len(row)):
+            g = int(row[c])
+            if not nh.glyph_is_normal_monster(g):
+                continue
+            if (r, c) == (pr, pc):
+                continue
+            desc = descs[r][c] if r < len(descs) and c < len(descs[r]) else ""
+            if desc.startswith("peaceful ") or desc.startswith("tame "):
+                continue
+            ch_int = int(chars[r][c]) if chars is not None else 0
+            ch = chr(ch_int) if ch_int else "?"
+            out.append((ch, r, c))
+    return out
+
+
+def _hostile_counts(obs: dict[str, Any]) -> Counter[tuple[str, str]]:
+    """Counter[(glyph_char, description)] for visible non-pet, non-peaceful
+    monsters. Diff against the prior frame's counter to detect genuinely
+    new arrivals while ignoring movement of already-known monsters: a
+    moving kobold keeps its (char, desc) key and stays at count=1, so
+    Counter subtraction yields no diff."""
+    descs = _decode_screen_descriptions(obs)
+    return Counter(
+        (ch, descs[r][c] if r < len(descs) and c < len(descs[r]) else "")
+        for ch, r, c in _visible_hostiles(obs)
+    )
+
+
+def _format_hostile_synth(new_keys: list[tuple[str, str]]) -> str:
+    """Build the synth message for newly-arrived hostile types. `new_keys`
+    is the list of (char, description) keys whose count went up. Names use
+    the description (e.g. 'kobold') so the gamer sees real names, not
+    chars. Caps at 3 names with `(+N more)` suffix."""
+    names = [desc or ch for ch, desc in new_keys[:3]]
+    extra = len(new_keys) - len(names)
+    suffix = f" (+{extra} more)" if extra > 0 else ""
+    return "You see " + ", ".join(names) + suffix + " come into view."
 
 
 def _write_live_state(obs: dict[str, Any] | None, snap: dict[str, Any]) -> None:
@@ -940,6 +1035,10 @@ def _reset() -> dict[str, Any]:
         # Caught up. Live mode resumes from here; new gamer actions append to
         # this trajectory file (the branched one if branched, original on
         # straight resume).
+        # Seed the synth-message tracker with whatever's currently visible —
+        # otherwise the first live action would spuriously synthesize "X
+        # comes into view" for every existing monster.
+        STATE.last_hostile_counts = _hostile_counts(STATE.last_obs)
         snap = _snapshot()
         _write_live_state(STATE.last_obs, snap)
         return snap
@@ -999,6 +1098,9 @@ def _reset() -> dict[str, Any]:
         "chars": _chars_to_strings(STATE.last_obs),
         "cursor": [int(x) for x in STATE.last_obs["tty_cursor"]],
     })
+    # Seed the synth-message tracker so monsters that spawn-visible at game
+    # start don't trigger spurious "X comes into view" on the first action.
+    STATE.last_hostile_counts = _hostile_counts(STATE.last_obs)
     snap = _snapshot()
     _write_live_state(STATE.last_obs, snap)
     _fire_hook("post_reset", {
@@ -1029,7 +1131,6 @@ def _log_step(action_idx: int, action_enum: Any, kind: str, reward: float,
         "action_name": f"{type(action_enum).__name__}.{action_enum.name}",
         "action_keycode": int(action_enum.value),
         "kind": kind,
-        "session_id": STATE.session_id if kind == "gamer" else None,
         "reward": float(reward),
         "blstats": _decode_blstats(obs),
         "message": _decode_message(obs),
@@ -1103,6 +1204,23 @@ def _do(action: int | str) -> dict[str, Any]:
             auto_more_count += 1
 
     combined = " | ".join(messages)
+
+    # Synth-augment: NetHack doesn't always emit a top-line message when a
+    # wild monster moves into LoS, but we don't want safe_exec to silently
+    # walk into it. Diff hostile counts vs last frame; if any (char, desc)
+    # key gained members AND the env was silent this turn, synthesize a
+    # message. Counter-based diff (not coord-based) so a known monster
+    # MOVING doesn't spam synth — only new arrivals or replicas trigger.
+    # This lives only in the snap returned to the gamer; per-step
+    # trajectory entries keep recording the raw env messages, so replay
+    # validation is unaffected.
+    current_counts = _hostile_counts(obs)
+    if not combined:
+        new_counts = current_counts - STATE.last_hostile_counts
+        if new_counts:
+            combined = _format_hostile_synth(list(new_counts.keys()))
+    STATE.last_hostile_counts = current_counts
+
     STATE.terminated = bool(terminated)
     STATE.truncated = bool(truncated)
     # No-progress timeout (replaces what NetHackChallenge gave us).
@@ -1190,13 +1308,32 @@ def _load_hooks() -> None:
             STATE.log({"event": "hook_load_error", "file": path.name, "error": str(e)})
 
 
+_GRID_KEYS = ("chars", "colors", "descriptions", "glyphs", "seen")
+
+
+def _attach_grids(snap: dict[str, Any]) -> dict[str, Any]:
+    """Enrich a slim snap with the 2D grid fields so gamer code inside exec
+    can write `result = do(...)` and read `result["chars"]` etc. without an
+    extra observe(). Mutates and returns. No-op if grids aren't available
+    (no last_obs yet, or env doesn't expose the keys)."""
+    if STATE.last_obs is None:
+        return snap
+    grids = _snapshot(include_grid=True)
+    for k in _GRID_KEYS:
+        if k in grids:
+            snap[k] = grids[k]
+    return snap
+
+
 def _kernel_do(action: int | str) -> dict[str, Any]:
-    """Wrap _do so the kernel's `obs` global stays fresh after each step.
+    """Wrap _do so the kernel's `obs` global stays fresh after each step,
+    AND so the return value carries grids — the gamer expects do() to
+    yield a complete snapshot (per CLAUDE.md docs).
     (post_do hooks fire inside _do itself, so all do() paths trigger them.)
     """
-    slim = _do(action)
-    _KERNEL["obs"] = _snapshot(include_grid=True)
-    return slim
+    snap = _attach_grids(_do(action))
+    _KERNEL["obs"] = snap
+    return snap
 
 
 def _kernel_observe() -> dict[str, Any]:
@@ -1302,6 +1439,12 @@ DEFAULT_AUTOCONTINUE: list[str] = [
     r"^Where do you want to travel to\?",
 ]
 
+# NetHack uses "Really X?" for destructive/irreversible yn prompts:
+# Really attack the peaceful?, Really put on the cursed amulet?, etc.
+# These override the awaiting-input auto-skip in _drive_paused so the
+# gamer always re-evaluates before barreling through.
+_REALLY_RE = re.compile(r"\bReally\b")
+
 
 @dataclass
 class PausedExec:
@@ -1313,6 +1456,20 @@ class PausedExec:
     last_snap: dict[str, Any] = field(default_factory=dict)
     last_msg: str = ""
     error: str | None = None
+    # Captures gamer print() output. _run wraps builtins.exec in
+    # contextlib.redirect_stdout(stdout_buf); _drive_paused flushes (reads +
+    # truncates) on each return so the gamer sees prints from the segment that
+    # just ran. Process-global redirect caveat: while a safe_exec is parked,
+    # any stdout from MCP server code also lands here — acceptable since the
+    # server doesn't print diagnostics during gameplay.
+    stdout_buf: io.StringIO = field(default_factory=io.StringIO)
+    # All non-empty snap.messages observed during the current segment, in
+    # chronological order — including auto-skipped ones (in_yn, autocontinue
+    # matches). Drained on each return so each tool result carries only the
+    # messages from the segment that just ran. Lets the gamer see what
+    # happened across the whole exec, not just the message that triggered
+    # the final pause.
+    messages: list[str] = field(default_factory=list)
 
 
 def _drop_paused() -> None:
@@ -1383,7 +1540,8 @@ def _create_paused_exec(code: str, autocontinue: list[str]) -> PausedExec:
                 _KERNEL["MiscDirection"] = _nh.MiscDirection
                 _KERNEL["MiscAction"] = _nh.MiscAction
                 _KERNEL["TextCharacters"] = _nh.TextCharacters
-            builtins.exec(compile(code, "<safe_exec>", "exec"), _KERNEL)
+            with contextlib.redirect_stdout(pe.stdout_buf):
+                builtins.exec(compile(code, "<safe_exec>", "exec"), _KERNEL)
         except _Abandon:
             pass  # gamer dropped us; clean exit
         except BaseException:
@@ -1398,6 +1556,24 @@ def _create_paused_exec(code: str, autocontinue: list[str]) -> PausedExec:
     return pe
 
 
+def _flush_stdout(pe: PausedExec) -> str:
+    """Drain pe.stdout_buf and return its contents. Called once per return
+    from _drive_paused so each tool result carries only the prints that
+    happened in this segment."""
+    s = pe.stdout_buf.getvalue()
+    pe.stdout_buf.seek(0)
+    pe.stdout_buf.truncate()
+    return s
+
+
+def _flush_messages(pe: PausedExec) -> list[str]:
+    """Drain pe.messages and return the list. Same flush-per-return contract
+    as _flush_stdout — the gamer sees only this segment's messages."""
+    out = list(pe.messages)
+    pe.messages.clear()
+    return out
+
+
 def _drive_paused(pe: PausedExec) -> dict[str, Any]:
     """Run the main-thread loop: receive actions, step NLE, decide pause/resume.
     Returns when the thread completes, errors, or pauses for the gamer."""
@@ -1406,20 +1582,30 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
             kind, payload = pe.action_q.get(timeout=30.0)
         except _queue.Empty:
             STATE.paused_exec = None
-            return {"status": "error", "error": "safe_exec thread stalled (no action in 30s)"}
+            return {"status": "error", "error": "safe_exec thread stalled (no action in 30s)",
+                    "stdout": _flush_stdout(pe), "messages": _flush_messages(pe)}
         if kind == "done":
             STATE.paused_exec = None
             if pe.error:
-                return {"status": "error", "error": pe.error}
-            return {"status": "complete"}
+                return {"status": "error", "error": pe.error,
+                        "stdout": _flush_stdout(pe), "messages": _flush_messages(pe)}
+            return {"status": "complete",
+                    "stdout": _flush_stdout(pe), "messages": _flush_messages(pe)}
         # Step NLE; on exception, propagate back into the thread.
         try:
-            snap = _do(payload)
+            snap = _attach_grids(_do(payload))
         except BaseException as e:
             pe.response_q.put(e)
             continue
+        # Keep the kernel `obs` global in sync so `obs["chars"]` between do()
+        # calls reflects the latest step (parallels the non-pausing kernel).
+        _KERNEL["obs"] = snap
         msg = snap.get("message", "").strip()
         if msg:
+            # Record before any auto-skip decisions so the gamer can see
+            # the full message history of this segment, not just the one
+            # that triggered the final pause.
+            pe.messages.append(msg)
             # If NLE is parked at a yn/getlin prompt, the gamer's next
             # do() call IS the response — pausing on the prompt would
             # just add a round-trip with no decision attached on the
@@ -1428,7 +1614,14 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
             # issues becomes the response. (Requires allow_all_modes=True
             # at env construction so NLE doesn't itself auto-ESC the
             # prompt — see ensure_env.)
-            if _is_awaiting_input(STATE.last_obs or {}):
+            #
+            # EXCEPTION: NetHack reserves "Really X?" for destructive /
+            # irreversible confirmations (Really attack the peaceful?,
+            # Really put on the cursed amulet?, Really sacrifice...?).
+            # Auto-skipping these would silently barrel through with
+            # whatever the gamer's next scripted do() happens to be.
+            # Pause unconditionally so the gamer re-evaluates.
+            if _is_awaiting_input(STATE.last_obs or {}) and not _REALLY_RE.search(msg):
                 pe.response_q.put(snap)
                 continue
             matched = False
@@ -1452,6 +1645,8 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
                 "post_obs": snap,
                 "stack": _gamer_pause_location(pe),
                 "autocontinue": list(pe.autocontinue),
+                "stdout": _flush_stdout(pe),
+                "messages": _flush_messages(pe),
             }
         # Silent step — let the thread proceed.
         pe.response_q.put(snap)
@@ -1484,9 +1679,21 @@ def _continue_exec(autocontinue: list[str] | None = None) -> dict[str, Any]:
 
 def _format_safe_exec_result(out: dict[str, Any]) -> str:
     """Render a safe_exec/continue_exec result for the model. Pauses are
-    formatted concisely: one-liner with file:line + message, then state."""
+    formatted concisely: one-liner with file:line + message, then state.
+    Any captured gamer stdout is prepended as a `=== stdout ===` block — the
+    gamer's `print(...)` is their primary debugging surface inside exec."""
     status = out.get("status", "?")
     parts: list[str] = []
+    stdout = (out.get("stdout") or "").rstrip()
+    if stdout:
+        parts.append("=== stdout ===\n" + stdout)
+    # Show every NetHack message that fired during this exec segment, not
+    # just the last one. Most-recent gets a `→ ` prefix marker so the
+    # gamer (and view.sh's session-jsonl parser) can pick out the latest.
+    msgs = out.get("messages") or []
+    if len(msgs) > 1:
+        rendered = [f"  {m}" for m in msgs[:-1]] + [f"→ {msgs[-1]}"]
+        parts.append(f"=== messages ({len(msgs)}) ===\n" + "\n".join(rendered))
     if status == "paused":
         stack = out.get("stack") or []
         # Deepest gamer frame (closest to the do() that triggered the pause).
@@ -1616,21 +1823,11 @@ def continue_exec(autocontinue: list[str] | None = None) -> ToolResult:
     )
 
 
-@mcp.tool
-def exec_raw(python_code: str) -> ToolResult:
-    """Run Python in the persistent kernel WITHOUT message-pausing.
-
-    Same kernel as `exec`, but `do()` never pauses on messages — you get
-    the snap back regardless. Use only when you genuinely want full
-    control over message handling, or for one-shot scripted sequences.
-
-    Returns: stdout + final expression value + traceback (if any) +
-    post-exec state.
-    """
-    _drop_paused()
-    return ToolResult(
-        content=[TextContent(type="text", text=_format_exec_result(_exec_python(python_code)))],
-    )
+# NOTE: exec_raw used to be exposed as an MCP tool but was removed —
+# bypassing message-pause silently desynced the gamer's command stream
+# whenever a yn-prompt or similar fired mid-sequence. Internals (`_exec_python`,
+# `_format_exec_result`) remain for tests and any future tooling, but the
+# tool surface only exposes pausing-by-default `exec`.
 
 
 def main() -> None:

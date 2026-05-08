@@ -41,6 +41,7 @@ Env vars that change harness behavior at startup:
 | `NETHACK_SEED_LGEN=<int>` | optional level-gen seed; if unset, level gen rolls off the core RNG. |
 | `NETHACK_CHARACTER=<spec>` | character spec passed to NLE. `@` (default) = random role/race/gender/align (deterministic given seed). `val-hum-fem-law` etc pins all four. Errors if conflicts with a resume-mode trajectory header. |
 | `NETHACK_NO_PROGRESS_LIMIT=<n>` | abort after this many `_do` calls in a row without the in-game clock advancing. Default 10000. |
+| `NETHACK_MAX_EPISODE_STEPS=<n>` | override NLE's internal step cap (default 5000 → NLE force-quits the game). We default to 1e9 so long games aren't truncated. Set to a smaller value only for tests that exercise the cap. |
 | `NETHACK_SEED=<int>` | shorthand: sets both core and disp to the same int. |
 
 ## Stack

@@ -1,12 +1,15 @@
 """auto_explore(): repeatedly travel toward the nearest unexplored frontier
-until the level is fully explored or something interesting happens.
+until the level is fully explored or pathfinding gets stuck.
 
 Stops on:
   - no remaining frontier cells reachable from `@`
-  - any hostile in view (silent or not — message-pause covers attacks but a
-    monster simply walking into LoS may produce no message)
   - max_iters reached (safety cap to prevent runaway)
   - no progress in last iteration (cursor didn't change after travel_to)
+
+Game events (hostile arriving, hunger transition, item underfoot, …) are
+intentionally NOT checked here — they all produce NetHack messages, which
+safe_exec pauses on, putting the gamer in control. Defending against them
+inside the loop would be redundant.
 
 Returns a summary dict with `reason`, `iters`, `targets` (list of (r,c) tried).
 """
@@ -16,7 +19,6 @@ from __future__ import annotations
 import sys
 from typing import Any
 
-from ._hostiles import _hostile_set
 from .travel_to import travel_to
 
 # Opportunistic search burst: when @ stands on/adjacent to a likely-secret-door
@@ -126,14 +128,6 @@ def auto_explore(
 
     for i in range(max_iters):
         obs = observe()
-
-        # Hostile-in-view check: bail on any visible monster, even silent ones.
-        threats = _hostile_set(obs)
-        if threats:
-            top = sorted(threats)[:3]
-            descr = ", ".join(f"'{ch}' at ({r},{c})" for ch, (r, c) in top)
-            return {"reason": f"hostile in view: {descr}",
-                    "iters": i, "targets": targets, "searches": searches}
 
         # Opportunistic search: if @ touches a likely-secret-door candidate AND
         # we haven't burst here this call, search SEARCH_BURST times before

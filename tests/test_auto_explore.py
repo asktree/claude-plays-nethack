@@ -1,8 +1,11 @@
 """Tests for tactics/auto_explore.
 
 Uses seed=5 with Valkyrie-Human-Female-Lawful pinned, which spawns into a
-room with no immediate hostile (verified empirically). seed=42 spawns next
-to a hostile dog and is good for testing the hostile-stop path.
+room with plenty of frontier and no immediate game-event interruptions.
+
+Hostile-handling is delegated to the message-pause path now (see
+auto_explore.py module docstring) — this test file no longer covers
+"halts on visible hostile" because that decision moved out of the tactic.
 """
 
 from __future__ import annotations
@@ -40,27 +43,11 @@ def test_max_iters_cap_respected(fresh_server):
         assert "max_iters" in result["reason"]
 
 
-def test_halts_on_hostile_in_view(fresh_server):
-    """At seed=42 with Valkyrie, a wild 'd' (jackal) is visible at spawn,
-    so auto_explore must halt on iter 0 with reason mentioning the hostile."""
-    server = fresh_server(seed=42)
-    result = _run_auto_explore(server, max_iters=10)
-    assert result["iters"] == 0
-    assert "hostile" in result["reason"]
-    assert "'d'" in result["reason"]
-    assert result["targets"] == []
-
-
-def test_explores_to_frontier_without_hostile(fresh_server):
-    """With a clean spawn (no hostile), auto_explore should make at least
-    one travel attempt — `targets` is non-empty."""
+def test_explores_to_frontier(fresh_server):
+    """From a fresh spawn, auto_explore should make at least one travel
+    attempt — `targets` is non-empty."""
     server = fresh_server(seed=5)
     result = _run_auto_explore(server, max_iters=5)
-    # Either we found frontier(s) and tried travel, or we were already
-    # fully explored on iter 0 (rare from a single-room spawn). The
-    # interesting assertion: didn't halt on hostile.
-    assert "hostile" not in result["reason"]
-    # From a small room spawn, we should at least find one frontier.
     assert len(result["targets"]) >= 1
 
 
@@ -107,9 +94,10 @@ def test_runs_inside_safe_exec(fresh_server):
         "result = auto_explore(max_iters=3)\n"
     )
     # Either completed (3 iters of pure travel), or paused on a real game
-    # event (item, hostile reveal, etc). Both are acceptable. The test
+    # event (item, hostile reveal, hunger, etc — those produce messages
+    # that safe_exec correctly pauses on). Both are acceptable. The test
     # would fail if the Travel-prompt itself paused — that's the
-    # regression we just fixed via DEFAULT_AUTOCONTINUE.
+    # regression we fixed via DEFAULT_AUTOCONTINUE.
     assert out["status"] in ("complete", "paused")
     if out["status"] == "paused":
         assert "Where do you want to travel to" not in out["message"]

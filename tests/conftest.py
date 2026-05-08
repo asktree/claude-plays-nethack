@@ -81,6 +81,7 @@ def fresh_server(tmp_path, monkeypatch):
         server.STATE.no_progress_count = 0
         server.STATE.last_time = None
         server.STATE.replaying = False
+        server.STATE.last_hostile_counts = __import__("collections").Counter()
         # Hooks: clear and re-load for predictable per-test state.
         server.HOOKS = {"post_do": [], "post_reset": [], "post_observe": []}
         server._HOOKS_LOADED = False
@@ -94,6 +95,80 @@ def fresh_server(tmp_path, monkeypatch):
         return server
 
     yield _start
+
+    try:
+        from claude_plays_nethack import server as _s
+        _s._drop_paused()
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def resume_server(tmp_path, monkeypatch):
+    """Resume the env from a recorded trajectory fixture.
+
+    Copies the fixture into tmp_path (so live appends from the resumed game
+    don't pollute the fixture), points NETHACK_TRAJ at the copy, and invokes
+    _reset() — which replays every step event in order, validating each
+    against the recording, then leaves the env at the resume point ready
+    for live actions.
+
+    Use for repro tests built from real game state: snapshot the current
+    trajectory under tests/fixtures/, then write a test that resumes and
+    runs whatever sequence reproduces the bug.
+    """
+    import shutil
+    from pathlib import Path
+
+    def _resume(fixture_path):
+        fixture_path = Path(fixture_path)
+        traj_dir = tmp_path / "traj"
+        traj_dir.mkdir()
+        target = traj_dir / fixture_path.name
+        shutil.copy(fixture_path, target)
+
+        monkeypatch.setenv("NETHACK_TRAJECTORY_DIR", str(traj_dir))
+        monkeypatch.setenv("NETHACK_LIVE_STATE", str(tmp_path / "live.json"))
+        monkeypatch.setenv("NETHACK_TRAJ", str(target))
+        # Resume reads seeds + character from the header — env vars must not
+        # conflict, so clear any leftovers.
+        for v in ("NETHACK_REPLAY_TO", "NETHACK_CHARACTER",
+                  "NETHACK_SEED_CORE", "NETHACK_SEED_DISP", "NETHACK_SEED"):
+            monkeypatch.delenv(v, raising=False)
+
+        from claude_plays_nethack import server
+
+        # Same singleton-reset dance as fresh_server: NLE env reuse can
+        # smuggle state across tests.
+        if server.STATE.env is not None:
+            try:
+                server.STATE.env.close()
+            except Exception:
+                pass
+            server.STATE.env = None
+            server.STATE.env_character = None
+        server.STATE.last_obs = None
+        server.STATE.last_info = None
+        server.STATE.seen_per_level.clear()
+        server.STATE.character = None
+        server.STATE.terminated = False
+        server.STATE.truncated = False
+        server.STATE.paused_exec = None
+        server.STATE.step_n = 0
+        server.STATE.no_progress_count = 0
+        server.STATE.last_time = None
+        server.STATE.replaying = False
+        server.STATE.last_hostile_counts = __import__("collections").Counter()
+        server.HOOKS = {"post_do": [], "post_reset": [], "post_observe": []}
+        server._HOOKS_LOADED = False
+        server._load_hooks()
+        if "search_memory" in sys.modules:
+            sys.modules["search_memory"]._counts.clear()
+
+        server._reset()  # triggers replay codepath via NETHACK_TRAJ
+        return server
+
+    yield _resume
 
     try:
         from claude_plays_nethack import server as _s
