@@ -552,17 +552,21 @@ def _parse_welcome_message(msg: str) -> dict[str, str] | None:
 
 
 def _crop_screen(screen: str, row: int, col: int, radius: int) -> str:
-    """(2*radius+1)x(2*radius+1) ASCII window around (row, col) cut from
-    a full 21-line dungeon screen string. Out-of-bounds cells render as
-    spaces. Used for the per-action readout — the gamer sees a focused
-    window around @ instead of the full 21x80 screen, which saves a lot
-    of tokens. They can call `observe()` for the full map when needed."""
+    """(2*radius+1)x(2*radius+1) ASCII window around (row, col), anchored
+    to stay within the 21x79 dungeon bounds. Near an edge the window is
+    SHIFTED inward so the player isn't always exactly centered, but the
+    crop is always full of real content — no wasted blank rows from
+    out-of-bounds lookups. Used for the per-action readout; the full map
+    is available via `observe()` when the gamer wants to survey."""
+    side = 2 * radius + 1
+    r0 = max(0, min(row - radius, DUNGEON_ROWS - side))
+    c0 = max(0, min(col - radius, DUNGEON_COLS - side))
     lines = screen.split("\n")
     out: list[str] = []
-    for r in range(row - radius, row + radius + 1):
+    for r in range(r0, r0 + side):
         ln = lines[r] if 0 <= r < len(lines) else ""
         chars = [ln[c] if 0 <= c < len(ln) else " "
-                 for c in range(col - radius, col + radius + 1)]
+                 for c in range(c0, c0 + side)]
         out.append("".join(chars))
     return "\n".join(out)
 

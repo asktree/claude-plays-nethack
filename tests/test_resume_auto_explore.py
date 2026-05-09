@@ -37,6 +37,26 @@ def test_do_readout_uses_crop_observe_uses_full(resume_server):
     assert "Monsters:" in obs_text
 
 
+def test_crop_anchors_to_dungeon_bounds(resume_server):
+    """Player is at row=2 in the fixture (top edge); a naive radius=4 crop
+    would have 2 OOB blank rows above. The anchored crop shifts the window
+    DOWN to keep all 9 rows full of real content (player ends up offset
+    upward in the window instead of centered)."""
+    server = resume_server(FIXTURE)
+    snap = server._observe()
+    bl = snap["blstats"]
+    assert bl["y"] <= 4, f"fixture invariant: player near top, got row={bl['y']}"
+    text = server._format_for_text(snap, crop_radius=4)
+    # Pull just the 9 crop lines
+    lines = text.split("\n")
+    header_idx = next(i for i, ln in enumerate(lines) if ln.startswith("@ at"))
+    crop = lines[header_idx + 1:header_idx + 10]
+    assert len(crop) == 9, f"expected 9 crop rows, got {len(crop)}"
+    # No row should be all-spaces (which would indicate an OOB padded row).
+    for i, row in enumerate(crop):
+        assert row.strip() != "", f"row {i} is blank padding: {row!r}"
+
+
 def test_monsters_section_bolds_adjacent_and_sorts_by_range(fresh_server):
     """Monsters section orders by chebyshev distance ascending and wraps
     range-1 entries in `**...**`. Use seed=42 (clean spawn next to wild
