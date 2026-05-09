@@ -551,13 +551,86 @@ def _parse_welcome_message(msg: str) -> dict[str, str] | None:
     return None
 
 
-def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> str:
+def _crop_screen(screen: str, row: int, col: int, radius: int) -> str:
+    """(2*radius+1)x(2*radius+1) ASCII window around (row, col) cut from
+    a full 21-line dungeon screen string. Out-of-bounds cells render as
+    spaces. Used for the per-action readout — the gamer sees a focused
+    window around @ instead of the full 21x80 screen, which saves a lot
+    of tokens. They can call `observe()` for the full map when needed."""
+    lines = screen.split("\n")
+    out: list[str] = []
+    for r in range(row - radius, row + radius + 1):
+        ln = lines[r] if 0 <= r < len(lines) else ""
+        chars = [ln[c] if 0 <= c < len(ln) else " "
+                 for c in range(col - radius, col + radius + 1)]
+        out.append("".join(chars))
+    return "\n".join(out)
+
+
+def _format_monsters_section(obs: dict[str, Any]) -> str:
+    """List every visible monster, sorted by Chebyshev range from @, with
+    cell + description + kind tag. Adjacent monsters (range 1) are wrapped
+    in `**...**` so the gamer's eye lands on the things that can hit them
+    next turn. Empty string if no monsters in view.
+
+    Operates on the raw NLE env obs (same shape `_visible_hostiles` uses).
+    Includes peacefuls + tame as informational rows — the gamer often
+    wants to know about peacefuls so they can navigate around them.
+    """
+    glyphs = obs.get("glyphs")
+    bl = obs.get("blstats")
+    if glyphs is None or bl is None or len(bl) < 2:
+        return ""
+    pc, pr = int(bl[0]), int(bl[1])  # x=col, y=row
+    chars = obs.get("chars")
+    descs = _decode_screen_descriptions(obs)
+    try:
+        from nle import nethack as nh  # type: ignore
+    except ImportError:
+        return ""
+    items: list[tuple[int, int, int, str, str, str]] = []
+    for r in range(len(glyphs)):
+        for c in range(len(glyphs[r])):
+            g = int(glyphs[r][c])
+            if not nh.glyph_is_normal_monster(g):
+                continue
+            if (r, c) == (pr, pc):
+                continue
+            desc = descs[r][c] if r < len(descs) and c < len(descs[r]) else ""
+            ch_int = int(chars[r][c]) if chars is not None else 0
+            ch = chr(ch_int) if ch_int else "?"
+            d = max(abs(r - pr), abs(c - pc))
+            if nh.glyph_is_pet(g) or desc.startswith("tame "):
+                kind = "tame"
+            elif desc.startswith("peaceful "):
+                kind = "peaceful"
+            else:
+                kind = "hostile"
+            items.append((d, r, c, ch, desc or ch, kind))
+    if not items:
+        return ""
+    items.sort()
+    lines = ["Monsters:"]
+    for d, r, c, ch, desc, kind in items:
+        body = f"d={d:>2}  ({r:>2},{c:>2})  {ch!r}  {desc}  [{kind}]"
+        # Adjacent monsters get markdown bold so they pop visually.
+        lines.append(f"  **{body}**" if d == 1 else f"  {body}")
+    return "\n".join(lines)
+
+
+def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False,
+                     crop_radius: int | None = None) -> str:
     """Render a snapshot as the text the model will actually read.
 
     `dedup_inventory=True` (used by `do()`): if inventory hasn't changed since
     last render, show "(unchanged from last turn — call observe() to see)"
     instead of the full list. Saves ~500 tokens/call across long sessions.
     `observe()` and `exec` always render full inventory (no dedup).
+
+    `crop_radius=N` (used by `do()` / `exec` post-state): replace the full
+    21x80 screen with a (2N+1)x(2N+1) window centered on @. Player coords
+    are printed above the crop. `None` = show the full screen (used by
+    `observe()` so the gamer can deliberately survey the level).
     """
     if not snap.get("started"):
         return snap.get("hint", "(no game started)")
@@ -579,7 +652,21 @@ def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> 
     if msg:
         lines.append(f"msg: {msg}")
     lines.append("")
-    lines.append(snap.get("screen", ""))
+    screen = snap.get("screen", "")
+    if crop_radius is not None and screen:
+        prow = int(bl.get("y", 0))
+        pcol = int(bl.get("x", 0))
+        lines.append(f"@ at (row={prow}, col={pcol})  — crop radius {crop_radius}; observe() for full map")
+        lines.append(_crop_screen(screen, prow, pcol, crop_radius))
+    else:
+        lines.append(screen)
+    # Monsters section (always — useful even on observe()). Reads the raw
+    # NLE obs from STATE since the snap doesn't always carry the grids.
+    if STATE.last_obs is not None:
+        section = _format_monsters_section(STATE.last_obs)
+        if section:
+            lines.append("")
+            lines.append(section)
     inv = snap.get("inventory") or []
     if inv:
         lines.append("")
@@ -600,7 +687,8 @@ def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False) -> 
     return "\n".join(lines)
 
 
-def _tool_result(snap: dict[str, Any], *, dedup_inventory: bool = False) -> ToolResult:
+def _tool_result(snap: dict[str, Any], *, dedup_inventory: bool = False,
+                 crop_radius: int | None = None) -> ToolResult:
     """Wrap a snapshot as a single TextContent block.
 
     We deliberately do NOT set `structured_content`: Claude Code's UI surfaces
@@ -609,7 +697,8 @@ def _tool_result(snap: dict[str, Any], *, dedup_inventory: bool = False) -> Tool
     state for any post-hoc analysis; we don't need it on the wire.
     """
     return ToolResult(
-        content=[TextContent(type="text", text=_format_for_text(snap, dedup_inventory=dedup_inventory))],
+        content=[TextContent(type="text", text=_format_for_text(
+            snap, dedup_inventory=dedup_inventory, crop_radius=crop_radius))],
     )
 
 
@@ -1720,14 +1809,14 @@ def _format_safe_exec_result(out: dict[str, Any]) -> str:
             # tail of the stack, the immediate do() is at the head.
             chain = " ← ".join(f"{f.get('file','?')}:{f.get('line','?')}" for f in stack)
             parts.append(f"stack: {chain}")
-        parts.append(_format_for_text(out.get("post_obs") or {}))
+        parts.append(_format_for_text(out.get("post_obs") or {}, crop_radius=4))
     elif status == "error":
         parts.append("*** ERROR ***")
         parts.append(str(out.get("error", "")).rstrip())
-        parts.append(_format_for_text(_snapshot()))
+        parts.append(_format_for_text(_snapshot(), crop_radius=4))
     elif status == "complete":
         parts.append("*** complete ***")
-        parts.append(_format_for_text(_snapshot()))
+        parts.append(_format_for_text(_snapshot(), crop_radius=4))
     else:
         parts.append(f"*** {status} ***")
     return "\n\n".join(parts)
@@ -1757,7 +1846,7 @@ def _format_exec_result(out: dict[str, Any]) -> str:
                 msg_part = f'  msg="{msg}"' if msg else ""
                 lines.append(f"  T={turn:<4}  {action:<32}{rew_part}{msg_part}")
         parts.append(f"=== steps during exec ({len(steps)}) ===\n" + "\n".join(lines))
-    parts.append("=== post-exec state ===\n" + _format_for_text(out["post_state"]))
+    parts.append("=== post-exec state ===\n" + _format_for_text(out["post_state"], crop_radius=4))
     return "\n\n".join(parts)
 
 
@@ -1791,7 +1880,7 @@ def do(action: int | str) -> ToolResult:
     `observe()` to force a full render.
     """
     _drop_paused()
-    return _tool_result(_do(action), dedup_inventory=True)
+    return _tool_result(_do(action), dedup_inventory=True, crop_radius=4)
 
 
 @mcp.tool

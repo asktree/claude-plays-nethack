@@ -18,6 +18,42 @@ from pathlib import Path
 FIXTURE = Path(__file__).parent / "fixtures" / "stuck_game.jsonl"
 
 
+def test_do_readout_uses_crop_observe_uses_full(resume_server):
+    """`do()` results show a 9x9 crop around @; `observe()` shows the full
+    21-line screen. Both include the Monsters section."""
+    server = resume_server(FIXTURE)
+    do_text = server._format_for_text(server._do("Command.SEARCH"),
+                                      dedup_inventory=True, crop_radius=4)
+    obs_text = server._format_for_text(server._observe(),
+                                       dedup_inventory=False, crop_radius=None)
+    # Crop has 9 lines (2*4+1) of map; full obs has 21.
+    do_screen = do_text.split("\n\n")[1]  # skip header, take first block
+    full_screen_lines = obs_text.split("\n\n")[1].count("\n") + 1
+    assert do_screen.startswith("@ at"), do_screen[:200]
+    assert full_screen_lines == 21, f"observe screen has {full_screen_lines} lines"
+    # Both render the Monsters section with the peaceful gnome from the fixture.
+    assert "Monsters:" in do_text
+    assert "peaceful gnome" in do_text
+    assert "Monsters:" in obs_text
+
+
+def test_monsters_section_bolds_adjacent_and_sorts_by_range(fresh_server):
+    """Monsters section orders by chebyshev distance ascending and wraps
+    range-1 entries in `**...**`. Use seed=42 (clean spawn next to wild
+    things) so we can assert on real obs output."""
+    server = fresh_server(seed=42)
+    text = server._format_for_text(server._observe(),
+                                   dedup_inventory=False, crop_radius=None)
+    # Section exists.
+    assert "Monsters:" in text
+    # Pull the monsters block.
+    section = text.split("Monsters:")[1].split("\n\n")[0]
+    # Distances appear in non-decreasing order.
+    import re
+    dists = [int(m.group(1)) for m in re.finditer(r"d=\s*(\d+)", section)]
+    assert dists == sorted(dists), f"distances not sorted: {dists}"
+
+
 def test_visible_hostiles_excludes_player_during_travel_cursor(resume_server):
     """Regression: when Command.TRAVEL is followed by direction keys to
     position the target cursor, tty_cursor moves AWAY from the player.

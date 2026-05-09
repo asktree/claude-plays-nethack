@@ -24,9 +24,13 @@ There is no `reset()` tool — you don't get to restart. If you die, the game is
 ## Observation shape
 
 Each tool returns a dict:
-- `screen` — the rendered TTY screen as a multi-line string. **Always exactly 21 lines**, one per dungeon row, so `screen.split("\n")[r]` is `chars[r]` (no leading/trailing rows are stripped, even if they're entirely unseen). **`°` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** NetHack itself uses no `°` glyph anywhere; it's purely our overlay so you can tell exploration frontier apart from passed-by void. The harness auto-tracks which cells you've ever seen (per-level). Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
+- `screen` — the rendered TTY screen as a multi-line string.
+  - **In `do()` and `exec()` results, the screen you see is a 9×9 crop centered on `@`** (radius 4) — the line above the crop tells you `(row=Y, col=X)` so you can reason about absolute positions. This keeps each tool result token-cheap. Call `observe()` to see the full 21×80 map.
+  - **In `observe()`, the screen is the full 21 lines**, one per dungeon row, so `screen.split("\n")[r]` is `chars[r]` (no leading/trailing rows are stripped, even if they're entirely unseen).
+  - **`°` characters in the rock-void surrounding rooms/corridors mean "unseen — this cell has never been in line-of-sight on this level."** NetHack itself uses no `°` glyph anywhere; it's purely our overlay so you can tell exploration frontier apart from passed-by void. The harness auto-tracks which cells you've ever seen (per-level). Override the marker with `NETHACK_UNSEEN_CHAR=...` env var.
+- `Monsters:` block (after the screen) — every visible monster in chebyshev range from `@`, sorted nearest-first, tagged `[hostile]` / `[peaceful]` / `[tame]`. Adjacent monsters (range=1) are wrapped in `**...**` so they pop. The position columns are absolute dungeon coords (same frame as `cursor`). Section is omitted when no monsters are in view.
 - `message` — the top-of-screen message line (e.g. `"You hit the kobold."`).
-- `blstats` — bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
+- `blstats` — dict of bottom-line stats: `hitpoints`, `max_hitpoints`, `depth`, `time`, `experience_level`, `hunger_state`, `armor_class`, `gold`, `energy`, `max_energy`, `x`, `y`, plus the six attribute scores.
 - `inventory` — list of `{letter, text}` for what you're carrying. (In `do()` tool results the rendered text dedupes when unchanged — you'll see "(unchanged from last turn)" instead. Call `observe()` to force a full render. The structured `obs.inventory` field is always present for views/tactics inside exec.)
 - `cursor` — `[row, col]` of the player `@` in **dungeon-relative coords**. row is 0..20, col is 0..78. This indexes directly into `chars[r][c]` — NO `+1` row offset to apply. All 2D obs grids (chars, colors, glyphs, descriptions, seen) share this same indexing.
 - `terminated` / `truncated` — game-over flags.
