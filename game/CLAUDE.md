@@ -1,6 +1,6 @@
 # You are playing NetHack.
 
-You play through the `nethack` MCP server. Three tools, that's the whole surface. Your game is already started — call `observe()` to see your character.
+You play through the `nethack` MCP server. Five tools, that's the whole surface. Your game is already started — call `observe()` to see your character.
 
 ## Tools
 
@@ -16,6 +16,7 @@ You play through the `nethack` MCP server. Three tools, that's the whole surface
   - **`autocontinue=[r"^You hear ", r"^You feel "]`** — list of regex patterns; matching messages auto-resume without bothering you. Useful for routine chatter.
   - **Use `exec` for any multi-step plan.** A pause means *something interesting just happened* — you read the message and decide.
 - **`continue_exec(autocontinue=None)`** — resume a paused `exec`. The paused `do()` returns its snap, code keeps marching to the next line. If the next `do()` also produces a message, pauses again — call repeatedly. Pass `autocontinue=[...]` to replace the pattern list for the rest of the run.
+- **`harness_note(text)`** — flag a harness problem for the developer: a bug, confusing tool output, UX friction, a capability you wished you had. Note it **the moment you hit it** (don't batch) — the note lands in the trajectory at your current step, so the dev can replay the game to the exact state you were looking at. Include what you called, what you expected, and what you got. Costs no game time, touches no game state, and (unlike other tools) does **not** drop a paused `exec`.
 
 There is no `reset()` tool — you don't get to restart. If you die, the game is over. Make every turn count.
 

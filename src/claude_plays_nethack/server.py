@@ -1927,6 +1927,37 @@ def continue_exec(autocontinue: list[str] | None = None) -> ToolResult:
     )
 
 
+@mcp.tool
+def harness_note(text: str) -> ToolResult:
+    """Log a note for the harness developer: bugs, confusing tool output,
+    UX friction, missing capabilities — anything worth investigating about
+    the harness itself (not the game).
+
+    Write it the moment you hit the problem (don't batch): the note is
+    appended to the trajectory at the current step, so the dev can replay
+    the game to the exact state you were looking at. Include enough context
+    to reproduce (what you called, what you expected, what you got).
+
+    Safe to call at any time — touches no game state and, unlike other
+    tools, does NOT drop a paused exec.
+    """
+    n = STATE.step_n
+    record: dict[str, Any] = {
+        "event": "harness_note",
+        "after_step_n": n,
+        "text": text,
+    }
+    # Snapshot at-a-glance context so the dev can triage without replaying.
+    if STATE.last_obs is not None:
+        record["blstats"] = _decode_blstats(STATE.last_obs)
+        record["message"] = _decode_message(STATE.last_obs)
+    STATE.log(record)
+    return ToolResult(content=[TextContent(
+        type="text",
+        text=f"Noted (trajectory step {n}). The dev will see it — carry on.",
+    )])
+
+
 # NOTE: exec_raw used to be exposed as an MCP tool but was removed —
 # bypassing message-pause silently desynced the gamer's command stream
 # whenever a yn-prompt or similar fired mid-sequence. Internals (`_exec_python`,

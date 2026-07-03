@@ -7,7 +7,9 @@
     "allow": [
       "mcp__nethack__observe",
       "mcp__nethack__do",
-      "mcp__nethack__exec"
+      "mcp__nethack__exec",
+      "mcp__nethack__continue_exec",
+      "mcp__nethack__harness_note"
     ]
   },
   "sandbox": {
