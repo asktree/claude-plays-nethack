@@ -36,10 +36,13 @@ def _more_pending(screen: str) -> bool:
     lines = screen.split("\n")
     for i, ln in enumerate(lines[:-1]):
         tail = ln.rstrip()
-        if tail.endswith("--Mo") or tail.endswith("--Mor") or tail.endswith("--More"):
+        # The obs screen is 79 cols wide while the tty is 80, so the split can
+        # look like "--" / "ore--" (the 'M' clipped) as well as "--Mo" / "re--".
+        if tail.endswith("--") or tail.endswith("--M") or tail.endswith("--Mo") or tail.endswith("--Mor") or tail.endswith("--More"):
             nxt = lines[i + 1].lstrip("°").lstrip()
-            if nxt.startswith("re--") or nxt.startswith("e--") or nxt.startswith("--"):
-                return True
+            for frag in ("More--", "ore--", "re--", "e--"):
+                if nxt.startswith(frag):
+                    return True
     return False
 
 
