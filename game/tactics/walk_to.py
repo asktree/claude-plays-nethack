@@ -110,6 +110,12 @@ def path_to(obs: dict[str, Any], tr: int, tc: int) -> list[tuple[int, int]] | No
             return True
         return (wall(r - 1, c) and wall(r + 1, c)) or (wall(r, c - 1) and wall(r, c + 1))
 
+    def _solid(rr, cc):
+        if not (0 <= rr < len(chars) and 0 <= cc < len(chars[rr])):
+            return True
+        chv = chars[rr][cc]
+        return chv in BLANK or chr(chv) in WALL
+
     prev = {start: None}
     q = deque([start])
     while q:
@@ -120,6 +126,10 @@ def path_to(obs: dict[str, Any], tr: int, tc: int) -> list[tuple[int, int]] | No
                 continue
             diag = dr != 0 and dc != 0
             if diag and (door(r, c) or (0 <= nr < len(chars) and 0 <= nc < len(chars[nr]) and door(nr, nc))):
+                continue
+            if diag and _solid(r + dr, c) and _solid(r, c + dc):
+                # squeezing diagonally between two wall/rock cells needs
+                # inventory weight <= 600; assume the gamer is heavier
                 continue
             if (nr, nc) != (tr, tc) and not _passable(obs, nr, nc):
                 continue
