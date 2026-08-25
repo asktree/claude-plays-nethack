@@ -22,6 +22,9 @@ from typing import Any
 
 WALL = set("-|")
 BLANK = {0, 0x20}
+# Cells the gamer has learned to avoid (known trap squares whose '^' is hidden
+# under an object, etc). Kernel code may add to this set: walk_to.AVOID.add((r, c)).
+AVOID: set = set()
 DIRS = {
     (-1, 0): "north", (1, 0): "south", (0, -1): "west", (0, 1): "east",
     (-1, 1): "ne", (1, 1): "se", (1, -1): "sw", (-1, -1): "nw",
@@ -77,8 +80,11 @@ def _passable(obs: dict[str, Any], r: int, c: int) -> bool:
         return False
     if seen is not None and not seen[r][c]:
         return False
-    if ch == "^" or "trap" in dl:
+    if ch == "^" or "trap" in dl or (r, c) in AVOID:
         return False  # known trap: never path through it (target cell is exempt in path_to)
+    for w in ("pit", "hole", "trap door", "web", "bear trap", "land mine", "magic portal"):
+        if dl == w or dl.startswith(w + " ") or dl.endswith(" " + w):
+            return False
     return True
 
 
