@@ -109,6 +109,27 @@ def path_to(obs: dict[str, Any], tr: int, tc: int) -> list[tuple[int, int]] | No
     return None
 
 
+def _cur(snap: dict[str, Any], observe) -> tuple[int, int]:
+    """Player position. obs['cursor'] occasionally reflects the tty cursor
+    (parked on the message line) rather than @; if the cursor cell isn't
+    '@', fall back to blstats x/y, then to scanning chars for '@'."""
+    r, c = int(snap["cursor"][0]), int(snap["cursor"][1])
+    chars = snap.get("chars") or []
+    if 0 <= r < len(chars) and 0 <= c < len(chars[r]) and chars[r][c] == ord("@"):
+        return r, c
+    bl = snap.get("blstats") or {}
+    if "x" in bl and "y" in bl:
+        r2, c2 = int(bl["y"]), int(bl["x"])
+        for rr, cc in ((r2, c2), (r2 - 1, c2), (r2, c2 - 1), (r2 - 1, c2 - 1)):
+            if 0 <= rr < len(chars) and 0 <= cc < len(chars[rr]) and chars[rr][cc] == ord("@"):
+                return rr, cc
+    for rr in range(len(chars)):
+        for cc in range(len(chars[rr])):
+            if chars[rr][cc] == ord("@"):
+                return rr, cc
+    return r, c
+
+
 def walk_to(row: int, col: int, *, max_steps: int = 60, do=None, observe=None) -> dict[str, Any]:
     """Walk to (row, col) along a BFS path over known terrain, one do() per
     step. Re-plans every step (pets move, doors open). Returns the last
@@ -118,7 +139,8 @@ def walk_to(row: int, col: int, *, max_steps: int = 60, do=None, observe=None) -
     snap = observe()
     stuck = 0
     for _ in range(max_steps):
-        cur = (int(snap["cursor"][0]), int(snap["cursor"][1]))
+        cur = _cur(snap, observe)
+        snap["cursor"] = list(cur)
         if cur == (row, col):
             return snap
         path = path_to(snap, row, col)
@@ -126,7 +148,12 @@ def walk_to(row: int, col: int, *, max_steps: int = 60, do=None, observe=None) -
             raise RuntimeError(f"walk_to({row},{col}): no known path from {cur}")
         nr, nc = path[0]
         snap = do(DIRS[(nr - cur[0], nc - cur[1])])
-        new = (int(snap["cursor"][0]), int(snap["cursor"][1]))
+        # Landing on a pile of 3+ objects opens a "Things that are here:"
+        # popup whose --More-- the harness doesn't always pump; while it's
+        # up, every keystroke is swallowed. Dismiss it (ESC is safe here).
+        if "--More--" in (snap.get("screen") or "") and not (snap.get("message") or "").strip():
+            snap = do("Command.ESC")
+        new = _cur(snap, observe)
         if new == cur:
             stuck += 1
             if stuck >= 2:
