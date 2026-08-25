@@ -102,13 +102,16 @@ def path_to(obs: dict[str, Any], tr: int, tc: int) -> list[tuple[int, int]] | No
         return 0 <= r < len(chars) and 0 <= c < len(chars[r]) and chr(chars[r][c]) in WALL
 
     def door(r, c):
-        # The cell under @ (or a monster) describes the occupant, not the
-        # terrain, so also treat any wall-flanked cell as a door: walls on
-        # both N/S or both W/E means a doorway in a room wall. Conservative —
-        # doorless/broken doorways allow diagonals but we skip them too.
+        # The cell under @ describes the occupant, not the terrain, so for the
+        # START cell only, treat a wall-flanked position as a door (walls on
+        # both N/S or both W/E). Elsewhere trust the description: applying the
+        # wall-flanked heuristic to arbitrary cells wrongly forbids diagonals
+        # through narrow cave gaps in the Mines.
         if desc is not None and _is_door(desc[r][c]):
             return True
-        return (wall(r - 1, c) and wall(r + 1, c)) or (wall(r, c - 1) and wall(r, c + 1))
+        if (r, c) == start:
+            return (wall(r - 1, c) and wall(r + 1, c)) or (wall(r, c - 1) and wall(r, c + 1))
+        return False
 
     def _solid(rr, cc):
         if not (0 <= rr < len(chars) and 0 <= cc < len(chars[rr])):
