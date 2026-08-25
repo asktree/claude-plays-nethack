@@ -101,7 +101,7 @@ def _open_adjacent_door(do, observe) -> str | None:
 
 def auto_explore(
     *,
-    max_iters: int = 30,
+    max_iters: int = 100,
     open_doors: bool = True,
     do=None,
     observe=None,
@@ -145,7 +145,7 @@ def auto_explore(
         frontier = _best_frontier(obs)
         if frontier is None:
             return {"reason": "level fully explored from current position",
-                    "iters": i, "targets": targets}
+                    "iters": i, "targets": targets, "searches": searches}
         tr, tc, glyph = frontier
 
         # No-progress check. If we didn't move since last iter AND we didn't
@@ -201,7 +201,7 @@ def _near_likely_secret(obs: dict[str, Any], cy: int, cx: int) -> bool:
     def in_3x3(r: int, c: int) -> bool:
         return abs(r - cy) <= 1 and abs(c - cx) <= 1
 
-    for r, c, _hint in _dead_ends(chars):
+    for r, c, _hint in _dead_ends(chars, obs.get("seen")):
         if in_3x3(r, c) and count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD:
             return True
     for r1, c1, r2, c2, _area in _sealed_rooms(chars):

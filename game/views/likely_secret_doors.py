@@ -8,7 +8,9 @@ Standard NetHack player wisdom — no level-generator knowledge needed:
      is hidden somewhere on the perimeter.
 
 Both heuristics avoid false positives by only flagging when the surrounding
-area is *fully revealed* — partial visibility is skipped, not flagged.
+area is *fully revealed* — partial visibility is skipped, not flagged. For
+dead ends that means every cell in the 3×3 around the `#` must be in the
+`seen` grid; a corridor cell bordering never-seen space is a frontier.
 """
 
 from __future__ import annotations
@@ -26,8 +28,30 @@ def _ch(chars: list[list[int]], r: int, c: int) -> str:
     return " "
 
 
-def _dead_ends(chars: list[list[int]]) -> list[tuple[int, int, str]]:
-    """Corridor cells `#` with exactly one walkable neighbor (cardinals)."""
+def _all_seen(seen: list[list[Any]] | None, r: int, c: int) -> bool:
+    """True if every in-bounds 8-neighbor of (r, c) has been in LoS.
+
+    NetHack marks the rock adjacent to a walked corridor as seen, so a `#`
+    whose neighbors are all seen is a genuine dead end. If any neighbor is
+    still unseen the corridor merely hasn't been walked far enough — it's an
+    exploration frontier, not a search candidate. With no `seen` grid, fall
+    back to trusting the caller (old behavior).
+    """
+    if not seen:
+        return True
+    for dr in (-1, 0, 1):
+        for dc in (-1, 0, 1):
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < len(seen) and 0 <= nc < len(seen[nr]) and not seen[nr][nc]:
+                return False
+    return True
+
+
+def _dead_ends(chars: list[list[int]],
+               seen: list[list[Any]] | None = None) -> list[tuple[int, int, str]]:
+    """Corridor cells `#` with exactly one walkable neighbor (cardinals),
+    whose whole 3×3 neighborhood has been seen (so the dead end is real,
+    not just the edge of what we've explored)."""
     h = len(chars)
     w = len(chars[0]) if chars else 0
     out: list[tuple[int, int, str]] = []
@@ -36,6 +60,8 @@ def _dead_ends(chars: list[list[int]]) -> list[tuple[int, int, str]]:
         for c in range(w):
             if _ch(chars, r, c) != "#":
                 continue
+            if not _all_seen(seen, r, c):
+                continue  # frontier, not a dead end
             neighbors = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
             walk_count = sum(1 for nr, nc in neighbors if _ch(chars, nr, nc) in WALKABLE)
             if walk_count == 1:
@@ -116,7 +142,7 @@ def likely_secret_doors(obs: dict[str, Any]) -> str:
         count_at = lambda *a, **kw: 0  # type: ignore
         EXHAUSTED_THRESHOLD = 12
 
-    raw_dead_ends = _dead_ends(chars)
+    raw_dead_ends = _dead_ends(chars, obs.get("seen"))
     fresh_dead_ends = [(r, c, h) for (r, c, h) in raw_dead_ends
                        if count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD]
     exhausted_dead_ends = len(raw_dead_ends) - len(fresh_dead_ends)
