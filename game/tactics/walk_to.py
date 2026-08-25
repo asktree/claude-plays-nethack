@@ -49,6 +49,8 @@ def _passable(obs: dict[str, Any], r: int, c: int) -> bool:
     ch = chr(ch_int)
     d = (desc[r][c] if desc else "") or ""
     dl = d.lower()
+    if "peaceful" in dl:
+        return False  # never bump a peaceful (triggers 'Really attack?'); re-plan around it
     if "door" in dl:
         return "closed" not in dl and "locked" not in dl and "broken" not in dl or "doorway" in dl or "broken" in dl
     if ch in WALL:
