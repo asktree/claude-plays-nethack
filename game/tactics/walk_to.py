@@ -154,7 +154,7 @@ def walk_to(row: int, col: int, *, max_steps: int = 60, do=None, observe=None) -
         # Landing on a pile of 3+ objects opens a "Things that are here:"
         # popup whose --More-- the harness doesn't always pump; while it's
         # up, every keystroke is swallowed. Dismiss it (ESC is safe here).
-        if "--More--" in (snap.get("screen") or "") and not (snap.get("message") or "").strip():
+        if "--More--" in (snap.get("screen") or ""):
             snap = do("Command.ESC")
         new = _cur(snap, observe)
         if new == cur:
