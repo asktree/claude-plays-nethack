@@ -116,9 +116,17 @@ def path_to(obs: dict[str, Any], tr: int, tc: int) -> list[tuple[int, int]] | No
         # through narrow cave gaps in the Mines.
         if desc is not None and _is_door(desc[r][c]):
             return True
+        # Wall-flanked cells are doors in rooms-and-corridors levels (dungeon
+        # 0 = Dungeons of Doom, also Sokoban etc.) even when an object hides
+        # the door description; in the Gnomish Mines (dungeon 2) narrow cave
+        # gaps look the same and are NOT doors, so only trust it for @'s cell.
+        flanked = (wall(r - 1, c) and wall(r + 1, c)) or (wall(r, c - 1) and wall(r, c + 1))
+        if not flanked:
+            return False
         if (r, c) == start:
-            return (wall(r - 1, c) and wall(r + 1, c)) or (wall(r, c - 1) and wall(r, c + 1))
-        return False
+            return True
+        dnum = int((obs.get("blstats") or {}).get("dungeon_number", 0) or 0)
+        return dnum != 2
 
     def _solid(rr, cc):
         if not (0 <= rr < len(chars) and 0 <= cc < len(chars[rr])):
