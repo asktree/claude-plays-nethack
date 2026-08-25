@@ -51,6 +51,8 @@ def _passable(obs: dict[str, Any], r: int, c: int) -> bool:
     dl = d.lower()
     if "peaceful" in dl:
         return False  # never bump a peaceful (triggers 'Really attack?'); re-plan around it
+    if "bars" in dl or "tree" in dl or ch in "}" or "water" in dl or "lava" in dl:
+        return False  # iron bars / trees / water / lava
     if "door" in dl:
         return "closed" not in dl and "locked" not in dl and "broken" not in dl or "doorway" in dl or "broken" in dl
     if ch in WALL:
