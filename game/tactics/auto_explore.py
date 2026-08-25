@@ -201,7 +201,7 @@ def _near_likely_secret(obs: dict[str, Any], cy: int, cx: int) -> bool:
     def in_3x3(r: int, c: int) -> bool:
         return abs(r - cy) <= 1 and abs(c - cx) <= 1
 
-    for r, c, _hint in _dead_ends(chars, obs.get("seen")):
+    for r, c, _hint in _dead_ends(chars, obs.get("seen"), obs.get("descriptions")):
         if in_3x3(r, c) and count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD:
             return True
     for r1, c1, r2, c2, _area in _sealed_rooms(chars):

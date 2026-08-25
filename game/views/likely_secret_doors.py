@@ -47,9 +47,26 @@ def _all_seen(seen: list[list[Any]] | None, r: int, c: int) -> bool:
     return True
 
 
+def _passable(chars: list[list[int]], descriptions: list[list[str]] | None,
+              r: int, c: int) -> bool:
+    """A neighbor counts as passable if it's a walkable glyph, OR anything
+    that isn't wall/blank (a monster, `@`, or an item standing on a walkable
+    cell hides the terrain glyph), OR its description says it's a door/
+    doorway (open doors render as `|`/`-`, same as walls)."""
+    ch = _ch(chars, r, c)
+    if ch in WALKABLE:
+        return True
+    if descriptions is not None and 0 <= r < len(descriptions) and 0 <= c < len(descriptions[r]):
+        d = (descriptions[r][c] or "").lower()
+        if "door" in d:
+            return True
+    return ch not in WALL and ch != " "
+
+
 def _dead_ends(chars: list[list[int]],
-               seen: list[list[Any]] | None = None) -> list[tuple[int, int, str]]:
-    """Corridor cells `#` with exactly one walkable neighbor (cardinals),
+               seen: list[list[Any]] | None = None,
+               descriptions: list[list[str]] | None = None) -> list[tuple[int, int, str]]:
+    """Corridor cells `#` with exactly one passable neighbor (cardinals),
     whose whole 3×3 neighborhood has been seen (so the dead end is real,
     not just the edge of what we've explored)."""
     h = len(chars)
@@ -63,7 +80,7 @@ def _dead_ends(chars: list[list[int]],
             if not _all_seen(seen, r, c):
                 continue  # frontier, not a dead end
             neighbors = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
-            walk_count = sum(1 for nr, nc in neighbors if _ch(chars, nr, nc) in WALKABLE)
+            walk_count = sum(1 for nr, nc in neighbors if _passable(chars, descriptions, nr, nc))
             if walk_count == 1:
                 # The wall side is the most likely place to search.
                 walls = [(nr, nc) for nr, nc in neighbors if _ch(chars, nr, nc) in WALL]
@@ -142,7 +159,7 @@ def likely_secret_doors(obs: dict[str, Any]) -> str:
         count_at = lambda *a, **kw: 0  # type: ignore
         EXHAUSTED_THRESHOLD = 12
 
-    raw_dead_ends = _dead_ends(chars, obs.get("seen"))
+    raw_dead_ends = _dead_ends(chars, obs.get("seen"), obs.get("descriptions"))
     fresh_dead_ends = [(r, c, h) for (r, c, h) in raw_dead_ends
                        if count_at(dnum, dlevel, r, c) < EXHAUSTED_THRESHOLD]
     exhausted_dead_ends = len(raw_dead_ends) - len(fresh_dead_ends)
