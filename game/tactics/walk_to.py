@@ -72,6 +72,13 @@ def _passable(obs: dict[str, Any], r: int, c: int) -> bool:
     dl = d.lower()
     if "peaceful" in dl:
         return False  # never bump a peaceful (triggers 'Really attack?'); re-plan around it
+    try:
+        from nle import nethack as _nh
+        g = obs.get("glyphs")
+        if g is not None and _nh.glyph_is_monster(g[r][c]) and "tame" not in dl:
+            return False  # never walk into a hostile (passive attackers like blue jellies!)
+    except Exception:
+        pass
     if "bars" in dl or "tree" in dl or ch in "}" or "water" in dl or "lava" in dl:
         return False  # iron bars / trees / water / lava
     if "door" in dl:
