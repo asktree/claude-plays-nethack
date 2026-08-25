@@ -28,6 +28,21 @@ DIRS = {
 }
 
 
+def _more_pending(screen: str) -> bool:
+    """--More-- on screen, including the case where a long message wrapped at
+    the right edge and the marker is split across two lines ("--Mo" / "re--")."""
+    if "--More--" in screen:
+        return True
+    lines = screen.split("\n")
+    for i, ln in enumerate(lines[:-1]):
+        tail = ln.rstrip()
+        if tail.endswith("--Mo") or tail.endswith("--Mor") or tail.endswith("--More"):
+            nxt = lines[i + 1].lstrip("°").lstrip()
+            if nxt.startswith("re--") or nxt.startswith("e--") or nxt.startswith("--"):
+                return True
+    return False
+
+
 def _kernel():
     import sys
     g = sys._getframe(2).f_globals
@@ -158,7 +173,7 @@ def walk_to(row: int, col: int, *, max_steps: int = 60, do=None, observe=None) -
         # Landing on a pile of 3+ objects opens a "Things that are here:"
         # popup whose --More-- the harness doesn't always pump; while it's
         # up, every keystroke is swallowed. Dismiss it (ESC is safe here).
-        if "--More--" in (snap.get("screen") or ""):
+        if _more_pending(snap.get("screen") or ""):
             snap = do("Command.ESC")
         new = _cur(snap, observe)
         if new == cur:
