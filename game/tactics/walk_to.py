@@ -55,6 +55,8 @@ def _passable(obs: dict[str, Any], r: int, c: int) -> bool:
         return False
     if seen is not None and not seen[r][c]:
         return False
+    if ch == "^" or "trap" in dl:
+        return False  # known trap: never path through it (target cell is exempt in path_to)
     return True
 
 
@@ -94,9 +96,10 @@ def path_to(obs: dict[str, Any], tr: int, tc: int) -> list[tuple[int, int]] | No
             if (nr, nc) != (tr, tc) and not _passable(obs, nr, nc):
                 continue
             if (nr, nc) == (tr, tc) and not _passable(obs, nr, nc):
-                # allow stepping "into" a closed door target (opens it) but nothing else
+                # allow stepping "into" a closed door target (opens it), or onto
+                # a trap the caller explicitly targeted, but nothing else
                 dl = ((desc[nr][nc] if desc else "") or "").lower()
-                if "door" not in dl:
+                if "door" not in dl and "trap" not in dl:
                     continue
             prev[(nr, nc)] = (r, c)
             if (nr, nc) == (tr, tc):
