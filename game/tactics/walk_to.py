@@ -66,7 +66,12 @@ def _passable(obs: dict[str, Any], r: int, c: int) -> bool:
         return False
     ch_int = chars[r][c]
     if ch_int in BLANK:
-        return False
+        # Dark room floor (e.g. the whole Rogue level) renders as a blank
+        # char until stood on, but the per-cell description still says
+        # "dark part of a room" once seen — that IS walkable floor.
+        d0 = ((obs.get("descriptions") or [[""]])[r][c] if obs.get("descriptions") else "") or ""
+        if "dark part of a room" not in d0:
+            return False
     ch = chr(ch_int)
     d = (desc[r][c] if desc else "") or ""
     dl = d.lower()
