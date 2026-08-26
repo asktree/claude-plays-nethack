@@ -50,13 +50,18 @@ def unexplored(obs: dict[str, Any], max_results: int = 12) -> str:
     w = len(chars[0]) if chars else 0
 
     seen = obs.get("seen") or []
+    desc = obs.get("descriptions")
     frontiers: list[tuple[int, int, int, str]] = []
     for r in range(h):
         for c in range(w):
             ch_int = chars[r][c]
             ch = chr(ch_int) if ch_int else " "
             if ch not in WALKABLE:
-                continue
+                # open doors render as | or - (same as walls); trust the
+                # per-cell description so the corridor beyond a door counts
+                d = (desc[r][c] if desc and r < len(desc) and c < len(desc[r]) else "") or ""
+                if "door" not in d.lower() or "closed" in d.lower():
+                    continue
             is_frontier = False
             # Rule 2: closed doors are always frontiers.
             if ch == "+":
