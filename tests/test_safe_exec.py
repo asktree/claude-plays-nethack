@@ -419,3 +419,33 @@ def test_messages_buffer_clears_between_segments(fresh_server):
     # The PICKUP message is in segment 1, not segment 2.
     assert any(PICKUP_ON_STAIRS_MSG in m for m in msgs1)
     assert not any(PICKUP_ON_STAIRS_MSG in m for m in msgs2)
+
+
+def test_autocontinue_rejects_monster_arrival_pattern(fresh_server):
+    """A bare `^You see` also matches "You see <monster> come into view" —
+    the only warning before a fast monster is adjacent. Must be refused
+    before any game state is touched."""
+    import pytest
+
+    server = fresh_server(seed=42)
+    with pytest.raises(ValueError, match="come into view"):
+        server._safe_exec_python("do('Command.PICKUP')\n", autocontinue=[r"^You see"])
+    # Narrower item-only pattern is fine.
+    out = server._safe_exec_python(
+        "do('Command.PICKUP')\n", autocontinue=[r"^You see here"]
+    )
+    assert out["status"] == "paused"
+
+
+def test_autocontinue_rejection_keeps_paused_exec(fresh_server):
+    server = fresh_server(seed=42)
+    out1 = server._safe_exec_python("do('Command.PICKUP')\ndo('Command.LOOK')\n")
+    assert out1["status"] == "paused"
+    import pytest
+
+    with pytest.raises(ValueError):
+        server._safe_exec_python("print(1)", autocontinue=[r"come into view"])
+    # The original exec is still parked and resumable.
+    out2 = server._continue_exec()
+    assert out2["status"] == "paused"
+    assert out2["message"] == LOOK_ON_STAIRS_MSG

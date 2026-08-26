@@ -1756,17 +1756,59 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
         pe.response_q.put(snap)
 
 
+# Messages a gamer must never auto-skip: NetHack's only advance warning
+# that a monster has entered line of sight. A bare `^You see` pattern
+# (meant for "You see here <item>") also matches these, and on 2026-08-25
+# it let walk_to march straight into a leocrotta — fatal. Any user pattern
+# that matches one of these probes is rejected outright.
+_AUTOCONTINUE_PROBES: list[str] = [
+    "You see leocrotta come into view.",
+    "You see a leocrotta come into view.",
+    "You see 2 leocrottas come into view.",
+    "You see it come into view.",
+]
+
+
+def _validate_autocontinue(user_patterns: list[str]) -> None:
+    """Raise ValueError for any pattern that would swallow a monster-arrival
+    warning (see _AUTOCONTINUE_PROBES). Also rejects patterns that don't
+    compile so a typo surfaces immediately instead of silently never
+    matching."""
+    for pat in user_patterns:
+        try:
+            rx = re.compile(pat)
+        except re.error as e:
+            raise ValueError(f"autocontinue pattern {pat!r} is not a valid regex: {e}") from e
+        for probe in _AUTOCONTINUE_PROBES:
+            if rx.search(probe):
+                raise ValueError(
+                    f"autocontinue pattern {pat!r} is banned: it matches "
+                    f"{probe!r}, NetHack's monster-arrival warning. Use a "
+                    f"narrower pattern such as r'^You see here' or "
+                    f"r'^There are several'."
+                )
+
+
 def _merge_autocontinue(user_patterns: list[str] | None) -> list[str]:
     """Combine DEFAULT_AUTOCONTINUE with whatever the gamer passed.
     Defaults always win — gamer can only add to the ignore set, not remove
     from it. (Removing a default would mean pausing on Travel-mode prompt
-    setup, which has no useful gamer-decision attached.)"""
-    return list(DEFAULT_AUTOCONTINUE) + list(user_patterns or [])
+    setup, which has no useful gamer-decision attached.)
+
+    Raises ValueError (before any game state is touched) if a user pattern
+    would match a "come into view" monster warning — see
+    _validate_autocontinue."""
+    user = list(user_patterns or [])
+    _validate_autocontinue(user)
+    return list(DEFAULT_AUTOCONTINUE) + user
 
 
 def _safe_exec_python(code: str, autocontinue: list[str] | None = None) -> dict[str, Any]:
+    # Validate patterns BEFORE dropping any parked exec — a banned pattern
+    # should cost the gamer a retry, not their in-flight code.
+    merged = _merge_autocontinue(autocontinue)
     _drop_paused()
-    pe = _create_paused_exec(code, _merge_autocontinue(autocontinue))
+    pe = _create_paused_exec(code, merged)
     pe.thread.start()
     return _drive_paused(pe)
 
