@@ -378,18 +378,43 @@ def _is_awaiting_input(obs: dict[str, Any]) -> bool:
     return bool(int(internal[1])) or bool(int(internal[2]))
 
 
+_MORE_MARKER = "--More--"
+
+
 def _has_more_prompt(obs: dict[str, Any]) -> bool:
-    """True if the top tty row shows --More-- (a flush-the-message-buffer prompt).
+    """True if the message area shows --More-- (a flush-the-message-buffer prompt).
 
     NetHack shows --More-- when there are too many messages to fit on one line.
     The only useful response is to advance, so we auto-handle it in _do() and
     accumulate the messages.
+
+    Usually the marker sits whole on tty row 0. But when the message is long
+    (curx >= 72) NetHack's tty code emits a bare '\n' before the marker, and
+    NLE's terminal treats that as a line feed *without* carriage return: the
+    cursor drops to row 1 keeping its column, so the marker starts near the
+    right edge and wraps onto row 2 ("--M" / "ore--", "--Mo" / "re--", or
+    whole on row 1 flush against col 79). Two gamer runs got stuck on that:
+    every keypress was eaten until MORE was sent by hand. So we check rows
+    0-2 for a marker split across adjacent rows or ending at the right edge.
     """
     if "tty_chars" not in obs:
         return False
-    row0 = obs["tty_chars"][0]
-    text = bytes(row0).rstrip(b"\x00").decode("latin-1", errors="replace")
-    return "--More--" in text
+    rows = [
+        bytes(r).rstrip(b"\x00").decode("latin-1", errors="replace")
+        for r in obs["tty_chars"][:3]
+    ]
+    if _MORE_MARKER in rows[0]:
+        return True
+    for r in range(len(rows) - 1):
+        if rows[r + 1][72:80] == _MORE_MARKER:
+            # Whole marker on a continuation row, flush against the right edge.
+            return True
+        tail = rows[r].rstrip()
+        head = rows[r + 1]
+        for k in range(1, len(_MORE_MARKER)):
+            if tail.endswith(_MORE_MARKER[:k]) and head.startswith(_MORE_MARKER[k:]):
+                return True
+    return False
 
 
 def _decode_inventory(obs: dict[str, Any]) -> list[dict[str, str]]:
