@@ -1046,12 +1046,18 @@ def _replay_step(action_idx: int) -> dict[str, Any]:
     return obs
 
 
+# "#version" prints the NLE build timestamp ("... - last build Wed May  6
+# 12:21:43 2026."), which changes on every rebuild of the fork and has no
+# bearing on game state. Strip it before comparing replay messages.
+_BUILD_STAMP_RE = re.compile(r" - last build [^.]*\.")
+
+
 def _validate_replay_step(recorded: dict[str, Any], live_obs: dict[str, Any]) -> None:
     """Compare a recorded step's blstats and message against what the env
     actually produced. Raises RuntimeError on divergence — replay is meant
     to be exact. Catches NLE-version mismatches, fork drift, etc."""
-    rec_msg = recorded.get("message", "")
-    live_msg = _decode_message(live_obs)
+    rec_msg = _BUILD_STAMP_RE.sub("", recorded.get("message", ""))
+    live_msg = _BUILD_STAMP_RE.sub("", _decode_message(live_obs))
     if rec_msg != live_msg:
         raise RuntimeError(
             f"replay divergence at step n={recorded.get('n')}: "
