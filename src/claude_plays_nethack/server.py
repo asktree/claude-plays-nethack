@@ -372,10 +372,23 @@ def _is_awaiting_input(obs: dict[str, Any]) -> bool:
     itself auto-ESCs prompts to keep the env in moveloop, producing
     'Never mind.' before the gamer ever sees the prompt.
     """
+    return _open_prompt_kind(obs) is not None
+
+
+def _open_prompt_kind(obs: dict[str, Any]) -> str | None:
+    """'yn' while NetHack waits in yn_function, 'getlin' while it waits in
+    getlin, else None. A yn prompt only accepts its listed keys (plus
+    ESC/Enter for the default); every other keypress is silently dropped
+    and the prompt stays up, so a scripted walker can burn hundreds of
+    do() calls against "Continue? [ynq] (q)" without the clock moving."""
     internal = obs.get("internal")
     if internal is None or len(internal) < 3:
-        return False
-    return bool(int(internal[1])) or bool(int(internal[2]))
+        return None
+    if int(internal[1]):
+        return "yn"
+    if int(internal[2]):
+        return "getlin"
+    return None
 
 
 _MORE_MARKER = "--More--"
@@ -680,6 +693,12 @@ def _format_for_text(snap: dict[str, Any], *, dedup_inventory: bool = False,
     msg = snap.get("message") or ""
     if msg:
         lines.append(f"msg: {msg}")
+    prompt_kind = snap.get("prompt_open")
+    if prompt_kind == "yn":
+        lines.append("*** PROMPT OPEN: the next do() must be one of the listed keys "
+                     "(or ESC/Enter for the default); anything else is silently dropped.")
+    elif prompt_kind == "getlin":
+        lines.append("*** PROMPT OPEN (text entry): send characters then Enter; ESC cancels.")
     lines.append("")
     screen = snap.get("screen", "")
     if crop_radius is not None and screen:
@@ -915,6 +934,9 @@ def _snapshot(include_grid: bool = False) -> dict[str, Any]:
         "blstats": _decode_blstats(obs),
         "inventory": _decode_inventory(obs),
         "cursor": dungeon_cursor,
+        # 'yn' / 'getlin' while NetHack is parked in a prompt, else None.
+        # The next keypress answers it; keys it doesn't accept are dropped.
+        "prompt_open": _open_prompt_kind(obs),
         "trajectory_log": str(STATE.trajectory_path),
         "session": STATE.session_id,
     }
@@ -1721,11 +1743,38 @@ def _drive_paused(pe: PausedExec) -> dict[str, Any]:
             return {"status": "complete",
                     "stdout": _flush_stdout(pe), "messages": _flush_messages(pe)}
         # Step NLE; on exception, propagate back into the thread.
+        prompt_before = _open_prompt_kind(STATE.last_obs or {})
+        msg_before = _decode_message(STATE.last_obs).strip() if STATE.last_obs is not None else ""
         try:
             snap = _attach_grids(_do(payload))
         except BaseException as e:
             pe.response_q.put(e)
             continue
+        # A yn prompt that is still up with the same text after a keypress
+        # swallowed that keypress (only its listed keys are accepted). The
+        # script clearly isn't answering it, so pause instead of letting a
+        # loop spin: on 2026-09-07 "Continue? [ynq] (q)" ate ~640 travel
+        # keys inside one exec. getlin is exempt: every typed character
+        # legitimately leaves the prompt open.
+        if (prompt_before == "yn"
+                and _open_prompt_kind(STATE.last_obs or {}) == "yn"
+                and _decode_message(STATE.last_obs).strip() == msg_before):
+            _KERNEL["obs"] = snap
+            swallowed = (f"prompt swallowed {payload!r}: {msg_before} — answer it via "
+                         f"continue_exec(reply='y'|'n'|'q'|'Command.ESC') (do() would drop this exec)")
+            pe.messages.append(swallowed)
+            pe.last_snap = snap
+            pe.last_msg = swallowed
+            STATE.paused_exec = pe
+            return {
+                "status": "paused",
+                "message": swallowed,
+                "post_obs": snap,
+                "stack": _gamer_pause_location(pe),
+                "autocontinue": list(pe.autocontinue),
+                "stdout": _flush_stdout(pe),
+                "messages": _flush_messages(pe),
+            }
         # Keep the kernel `obs` global in sync so `obs["chars"]` between do()
         # calls reflects the latest step (parallels the non-pausing kernel).
         _KERNEL["obs"] = snap
@@ -1838,12 +1887,22 @@ def _safe_exec_python(code: str, autocontinue: list[str] | None = None) -> dict[
     return _drive_paused(pe)
 
 
-def _continue_exec(autocontinue: list[str] | None = None) -> dict[str, Any]:
+def _continue_exec(autocontinue: list[str] | None = None,
+                   reply: str | None = None) -> dict[str, Any]:
     pe = STATE.paused_exec
     if pe is None:
         return {"status": "error", "error": "no execution paused"}
     if autocontinue is not None:
         pe.autocontinue = _merge_autocontinue(autocontinue)
+    if reply is not None:
+        # Answer the open prompt on the script's behalf; the parked do()
+        # then returns the post-answer state instead of the prompt.
+        snap = _attach_grids(_do(reply))
+        _KERNEL["obs"] = snap
+        pe.last_snap = snap
+        msg = snap.get("message", "").strip()
+        if msg:
+            pe.messages.append(msg)
     pe.response_q.put(pe.last_snap)
     return _drive_paused(pe)
 
@@ -1978,7 +2037,8 @@ def exec(python_code: str, autocontinue: list[str] | None = None) -> ToolResult:
 
 
 @mcp.tool
-def continue_exec(autocontinue: list[str] | None = None) -> ToolResult:
+def continue_exec(autocontinue: list[str] | None = None,
+                  reply: str | None = None) -> ToolResult:
     """Resume a paused `exec`. The paused do() returns its snap; gamer code
     continues to the next line. If the next do() also produces a message,
     pauses again — call this repeatedly.
@@ -1986,11 +2046,16 @@ def continue_exec(autocontinue: list[str] | None = None) -> ToolResult:
     `autocontinue`: if provided, REPLACES the pattern list for the rest of
     this exec. Omit to keep using the existing list.
 
+    `reply`: an action (e.g. 'y', 'n', 'q', 'Command.ESC') sent first to
+    answer an open prompt; the parked do() then sees the post-answer
+    state. Use this when exec paused with "prompt swallowed ..." — a
+    plain do() call would drop the parked code.
+
     Errors if no exec is currently paused.
     """
     return ToolResult(
         content=[TextContent(type="text",
-                             text=_format_safe_exec_result(_continue_exec(autocontinue)))],
+                             text=_format_safe_exec_result(_continue_exec(autocontinue, reply)))],
     )
 
 
