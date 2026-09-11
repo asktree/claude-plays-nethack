@@ -60,6 +60,19 @@ def _best_frontier(obs: dict[str, Any]) -> tuple[int, int, str] | None:
             ch_int = chars[r][c]
             ch = chr(ch_int) if ch_int else " "
             if ch not in walkable:
+                # open doors render as '|' / '-' — check the description
+                descs = obs.get("descriptions")
+                if ch in "|-" and descs is not None and r < len(descs) \
+                        and c < len(descs[r]) and "door" in str(descs[r][c]):
+                    ch = "."
+                else:
+                    continue
+            if ch == "+" and (r, c) in _LOCKED_DOORS:
+                continue
+            # iron bars render as '#' like corridors but are impassable
+            descs = obs.get("descriptions")
+            if descs is not None and r < len(descs) and c < len(descs[r]) \
+                    and "iron bars" in str(descs[r][c]):
                 continue
             for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 nr, nc = r + dr, c + dc
@@ -94,9 +107,18 @@ def _open_adjacent_door(do, observe) -> str | None:
             ch_int = chars[nr][nc]
             ch = chr(ch_int) if ch_int else " "
             if ch == "+":
-                do(dname)  # NetHack auto-opens (or asks for unlock if locked)
+                snap = do(dname)  # NetHack auto-opens (or asks for unlock if locked)
+                msg = (snap.get("message") or "") if isinstance(snap, dict) else ""
+                if "locked" in msg:
+                    # Locked: walking into it again will never make progress.
+                    # Remember it so the frontier skips this door from now on.
+                    _LOCKED_DOORS.add((nr, nc))
+                    return None
                 return dname
     return None
+
+
+_LOCKED_DOORS: set[tuple[int, int]] = set()
 
 
 def auto_explore(

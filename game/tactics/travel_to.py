@@ -60,6 +60,11 @@ def travel_to(row: int, col: int, *, assert_progress: bool = True,
 
     # Step 1: enter Travel mode. The cursor in travel mode starts at @.
     do("Command.TRAVEL")
+    # NetHack caches the previous travel destination (iflags.travelcc) when a
+    # travel was interrupted, and starts the getpos cursor THERE, not at @.
+    # `@` in getpos moves the cursor to the player, so relative moves below
+    # are always anchored correctly.
+    do("@")
 
     # Step 2: move the in-game cursor to (row, col).
     dy = row - cy
