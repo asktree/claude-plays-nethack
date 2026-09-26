@@ -39,6 +39,20 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 11. From the midgame: carry a **unicorn horn**, 2+ **lizard corpses**, a **remove curse** reserve (scroll,
     holy water, or marker + blank scroll). Wear **life saving** for boss fights once MR comes from armor.
 
+## A2. Common early mistakes (seen in practice games — don't repeat them)
+- **Never wield or wear an item of unknown B/U/C that you can't afford to have cursed.** Monster-dropped
+  weapons (goblins' orcish daggers, etc.) are often cursed: a cursed weapon **welds to your hand** (no
+  Excalibur, no switching back to the long sword) and cursed armor can't be removed. Test first: drop it
+  where your pet will walk (a pet steps "reluctantly" over cursed items), or drop it on an altar (black
+  flash = cursed). Throwing unknown daggers is fine; wielding is not.
+- **Prayer only reliably fixes major trouble** (HP ≤ 1/7 max or ≤ 5, Weak/Fainting, stoning, sliming,
+  strangling, lycanthropy, food poisoning/illness, stuck in rock/lava). Cursed items, a welded weapon with a
+  free off-hand, blindness, etc. are *minor* trouble — at Luck 0 prayer usually won't fix them, and the
+  prayer timeout resets anyway. Don't spend a prayer on minor trouble.
+- Acid blobs: don't melee with your good weapon (passive corrosion); kill with thrown daggers or ignore.
+- Don't let a far-away travel target burn dozens of turns (use `travel(x, y, max_dist=N)`), and check that
+  a target square isn't shop stock before "fetching" it.
+
 ## B. Character facts
 - Valkyrie: +1 long sword (a), +0 dagger (b), +3 small shield (c), food ration; intrinsic **cold
   resistance** and **stealth**; **speed at XL7**. Strong melee. `#enhance` when told you're more confident.
