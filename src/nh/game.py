@@ -27,7 +27,7 @@ class Timing:
     first: float = 0.5     # max wait for the first output byte after a send
     quiet: float = 0.04    # output must be silent this long to count as settled
     max_wait: float = 8.0  # hard cap for one settle
-    recheck: int = 6       # extra settle rounds when the screen looks mid-draw
+    recheck: int = 10      # extra settle rounds when the screen looks mid-draw
 
     @classmethod
     def local(cls) -> "Timing":
@@ -197,6 +197,13 @@ class Game:
             if ch == " ":
                 return False
             if not snap.status.ok:
+                return False
+            # At the command prompt the cursor sits on the hero, drawn as '@'
+            # unless polymorphed (status shows HD) or hallucinating. Anything
+            # else means the final redraw/cursor placement hasn't arrived yet
+            # (seen after a --More-- interrupted a travel).
+            st = snap.status
+            if ch != "@" and st.hd is None and "Hallu" not in st.conditions:
                 return False
         return True
 
