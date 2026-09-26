@@ -23,3 +23,4 @@ from tactics.info import corpse, mon, obj, price_candidates, wiki, wiki_page  # 
 from tactics.nav import kick_door  # noqa: E402,F401
 from tactics.explore import object_frontiers, search_until_change  # noqa: E402,F401
 from tactics.nav import avoid, bad_squares, walk_path  # noqa: E402,F401
+from tactics.combat import fight, throw, zap  # noqa: E402,F401

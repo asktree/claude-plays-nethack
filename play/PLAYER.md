@@ -88,6 +88,8 @@ Available in the kernel:
 | `here()` | what's on the floor here (`:`) |
 | `search(n)`, `rest(n)` | count-prefixed search / rest (interrupted by events) |
 | `elbereth()` | engrave Elbereth in the dust; `engraving_here()` reads it back |
+| `fight(x=None, y=None, stop_hp=0.45)` | melee adjacent hostiles one checked blow at a time until dead/gone or HP < stop_hp (then pauses); never touches peacefuls/pets |
+| `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move) |
 | `pray()` | pray (handles the confirmation). Read §3 first! |
 | `step(dir, n)` | move n squares one at a time |
 | `avoid((x,y), ...)`, `bad_squares()`, `walk_path(cells)` | mark squares to avoid on this level (known traps — even ones hidden under objects — are remembered automatically); `travel()`/`explore()` detour around them |
