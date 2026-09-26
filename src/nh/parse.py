@@ -355,8 +355,9 @@ def _classify_prompt(text: str) -> State:
         return State("count", prompt=t)
     if "In what direction?" in t or t.endswith("in what direction?"):
         return State("direction", prompt=t)
-    if "[yes/no]" in t:
-        return State("yn", prompt=t, choices="yes/no", default="")
+    if "[yes/no]" in t or re.search(r"\(yes\) \[no\]\s*$", t):
+        # paranoid_confirmation prompts: type "yes<CR>" to confirm; anything else (or <Esc>) = no
+        return State("yn", prompt=t, choices="yes/no", default="no")
     m = _YN.search(t)
     if m and re.fullmatch(r"[yYnNaAq\-#0-9 ]+|[a-zA-Z]{1,6}", m.group("choices").replace(" ", "")) \
             and not t.startswith("What do you want") and "or ?*" not in t:

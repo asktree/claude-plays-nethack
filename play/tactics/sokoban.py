@@ -19,7 +19,9 @@ from . import ctx
 from .mapview import DIR_KEY, KEY_DIR, MONSTER_CHARS
 
 PUSH_OK = [r"With great effort you move the boulder", r"You try to move the boulder",
+           r"You hear a monster behind the boulder", r"Perhaps that's why you cannot move it",
            r"The boulder falls into and plugs a hole", r"plugs? a (hole|trap door)",
+           r"The boulder fills a pit", r"fills a (pit|hole)",
            r"You hear the boulder", r"There is a boulder in your way",
            r"You swap places with", r"You stop\. .* is in your way"]
 
@@ -35,18 +37,23 @@ def _norm(d: str) -> str:
     return d
 
 
+def _solid(s, x, y):
+    """Rock, walls, boulders: what the no-diagonal-squeeze rule counts."""
+    return s.screen.at(x, y) in " |-0#+}"
+
+
 def _blocked(s, x, y, allow_goal=None):
     ch = s.screen.at(x, y)
     if (x, y) == allow_goal:
         return False
     if ch in " |-0^#+}":
         return True    # rock/walls/boulders/holes/corridor-looking bars/doors/water
-    if ch in MONSTER_CHARS and (x, y) != s.hero:
-        return True
+    if ch in MONSTER_CHARS and (x, y) != s.hero and not s.screen.reverse_at(x, y):
+        return True    # a monster that isn't our pet (pets just swap places)
     return False
 
 
-def route(s, start, goal):
+def route(s, start, goal, ignore_monsters=False):
     """Shortest walk avoiding boulders/holes/monsters, honoring the Sokoban
     'no diagonal squeeze' rule. Returns a string of move keys, or None."""
     q = deque([start])
@@ -62,25 +69,46 @@ def route(s, start, goal):
             return "".join(reversed(keys))
         for (dx, dy), key in DIR_KEY.items():
             nx, ny = cur[0] + dx, cur[1] + dy
-            if (nx, ny) in prev or _blocked(s, nx, ny, allow_goal=goal):
+            if (nx, ny) in prev:
                 continue
-            if dx and dy and _blocked(s, cur[0] + dx, cur[1]) and _blocked(s, cur[0], cur[1] + dy):
-                continue   # can't squeeze diagonally in Sokoban
+            if _blocked(s, nx, ny, allow_goal=goal) and not (ignore_monsters and _occupied(s, nx, ny)):
+                continue
+            if dx and dy and _solid(s, cur[0] + dx, cur[1]) and _solid(s, cur[0], cur[1] + dy):
+                continue   # can't squeeze diagonally between boulders/walls in Sokoban
             prev[(nx, ny)] = cur
             q.append((nx, ny))
     return None
 
 
+def _occupied(s, x, y):
+    ch = s.screen.at(x, y)
+    return ch in MONSTER_CHARS and (x, y) != s.hero and not s.screen.reverse_at(x, y)
+
+
 def walk(keys: str):
-    """Walk a key path one step at a time, verifying each step moved us."""
+    """Walk a key path one step at a time, verifying each step moved us.
+    Never steps into a (non-pet) monster: waits for it to move, else pauses."""
     s = ctx.last()
     for k in keys:
         before = s.hero
-        s = ctx.do(k, ok=PUSH_OK)
+        if before is None:
+            ctx.pause(f"walk: not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
+            return ctx.last()
         dx, dy = KEY_DIR[k]
-        if s.hero != (before[0] + dx, before[1] + dy):
-            ctx.pause(f"walk: step {k!r} from {before} didn't arrive (now at {s.hero})")
-            return s
+        dest = (before[0] + dx, before[1] + dy)
+        waited = 0
+        while _occupied(s, *dest) and waited < 4:
+            s = ctx.do("s", ok=PUSH_OK)
+            waited += 1
+        if _occupied(s, *dest):
+            ctx.pause(f"walk: {s.screen.at(*dest)!r} at {dest} is in the way (not attacking it)")
+            return ctx.last()
+        s = ctx.do(k, ok=PUSH_OK)
+        if s.hero != dest:
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)   # e.g. an attack confirmation: decline
+            ctx.pause(f"walk: step {k!r} from {before} didn't arrive (now at {ctx.last().hero})")
+            return ctx.last()
     return s
 
 
@@ -97,8 +125,16 @@ def push(bx: int, by: int, dirs: str):
         dx, dy = _ORTHO[d]
         stand = (b[0] - dx, b[1] - dy)
         s = ctx.last()
+        if s.hero is None:
+            ctx.pause(f"push: not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
+            return ctx.last(), b
         if s.hero != stand:
             path = route(s, s.hero, stand)
+            waited = 0
+            while path is None and waited < 8 and route(s, s.hero, stand, ignore_monsters=True):
+                s = ctx.do("s", ok=PUSH_OK)      # a monster blocks the way: give it time to move
+                waited += 1
+                path = route(s, s.hero, stand)
             if path is None:
                 ctx.pause(f"push: no safe route from {s.hero} to {stand} (to push {b} {d})")
                 return ctx.last(), b
@@ -107,6 +143,13 @@ def push(bx: int, by: int, dirs: str):
                 return s, b
         s = ctx.do(d, ok=PUSH_OK)
         text = " ".join(s.messages)
+        waits = 0
+        while "behind the boulder" in text and waits < 6:
+            # something (often the pet) is on the far side: wait and retry
+            ctx.do("s", ok=PUSH_OK)
+            waits += 1
+            s = ctx.do(d, ok=PUSH_OK)
+            text = " ".join(s.messages)
         nb = (b[0] + dx, b[1] + dy)
         if "plug" in text or "fills" in text:
             return s, None
@@ -132,3 +175,15 @@ def board(s=None) -> str:
     out = ["    " + tens, "    " + ones]
     out += [f"{y:>2}  {r[x0:x1]}" for y, r in rows]
     return "\n".join(out)
+
+
+_WIKI = {"r": "l", "l": "h", "u": "k", "d": "j"}
+
+
+def push_wiki(bx: int, by: int, moves: str):
+    """Push using the wiki's solution notation: r/l/u/d (right/left/up/down),
+    spaces ignored, a trailing '*' (fills a pit) ignored. Example: the wiki's
+    'D rlll llll' for the boulder you identified as D at (41,9) is
+    push_wiki(41, 9, 'rlll llll'). NOTE: wiki 'l' = LEFT (vi-key 'h')."""
+    keys = "".join(_WIKI[c] for c in moves.lower() if c in _WIKI)
+    return push(bx, by, keys)
