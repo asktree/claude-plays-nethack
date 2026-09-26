@@ -183,7 +183,7 @@ class Kernel:
                     cur = self.game.last or cur
             self._steps += 1
         before = self.game.last
-        snap = self.game.step(data, multi=multi, secret=secret)
+        snap = self.game.step(data, multi=multi, secret=secret, force=force)
         self.ns["obs"] = snap
         if self.in_worker():
             self._check_events(before, snap, quiet=quiet, ok=ok)
@@ -356,7 +356,7 @@ class Kernel:
         self.drop()
         data = parse_keys(keys)
         _guard_dangerous(data, force)
-        snap = self.game.step(data, multi=multi)
+        snap = self.game.step(data, multi=multi, force=force)
         self.ns["obs"] = snap
         return snap
 

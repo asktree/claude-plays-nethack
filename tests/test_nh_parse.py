@@ -127,3 +127,47 @@ def test_keys():
     assert parse_keys("<Esc><C-d>") == b"\x1b\x04"
     assert parse_keys("20s") == b"20s"
     assert describe_bytes(b"\x1b\r") == "<Esc><CR>"
+
+
+def _guard_game():
+    from nh.game import Game, Timing
+    return Game(term=None, timing=Timing.local())
+
+
+def _cmd_snap(monsters, hero=(10, 5), conditions=()):
+    from nh.game import Snap
+    from nh.parse import State, Status
+    scr = mk({5: " " * 10 + "@", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}, cursor=hero)
+    st = Status(ok=True, conditions=list(conditions))
+    return Snap(screen=scr, state=State("command"), status=st, monsters=monsters)
+
+
+def test_melee_guard_blocks_floating_eye():
+    import pytest
+    g = _guard_game()
+    snap = _cmd_snap([{"x": 11, "y": 5, "desc": "floating eye"}])
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"l", force=False)
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"Fl", force=False)
+    g._guard(snap, b"h", force=False)            # other direction is fine
+    g._guard(snap, b"l", force=True)             # explicit override
+    blind = _cmd_snap([{"x": 11, "y": 5, "desc": "floating eye"}], conditions=["Blind"])
+    g._guard(blind, b"l", force=False)           # blind: its gaze can't paralyze you
+    g._guard(_cmd_snap([{"x": 11, "y": 5, "desc": "jackal"}]), b"l", force=False)
+
+
+def test_corpse_guard():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    def yn(prompt):
+        return Snap(screen=mk({0: prompt}, cursor=(len(prompt), 0)), state=State("yn", prompt=prompt, choices="ynq"),
+                    status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(yn("There is a cockatrice corpse here; eat it? [ynq] (n)"), b"y", force=False)
+    with pytest.raises(PermissionError):
+        g._guard(yn("There is a dwarf corpse here; eat it? [ynq] (n)"), b"y", force=False)
+    g._guard(yn("There is a newt corpse here; eat it? [ynq] (n)"), b"y", force=False)
+    g._guard(yn("There is a dwarf corpse here; eat it? [ynq] (n)"), b"n", force=False)

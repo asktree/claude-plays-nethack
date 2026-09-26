@@ -115,6 +115,12 @@ in `play/tactics/` (then `bin/nh reload`).
 Rules for scripts: never loop blindly on attacks or movement without checking `obs.status.hp`; never
 send keys into a prompt you haven't seen; always handle the case where a step returns a prompt.
 
+**Harness guards** (they raise `PermissionError` / refuse the keys; `force=True` / `--force` overrides —
+think twice): moving or `F`-fighting into a **floating eye, gas spore or green slime** (unless you're
+Blind); answering `y` to eating a corpse that is certain death or permanent harm (cockatrice, chickatrice,
+Medusa, green slime, were-creatures, Riders, **dwarves** — cannibalism, dogs/cats); `#quit`; `y` to
+"Destroy old game?"; any key during the server's stale-process countdown.
+
 ## 3. Survival protocol (non-negotiable)
 
 **Every decision starts with: HP, status conditions, adjacent monsters, escape route.**

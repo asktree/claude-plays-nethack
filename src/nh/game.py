@@ -230,6 +230,46 @@ class Game:
             return self._settle(size0)
 
     # ---- the main entry point ---------------------------------------------
+    # ---- safety guards (refuse keystrokes that are classic instant deaths) ----
+    NEVER_MELEE = ("floating eye", "gas spore", "green slime")
+    _MOVE = {ord("h"): (-1, 0), ord("j"): (0, 1), ord("k"): (0, -1), ord("l"): (1, 0),
+             ord("y"): (-1, -1), ord("u"): (1, -1), ord("b"): (-1, 1), ord("n"): (1, 1)}
+    _CORPSE_Q = re.compile(r"There (?:is|are) (?:an? |\d+ )?(.+?) corpses? here; eat (?:it|one)\?")
+
+    def _guard(self, snap: "Snap", unit: bytes, force: bool) -> None:
+        if force or not unit:
+            return
+        k = snap.state.kind
+        if k == "command":
+            key = unit[1] if unit[:1] == b"F" and len(unit) > 1 else unit[0] if len(unit) == 1 else None
+            if key in self._MOVE and snap.hero is not None and "Blind" not in snap.status.conditions:
+                dx, dy = self._MOVE[key]
+                tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
+                for m in snap.monsters or []:
+                    if (m["x"], m["y"]) == (tx, ty):
+                        from .danger import base_name
+                        name = base_name(m.get("desc") or "")
+                        if name in self.NEVER_MELEE:
+                            raise PermissionError(
+                                f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
+                                f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
+                                "Use ranged attacks or go around. force=True overrides.")
+        elif k == "yn" and unit[:1] in (b"y", b"Y"):
+            m = self._CORPSE_Q.search(snap.state.prompt or "")
+            if m:
+                try:
+                    from .data.corpses import corpse_verdict
+                    from .danger import base_name
+                    name = base_name(m.group(1))
+                    v = corpse_verdict(name, hero_race="dwarf", hero_role="Valkyrie", age_turns=0,
+                                       has_poison_res=False)
+                    verdict = getattr(v.verdict, "value", v.verdict)
+                except Exception:
+                    return
+                if verdict == "NEVER":
+                    raise PermissionError(f"refusing to eat the {name} corpse: " + "; ".join(v.reasons)
+                                          + " — force=True overrides.")
+
     def _next_unit(self, data: bytes, i: int, kind: str) -> int:
         """End index of the next input unit starting at data[i], given the
         state the game is in right now."""
@@ -257,7 +297,7 @@ class Game:
         return i + 1
 
     def step(self, keys: str | bytes, auto_more: bool = True, max_more: int = 60,
-             multi: bool = False, secret: bool = False) -> Snap:
+             multi: bool = False, secret: bool = False, force: bool = False) -> Snap:
         """Send keys; follow --More-- pages (collecting their text) until the
         game waits for real input. Returns the final snapshot, whose
         .messages lists every message shown during the step.
@@ -304,6 +344,14 @@ class Game:
                         break
                 j = self._next_unit(data, i, kind)
                 unit = data[i:j]
+                try:
+                    self._guard(snap, unit, force)
+                except PermissionError as e:
+                    if not sent_any:
+                        raise
+                    unsent = data[i:]
+                    stop_reason = str(e)
+                    break
                 i = j
                 snap = self.send_bytes(unit)
                 sent_any = True
