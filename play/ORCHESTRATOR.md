@@ -128,8 +128,14 @@ The pane dies (`bin/nh --game live screen` shows `Pane is dead (status N ...)`):
 - The character dies (report with the dumplog link; don't start a new game without the human's go-ahead).
 - The game is won: report the ascension with the dumplog link.
 
-## 6. Coordination with the dev session
+## 6. Coordination with the dev session (the coach)
 
-Another Claude session (in the cloud) develops the harness on the same branch. Pull before each shift
-(`git pull --rebase`) to get harness fixes; restart the daemon after core changes. Keep your commits to
-`play/runs/live/` (and harness fixes you make, which is fine — pull/rebase first).
+Another Claude session (in the cloud) develops the harness on the same branch and watches the live game
+through Hardfought's public, growing ttyrec (`scripts/watch_ttyrec.py ClaudeAscends` — HTTPS only).
+- Pull before each shift (`git pull --rebase`) to get harness fixes; after core changes restart the
+  daemon (`bin/nh --game live daemon`), after tactics changes `bin/nh --game live reload`.
+- **Read `play/runs/live/coach.md` before each shift** — the coach writes observations, warnings and
+  strategy suggestions there. Acknowledge items you acted on (append "ack T<turn>: ...").
+- Keep your commits to `play/runs/live/` (harness fixes are fine too — pull/rebase first; the coach
+  avoids editing `play/runs/live/` except `coach.md`).
+- Push memory after every shift so the coach sees current state.
