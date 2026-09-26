@@ -116,11 +116,11 @@ def spawn_daemon(name: str, wait: float = 10.0) -> None:
     raise SystemExit(f"daemon for {name} did not come up; see {d / 'daemon.log'}")
 
 
-def write_rc(name: str, extra: list[str]) -> Path:
+def write_rc(name: str, extra: list[str], base_file: str | None = None) -> Path:
     d = game_dir(name)
     home = d / "home"
     home.mkdir(parents=True, exist_ok=True)
-    base = (REPO_ROOT / "play" / "nethackrc").read_text()
+    base = Path(base_file).read_text() if base_file else (REPO_ROOT / "play" / "nethackrc").read_text()
     rc = base.rstrip() + "\n" + "\n".join(extra) + "\n"
     p = home / ".nethackrc"
     p.write_text(rc)
@@ -136,9 +136,17 @@ def cmd_start_local(a) -> int:
         _tmux("kill-session", "-t", f"=nh-{name}", check=False)
         import shutil
         shutil.rmtree(d, ignore_errors=True)
+        # also drop the local NetHack save/lock files for this player name
+        hackdir = Path(a.nethack).resolve().parent.parent / "lib" / "nethackdir"
+        pname = a.player or name.replace("-", "")[:10] or "agent"
+        for f in list(hackdir.glob(f"save/*{pname}*")) + list(hackdir.glob(f"[0-9]*{pname}.*")):
+            try:
+                f.unlink()
+            except OSError:
+                pass
     d.mkdir(parents=True, exist_ok=True)
-    extra = [f"OPTIONS=role:{a.role},race:{a.race},gender:{a.gender},align:{a.align}"]
-    rc = write_rc(name, extra)
+    extra = [] if a.rc else [f"OPTIONS=role:{a.role},race:{a.race},gender:{a.gender},align:{a.align}"]
+    rc = write_rc(name, extra, a.rc)
     session = f"nh-{name}"
     env = {"HOME": str(rc.parent), "TERM": "screen", "NETHACKOPTIONS": str(rc), "LANG": "C", "LC_ALL": "C"}
     if a.seed is not None:
@@ -169,12 +177,13 @@ def cmd_start_remote(a) -> int:
     script = REPO_ROOT / "scripts" / "nh-connect.sh"
     session = f"nh-{name}"
     command = f"{shlex.quote(str(script))} {shlex.quote(a.server)}"
+    env = {"TERM": "screen", "LANG": "C", "LC_ALL": "C"}
     meta = {"name": name, "kind": "remote", "server": a.server, "tmux_session": session,
-            "width": 80, "height": 24, "command": command, "created": time.time()}
+            "width": 80, "height": 24, "command": command, "env": env, "created": time.time()}
     save_meta(name, meta)
     from .tmuxterm import TmuxTerminal
     term = TmuxTerminal(session, d / "raw.log")
-    term.start(command, env={"TERM": "screen", "LANG": "C", "LC_ALL": "C"}, cwd=str(d))
+    term.start(command, env=env, cwd=str(d))
     set_current(name)
     spawn_daemon(name)
     return _print(request(name, {"op": "screen"}))
@@ -288,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--player", help="in-game player name (default derived from NAME)")
     p.add_argument("--nethack", default=LOCAL_NETHACK)
     p.add_argument("--fresh", action="store_true", help="replace an existing game of this name")
+    p.add_argument("--rc", help="use this rc file verbatim instead of play/nethackrc + character options")
 
     p = sub.add_parser("start-remote")
     p.add_argument("name")

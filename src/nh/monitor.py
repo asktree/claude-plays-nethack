@@ -41,7 +41,7 @@ class MonsterTracker:
         return best[1] if best else None
 
     def update(self, snap, allow_farlook: bool = True) -> list[dict]:
-        if snap.state.kind != "command":
+        if snap.state.kind != "command" or not snap.status.ok:
             return []
         st = snap.status
         lvl = st.ldesc

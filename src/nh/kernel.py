@@ -132,7 +132,8 @@ class Kernel:
     def _install_api(self) -> None:
         k = self
 
-        def do(keys: str, *, force: bool = False, quiet: bool = False, ok=None, multi: bool = False) -> Snap:
+        def do(keys: str, *, force: bool = False, quiet: bool = False, ok=None, multi: bool = False,
+               secret: bool = False) -> Snap:
             """Send keys (see nh.keys notation); returns the settled snapshot.
 
             quiet=True: messages from this step don't pause an exec (HP loss,
@@ -140,7 +141,7 @@ class Kernel:
             information-only keystrokes like farlook or inventory display.
             ok=[regex,...]: messages matching any of these don't pause (this
             step only), on top of the exec's autocontinue list."""
-            return k._do(keys, force=force, quiet=quiet, ok=ok, multi=multi)
+            return k._do(keys, force=force, quiet=quiet, ok=ok, multi=multi, secret=secret)
 
         def look() -> Snap:
             """Re-capture the screen without sending anything."""
@@ -162,7 +163,8 @@ class Kernel:
     def in_worker(self) -> bool:
         return self.worker is not None and threading.current_thread() is self.worker
 
-    def _do(self, keys: str, force: bool = False, quiet: bool = False, ok=None, multi: bool = False) -> Snap:
+    def _do(self, keys: str, force: bool = False, quiet: bool = False, ok=None, multi: bool = False,
+            secret: bool = False) -> Snap:
         data = parse_keys(keys) if isinstance(keys, str) else keys
         _guard_dangerous(data, force)
         cur = self.game.last or self.game.look()
@@ -180,7 +182,7 @@ class Kernel:
                     cur = self.game.last or cur
             self._steps += 1
         before = self.game.last
-        snap = self.game.step(data, multi=multi)
+        snap = self.game.step(data, multi=multi, secret=secret)
         self.ns["obs"] = snap
         if self.in_worker():
             self._check_events(before, snap, quiet=quiet, ok=ok)

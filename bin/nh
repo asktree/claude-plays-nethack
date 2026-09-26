@@ -2,4 +2,6 @@
 # nh — terminal NetHack harness CLI. See src/nh/cli.py for commands.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -m nh.cli "$@"
+PY=python3
+[ -x "$ROOT/.venv/bin/python3" ] && PY="$ROOT/.venv/bin/python3"
+exec "$PY" -m nh.cli "$@"

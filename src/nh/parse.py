@@ -190,6 +190,7 @@ class State:
     menu: Menu | None = None
     more_text: str = ""  # message text shown with --More--
     msg_rows: int = 0    # extra screen rows (1..n) covered by a wrapped message/prompt
+    dismiss: str = "\r" # key that dismisses a "more" state (Hardfought MSGTYPE=alert wants TAB)
 
 
 _YN = re.compile(r"\[(?P<choices>[A-Za-z0-9\-#$ ]+)\](?:\s*\((?P<default>.)\))?\s*$")
@@ -226,8 +227,25 @@ def classify(scr: Screen) -> State:
 
     # dgamelaunch / pre-game menus are recognizable by their banners.
     full = scr.text
+    if "stale" in full and "will recover in" in full:
+        return State("dgl", prompt="STALE-PROCESS COUNTDOWN: send NOTHING until it finishes")
     if _looks_dgl(full):
         return State("dgl", prompt=top)
+
+    # config-file errors / other startup notices: "Hit return to continue:"
+    hr = _cursor_after(scr, "Hit return to continue:")
+    if hr is not None:
+        txt = "\n".join(scr.row(r).rstrip() for r in range(0, hr[1]) if scr.row(r).strip())
+        return State("more", more_text=txt or "Hit return to continue")
+
+    # Hardfought MSGTYPE=alert: "<message> <TAB>" waits for a TAB keypress only
+    # (used for eel/kraken/couatl wrap attacks -- a drowning threat!)
+    tabpos = _cursor_after(scr, "<TAB>")
+    if tabpos is not None and tabpos[1] <= 3:
+        y = tabpos[1]
+        txt = " ".join(scr.row(r).rstrip() if r < y else scr.row(r)[:tabpos[0]].rstrip()
+                       for r in range(0, y + 1)).strip()
+        return State("more", more_text=txt, dismiss="\t", msg_rows=y)
 
     # --More-- (message line, or at the end of a text window)
     pos = _cursor_after(scr, MORE)
@@ -286,6 +304,9 @@ def classify(scr: Screen) -> State:
     if MAP_TOP <= cy <= MAP_BOTTOM:
         if any(h in top for h in GETPOS_HINTS):
             return State("getpos", prompt=top)
+        if scr.at(cx, cy) == " ":
+            # in command state the cursor always sits on the hero glyph
+            return State("unknown", prompt=top)
         st = State("command", prompt=top)
         # a long final message can stay wrapped over the top map rows
         if len(top) >= 50:

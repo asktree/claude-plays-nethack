@@ -49,6 +49,38 @@ class Daemon:
         self.kernel.ns["META"] = self.meta
         self._bootstrap_kernel()
         self.stop = False
+        self.keepalive_after = float(os.environ.get("NH_KEEPALIVE_AFTER", "1200"))  # seconds of silence
+        if self.meta.get("kind") == "remote":
+            threading.Thread(target=self._keepalive_loop, name="nh-keepalive", daemon=True).start()
+
+    def _keepalive_loop(self):
+        """Public servers hang up after 30 min without game output (Hardfought:
+        1800 s). When the game has been silent for keepalive_after seconds and
+        sits at the command prompt, send ^R (redraw: no game time, produces
+        output). Never touch a prompt/menu -- a hangup there only cancels the
+        prompt, but typing into it could do real damage."""
+        while not self.stop:
+            time.sleep(30)
+            try:
+                idle = time.time() - self.term.raw_log.stat().st_mtime
+            except FileNotFoundError:
+                continue
+            if idle < self.keepalive_after:
+                continue
+            if not self.game.lock.acquire(timeout=5):
+                continue
+            try:
+                snap = self.game.capture()
+                if snap.state.kind == "command":
+                    self.game.send_bytes(b"\x12")
+                    self.game.log_event({"ev": "keepalive", "ts": time.time(), "idle": round(idle)})
+                else:
+                    self.game.log_event({"ev": "keepalive_skipped", "ts": time.time(), "idle": round(idle),
+                                         "state": snap.state.kind, "prompt": snap.state.prompt})
+            except Exception as e:  # noqa: BLE001
+                self.game.log_event({"ev": "keepalive_error", "err": repr(e)})
+            finally:
+                self.game.lock.release()
 
     def _bootstrap_kernel(self):
         boot = REPO_ROOT / "play" / "kernel_boot.py"

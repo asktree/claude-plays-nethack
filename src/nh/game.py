@@ -226,7 +226,7 @@ class Game:
         state the game is in right now."""
         n = len(data)
         c = data[i]
-        if kind in ("getlin", "extcmd", "menu", "count"):
+        if kind in ("getlin", "extcmd", "menu", "count", "dgl"):
             j = data.find(b"\r", i)
             return n if j < 0 else j + 1
         if kind == "getpos":
@@ -248,7 +248,7 @@ class Game:
         return i + 1
 
     def step(self, keys: str | bytes, auto_more: bool = True, max_more: int = 60,
-             multi: bool = False) -> Snap:
+             multi: bool = False, secret: bool = False) -> Snap:
         """Send keys; follow --More-- pages (collecting their text) until the
         game waits for real input. Returns the final snapshot, whose
         .messages lists every message shown during the step.
@@ -271,6 +271,12 @@ class Game:
             unsent = b""
             stop_reason = ""
             sent_any = False
+            if "Destroy old game?" in (cur.state.prompt or "") and data[:1] in (b"y", b"Y"):
+                raise PermissionError("refusing to answer 'y' to 'Destroy old game?' -- that erases the "
+                                      "game in progress. Answer 'n' and investigate.")
+            if cur.state.kind == "dgl" and "STALE-PROCESS" in (cur.state.prompt or ""):
+                raise PermissionError("stale-process countdown on screen: any key aborts the recovery. "
+                                      "Wait ~20s (use `nh screen` to watch), then continue.")
             while i < len(data):
                 if sent_any:
                     if kind == "command" and not multi:
@@ -283,7 +289,7 @@ class Game:
                             unsent = data[i:]
                             stop_reason = f"a [yn] prompt is open ({snap.state.prompt!r}) and {chr(data[i])!r} doesn't answer it"
                             break
-                    if kind in ("gameover", "dead", "dgl"):
+                    if kind in ("gameover", "dead"):
                         unsent = data[i:]
                         stop_reason = f"state is {kind}"
                         break
@@ -299,7 +305,7 @@ class Game:
                         messages.extend(_split_top(txt))
                     elif txt:
                         messages.append(txt)
-                    snap = self.send_bytes(b"\r")
+                    snap = self.send_bytes(snap.state.dismiss.encode())
                     pages += 1
                 kind = snap.state.kind
             if snap.state.kind == "gameover" and snap.state.prompt:
@@ -309,7 +315,7 @@ class Game:
                 if top:
                     messages.extend(_split_top(top))
             snap.messages = messages
-            snap.keys = describe_bytes(data[: len(data) - len(unsent)])
+            snap.keys = "<secret>" if secret else describe_bytes(data[: len(data) - len(unsent)])
             snap.unsent = describe_bytes(unsent)
             snap.stop_reason = stop_reason
             snap.elapsed = time.monotonic() - t0

@@ -1,0 +1,8 @@
+# --- Hardfought-specific (appended to play/nethackrc for the server rcfile) ---
+# character: fixed, so the game never asks
+OPTIONS=role:Valkyrie,race:dwarf,gender:female,align:lawful
+# spectators can send in-game mail: a prompt-injection channel -> off
+OPTIONS=!mail
+# undo server defaults that change the screen layout our parser expects
+OPTIONS=!menu_objsyms,!hitpointbar,!perm_invent
+OPTIONS=pickup_burden:unencumbered
