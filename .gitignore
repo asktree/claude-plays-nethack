@@ -17,3 +17,12 @@ game/.live_state.json.tmp
 nethack_save/
 
 .DS_Store
+
+# nh terminal harness runtime state (tmux raw logs, daemon sockets, events)
+run/
+# secrets for public-server accounts (never commit)
+play/secrets/
+
+# fetch caches (wiki raw pages etc.)
+.cache/
+knowledge/wiki/

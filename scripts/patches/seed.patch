@@ -1,0 +1,207 @@
+seed.patch -- NETHACK_SEED=<decimal integer> makes a NetHack 3.6.7 game reproducible
+(local test builds only; see scripts/README-nethack-local.md).
+
+  * init_random() seeds both RNGs (core + display) from NETHACK_SEED instead
+    of /dev/urandom; has_strong_rngseed stays FALSE, so mklev()/goto_level()
+    no longer reseed from /dev/urandom on every new/revisited level.
+  * Wall-clock inputs to game logic are frozen at 2001-01-01 12:00:00 UTC
+    (moon phase 1, not Friday 13th, daytime): phase_of_the_moon(),
+    friday_13th(), night(), midnight() and ubirthday (shopkeeper names,
+    anthole species, glass gem prices, T-shirt slogans).
+  * NETHACK_SEED unset or empty: vanilla behaviour.  Non-integer value: the
+    game prints an error and exits before touching the terminal.
+
+Apply from the top of the source tree with: patch -p1 < seed.patch
+
+--- a/include/extern.h
++++ b/include/extern.h
+@@ -958,6 +958,8 @@
+ FDECL(fuzzymatch, (const char *, const char *, const char *, BOOLEAN_P));
+ E void FDECL(init_random, (int FDECL((*fn), (int))));
+ E void FDECL(reseed_random, (int FDECL((*fn), (int))));
++E boolean FDECL(env_seed, (unsigned long *));
++E boolean FDECL(seeded_clock, (time_t *));
+ E time_t NDECL(getnow);
+ E int NDECL(getyear);
+ #if 0
+--- a/src/hacklib.c
++++ b/src/hacklib.c
+@@ -5,6 +5,7 @@
+ /* NetHack may be freely redistributed.  See license for details. */
+ 
+ #include "hack.h" /* for config.h+extern.h */
++#include <errno.h> /* seed.patch: env_seed() */
+ /*=
+     Assorted 'small' utility routines.  They're virtually independent of
+     NetHack, except that rounddiv may call panic().  setrandom calls one
+@@ -53,6 +54,8 @@
+         void            setrandom       (void)
+         void            init_random     (fn)
+         void            reseed_random   (fn)
++        boolean         env_seed        (unsigned long *)
++        boolean         seeded_clock    (time_t *)
+         time_t          getnow          (void)
+         int             getyear         (void)
+         char *          yymmdd          (time_t)
+@@ -850,6 +853,7 @@
+ extern struct tm *FDECL(localtime, (time_t *));
+ #endif
+ STATIC_DCL struct tm *NDECL(getlt);
++STATIC_DCL struct tm *NDECL(game_lt);
+ 
+ /* Sets the seed for the random number generator */
+ #ifdef USE_ISAAC64
+@@ -907,7 +911,14 @@
+ init_random(fn)
+ int FDECL((*fn), (int));
+ {
+-    set_random(sys_random_seed(), fn);
++    unsigned long seed;
++
++    /* seed.patch: NETHACK_SEED wins; sys_random_seed() is then never
++       called, so has_strong_rngseed stays FALSE and reseed_random()
++       does nothing */
++    if (!env_seed(&seed))
++        seed = sys_random_seed();
++    set_random(seed, fn);
+ }
+ 
+ /* Reshuffles the random number generator. */
+@@ -921,6 +932,66 @@
+         init_random(fn);
+ }
+ 
++/*
++ * seed.patch (claude-plays-nethack local test build; not in vanilla 3.6.7).
++ * NETHACK_SEED=<decimal integer> in the environment makes a new game
++ * reproducible:
++ *  - init_random() seeds both RNGs (core and display) with that value
++ *    instead of sys_random_seed(), so has_strong_rngseed stays FALSE and
++ *    reseed_random() never reseeds from /dev/urandom when a level is
++ *    created or revisited;
++ *  - game logic that reads the wall clock gets a frozen one instead:
++ *    phase_of_the_moon(), friday_13th(), night() and midnight() see
++ *    SEEDED_CLOCK, and so does ubirthday (u_init()), which picks shopkeeper
++ *    names, the anthole species, unidentified glass gem prices and T-shirt
++ *    slogans.  SEEDED_CLOCK is 2001-01-01 12:00:00 UTC: a Monday, moon
++ *    phase 1 (neither new nor full), daytime.  Times that are only
++ *    reported (realtime, dumplog %D/%T, end-of-game dates) stay real.
++ * Unset or empty NETHACK_SEED leaves the game exactly as vanilla; any other
++ * value that isn't a decimal integer is fatal, so tests can't silently run
++ * unseeded.
++ */
++#define SEEDED_CLOCK ((time_t) 978350400L)
++
++/* TRUE if NETHACK_SEED is set; the seed goes to *seedp when that's non-null */
++boolean
++env_seed(seedp)
++unsigned long *seedp;
++{
++    static int state = -1; /* -1: not looked yet, 0: unseeded, 1: seeded */
++    static unsigned long seed = 0UL;
++
++    if (state < 0) {
++        char *val = nh_getenv("NETHACK_SEED"), *end;
++
++        state = 0;
++        if (val && *val) {
++            errno = 0;
++            seed = strtoul(val, &end, 10);
++            if (end == val || *end || errno) {
++                raw_printf("NETHACK_SEED=\"%s\" is not a decimal integer.",
++                           val);
++                exit(EXIT_FAILURE);
++            }
++            state = 1;
++        }
++    }
++    if (state > 0 && seedp)
++        *seedp = seed;
++    return (boolean) (state > 0);
++}
++
++/* TRUE, with *when set to the frozen game clock, if NETHACK_SEED is set */
++boolean
++seeded_clock(when)
++time_t *when;
++{
++    if (!env_seed((unsigned long *) 0))
++        return FALSE;
++    *when = SEEDED_CLOCK;
++    return TRUE;
++}
++
+ time_t
+ getnow()
+ {
+@@ -938,6 +1009,17 @@
+     return localtime((LOCALTIME_type) &date);
+ }
+ 
++/* seed.patch: the calendar as seen by game logic (see env_seed()) */
++STATIC_OVL struct tm *
++game_lt()
++{
++    time_t date;
++
++    if (!seeded_clock(&date))
++        return getlt();
++    return gmtime((LOCALTIME_type) &date); /* UTC: same result in any TZ */
++}
++
+ int
+ getyear()
+ {
+@@ -1105,7 +1187,7 @@
+ int
+ phase_of_the_moon() /* 0-7, with 0: new, 4: full */
+ {
+-    register struct tm *lt = getlt();
++    register struct tm *lt = game_lt();
+     register int epact, diy, goldn;
+ 
+     diy = lt->tm_yday;
+@@ -1120,7 +1202,7 @@
+ boolean
+ friday_13th()
+ {
+-    register struct tm *lt = getlt();
++    register struct tm *lt = game_lt();
+ 
+     /* tm_wday (day of week; 0==Sunday) == 5 => Friday */
+     return (boolean) (lt->tm_wday == 5 && lt->tm_mday == 13);
+@@ -1129,7 +1211,7 @@
+ int
+ night()
+ {
+-    register int hour = getlt()->tm_hour;
++    register int hour = game_lt()->tm_hour;
+ 
+     return (hour < 6 || hour > 21);
+ }
+@@ -1137,7 +1219,7 @@
+ int
+ midnight()
+ {
+-    return (getlt()->tm_hour == 0);
++    return (game_lt()->tm_hour == 0);
+ }
+ 
+ /* strbuf_init() initializes strbuf state for use */
+--- a/src/u_init.c
++++ b/src/u_init.c
+@@ -645,10 +645,12 @@
+     u.ualignbase[A_CURRENT] = u.ualignbase[A_ORIGINAL] = u.ualign.type =
+         aligns[flags.initalign].value;
+ 
++    /* seed.patch: with NETHACK_SEED set, the birthday is the frozen clock */
++    if (!seeded_clock(&ubirthday))
+ #if defined(BSD) && !defined(POSIX_TYPES)
+-    (void) time((long *) &ubirthday);
++        (void) time((long *) &ubirthday);
+ #else
+-    (void) time(&ubirthday);
++        (void) time(&ubirthday);
+ #endif
+ 
+     /*

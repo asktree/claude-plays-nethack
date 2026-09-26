@@ -1,0 +1,25 @@
+# claude-plays-nethack canonical options for NetHack 3.6.7 (tty).
+# The harness parser depends on this layout: tty window port, 80x24,
+# default ASCII symbols, colors on, pets/piles in inverse video.
+# The same file is installed as the server-side rcfile on Hardfought.
+OPTIONS=windowtype:tty
+OPTIONS=number_pad:0
+OPTIONS=color,use_inverse,hilite_pet,hilite_pile
+OPTIONS=menu_headings:inverse
+OPTIONS=time,showexp,!showscore
+OPTIONS=autopickup,pickup_types:$,pickup_thrown
+OPTIONS=!rest_on_space
+OPTIONS=runmode:teleport
+OPTIONS=mention_walls
+OPTIONS=paranoid_confirmation:quit attack wand-break eat pray Remove Were-change
+OPTIONS=boulder:0
+OPTIONS=disclose:+i +a +v +g +c +o
+OPTIONS=!implicit_uncursed
+OPTIONS=sortloot:full
+OPTIONS=lit_corridor,dark_room
+OPTIONS=!legacy,!news
+OPTIONS=suppress_alert:3.4.3
+OPTIONS=msg_window:full,msghistory:200
+OPTIONS=!autodig,!autoquiver
+OPTIONS=!sparkle
+OPTIONS=!autodescribe
