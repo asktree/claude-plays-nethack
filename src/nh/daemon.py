@@ -93,7 +93,7 @@ class Daemon:
 
     def render(self, snap, mode="crop") -> str:
         if snap is not None and snap.state.kind == "command" and self.memory.need_overview \
-                and not self.kernel.busy():
+                and (not self.kernel.busy() or self.kernel.parked):
             try:
                 self.memory.refresh_overview()
             except Exception as e:  # noqa: BLE001

@@ -12,9 +12,11 @@ survival protocol), the relevant parts of `play/PLAYBOOK.md`, and your run's mem
 Core rules you must never forget, even late in a long shift:
 - One life. Survival beats speed. Every action starts with: HP, status conditions, adjacent monsters, escape route.
 - HP < 60%: stop exploring. HP < 40%: disengage now (upstairs, Elbereth, healing, escape items).
-  HP ≤ max/7 or ≤ 5: pray if the prayer timeout has likely expired (first prayer after ~T300, then ≥ ~1000 turns
-  between prayers — check the prayer log in state.md), else Elbereth/escape immediately.
+  HP ≤ 5 or ≤ max/5 (XL1–5; /6 XL6–13; /7 XL14–21): that's major trouble — run `prayer_check()` and pray if
+  the odds are good; praying too soon costs −3 Luck and angers your god. Else Elbereth/escape immediately.
+  Never pray for minor trouble (cursed items, a welded weapon, blindness...).
 - Never attack peacefuls. Never melee floating eyes. Never eat unchecked corpses. Never swap a pet into water/lava.
+- Never wield/wear items of unknown B/U/C you can't afford to have cursed (a cursed weapon welds to your hand).
 - Instadeath threats (death rays, disintegration, stoning, sliming, strangulation, drowning, level drain) are
   not HP problems: prepare cures and protections in advance (see PLAYBOOK.md) and never enter the Castle or
   Gehennom without magic resistance, and preferably reflection too.

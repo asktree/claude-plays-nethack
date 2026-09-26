@@ -205,6 +205,8 @@ class Game:
             st = snap.status
             if ch != "@" and st.hd is None and "Hallu" not in st.conditions:
                 return False
+            if cy == 1:
+                return False   # the hero never stands on map row 1 (level edge): likely wrapped text
         return True
 
     def _settle(self, size0: int, expect_output: bool = True) -> Snap:

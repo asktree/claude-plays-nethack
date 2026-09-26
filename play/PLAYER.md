@@ -90,7 +90,7 @@ Available in the kernel:
 | `elbereth()` | engrave Elbereth in the dust; `engraving_here()` reads it back |
 | `fight(x=None, y=None, stop_hp=0.45)` | melee adjacent hostiles one checked blow at a time until dead/gone or HP < stop_hp (then pauses); never touches peacefuls/pets |
 | `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move) |
-| `pray()` | pray (handles the confirmation). Read §3 first! |
+| `prayer_check()`, `pray(force=False)` | trouble class (major/minor/none) + estimated chance the timeout is low enough + advice; `pray()` refuses without major trouble and ≥80% odds (force=True overrides). Read §3! |
 | `step(dir, n)` | move n squares one at a time |
 | `avoid((x,y), ...)`, `bad_squares()`, `walk_path(cells)` | mark squares to avoid on this level (known traps — even ones hidden under objects — are remembered automatically); `travel()`/`explore()` detour around them |
 | `pause(reason)` | hand control back to yourself from inside a script |
@@ -132,18 +132,22 @@ HP rules (let H = HP / max HP):
 - H < 0.4: disengage **now**: retreat upstairs, stand on Elbereth (`elbereth()`), quaff a known healing
   potion, or use an escape item. Do not "finish off" a monster at this HP unless it is one hit from death
   and can't kill you.
-- HP ≤ max/7 or HP ≤ 5: this is "major trouble" — **pray** if your prayer is available (below). Otherwise
-  Elbereth / stairs / escape items immediately.
+- HP ≤ 5, or HP ≤ max/5 (XL1–5; /6 at XL6–13, /7 at XL14–21): this is "major trouble" — **pray** if
+  `prayer_check()` says the odds are good (below). Otherwise Elbereth / stairs / escape items immediately.
 
-Prayer:
-- Prayer fixes major trouble if your prayer timeout is low enough and your Luck/alignment are OK. The
-  timeout starts at ~300 and drops ~1/turn; after a successful prayer it resets to ~50–1000 (usually a few
-  hundred). **Rule: first prayer is OK after turn ~300; afterwards wait at least ~1000 turns between
-  prayers.** Every prayer (turn, reason, outcome) goes in `state.md`.
-- Never pray in Gehennom (your god can't hear you there). Never pray just for small trouble early in the
-  timeout window. Don't pray if you've angered your god (killed peacefuls, etc.) — check state.md.
-- Prayer also fixes: Weak/Fainting from hunger, food poisoning (`FoodPois`), illness (`TermIll`), stoning
-  (`Stone`), sliming (`Slime`), strangulation (`Strngl`), lycanthropy.
+Prayer (exact 3.6.7 rules, `pray.c`) — **always run `prayer_check()` first; `pray()` refuses unless it's sensible:**
+- Prayer works only if the prayer timeout is ≤ 200 with **major** trouble (≤ 100 with minor trouble, 0 with
+  none), your Luck ≥ 0, and your god isn't angry. The timeout starts at 300 and drops 1 per turn; after a
+  successful prayer it resets to a random value (median ~350, long tail); each wish adds 50–149.
+- **Praying too soon is a disaster**: −3 Luck, your god gets angry, and divine wrath strikes. So never pray
+  "just in case". Chance the timeout is low enough for major trouble, by turns since the last successful
+  prayer: 300 → 66%, 500 → 87%, 800 → 92%, 1000 → 95%, 1500 → 98%. First prayer: fine from ~T:100 in major
+  trouble (timeout 300 − turn ≤ 200).
+- **Major trouble** = stoning, sliming, strangling, lava, food poisoning/illness, Weak/Fainting hunger,
+  lycanthropy, and **low HP: HP ≤ 5, or HP ≤ maxHP/5 at XL1–5 (/6 at XL6–13, /7 at XL14–21, /8 at XL22–29)**,
+  with maxHP capped at 15×XL for this test. Everything else (cursed items, a welded weapon with a free
+  off-hand, blindness, confusion, stun, hallucination, Hungry) is *minor* and not worth a prayer at Luck 0.
+- Never pray in Gehennom. Log every prayer (turn, reason, result) in state.md (`bin/nh info` also tracks it).
 
 Elbereth (3.6 rules): standing on an engraved "Elbereth" makes most monsters flee instead of meleeing you.
 It does **not** work on `@` humans and elves, minotaurs, shopkeepers/guards/priests, or the Riders. It is

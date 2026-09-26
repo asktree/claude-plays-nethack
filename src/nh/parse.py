@@ -299,9 +299,19 @@ def classify(scr: Screen) -> State:
     msg_rows = 0
     if cy == 0:
         prompt_text = top
-    elif 1 <= cy <= 4 and scr.at(cx, cy) == " " and len(top) >= 30 \
-            and scr.row(cy)[:cx].strip() and _texty(scr.row(cy)[:cx]):
-        prompt_text = " ".join([scr.row(r).rstrip() for r in range(0, cy)] + [scr.row(cy)[:cx].rstrip()])
+    elif 1 <= cy <= 4 and scr.at(cx, cy) == " " and scr.row(cy)[:cx].strip() and top \
+            and (len(top) >= 60 or _PROMPT_END.search(scr.row(cy)[:cx]) or _texty(scr.row(cy)[:cx])):
+        # rows 0..cy are one message/prompt: word-wrapped by tty (join with a
+        # space) or hard-wrapped by the terminal at column 80 (join directly)
+        parts = [scr.row(r) for r in range(0, cy)] + [scr.row(cy)[:cx]]
+        prompt_text = ""
+        for i, part in enumerate(parts):
+            if i == 0:
+                prompt_text = part.rstrip()
+            elif len(parts[i - 1].rstrip()) >= scr.width:
+                prompt_text += part.rstrip()          # hard wrap mid-word ("Sel" + "l it?")
+            else:
+                prompt_text += " " + part.strip()
         msg_rows = cy
     if prompt_text is not None:
         st = _classify_prompt(prompt_text)
@@ -329,6 +339,7 @@ def classify(scr: Screen) -> State:
 
 
 _WORDS = re.compile(r"[A-Za-z']{3,} [A-Za-z']{2,}")
+_PROMPT_END = re.compile(r"(\[[^\]]*\](\s*\([^)]*\))?|\?|:)\s*$")
 
 
 def _texty(row: str) -> bool:

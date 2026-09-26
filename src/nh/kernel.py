@@ -117,6 +117,7 @@ class Kernel:
         self.abandon_flag = False
         self.autocontinue: list[re.Pattern] = []
         self.pause_on_monsters = True
+        self.parked = False        # True while an exec worker waits at a pause point
         self.hp_pause = 0.7        # pause on HP loss when HP < this fraction of max...
         self.hp_hit_pause = 0.15   # ...or when one step costs >= this fraction of max
         self.budget_steps = 400
@@ -245,7 +246,11 @@ class Kernel:
         where = _user_frames()
         self.events.put(("paused", PauseInfo(reason=reason, snap=snap, where=where)))
         self.resume.clear()
-        self.resume.wait()
+        self.parked = True
+        try:
+            self.resume.wait()
+        finally:
+            self.parked = False
         if self.abandon_flag:
             raise Abandon()
         # reset budget on every resume

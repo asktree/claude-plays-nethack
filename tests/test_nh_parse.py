@@ -171,3 +171,14 @@ def test_corpse_guard():
         g._guard(yn("There is a dwarf corpse here; eat it? [ynq] (n)"), b"y", force=False)
     g._guard(yn("There is a newt corpse here; eat it? [ynq] (n)"), b"y", force=False)
     g._guard(yn("There is a dwarf corpse here; eat it? [ynq] (n)"), b"n", force=False)
+
+
+def test_hard_wrapped_sell_prompt():
+    # p1 shift 2 #629: terminal auto-wrap split "Sell" across rows 0/1
+    full = "Annootok offers 100 gold pieces for your scroll labeled EIRIS SAZUN IDISI.   Sell it? [ynaq] (y) "
+    row0, row1 = full[:80], full[80:]
+    s = mk({0: row0, 1: row1, 5: "      |..@..|", 22: STATUS1,
+            23: "Dlvl:3 $:19 HP:29(29) Pw:1(1) AC:3 Xp:2/30 T:863"}, cursor=(len(row1), 1))
+    st = classify(s)
+    assert st.kind == "yn" and st.choices == "ynaq" and st.default == "y"
+    assert "Sell it?" in st.prompt and st.msg_rows == 1

@@ -55,6 +55,10 @@ class Tracker:
                                         "You are surrounded by a shimmering light", "You feel as if")):
                     self.state["prayers"][-1]["outcome"] = m
                     changed = True
+        if "For what do you wish?" in (snap.state.prompt or "") and \
+                (not self.state.get("wishes") or self.state["wishes"][-1].get("turn") != st.turn):
+            self.state.setdefault("wishes", []).append({"turn": st.turn})
+            changed = True
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
             self.need_overview = True
