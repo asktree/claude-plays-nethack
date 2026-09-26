@@ -8,6 +8,7 @@ takes no game time.
 
 from __future__ import annotations
 
+from .danger import note_for
 from .game import Game, Snap
 from .parse import MAP_BOTTOM, MAP_TOP
 from .render import monsters_in_view
@@ -55,6 +56,10 @@ class MonsterTracker:
             if m["desc"].startswith("statue of") or " statue of " in m["desc"]:
                 m["statue"] = True
             looks += 1
+        xl = snap.status.xl if snap.status.ok else None
+        for m in mons:
+            if m.get("desc") and not m.get("statue"):
+                m["note"] = note_for(m["desc"], xl)
         self.known = [m for m in mons if m.get("desc")]
         return mons
 

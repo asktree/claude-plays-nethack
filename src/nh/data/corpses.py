@@ -429,6 +429,8 @@ def corpse_verdict(
     hazards: list[tuple[Verdict, str]] = []
     benefits: list[str] = []
     notes: list[str] = list(info["notes"])
+    if info["corpse_chance"] == 0:
+        notes.append(f"normally no corpse exists: {info['corpse_chance_note']}")
     if buc not in ("blessed", "uncursed", "cursed"):
         notes.append(f"BUC {buc!r} unknown: assumed cursed (rots fastest)")
         buc = "cursed"
@@ -452,8 +454,8 @@ def corpse_verdict(
             when = "age unknown" if age is None else f"{age:g} turns old"
             hazard(Verdict.DEADLY,
                    f"{_pct(p_taint)} chance it is tainted ({when}, {buc}): fatal "
-                   "food poisoning unless cured (pray, unicorn horn, "
-                   "uncursed extra/full healing, eucalyptus leaf)")
+                   "food poisoning unless cured (pray; non-cursed unicorn horn, "
+                   "eucalyptus leaf, extra/full healing; blessed healing)")
         elif p_taint > 0:
             notes.append(f"{_pct(p_taint)} tainted, harmless with sickness resistance")
         not_tainted = 1.0 - p_taint

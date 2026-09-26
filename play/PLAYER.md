@@ -58,6 +58,8 @@ monsters:
 - **Monsters are identified automatically** with farlook (`;`) the first time they appear, so you see
   `peaceful dwarf`, `tame kitten`, `statue of a newt` (statues look like monsters!), `jackal`.
   Anything marked `peaceful` must not be attacked (it angers your god and/or the monster's friends).
+  Dangerous monsters get a `!!` note underneath (special threat, and "stronger than you" when their
+  difficulty is well above your XL). Take those notes seriously.
 - Status: `HP:cur/max`, `Pw`, `AC` (lower is better), `XL` experience level, `T:` game turn, then hunger
   (`Hungry`, `Weak`, `Fainting` — act!), encumbrance (`Burdened`...), conditions (`Blind`, `Conf`, `Stun`,
   `Hallu`, and the deadly ones: `Stone`, `Slime`, `Strngl`, `FoodPois`, `TermIll`).
@@ -88,6 +90,14 @@ Available in the kernel:
 | `pray()` | pray (handles the confirmation). Read §3 first! |
 | `step(dir, n)` | move n squares one at a time |
 | `pause(reason)` | hand control back to yourself from inside a script |
+| `mon('soldier ant')` | monster stats (level, speed, attacks, resistances, corpse benefits) + danger note |
+| `corpse('killer bee', age=0, poison_res=False)` | is this corpse safe for us to eat? (SAFE/RISKY/DEADLY/NEVER + benefits) |
+| `obj('speed boots')`, `price_candidates('SCROLL_CLASS', 20)` | object facts; price-identification candidates |
+| `wiki('regex')`, `wiki_page('Floating eye')` | search/read the offline NetHack wiki (`knowledge/wiki/`) |
+| `sokoban.board()`, `sokoban.push(x, y, 'hhk')` | Sokoban: show the board; push the boulder at (x,y) left,left,up with checked walking |
+
+Also `bin/nh info`: the harness's own memory — current branch/level (from the game's `^O` overview),
+prayer log with turns-ago, per-level stairs/fountains/altars seen.
 
 Example — explore, and stop to think whenever anything happens:
 ```

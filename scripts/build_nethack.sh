@@ -179,7 +179,9 @@ fi
 FP=$(fingerprint)
 if [[ $NH_FORCE != 1 && -f $STAMP && $(head -n1 "$STAMP") == "$FP" \
       && -x $HACKDIR/nethack && -x $NH_PREFIX/bin/nethack \
-      && -f $HACKDIR/nhdat && -f $HACKDIR/sysconf ]]; then
+      && -f $HACKDIR/nhdat && -f $HACKDIR/sysconf \
+      && -d $HACKDIR/save && -d $HACKDIR/dumplog ]]; then
+    # (nethack silently skips the dumplog if dumplog/ is missing)
     ensure_pristine_src
     log "up to date: $NH_PREFIX (NH_FORCE=1 to rebuild)"
     exit 0

@@ -22,6 +22,7 @@ from . import render
 from .game import Game, Timing
 from .kernel import Kernel
 from .monitor import MonsterTracker
+from .tracker import Tracker
 from .paths import game_dir, load_meta, REPO_ROOT
 from .tmuxterm import TmuxTerminal
 
@@ -37,6 +38,8 @@ class Daemon:
         self.game = Game(self.term, timing, log_path=self.dir / "events.jsonl")
         self.kernel = Kernel(self.game)
         self.tracker = MonsterTracker(self.game)
+        self.memory = Tracker(self.game, self.dir / "harness_state.json")
+        self.game.on_step.append(self.memory.on_step)
         # make repo-level tactic/view packages importable in the kernel
         for p in (REPO_ROOT / "play", REPO_ROOT / "src"):
             if str(p) not in sys.path:
@@ -57,12 +60,22 @@ class Daemon:
 
     def render(self, snap, mode="crop") -> str:
         mons = None
+        if snap is not None and snap.state.kind == "command" and self.memory.need_overview \
+                and not self.kernel.busy():
+            try:
+                self.memory.refresh_overview()
+            except Exception as e:  # noqa: BLE001
+                self.game.log_event({"ev": "overview_error", "err": repr(e)})
         if snap is not None and snap.state.kind == "command":
             try:
                 mons = self.tracker.update(snap)
             except Exception as e:  # noqa: BLE001
                 self.game.log_event({"ev": "tracker_error", "err": repr(e)})
-        return render.render(snap, mode=mode, mons=mons, hero=self.game.hero_pos)
+        text = render.render(snap, mode=mode, mons=mons, hero=self.game.hero_pos)
+        where = self.memory.state.get("current_level")
+        if where and mode != "brief":
+            text = text.replace("\n", f"\nwhere: {where}\n", 1)
+        return text
 
     # ------------------------------------------------------------ handlers
     def handle(self, req: dict) -> dict:
@@ -94,6 +107,10 @@ class Daemon:
             return {"ok": out["status"] in ("done", "paused"), "text": _fmt_exec(out, mode, self.render)}
         if op == "drop":
             return {"ok": True, "text": self.kernel.drop() or "nothing paused"}
+        if op == "info":
+            return {"ok": True, "text": self.memory.summary() + "\n\nlevels:\n" + self.memory.levels_text()
+                    + ("\n\noverview (T:%s):\n%s" % (self.memory.state.get("overview_turn"),
+                                                     self.memory.state.get("overview", "")))}
         if op == "history":
             n = int(req.get("n", 30))
             lines = [f"T:{t} {m}" for (t, m) in self.game.history[-n:]]

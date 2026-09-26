@@ -85,7 +85,8 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
             maybe = f" ~{'/'.join(m['maybe'])}" if m.get("maybe") else ""
             who = f"{m['color']}{tag}{maybe}"
         adj = "  <-- ADJACENT" if m["dist"] == 1 else ""
-        parts.append(f"  {m['ch']} {who} at ({m['x']},{m['y']}) d={m['dist']}{adj}")
+        note = f"\n      !! {m['note']}" if m.get("note") else ""
+        parts.append(f"  {m['ch']} {who} at ({m['x']},{m['y']}) d={m['dist']}{adj}{note}")
     return "monsters:\n" + "\n".join(parts)
 
 

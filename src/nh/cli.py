@@ -314,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("history")
     p.add_argument("n", nargs="?", type=int, default=30)
     sub.add_parser("reload")
+    sub.add_parser("info", help="harness memory: current branch/level, prayer log, per-level features, overview")
 
     a = ap.parse_args(argv)
 
@@ -366,6 +367,8 @@ def main(argv: list[str] | None = None) -> int:
         return _print(request(name, {"op": "history", "n": a.n}))
     if a.cmd == "reload":
         return _print(request(name, {"op": "reload"}))
+    if a.cmd == "info":
+        return _print(request(name, {"op": "info"}))
     ap.error(f"unknown command {a.cmd}")
     return 2
 
