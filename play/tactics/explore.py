@@ -67,10 +67,12 @@ def object_frontiers(s=None):
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 near.add((vx + dx, vy + dy))
+    from .nav import bad_squares
+    bad = bad_squares(s)
     out = []
     for o in s.objects:
         x, y = o["x"], o["y"]
-        if o["ch"] in "0`" or (x, y) in near:
+        if o["ch"] in "0`" or (x, y) in near or (x, y) in bad:
             continue
         if any(s.screen.at(x + dx, y + dy) == " " for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))):
             out.append((x, y))
@@ -109,13 +111,20 @@ def _pick_target(skip):
 
 
 def explore(max_legs: int = 150, skip: set | None = None):
+    """(skip: extra squares never to target; known traps and avoid() squares
+    are always skipped.)"""
+    from .nav import bad_squares
+    skip = set(skip or ()) | bad_squares()
+    return _explore(max_legs, skip)
+
+
+def _explore(max_legs: int, skip: set):
     """Travel to unexplored frontiers until none remain (or max_legs).
 
     Returns a dict: {"reason": ..., "legs": n, "unreachable": [...], "locked": [...]}.
     Inside `nh exec` it pauses like any do() on anything unusual (combat,
     big HP loss, new hostile monsters, non-routine messages). Locked doors are
     recorded and skipped (kick them yourself if needed: #force/kick)."""
-    skip = set(skip or ())
     legs = 0
     unreachable, locked = [], []
     stuck = 0
@@ -131,7 +140,21 @@ def explore(max_legs: int = 150, skip: set | None = None):
         target = _pick_target(skip)
         if target is None:
             return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages")
-        s = ctx.do(".", ok=BENIGN)
+        from .mapview import bfs_path
+        from .nav import bad_squares, travel
+        bad = bad_squares() - {target}
+        cur = ctx.last()
+        direct = bfs_path(cur, hero, target, allow_monsters=True) if (bad and hero) else None
+        if direct and any(c in bad for c in direct):
+            ctx.do("<Esc>", quiet=True)          # close the travel prompt; walk a detour instead
+            try:
+                s = travel(*target)
+            except NavError:
+                skip.add(target)
+                unreachable.append(target)
+                continue
+        else:
+            s = ctx.do(".", ok=BENIGN)
         legs += 1
         if s.state.kind != "command":
             return result(f"stopped: {s.state.kind} {s.state.prompt!r}")

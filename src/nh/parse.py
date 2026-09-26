@@ -172,6 +172,13 @@ class Menu:
     x0: int = 0          # left column of the menu window
     kind: str = "menu"   # "menu" (selectable) or "text" (--More-- text window)
 
+    def __iter__(self):
+        """Iterate over selectable items (not headers)."""
+        return iter(self.selectable())
+
+    def __len__(self):
+        return len(self.selectable())
+
     def selectable(self) -> list[MenuItem]:
         return [i for i in self.items if i.letter and not i.header]
 

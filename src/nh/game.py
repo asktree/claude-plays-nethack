@@ -170,6 +170,8 @@ class Game:
         self.getpos_active = False
         self.tracker = None   # MonsterTracker, attached by the daemon
         self.visited: dict[str, set] = {}   # level (ldesc) -> hero positions seen in command state
+        self.traps: dict[str, set] = {}     # level (ldesc) -> squares known to hold traps
+        self.avoid: dict[str, set] = {}     # level (ldesc) -> squares the player asked to avoid
 
     # ---- low level ---------------------------------------------------------
     def capture(self) -> Snap:
@@ -324,6 +326,7 @@ class Game:
                 self.hero_pos = snap.hero
                 if snap.status.ok:
                     self.visited.setdefault(snap.status.ldesc, set()).add(snap.hero)
+                    self._note_traps(snap, messages)
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -341,6 +344,26 @@ class Game:
                 except Exception:
                     pass
             return snap
+
+    _TRAP_MSG = re.compile(r"(trap|An arrow shoots out|A little dart shoots out|A trap door|A bear trap|"
+                           r"You fall into a pit|land on a set of sharp iron spikes|A board beneath you|"
+                           r"You are caught in a|A cloud of gas|You feel a wrenching|flash of light|"
+                           r"You step onto a polymorph trap|magic trap|anti-magic field|A gush of water|"
+                           r"rust trap|fire trap|A tower of flame)", re.I)
+
+    def _note_traps(self, snap: Snap, messages: list[str]) -> None:
+        """Remember trap squares per level: every displayed '^', and the hero's
+        square when a trap message fires there (objects can hide a trap)."""
+        lv = snap.status.ldesc
+        known = self.traps.setdefault(lv, set())
+        for y in range(1 + snap.state.msg_rows, 22):
+            row = snap.screen.row(y)
+            x = row.find("^")
+            while x >= 0:
+                known.add((x, y))
+                x = row.find("^", x + 1)
+        if any(self._TRAP_MSG.search(m) for m in messages) and snap.hero is not None:
+            known.add(snap.hero)
 
     def farlook(self, x: int, y: int) -> str:
         """Describe screen cell (x, y) via ';' without disturbing self.last.

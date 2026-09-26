@@ -74,6 +74,44 @@ def farlook(x, y) -> str:
     return txt
 
 
+def bad_squares(s=None) -> set:
+    """Known trap squares (incl. ones hidden under objects) + the player's
+    avoid set for the current level."""
+    s = s or ctx.last()
+    lv = s.status.ldesc
+    traps = getattr(ctx.game, "traps", {})
+    av = getattr(ctx.game, "avoid", {})
+    return set(traps.get(lv, set())) | set(av.get(lv, set()))
+
+
+def avoid(*cells):
+    """Mark squares to avoid on this level: avoid((19,6), (20,6)). Honoured by
+    travel(), explore() and walk_path(). avoid() with no args lists them."""
+    s = ctx.last()
+    if not hasattr(ctx.game, "avoid"):
+        ctx.game.avoid = {}
+    st = ctx.game.avoid.setdefault(s.status.ldesc, set())
+    for c in cells:
+        st.add(tuple(c))
+    return sorted(bad_squares(s))
+
+
+def walk_path(path, ok=None):
+    """Walk a list of cells one step at a time, verifying each arrival."""
+    s = ctx.last()
+    for cell in path:
+        h = s.hero
+        if h is None:
+            return s
+        key = DIR_KEY.get((cell[0] - h[0], cell[1] - h[1]))
+        if key is None:
+            raise NavError(f"walk_path: {cell} is not adjacent to {h}")
+        s = ctx.do(key, ok=ok if ok is not None else BENIGN)
+        if s.hero != cell:
+            return s
+    return s
+
+
 def travel(x, y, max_legs=6, max_dist=None):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
@@ -85,6 +123,17 @@ def travel(x, y, max_legs=6, max_dist=None):
         path = bfs_path(s, s.hero, (x, y), allow_monsters=True)
         if path is None or len(path) > max_dist:
             raise NavError(f"travel to {(x, y)}: path length {None if path is None else len(path)} > max_dist {max_dist}")
+    # NetHack's travel avoids traps it displays, but not traps hidden under
+    # objects or squares we chose to avoid: if the direct route crosses one,
+    # walk our own detour step by step instead.
+    bad = {c for c in bad_squares(s) if c != (x, y)}
+    if bad and s.hero is not None:
+        direct = bfs_path(s, s.hero, (x, y), allow_monsters=True)
+        if direct and any(c in bad for c in direct):
+            detour = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad), allow_monsters=False)
+            if detour is None:
+                raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
+            return walk_path(detour)
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):

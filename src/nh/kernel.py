@@ -43,6 +43,7 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You hear (some noises|a door open|the footsteps of a guard|bubbling water|water falling|the splashing|a gurgling|a slow drip|a chugging|someone counting money|the chime of a cash register|someone cursing shoplifters)",
     r"^You hear some noises in the distance",
     r"^\$ - \d+ gold pieces?\.",
+    r"^[a-zA-Z] - (?!.*\b(cursed|loadstone)\b).*\.$",   # pickup/inventory result "i - a scroll ..."
     r"^The door opens\.",
     r"^You stop in front of the door\.",
 )]

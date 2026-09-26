@@ -16,3 +16,5 @@ T:1019–1023 DL3 — mistake: my corpse finder picked a shop item and travel wa
 T:1053 DL3 — shift ended standing on `<` (19,9): HP 29/29, XL2, AC3, $19, never prayed, no pet. Food: 1 ration + candy bar.
 
 T:818 DL3 — (container restart) game restored from crash-recovered level files: everything after T:818 (shop visit, coyotes, hidden passage, finding < at 19,9) is UNDONE. Map knowledge of DL3 from the journal may still guide exploration.
+T:849 DL3 — (shift 2, restored timeline) re-found the hidden passage at (16,15)->(16,14) after 10 searches; explore() went north.
+T:858–866 DL3 — killed a sewer rat and a coyote at the corridor choke point (16,9) west of the `<` room door (17,8); re-found `<` at (19,9). Ate the fresh coyote corpse at T:875 (Not Hungry). HP 21/29.

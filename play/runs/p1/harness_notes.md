@@ -100,3 +100,15 @@ Format: step `#N` — command — expected — what happened.
 4. Pause noise: HP-loss and pet/benign messages pause even with `ok=` (#588, #591, #82); 2-3 calls per trivial fight. Need `pause_hp_below=` and a shared BENIGN default.
 5. Reprs: `Snap`/`Screen` print 35KB (#562, #593).
 6. Missing helpers: `leave_shop()` (#1253), `kick_door()`/locked-door handling in explore (#1160), `search_until_change()`, stairs/features footer (#1433), re-seen monsters counted as new (#1407).
+
+## Shift 2 (restored game from T:818; step counter restarted at #20)
+
+- `#20`->`#25` — `exec` with only info calls (`dir()`, `obs.monsters`, `frontiers()`) — expected no step advance — counter +5. Still unclear what `#N` counts; PLAYER.md should say "key sends". Low impact.
+- `#25` — `obs.monsters/objects/features/menu/hostiles()/adjacent_hostiles()` all exist in the kernel now (shift-1 #65/#79/#1217 FIXED as far as presence goes; behaviour to be verified when monsters/objects appear).
+- `#67`->`#70` — `explore(skip={(19,6)})` — expected the square (a known-to-me arrow trap under a food pile) to be avoided — explore walked straight onto it (arrow, -3 HP). Either `skip` is ignored for object frontiers (`object_frontiers()` pile at (19,6)) or travel legs path through skipped squares. BUG (medium): document what `skip` covers; ideally a kernel-level `avoid` set that both target selection and travel honour (needed for known-but-undisplayed traps, e.g. after a level restore or a trap door seen from afar).
+- `#61`->`#65` — `do('e')` then answering the parsed `[yn]` prompt from the script (`obs.kind == 'yn'`, `obs.prompt` has the full text) — worked cleanly; `obs.prompt` is exactly what a script needs. Good.
+- `#55` — `step()` paused on "new monster: coyote" mid-sequence with a clear label and the `<-- ADJACENT`/`(NEW)` markers in the monster list. Good. The monster entry dict (`ch,x,y,color,pet,dist,new,desc,statue,tame,peaceful,note`) is exactly what fight loops need.
+- `#31`/`#32` — `search_until_change(40)` returns `(True, Snap)`; Snap repr is now compact (shift-1 #562/#593 FIXED).
+- `#303`->`#305` — `do(',')` on a single-object square (inside my grab helper, resumed via `cont`) — expected the pickup to complete silently — paused on the *result* message "i - a scroll labeled ...". The confirmation of the action you just took should be benign by default for `,` (and for `e`/`q`/`r`: "You finish eating", etc.), or `do()` should take `ok=True` = "don't pause on messages produced by this key, only on HP/monsters/status". Cost: 1 extra call per pickup.
+- `#72` — `obs.menu` is a `Menu` object (`.items` of `MenuItem(letter,text,selected,header,y)`, `.page`, `.pages`) — not iterable; PLAYER.md says "list of (letter, text, selected)". Make `Menu` iterable over non-header items or fix the doc. `MenuItem.header` is handy.
+- `#77` — `inventory()` returns dicts (KeyError on `it[0]`); PLAYER.md says "(letter, text, class, buc)". Document the keys.

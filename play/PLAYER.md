@@ -37,7 +37,8 @@ monster there; never moves you). `m` + direction = move without picking up/fight
 **Coordinates** are screen positions `(x, y)` = (column, row). The map occupies rows 1–21; row 0 is the
 message line, rows 22–23 are the status lines. The rulers above the map give the column number.
 
-**Reading the output.**
+**Reading the output.** The `#N` in the header counts harness steps (keys sent), not game turns — quote it
+when reporting harness problems. Game time is `T:`.
 ```
 #12 T:345 Dlvl:3 HP:21/28 Pw:5/5 AC:4 XL:4 Exp:95 $12 Hungry [command]
 msgs: You hit the jackal. | The jackal is killed!
@@ -76,19 +77,20 @@ Available in the kernel:
 | helper | purpose |
 |---|---|
 | `do(keys, quiet=False, ok=None)` | one step; `quiet=True` = don't pause on messages (info-only keys); `ok=[regex]` = these messages don't pause |
-| `obs` | last snapshot: `obs.status.hp`, `.hpmax`, `.turn`, `.hunger`, `.conditions`, `obs.hero` (x,y), `obs.messages`, `obs.screen.at(x,y)`, `obs.kind` |
+| `obs` | last snapshot: `obs.status.hp`, `.hpmax`, `.turn`, `.hunger`, `.conditions`, `.ldesc`; `obs.hero` (x,y); `obs.messages`; `obs.kind` (`command`, `yn`, `menu`...), `obs.prompt`; `obs.screen.at(x,y)`, `obs.screen.chars` (24 strings), `obs.screen.dump()`; `obs.monsters` (dicts: ch,x,y,color,dist,desc,note,new,tame,peaceful,statue,pet), `obs.hostiles(radius)`, `obs.adjacent_hostiles()`; `obs.objects` (ch,x,y,kind,pile,color,dist); `obs.features` (name,x,y: stairs, fountain, altar, doors, traps...); `obs.menu` (iterate it for selectable items: `.letter`, `.text`, `.selected`; `.page`/`.pages`) |
 | `look()` | re-read the screen without acting |
 | `travel(x, y)` | NetHack's travel command to a known map spot (stops when something happens) |
 | `travel_to('>')` | travel to the nearest `>` (or any map symbol); `go_down()` / `go_up()` travel + use stairs |
 | `explore()` | auto-explore this level using the game's own unexplored-frontier data; pauses on events; returns a summary (e.g. `explored (no reachable frontier left)` → search for secret doors or move on) |
 | `frontiers()` | list unexplored frontier spots, nearest first |
 | `farlook(x, y)` | describe what is at (x,y) (no game time) |
-| `inventory()` / `inventory_text()` | parsed inventory (letter, text, class, buc) |
+| `inventory()` / `inventory_text()` | parsed inventory: list of dicts with keys `letter`, `text`, `class`, `buc` |
 | `here()` | what's on the floor here (`:`) |
 | `search(n)`, `rest(n)` | count-prefixed search / rest (interrupted by events) |
 | `elbereth()` | engrave Elbereth in the dust; `engraving_here()` reads it back |
 | `pray()` | pray (handles the confirmation). Read §3 first! |
 | `step(dir, n)` | move n squares one at a time |
+| `avoid((x,y), ...)`, `bad_squares()`, `walk_path(cells)` | mark squares to avoid on this level (known traps — even ones hidden under objects — are remembered automatically); `travel()`/`explore()` detour around them |
 | `pause(reason)` | hand control back to yourself from inside a script |
 | `mon('soldier ant')` | monster stats (level, speed, attacks, resistances, corpse benefits) + danger note |
 | `corpse('killer bee', age=0, poison_res=False)` | is this corpse safe for us to eat? (SAFE/RISKY/DEADLY/NEVER + benefits) |
