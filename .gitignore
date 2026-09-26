@@ -26,3 +26,4 @@ play/secrets/
 # fetch caches (wiki raw pages etc.)
 .cache/
 knowledge/wiki/
+.claude/settings.local.json

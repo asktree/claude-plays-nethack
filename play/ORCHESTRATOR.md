@@ -26,7 +26,9 @@ ascension, and both of its deaths), `docs/research/servers.md` §2 and §4–5 (
 ## 1. One-time setup on this machine
 
 ```
-scripts/setup.sh                     # tmux, ssh, Python >= 3.10, .venv, unit tests
+scripts/setup.sh --allow-harness     # tmux, ssh, Python >= 3.10, .venv, unit tests; and pre-approves
+                                     # the harness commands for Claude Code on this machine only
+                                     # (.claude/settings.local.json, not committed)
 scripts/build_nethack.sh             # optional: local 3.6.7 for practice games
 ```
 Create `play/secrets/hardfought.json` (the human provides the email):
