@@ -20,3 +20,5 @@ from tactics.explore import explore, frontiers  # noqa: E402,F401
 from tactics.survival import elbereth, engraving_here, pray, rest, search  # noqa: E402,F401
 from tactics import sokoban  # noqa: E402,F401  (sokoban.push(x, y, 'hhk'), sokoban.board())
 from tactics.info import corpse, mon, obj, price_candidates, wiki, wiki_page  # noqa: E402,F401
+from tactics.nav import kick_door  # noqa: E402,F401
+from tactics.explore import object_frontiers, search_until_change  # noqa: E402,F401

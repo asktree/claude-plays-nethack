@@ -32,3 +32,71 @@ Format: step `#N` — command — expected — what happened.
 - `#329` — `explore()` — paused on "You stop. | Your kitten is in the way!" — benign; add to BENIGN.
 - `#329` — `explore(max_legs=40)` default is low: it stopped at "max_legs reached" mid-level with no event.
   Suggest default ~150 or return only on events/frontier exhaustion.
+- `#562` — `obs` monsters list while a `[yn]` prompt was open — showed `f white PET? at (23,3)` instead of
+  `tame kitten`. Understandable (farlook can't run inside a prompt) but the label should say why, e.g.
+  `f (unidentified: prompt open)`; "white PET?" reads like a parser bug.
+- `#562` — `print(obs.screen)` in exec — the Screen repr is ~34KB (all chars + attributes); it blew the output
+  into a persisted file. Give Screen a compact `__repr__`/`__str__` (the 24 lines) and an explicit
+  `.dump()` for the full thing. `obs.screen.chars` (list of 24 strings) is what I actually wanted — document it.
+- `#560` — my own `grab()` picked up a large box blindly (350 wt). Wish: `here()`-style peek before pickup, or a
+  `pickup(x,y, exclude=...)` helper that refuses boxes/chests/boulders and warns on cockatrice corpses.
+- `#569` — `#loot` flow — worked cleanly through exec (`yn` -> menu -> menu -> menu), and the MENU rendering in
+  the CLI output is clear. Good.
+- `#588`, `#591` — fight loop vs a newt — three tool calls for one newt: pause on `HP 17->15` (even though the
+  step had `ok=` patterns), then pause on "The kitten eats a newt corpse". FEATURE REQUEST (high): let `do()`
+  take `hp_floor=N` (pause on HP loss only when HP < N or a single hit >= X), and treat pet eating/picking up
+  as benign by default. Against a real threat the HP pause is right; against newts it burns the call budget.
+- `#593`+ — `print(travel(...))` — the return value is a `Snap` whose repr embeds the whole Screen (35KB). Same
+  fix as above: compact reprs. Helpers returning Snap should document it (PLAYER.md says travel "stops when
+  something happens" but not what it returns).
+- `#889`→`#892` — `explore()` then `cont` — BUG: explore keeps re-issuing the same travel leg into a boulder
+  ("A boulder blocks your path", T stays 634, step count rises). It never marks the leg failed. Expected:
+  treat "blocks your path"/"in vain" as leg failure, add the square to `unreachable`/`skip`, try pushing the
+  boulder once with a plain move, or return. Also: "A boulder blocks your path" comes from the travel command,
+  so travel-based helpers can't push boulders at all; document that and offer `push(dir)`.
+- `#1160` — `explore()` — paused with "This door is locked." instead of handling it (the result dict has a
+  `locked` list, so it seems intended). Suggest: on a locked door, explore records it and moves to the next
+  frontier, and offers `kick_door(x,y)`. My manual kick loop worked (2 kicks).
+- `#1166` — `explore()` stepped onto an unseen trap door right behind the kicked door -> fell to DL3. Not a
+  harness bug, but the pause label was good ("level: Dlvl:2 -> Dlvl:3"). Wish: after a level change, the
+  harness could print the full map automatically instead of the crop (nothing is known yet anyway).
+- `#1219` — `do('dk')` in a shop (sell offer) — BUG (high): the message "You drop a scroll... | Annootok offers
+  10 gold pieces for your scroll labeled ZELGO MER. | Sell it? [ynaq] (y)" wrapped onto screen row 1. The
+  harness then (a) reported `[command]` although a yn prompt was open, (b) parsed the wrapped text "aq] (y)"
+  as monsters `a`, `q`, `y` on row 1 ("new monster in view: @,a,q,y" pause), (c) put the hero at the cursor
+  (8,1) and listed my real `@` as a "white" monster. Expected: detect wrapped message lines (row 1 used by
+  the message window / --More--) and exclude them from the map parse; detect the `[ynaq]` prompt even when
+  wrapped. In a real game a false "hero at (8,1)" could make a helper walk into something.
+- `#1217` — pickup in a shop — the "Pick up what?" menu lines are overlaid on the map rows, so a menu parser
+  must `search`, not `match`, from the line start. A kernel `obs.menu` (list of (letter, text, selected)) would
+  avoid every script re-parsing the screen; the CLI already prints the parsed menu, so expose it.
+- `#1253` — `explore()` from inside a shop — "Annootok blocks your path" pause: travel can't pass a peaceful on
+  the exit square and explore doesn't know to wait. Wish: `leave_shop()` (wait for the shk to move off the
+  door-side square, then step out), and explore treating "X blocks your path" as "wait 1-2 turns, retry".
+- `#1274` — `explore()` after finding a hidden passage — BUG (high): returned "explored (no reachable frontier
+  left), legs 0" although a freshly found corridor led north from (16,14). The corridor square held a coyote
+  corpse (`%`), so the frontier finder apparently doesn't count object-covered squares as passable. Objects on
+  corridors/doorways are common; the frontier logic should use the remembered terrain (or NLE glyph layers /
+  `seenv`), not the top-most screen character. Same likely applies to `$`, `)` etc. on corridors.
+- `#1269` — `search(15)` — worked and paused correctly on "You find a hidden passage". Good. A `search_until_change(max_turns)`
+  helper (stop when the map gains squares) would save a call or two.
+- `#1407` — `do('s')` while a coyote stepped back into view — "new monster in view: d" pause fired for a monster
+  I had already seen (it left line of sight for a turn). Suggest tracking seen monsters per level for ~20
+  turns so re-appearances don't pause (or pause only if it is adjacent/approaching).
+- `#1433` — map now shows two `>` on DL3 (Mines branch). Wish: the `obs` footer could list stairs/features
+  (`< (19,9)  > (29,16)  > (46,18)  fountain ...`) and `<C-o>`-style branch info; I had to read them off the map.
+- General: the CLI's per-call header (`#N T:.. HP..`) is excellent; `[exec PAUSED] <reason>` labels are clear.
+  The cost model is the problem: nearly every trivial fight took 2-3 tool calls because of HP-loss and pet/
+  benign-message pauses. A `do(..., pause_hp_below=N)` knob and a broader BENIGN default would roughly halve
+  the calls per level.
+- `#1436` — my kernel `objects()` helper listed shop stock as loot and a `travel()` walked me 49 turns back into
+  the shop (my bug, but instructive): a harness-provided object list should carry `for_sale`/shop-square flags,
+  and `travel()` should take `max_turns=` so one bad target can't burn 50 turns silently.
+
+## Ranked summary (what would matter most in a real game)
+1. Wrapped message/prompt lines misparsed as map + `[command]` while a `[ynaq]` prompt is open (#1219). Could make a script act on a phantom map / send keys into a prompt.
+2. `explore()` frontier ignores corridor squares covered by objects (#1274) and loops forever on boulders (#889); default `max_legs=40` stops mid-level (#210).
+3. No `obs.monsters` / `obs.objects` / `obs.menu` in the kernel (#65, #79, #1217): every safe loop has to re-parse the screen; coordinates were miscounted twice by hand from the cropped ruler.
+4. Pause noise: HP-loss and pet/benign messages pause even with `ok=` (#588, #591, #82); 2-3 calls per trivial fight. Need `pause_hp_below=` and a shared BENIGN default.
+5. Reprs: `Snap`/`Screen` print 35KB (#562, #593).
+6. Missing helpers: `leave_shop()` (#1253), `kick_door()`/locked-door handling in explore (#1160), `search_until_change()`, stairs/features footer (#1433), re-seen monsters counted as new (#1407).

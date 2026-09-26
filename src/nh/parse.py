@@ -189,6 +189,7 @@ class State:
     default: str = ""    # for yn: default answer
     menu: Menu | None = None
     more_text: str = ""  # message text shown with --More--
+    msg_rows: int = 0    # extra screen rows (1..n) covered by a wrapped message/prompt
 
 
 _YN = re.compile(r"\[(?P<choices>[A-Za-z0-9\-#$ ]+)\](?:\s*\((?P<default>.)\))?\s*$")
@@ -265,35 +266,77 @@ def classify(scr: Screen) -> State:
             menu.page, menu.pages = int(m.group("page")), int(m.group("pages"))
         return State("menu", menu=menu, prompt=menu.title)
 
-    # prompts on the message line
+    # prompts on the message line. Long prompts/messages word-wrap onto rows
+    # 1..n (tty update_topl), and the cursor then sits after the text on the
+    # last of those rows -- NOT on the hero. A blank cell under a cursor that
+    # is near the top of the map means we're looking at such a wrapped prompt.
+    prompt_text = None
+    msg_rows = 0
     if cy == 0:
-        if any(h in top for h in GAMEOVER_HINTS):
-            m = _YN.search(top)
-            return State("gameover", prompt=top, choices=m.group("choices") if m else "",
-                         default=(m.group("default") or "") if m else "")
-        if top.startswith("#"):
-            return State("extcmd", prompt=top)
-        if top.startswith("Count:"):
-            return State("count", prompt=top)
-        if "In what direction?" in top or top.endswith("in what direction?"):
-            return State("direction", prompt=top)
-        m = _YN.search(top)
-        if m and re.fullmatch(r"[yYnNaAq\-#0-9 ]+|[a-zA-Z]{1,6}", m.group("choices").replace(" ", "")) \
-                and not top.startswith("What do you want") and "or ?*" not in top:
-            return State("yn", prompt=top, choices=m.group("choices"), default=m.group("default") or "")
-        m = _OBJ.search(top)
-        if m:
-            return State("object", prompt=top, choices=m.group("choices"))
-        return State("getlin", prompt=top)
+        prompt_text = top
+    elif 1 <= cy <= 4 and scr.at(cx, cy) == " " and len(top) >= 30 \
+            and scr.row(cy)[:cx].strip() and _texty(scr.row(cy)[:cx]):
+        prompt_text = " ".join([scr.row(r).rstrip() for r in range(0, cy)] + [scr.row(cy)[:cx].rstrip()])
+        msg_rows = cy
+    if prompt_text is not None:
+        st = _classify_prompt(prompt_text)
+        st.msg_rows = msg_rows
+        return st
 
     if MAP_TOP <= cy <= MAP_BOTTOM:
         if any(h in top for h in GETPOS_HINTS):
             return State("getpos", prompt=top)
-        return State("command", prompt=top)
+        st = State("command", prompt=top)
+        # a long final message can stay wrapped over the top map rows
+        if len(top) >= 50:
+            r = 1
+            while r <= 3 and r != cy and _texty(scr.row(r)):
+                r += 1
+            st.msg_rows = r - 1
+        return st
 
     if "Do you want your possessions identified?" in full or "REST IN PEACE" in full:
         return State("gameover", prompt=top)
     return State("unknown", prompt=top)
+
+
+_WORDS = re.compile(r"[A-Za-z']{3,} [A-Za-z']{2,}")
+
+
+def _texty(row: str) -> bool:
+    """Does this screen row look like English text (a wrapped message) rather
+    than map? Maps have walls/corridors and rarely two adjacent words."""
+    t = row.strip()
+    if not t or "|" in t or "--" in t or "##" in t:
+        return False
+    if not _WORDS.search(t):
+        return False
+    good = sum(1 for c in t if c.isalpha() or c in " ,.'!?()[]-:;\"")
+    return good / len(t) > 0.85
+
+
+def _classify_prompt(text: str) -> State:
+    t = text.rstrip()
+    if any(h in t for h in GAMEOVER_HINTS):
+        m = _YN.search(t)
+        return State("gameover", prompt=t, choices=m.group("choices") if m else "",
+                     default=(m.group("default") or "") if m else "")
+    if t.startswith("#"):
+        return State("extcmd", prompt=t)
+    if t.startswith("Count:"):
+        return State("count", prompt=t)
+    if "In what direction?" in t or t.endswith("in what direction?"):
+        return State("direction", prompt=t)
+    if "[yes/no]" in t:
+        return State("yn", prompt=t, choices="yes/no", default="")
+    m = _YN.search(t)
+    if m and re.fullmatch(r"[yYnNaAq\-#0-9 ]+|[a-zA-Z]{1,6}", m.group("choices").replace(" ", "")) \
+            and not t.startswith("What do you want") and "or ?*" not in t:
+        return State("yn", prompt=t, choices=m.group("choices"), default=m.group("default") or "")
+    m = _OBJ.search(t)
+    if m:
+        return State("object", prompt=t, choices=m.group("choices"))
+    return State("getlin", prompt=t)
 
 
 def _menu_end_positions(scr: Screen):

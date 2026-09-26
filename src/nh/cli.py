@@ -180,6 +180,29 @@ def cmd_start_remote(a) -> int:
     return _print(request(name, {"op": "screen"}))
 
 
+def cmd_restart(a) -> int:
+    """Relaunch the game process for an existing game (after a crash, a hangup,
+    or a container restart). Local: NetHack restores the save. Remote: opens a
+    new ssh session to the server lobby."""
+    name = current_game(a.name or a.game)
+    meta = load_meta(name)
+    d = game_dir(name)
+    from .tmuxterm import TmuxTerminal
+    term = TmuxTerminal(meta["tmux_session"], d / "raw.log", width=meta.get("width", 80),
+                        height=meta.get("height", 24))
+    if term.exists():
+        scr = term.capture()
+        if not scr.dead and not a.force:
+            raise SystemExit(f"{meta['tmux_session']} is still running; use `nh daemon {name}` to reattach "
+                             "(or --force to kill and relaunch)")
+        term.kill()
+    term.start(meta["command"], env=meta.get("env"), cwd=str(d))
+    set_current(name)
+    spawn_daemon(name)
+    print(f"relaunched {name}")
+    return _print(request(name, {"op": "obs", "mode": "full"}))
+
+
 def cmd_daemon(a) -> int:
     name = current_game(a.name or a.game)
     meta = load_meta(name)
@@ -273,6 +296,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("daemon")
     p.add_argument("name", nargs="?")
 
+    p = sub.add_parser("restart", help="relaunch the game process (restores the save)")
+    p.add_argument("name", nargs="?")
+    p.add_argument("--force", action="store_true")
+
     p = sub.add_parser("use")
     p.add_argument("name")
 
@@ -299,6 +326,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-a", "--autocontinue", action="append", default=[],
                    help="regex; matching messages don't pause (repeatable)")
     p.add_argument("--no-monsters", action="store_true", help="don't pause on new monsters")
+    p.add_argument("--hp-pause", type=float, default=None,
+                   help="pause on HP loss only below this fraction of max HP (default 0.7; big hits always pause)")
     p.add_argument("--full", action="store_true")
     p.add_argument("--brief", action="store_true")
 
@@ -324,6 +353,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_start_remote(a)
     if a.cmd == "daemon":
         return cmd_daemon(a)
+    if a.cmd == "restart":
+        return cmd_restart(a)
     if a.cmd == "use":
         load_meta(a.name)
         set_current(a.name)
@@ -355,7 +386,8 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "exec":
         code = _read_code(a.code)
         return _print(request(name, {"op": "exec", "code": code, "autocontinue": a.autocontinue,
-                                     "monsters": not a.no_monsters, "mode": mode_of(a)}))
+                                     "monsters": not a.no_monsters, "hp_pause": a.hp_pause,
+                                     "mode": mode_of(a)}))
     if a.cmd == "cont":
         return _print(request(name, {"op": "cont", "reply": a.reply, "autocontinue": a.autocontinue,
                                      "mode": mode_of(a)}))

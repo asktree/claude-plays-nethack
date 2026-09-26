@@ -35,6 +35,13 @@ class Screen:
     dead: bool = False               # the pane's process exited
     t: float = 0.0                   # capture time (time.time())
 
+    def __repr__(self) -> str:
+        return f"<Screen {self.width}x{self.height} cursor={self.cursor}{' DEAD' if self.dead else ''}>"
+
+    def dump(self) -> str:
+        """The screen as text with row numbers (for printing)."""
+        return "\n".join(f"{y:>2}|{r.rstrip()}" for y, r in enumerate(self.chars))
+
     # ---- basic accessors -------------------------------------------------
     def row(self, y: int) -> str:
         return self.chars[y] if 0 <= y < self.height else ""

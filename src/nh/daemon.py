@@ -38,6 +38,7 @@ class Daemon:
         self.game = Game(self.term, timing, log_path=self.dir / "events.jsonl")
         self.kernel = Kernel(self.game)
         self.tracker = MonsterTracker(self.game)
+        self.game.tracker = self.tracker
         self.memory = Tracker(self.game, self.dir / "harness_state.json")
         self.game.on_step.append(self.memory.on_step)
         # make repo-level tactic/view packages importable in the kernel
@@ -59,19 +60,14 @@ class Daemon:
                 self.game.log_event({"ev": "boot_error", "tb": traceback.format_exc()})
 
     def render(self, snap, mode="crop") -> str:
-        mons = None
         if snap is not None and snap.state.kind == "command" and self.memory.need_overview \
                 and not self.kernel.busy():
             try:
                 self.memory.refresh_overview()
             except Exception as e:  # noqa: BLE001
                 self.game.log_event({"ev": "overview_error", "err": repr(e)})
-        if snap is not None and snap.state.kind == "command":
-            try:
-                mons = self.tracker.update(snap)
-            except Exception as e:  # noqa: BLE001
-                self.game.log_event({"ev": "tracker_error", "err": repr(e)})
-        text = render.render(snap, mode=mode, mons=mons, hero=self.game.hero_pos)
+        text = render.render(snap, mode=mode, mons=snap.monsters if snap is not None else None,
+                             hero=self.game.hero_pos)
         where = self.memory.state.get("current_level")
         if where and mode != "brief":
             text = text.replace("\n", f"\nwhere: {where}\n", 1)
@@ -100,7 +96,7 @@ class Daemon:
             return {"ok": True, "text": self.render(snap, mode=mode)}
         if op == "exec":
             out = self.kernel.start_exec(req["code"], autocontinue=req.get("autocontinue"),
-                                         monsters=req.get("monsters", True))
+                                         monsters=req.get("monsters", True), hp_pause=req.get("hp_pause"))
             return {"ok": out["status"] in ("done", "paused"), "text": _fmt_exec(out, mode, self.render)}
         if op == "cont":
             out = self.kernel.cont(reply=req.get("reply"), autocontinue=req.get("autocontinue"))

@@ -30,6 +30,24 @@ from .parse import MAP_BOTTOM, MAP_TOP, MONSTER_CHARS, HUNGER, ENCUMBRANCE
 _HUNGER_RANK = {"": 0, "Satiated": 0, "Hungry": 1, "Weak": 2, "Fainting": 3, "Fainted": 4}
 
 
+# Messages that never need a human look by themselves (pets, routine
+# noises). They're still shown in the output; they just don't pause an exec.
+DEFAULT_BENIGN = [re.compile(p) for p in (
+    r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) ",
+    r"^You swap places with ",
+    r"^You stop\. .* is in your way",
+    r"^You move .* out of your way",
+    r"^You see here ",
+    r"^You see no objects here",
+    r"^There (is|are) (a|an|several|many|\d+) .* here\.?$",
+    r"^You hear (some noises|a door open|the footsteps of a guard|bubbling water|water falling|the splashing|a gurgling|a slow drip|a chugging|someone counting money|the chime of a cash register|someone cursing shoplifters)",
+    r"^You hear some noises in the distance",
+    r"^\$ - \d+ gold pieces?\.",
+    r"^The door opens\.",
+    r"^You stop in front of the door\.",
+)]
+
+
 class Abandon(BaseException):
     """Raised inside a parked worker to unwind it."""
 
@@ -98,6 +116,8 @@ class Kernel:
         self.abandon_flag = False
         self.autocontinue: list[re.Pattern] = []
         self.pause_on_monsters = True
+        self.hp_pause = 0.7        # pause on HP loss when HP < this fraction of max...
+        self.hp_hit_pause = 0.15   # ...or when one step costs >= this fraction of max
         self.budget_steps = 400
         self.budget_seconds = 110.0
         self._steps = 0
@@ -178,13 +198,17 @@ class Kernel:
         extra = [re.compile(p) if isinstance(p, str) else p for p in (ok or [])]
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
-                and not any(p.search(m) for p in extra)]
+                and not any(p.search(m) for p in extra)
+                and not any(p.search(m) for p in DEFAULT_BENIGN)]
         if msgs and not quiet:
             reasons.append("message")
         if before is not None and before.status.ok and snap.status.ok:
             b, a = before.status, snap.status
             if a.hp < b.hp:
-                reasons.append(f"HP {b.hp}->{a.hp}")
+                big_hit = (b.hp - a.hp) >= max(4, self.hp_hit_pause * max(1, a.hpmax))
+                low = a.hp < self.hp_pause * max(1, a.hpmax)
+                if big_hit or low:
+                    reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}")
             new_conds = [c for c in a.conditions if c not in b.conditions]
             if new_conds:
                 reasons.append("status: +" + ",".join(new_conds))
@@ -196,9 +220,15 @@ class Kernel:
                 reasons.append(f"level: {b.ldesc} -> {a.ldesc}")
             if a.xl != b.xl:
                 reasons.append(f"XL {b.xl}->{a.xl}")
-        if self.pause_on_monsters and before is not None and snap.state.kind == "command":
-            prev = monster_counts(before) if before.state.kind == "command" else None
-            if prev is not None:
+        if self.pause_on_monsters and snap.state.kind == "command":
+            if snap.monsters:
+                new = [m for m in snap.monsters if m.get("new") and not m.get("statue")
+                       and not m.get("tame") and not m.get("peaceful")]
+                if new:
+                    reasons.append("new monster: " + ", ".join(
+                        f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))
+            elif before is not None and before.state.kind == "command" and self.game.tracker is None:
+                prev = monster_counts(before)
                 now = monster_counts(snap)
                 new = [f"{ch}" for (ch, col, rev), n in now.items() if n > prev.get((ch, col, rev), 0) and not rev]
                 if new:
@@ -228,10 +258,11 @@ class Kernel:
         return self.worker is not None and self.worker.is_alive()
 
     def start_exec(self, code: str, autocontinue: list[str] | None = None,
-                   monsters: bool = True) -> dict:
+                   monsters: bool = True, hp_pause: float | None = None) -> dict:
         self.drop()
         self.autocontinue = [re.compile(p) for p in (autocontinue or [])]
         self.pause_on_monsters = monsters
+        self.hp_pause = 0.7 if hp_pause is None else float(hp_pause)
         self.code_counter += 1
         fname = f"<exec-{self.code_counter}>"
         linecache.cache[fname] = (len(code), None, code.splitlines(True), fname)

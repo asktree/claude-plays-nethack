@@ -49,6 +49,44 @@ class Snap:
     n: int = 0              # global step counter
     unsent: str = ""        # keys NOT sent because the game state made them unsafe
     stop_reason: str = ""
+    monsters: list = field(default_factory=list)   # set by the MonsterTracker (command state)
+
+    def __repr__(self) -> str:
+        st = self.status.short() if self.status.ok else "?"
+        return (f"<Snap #{self.n} {self.state.kind} {st} hero={self.hero} "
+                f"msgs={self.messages!r}{' PROMPT=' + repr(self.state.prompt) if self.state.kind != 'command' else ''}>")
+
+    @property
+    def objects(self) -> list:
+        """Object glyphs on the map: [{ch, x, y, kind, pile, color, dist}]."""
+        from .mapscan import objects_in_view
+        return objects_in_view(self)
+
+    @property
+    def features(self) -> list:
+        """Stairs, fountains, altars, doors, traps, water... [{ch, x, y, name, dist}]."""
+        from .mapscan import features_in_view
+        return features_in_view(self)
+
+    @property
+    def menu(self):
+        """Parsed menu/text window (items with letter/text/selected/header) or None."""
+        return self.state.menu
+
+    def hostiles(self, radius: int | None = None) -> list:
+        """Monsters that are not tame/peaceful/statues, optionally within radius."""
+        out = []
+        for m in self.monsters:
+            d = m.get("desc", "")
+            if m.get("statue") or m.get("pet") or d.startswith("tame ") or d.startswith("peaceful "):
+                continue
+            if radius is not None and (m.get("dist") is None or m["dist"] > radius):
+                continue
+            out.append(m)
+        return out
+
+    def adjacent_hostiles(self) -> list:
+        return self.hostiles(radius=1)
 
     @property
     def kind(self) -> str:
@@ -130,6 +168,8 @@ class Game:
         # (autodescribe rewrites the top line), so we track it: set when a
         # position prompt appears, cleared by a pick key or ESC.
         self.getpos_active = False
+        self.tracker = None   # MonsterTracker, attached by the daemon
+        self.visited: dict[str, set] = {}   # level (ldesc) -> hero positions seen in command state
 
     # ---- low level ---------------------------------------------------------
     def capture(self) -> Snap:
@@ -276,6 +316,13 @@ class Game:
             snap.n = self.n
             if snap.hero is not None:
                 self.hero_pos = snap.hero
+                if snap.status.ok:
+                    self.visited.setdefault(snap.status.ldesc, set()).add(snap.hero)
+            if self.tracker is not None and snap.state.kind == "command":
+                try:
+                    snap.monsters = self.tracker.update(snap)
+                except Exception as e:  # noqa: BLE001
+                    self.log_event({"ev": "tracker_error", "err": repr(e)})
             for m in messages:
                 self.history.append((snap.status.turn, m))
             if len(self.history) > self.max_history:
@@ -335,6 +382,11 @@ class Game:
                 snap.messages = []
             if snap.hero is not None:
                 self.hero_pos = snap.hero
+            if self.tracker is not None and snap.state.kind == "command":
+                try:
+                    snap.monsters = self.tracker.update(snap)
+                except Exception as e:  # noqa: BLE001
+                    self.log_event({"ev": "tracker_error", "err": repr(e)})
             self.last = snap
             return snap
 

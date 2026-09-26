@@ -21,7 +21,9 @@ def header(snap: Snap) -> str:
 
 
 def ruler(x0: int, x1: int, indent: int = 4) -> str:
-    tens = "".join(str((x // 10) % 10) if x % 10 == 0 else " " for x in range(x0, x1))
+    """Two-row column ruler: tens digit and ones digit for EVERY column, so a
+    column number can be read directly above any cell (e.g. 4/7 -> x=47)."""
+    tens = "".join(str((x // 10) % 10) for x in range(x0, x1))
     ones = "".join(str(x % 10) for x in range(x0, x1))
     pad = " " * indent
     return f"{pad}{tens}\n{pad}{ones}"
@@ -38,35 +40,8 @@ def map_block(snap: Snap, x0: int = 0, x1: int = 80, y0: int = MAP_TOP, y1: int 
 
 
 def monsters_in_view(snap: Snap, radius: int | None = None, hero=None) -> list[dict]:
-    """Letters on the map other than the hero, with color and pet highlight.
-    Only meaningful when no menu/text window overlays the map."""
-    scr = snap.screen
-    if snap.state.kind in ("menu", "text", "more", "dgl", "gameover", "unknown"):
-        return []
-    hero = snap.hero or hero
-    res = []
-    for y in range(MAP_TOP, MAP_BOTTOM + 1):
-        row = scr.row(y)
-        for x, ch in enumerate(row):
-            if ch not in MONSTER_CHARS:
-                continue
-            if hero and (x, y) == hero:
-                continue
-            # ':' ';' '~' and '@' are monsters but ':' may also be a dog? keep all
-            d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
-            if radius is not None and d is not None and d > radius:
-                continue
-            col = scr.color_at(x, y)
-            ent = {"ch": ch, "x": x, "y": y, "color": COLOR_NAMES[col] if 0 <= col < 16 else str(col),
-                   "pet": scr.reverse_at(x, y), "dist": d}
-            if _glyphs is not None:
-                try:
-                    ent["maybe"] = _glyphs.monster_candidates(ch, col)[:4]
-                except Exception:
-                    pass
-            res.append(ent)
-    res.sort(key=lambda e: (e["dist"] if e["dist"] is not None else 99, e["y"], e["x"]))
-    return res
+    from .mapscan import monsters_in_view as _miv
+    return _miv(snap, radius, hero)
 
 
 def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None = None) -> str:
@@ -85,6 +60,8 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
             maybe = f" ~{'/'.join(m['maybe'])}" if m.get("maybe") else ""
             who = f"{m['color']}{tag}{maybe}"
         adj = "  <-- ADJACENT" if m["dist"] == 1 else ""
+        if m.get("new"):
+            adj += "  (NEW)"
         note = f"\n      !! {m['note']}" if m.get("note") else ""
         parts.append(f"  {m['ch']} {who} at ({m['x']},{m['y']}) d={m['dist']}{adj}{note}")
     return "monsters:\n" + "\n".join(parts)
@@ -132,11 +109,22 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append(map_block(snap, x0, x1, y0, y1))
     if h is not None:
         lines.append(f"you @ ({h[0]},{h[1]})  [coords are (x=col, y=row)]")
-    if mons is None:
+    if mons is None or (not mons and snap.state.kind != "command"):
         mons = monsters_in_view(snap, None, hero=h)
     ml = monsters_line(snap, radius=None if mode == "full" else 2 * radius, mons=mons)
     if ml:
         lines.append(ml)
+    lim = None if mode == "full" else 2 * radius
+    objs = [o for o in snap.objects if lim is None or (o["dist"] is not None and o["dist"] <= lim)]
+    if objs:
+        lines.append("objects: " + "; ".join(
+            f"{o['ch']} {o['kind']}{' (pile)' if o['pile'] else ''} ({o['x']},{o['y']})" for o in objs[:14])
+            + (f"; ... {len(objs) - 14} more" if len(objs) > 14 else ""))
+    feats = [f for f in snap.features if lim is None or (f["dist"] is not None and f["dist"] <= lim)
+             or f["name"] in ("up stairs", "down stairs")]
+    if feats:
+        lines.append("features: " + "; ".join(f"{f['name']} ({f['x']},{f['y']})" for f in feats[:16])
+                     + (f"; ... {len(feats) - 16} more" if len(feats) > 16 else ""))
     return "\n".join(lines)
 
 

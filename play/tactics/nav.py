@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from . import ctx
-from .mapview import DIR_KEY, dist, find, nearest
+from .benign import BENIGN
+from .mapview import DIR_KEY, bfs_path, dist, find, nearest
 
 
 class NavError(Exception):
@@ -73,11 +74,17 @@ def farlook(x, y) -> str:
     return txt
 
 
-def travel(x, y, max_legs=6):
+def travel(x, y, max_legs=6, max_dist=None):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
-    progress. Returns the final snap."""
+    progress. Returns the final Snap (check .hero, .messages).
+    max_dist: refuse (NavError) if the known-map path is longer than this —
+    a guard against burning many turns on a far-away target."""
     s = ctx.last()
+    if max_dist is not None and s.hero is not None:
+        path = bfs_path(s, s.hero, (x, y), allow_monsters=True)
+        if path is None or len(path) > max_dist:
+            raise NavError(f"travel to {(x, y)}: path length {None if path is None else len(path)} > max_dist {max_dist}")
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):
@@ -86,7 +93,7 @@ def travel(x, y, max_legs=6):
         if s.state.kind != "getpos":
             return s
         cursor_to(x, y)
-        s = ctx.do(".")
+        s = ctx.do(".", ok=BENIGN)
         if s.state.kind != "command":
             return s
         h1 = s.hero
@@ -130,3 +137,22 @@ def go_down():
 def go_up():
     s = travel_to("<")
     return ctx.do("<")
+
+
+def kick_door(x, y, tries: int = 8):
+    """Kick the (adjacent) door at (x, y) until it opens/breaks. Never do this
+    to shop doors (angers the shopkeeper) or in Minetown (angers the Watch)."""
+    s = ctx.last()
+    h = s.hero
+    if h is None or max(abs(x - h[0]), abs(y - h[1])) != 1:
+        raise NavError(f"kick_door: {(x, y)} is not adjacent to you at {h}")
+    key = DIR_KEY[(x - h[0], y - h[1])]
+    for _ in range(tries):
+        s = ctx.do("<C-d>", quiet=True)
+        if s.state.kind != "direction":
+            return s
+        s = ctx.do(key, ok=[r"^WHAMM", r"crashes open", r"^As you kick the door, it (crashes|shatters)"])
+        text = " ".join(s.messages)
+        if "crashes open" in text or "shatters" in text or "breaks" in text or ctx.last().screen.at(x, y) != "+":
+            return s
+    return s

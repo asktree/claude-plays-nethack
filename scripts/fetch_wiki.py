@@ -71,18 +71,21 @@ LICENSE_LINE = ("CC BY-SA 3.0, NetHackWiki contributors; converted to plain text
 # ----------------------------------------------------------------------------
 # Page plan: what to fetch and how INDEX.md groups it.
 #
-# Curated pages are (title, gist). Titles use the 3.6-era names; redirects and
-# page moves are resolved automatically. A gist of "" means "auto-generate from
-# the page's first sentence".
+# Curated pages are (title, gist[, wiki title]). Titles use the 3.6-era names;
+# redirects and page moves are resolved automatically. A gist of "" means
+# "auto-generate from the page's first sentence". The optional third element
+# names the wiki page when the plain title is a disambiguation page.
 # ----------------------------------------------------------------------------
 
 STRATEGY = [
     ("General strategy (start here)", [
         ("Standard strategy", "Canonical game plan from turn 1 to ascension, with milestones"),
         ("Game stages", "Early/mid/late game goals and what to do at each stage"),
-        ("Why do I keep dying?", "Beginner's guide to the most common deaths and how to avoid them"),
+        ("Why do I keep dying?",
+         "Beginner's guide to the most common deaths and how to avoid them"),
         ("Yet Another Stupid Death", "Catalogue of avoidable deaths (YASDs) and their lessons"),
-        ("Things To Do If You're Going to Die Next Turn", "Emergency checklist: pray, quaff, zap, Elbereth, escape"),
+        ("Things To Do If You're Going to Die Next Turn",
+         "Emergency checklist: pray, quaff, zap, Elbereth, escape"),
         ("Player's misconceptions", "Popular myths about NetHack mechanics, corrected"),
         ("Role difficulty", "Which roles are easiest; Valkyrie is the easiest to win with"),
         ("Ascension kit", "The standard set of items/intrinsics you want before the endgame"),
@@ -99,14 +102,16 @@ STRATEGY = [
         ("Nurse dancing", "Raising max HP by letting nurses 'heal' you while unarmed"),
         ("Exercise", "How training strength/dex/con/wis works and what abuses stats"),
         ("Trouble", "Problems prayer can fix (major/minor trouble) and their priority"),
-        ("Portal detection methods", "Finding magic portals (Quest, Fort Ludios) by messages and tricks"),
-        ("Cannibalism", "Penalties for eating your own race (dwarves for a dwarf) and pets"),
+        ("Portal detection methods",
+         "Finding magic portals (Quest, Fort Ludios) by messages and tricks"),
+        ("Cannibalism", "Eating your own race (dwarves, for a dwarf): -2..-5 Luck and aggravate monster"),
         ("Elbereth", "Engrave Elbereth to scare most monsters; which ignore it; 3.6 erasure rules"),
         ("Engraving", "Engraving mechanics: tools, durability, semi-permanent vs dust"),
     ]),
     ("Valkyrie and dwarf specifics", [
         ("Valkyrie", "Valkyrie role: starting kit, cold res + stealth, speed at XL7, strategy"),
-        ("Dwarf (starting race)", "Dwarven race: infravision, peaceful Mines inhabitants, dwarvish gear"),
+        ("Dwarf (starting race)",
+         "Dwarven race: infravision, peaceful Mines inhabitants, dwarvish gear"),
         ("Excalibur", "Dip a long sword into a fountain at XL5+ as a lawful to get Excalibur"),
         ("Mjollnir", "Thrown lightning war hammer artifact; Valkyries can catch it on return"),
         ("Valkyrie quest", "Valkyrie quest: Norn, Lord Surtur, fire giants, the Orb of Fate"),
@@ -119,7 +124,7 @@ STRATEGY = [
         ("Alignment record", "Hidden alignment score: what raises/lowers it; needed for prayer"),
         ("Altar", "Altars: BUC-identify by dropping items, alignment, conversion"),
         ("Sacrifice", "Offering fresh corpses at altars for gifts, luck and conversion"),
-        ("Crowning", "Becoming your god's champion: intrinsics and a guaranteed artifact"),
+        ("Crowning", "Becoming your god's champion: resistances, a skill slot, often an artifact weapon"),
         ("God", "The pantheons: each role's lawful/neutral/chaotic gods"),
         ("Anger", "Divine anger: causes, effects, and how to calm your god"),
         ("Sanctuary", "Hostile monsters won't enter a co-aligned temple you're in"),
@@ -127,13 +132,15 @@ STRATEGY = [
         ("Intrinsic protection", "AC bonus from priest donations and divine gifts"),
         ("Protection", "All sources of protection/AC, including buying it from priests"),
         ("Murder", "Killing peaceful @-humans/elves: alignment, luck and telepathy penalties"),
-        ("Wide-angle disintegration beam", "Angry god's death ray: need reflection or disintegration resistance"),
+        ("Wide-angle disintegration beam",
+         "Angry god's death ray: need reflection or disintegration resistance"),
         ("Altar farming", "Camping a co-aligned altar, sacrificing for artifact gifts"),
     ]),
     ("Identification, items and shops", [
         ("Identification", "Overview of every way to identify items"),
         ("Price identification", "Identify items from shop buy/sell prices; price tables"),
-        ("Engrave identification", "Identify wands by engraving with them (E) and reading the message"),
+        ("Engrave identification",
+         "Identify wands by engraving with them (E) and reading the message"),
         ("Curse-testing", "Learning BUC status: altars, pets stepping on items, other tricks"),
         ("Curse removal", "All ways to uncurse items (holy water, scroll, prayer)"),
         ("Randomized appearance", "Which item classes have per-game random appearances"),
@@ -153,6 +160,7 @@ STRATEGY = [
         ("Unicorn horn", "Apply to cure confusion/stun/blindness/sickness; top-priority tool"),
         ("Digging", "Digging through walls and floors; where you can't dig"),
         ("Luckstone", "Gray stone that stops luck timing out; the Mines' End prize"),
+        ("Unicorn", "Throw gems to co-aligned unicorns for luck; never kill co-aligned ones"),
     ]),
     ("Pets", [
         ("Pet", "Pet behavior, feeding, keeping it alive, and stealing via pets"),
@@ -183,15 +191,37 @@ STRATEGY = [
     ("Roles, races and quests (for other random characters)", [
         ("Role", "Overview of the 13 roles"),
         ("Race", "Overview of the 5 player races"),
-        ("Archeologist", ""), ("Barbarian", ""), ("Caveman", ""), ("Healer", ""),
-        ("Knight", ""), ("Monk", ""), ("Priest", ""), ("Ranger", ""), ("Rogue", ""),
-        ("Samurai", ""), ("Tourist", ""), ("Wizard", ""),
-        ("Human (starting race)", ""), ("Elf (starting race)", ""),
-        ("Gnome (starting race)", ""), ("Orc (starting race)", ""),
-        ("Archeologist quest", ""), ("Barbarian quest", ""), ("Caveman quest", ""),
-        ("Healer quest", ""), ("Knight quest", ""), ("Monk quest", ""),
-        ("Priest quest", ""), ("Ranger quest", ""), ("Rogue quest", ""),
-        ("Samurai quest", ""), ("Tourist quest", ""), ("Wizard quest", ""),
+        ("Archeologist", "Fast, stealthy digger with pick-axe and tinning kit; weak early fighter"),
+        ("Barbarian", "Strong melee role with poison resistance and a two-handed sword or axe"),
+        ("Caveman", "Tough melee role with club and sling; slow start"),
+        ("Healer", "Weak fighter: stethoscope, wand of sleep, healing spells, poison resistance"),
+        ("Knight", "Lance and pony; strict code of conduct (no attacking fleeing monsters)"),
+        ("Monk", "Martial arts, fast, many intrinsics; no body armor or weapons, vegetarian"),
+        ("Priest", "Sees blessed/cursed status of all items; mace and clerical spells"),
+        ("Ranger", "Bow with many arrows, multishot, cloak of displacement"),
+        ("Rogue",
+         "Throws daggers in volleys (multishot); starts with lock pick and potion of sickness"),
+        ("Samurai", "Strong, fast lawful fighter with katana and bow (yumi)"),
+        ("Tourist", "Hardest role: weak, lots of gold, expensive camera, magic mapping scrolls"),
+        ("Wizard",
+         "Spellcaster with force bolt, cloak of magic resistance, random wand; weak melee"),
+        ("Human (starting race)", "Humans: no infravision; available to every role"),
+        ("Elf (starting race)", "Elves: infravision, sleep resistance, elven gear; always chaotic"),
+        ("Gnome (starting race)", "Gnomes: infravision, peaceful Gnomish Mines; always neutral"),
+        ("Orc (starting race)",
+         "Orcs: infravision, poison resistance, may eat most corpses; always chaotic"),
+        ("Archeologist quest", ""),
+        ("Barbarian quest", ""),
+        ("Caveman quest", ""),
+        ("Healer quest", ""),
+        ("Knight quest", ""),
+        ("Monk quest", ""),
+        ("Priest quest", ""),
+        ("Ranger quest", ""),
+        ("Rogue quest", ""),
+        ("Samurai quest", ""),
+        ("Tourist quest", ""),
+        ("Wizard quest", ""),
     ]),
 ]
 
@@ -214,7 +244,7 @@ DUNGEON = [
         ("Oracle (level)", "Oracle level (DL5-9): centaurs, fountains, consultations"),
         ("Oracle (monster)", "The Oracle: buy minor/major consultations; don't attack"),
         ("Big Room", "Optional huge open room (DL10-12): many monsters, no cover"),
-        ("Rogue level", "Tribute level drawn in Rogue style (DL15ish); bones, no shops"),
+        ("Rogue level", "Tribute level (DL15-18) drawn with old Rogue-style symbols"),
         ("Vault", "Closed 2x2 gold rooms; the guard, and how to get out"),
         ("Closet", "1-square niches; often hold stairs or trapdoors"),
     ]),
@@ -226,8 +256,10 @@ DUNGEON = [
         ("Sokoban Level 2b", "Second level, variant b: map and solution"),
         ("Sokoban Level 3a", "Third level, variant a: map and solution"),
         ("Sokoban Level 3b", "Third level, variant b: map and solution"),
-        ("Sokoban Level 4a", "Top level, variant a (bag of holding or amulet of reflection prize): solution"),
-        ("Sokoban Level 4b", "Top level, variant b (prize level): map and solution"),
+        ("Sokoban Level 4a",
+         "Top level, variant a: map + solution; zoo guards prize (bag of holding or amulet of reflection, 50/50)"),
+        ("Sokoban Level 4b",
+         "Top level, variant b: map + solution; zoo guards prize (bag of holding or amulet of reflection, 50/50)"),
     ]),
     ("The Quest", [
         ("Quest", "Quest rules: XL14 entry requirement, leader, nemesis, artifact"),
@@ -239,7 +271,8 @@ DUNGEON = [
     ]),
     ("Mid-game levels", [
         ("Fort Ludios", "Optional portal branch: vault fortress full of soldiers and dragons"),
-        ("Medusa's Island", "Medusa's level: need reflection or blindness and a way to cross water"),
+        ("Medusa's Island",
+         "Medusa's level: need reflection or blindness and a way to cross water"),
         ("Castle", "Castle: drawbridge (passtune), wand of wishing, trapdoors to Gehennom"),
         ("Wand of wishing", "The Castle's wand of wishing; how to use and wrest it"),
         ("Drawbridge", "Opening/destroying the Castle drawbridge; passtune; force bolt/striking"),
@@ -248,15 +281,19 @@ DUNGEON = [
     ("Gehennom", [
         ("Gehennom", "Gehennom overview: mazes, demon lairs, fire and no-prayer hazards"),
         ("Valley of the Dead", "First Gehennom level: undead, temple of Moloch, graveyards"),
-        ("Juiblex's swamp", "Juiblex's lair: swamp level, beware lycanthropy/slime"),
+        ("Juiblex's swamp",
+         "Juiblex's lair (Gehennom 4-7): water everywhere, no-teleport; his engulf causes sickness"),
         ("Orcus-town", "Orcus Town: ruined Minetown full of undead, Orcus with wand of death"),
-        ("Asmodeus' Lair", "Asmodeus' lair: cold attacks, a no-teleport demon prince"),
-        ("Baalzebub's Lair", "Baalzebub's lair: fly-shaped maze with a hidden layout"),
+        ("Asmodeus' Lair",
+         "Asmodeus' lair: no-teleport level; he casts cone of cold, so bring cold resistance"),
+        ("Baalzebub's Lair",
+         "Baalzebub's lair: no-teleport, fly-shaped maze around the demon lord's chamber"),
         ("Vlad's Tower", "Vlad's Tower branch: Vlad the Impaler holds the Candelabrum"),
         ("Wizard's Tower", "Wizard's Tower: the Wizard of Yendor holds the Book of the Dead"),
         ("Fake Wizard's Tower", "Decoy towers with portals; one leads to the real tower"),
         ("Vibrating square", "Target square for the invocation ritual at the bottom of Gehennom"),
-        ("Invocation ritual", "Bell, Candelabrum (7 candles lit), Book: opening the Sanctum stairs"),
+        ("Invocation ritual",
+         "Bell, Candelabrum (7 candles lit), Book: opening the Sanctum stairs"),
         ("Moloch's Sanctum", "Final Gehennom level: high priest of Moloch guards the Amulet"),
         ("Gehennom mapping", "Mapping Gehennom mazes efficiently to find the stairs"),
         ("Mysterious force", "Pushes you back down while climbing with the Amulet"),
@@ -265,9 +302,11 @@ DUNGEON = [
         ("End Game", "Overview of the Elemental Planes and the Astral Plane"),
         ("Elemental Planes", "The four elemental planes and how to find each exit portal"),
         ("Plane of Earth", "Dig through rock to the portal; earth elementals, xorns"),
-        ("Plane of Air", "Levitating/flying; air elementals and clouds; portal is hidden"),
-        ("Plane of Fire", "Fire and lava; fire resistance required"),
-        ("Plane of Water", "Air bubbles through water; need magical breathing or luck"),
+        ("Plane of Air",
+         "Open air with drifting clouds, air elementals and lightning; portal on the right side"),
+        ("Plane of Fire", "Fire traps, lava and fire elementals; fire resistance is essential"),
+        ("Plane of Water",
+         "All water except moving air bubbles; the portal drifts inside a bubble"),
         ("Astral Plane", "Find the correct high altar among three and offer the Amulet"),
         ("Amulet of Yendor", "The goal item: fake vs real, and effects of carrying it"),
         ("Bell of Opening", "Invocation item from the Quest nemesis"),
@@ -293,91 +332,253 @@ DUNGEON = [
         ("Sink", "Kicking and dropping rings into sinks to identify them"),
         ("Throne", "Sitting on thrones: wishes, genocide, identification, risks"),
         ("Headstone", "Graves: engraving, digging up (with alignment penalty)"),
-        ("Tree", "Trees: kicking for fruit, can't dig through"),
+        ("Tree", "Trees: kick for fruit, chop down with an axe; they block movement"),
         ("Door", "Doors: opening, kicking, locks, shop doors, no diagonal moves"),
         ("Iron bars", "Iron bars: passing items/monsters through"),
         ("Moat", "Water in moats: drowning, crossing"),
-        ("Lava", "Lava: instant death without fire resistance + levitation"),
-        ("Water", "Pools and water: drowning, crossing, item damage"),
+        ("Lava", "Lava: instant death without fire resistance; sinking kills even with it"),
+        ("Water", "All forms of water: potions, fountains, pools, moats, the Plane of Water"),
+        ("Wet", "Water damage to items: rusting, diluting potions, blanking scrolls"),
+        ("Ladder", "Ladders in Vlad's Tower and elsewhere"),
         ("Ice", "Ice: slipping, melting, digging holes"),
         ("Bones", "Bones files: ghost of a dead player and their cursed items"),
     ]),
     ("Traps", [
         ("Trap", "All trap types, how to detect and avoid them"),
-        ("Anti-magic field", ""), ("Arrow trap", ""), ("Dart trap", ""),
-        ("Beartrap", ""), ("Container trap", ""), ("Falling rock trap", ""),
-        ("Fire trap", ""), ("Hole", ""), ("Land mine", ""), ("Level teleporter", ""),
-        ("Magic trap", ""), ("Pit", ""), ("Spiked pit", ""), ("Polymorph trap", ""),
-        ("Rolling boulder trap", ""), ("Rust trap", ""), ("Sleeping gas trap", ""),
-        ("Squeaky board", ""), ("Statue trap", ""), ("Teleportation trap", ""),
-        ("Trap door", ""), ("Web", ""),
+        ("Anti-magic field", "Drains power (Pw); with magic resistance it drains HP instead"),
+        ("Arrow trap", "Shoots arrows at you; can be disarmed to collect the arrows"),
+        ("Dart trap", "Shoots darts that may be poisoned; poison resistance matters"),
+        ("Beartrap", "Holds you in place for several turns; can be disarmed and reused"),
+        ("Container trap", "Trapped boxes/chests: explosions, poison needles, gas clouds, shocks"),
+        ("Falling rock trap", "Drops a rock on your head; a hard helmet reduces the damage"),
+        ("Fire trap", "Burns you and your items and melts ice; fire resistance helps"),
+        ("Hole", "Always-visible hole in the floor; you fall to the next level"),
+        ("Land mine", "Explodes: damage, wounded legs, leaves a pit; can be disarmed"),
+        ("Level teleporter", "Sends you to a random level; magic resistance blocks it"),
+        ("Magic trap",
+         "Random magical effects: summoned monsters, blinding flash, noises, rare boons"),
+        ("Pit", "You fall in and spend turns climbing out; beware fighting from inside"),
+        ("Spiked pit", "A pit with poisoned spikes"),
+        ("Polymorph trap", "Polymorphs you (DL8+) unless you have magic resistance or unchanging"),
+        ("Rolling boulder trap", "Launches a boulder that rolls across the trap square"),
+        ("Rust trap", "Sprays water: rusts iron armor/weapons and wets items"),
+        ("Sleeping gas trap", "Puts you to sleep unless you are sleep resistant"),
+        ("Squeaky board", "Wakes nearby monsters; otherwise harmless"),
+        ("Statue trap", "A statue that comes to life when you approach or search next to it"),
+        ("Teleportation trap", "Teleports you within the level; magic resistance blocks it"),
+        ("Trap door", "Drops you one or more levels down"),
+        ("Web", "Entangles you; strong heroes tear free; home of giant spiders"),
     ]),
 ]
 
 MECHANICS = [
     ("Character and attributes", [
-        ("Hit points", ""), ("Energy", ""), ("Experience level", ""), ("Experience points", ""),
-        ("Attribute", ""), ("Strength", ""), ("Dexterity", ""), ("Constitution", ""),
-        ("Intelligence", ""), ("Wisdom", ""), ("Charisma", ""), ("Armor class", ""),
-        ("Encumbrance", ""), ("Weight", ""), ("Speed", ""), ("Skill", ""), ("Enhance", ""),
-        ("Twoweapon", ""), ("Spellcasting", ""), ("Spell", ""),
+        ("Hit points", "Max HP growth per level, natural regeneration, and dying at 0 HP"),
+        ("Energy", "Power (Pw) for spellcasting: maximum, growth and regeneration"),
+        ("Experience level", "Experience levels 1-30: XP thresholds, gaining and losing levels"),
+        ("Experience points", "How experience points are earned from kills and other actions"),
+        ("Attribute", "The six attributes (Str/Dex/Con/Int/Wis/Cha), limits and exercise"),
+        ("Strength", "Strength: to-hit/damage bonuses, carrying capacity, 18/xx notation"),
+        ("Dexterity", "Dexterity: to-hit bonus, multishot and spellcasting effects"),
+        ("Constitution", "Constitution: HP gained per level and carrying capacity"),
+        ("Intelligence", "Intelligence: spell failure for Int casters; brain-eating kills at 3"),
+        ("Wisdom", "Wisdom: energy regeneration and spell failure for Wis casters"),
+        ("Charisma", "Charisma: shop prices and a few other effects"),
+        ("Armor class", "AC: how armor protects; negative AC also reduces damage taken"),
+        ("Encumbrance", "Carrying capacity and Burdened..Overloaded penalties"),
+        ("Weight", "Item weights and how they add to your load"),
+        ("Speed", "Movement speed: intrinsic/extrinsic fast, very fast, monster speeds"),
+        ("Skill", "Weapon and spell skills: training, per-role maximums, #enhance"),
+        ("Enhance", "#enhance: advance a skill once it has enough training"),
+        ("Twoweapon", "#twoweapon: fighting with two weapons, restrictions and skill"),
+        ("Spellcasting", "Casting spells: failure rate formula, armor penalties, energy cost"),
+        ("Spell", "What spells are; pointers to spellcasting and spellbooks"),
     ]),
     ("Combat and item mechanics", [
-        ("To-hit", ""), ("Damage", ""), ("D notation", ""), ("Combat", ""),
-        ("Ranged attack", ""), ("Multishot", ""), ("Erosion", ""), ("Enchantment", ""),
-        ("BUC", ""), ("Artifact", ""), ("Artifact blast", ""), ("Bane", ""),
-        ("Item", ""), ("Discoveries", ""), ("Weight", ""),
+        ("To-hit", "To-hit formula: Luck, level, skill, encumbrance and target AC"),
+        ("Damage", "How melee and missile damage is calculated, including bonuses"),
+        ("D notation", "Dice notation (XdY) used for damage and random rolls"),
+        ("Combat", "Melee combat basics and tactics"),
+        ("Ranged attack", ""),
+        ("Multishot", ""),
+        ("Erosion", "Rust, corrosion, burning, rotting; erosion-proofing and repair"),
+        ("Enchantment", "Weapon/armor enchantment (+N) and safe enchanting limits"),
+        ("BUC", "Blessed/uncursed/cursed status and how to learn it"),
+        ("Artifact", "All artifacts: alignment, sacrifice gifts, wishing, touching"),
+        ("Artifact blast", "Touching cross-aligned artifacts hurts you; when it happens"),
+        ("Bane", ""),
+        ("Item", "Item classes and general object mechanics"),
+        ("Discoveries", "The \\ discoveries list of item types you have identified"),
     ]),
     ("Properties and intrinsics", [
-        ("Property", ""), ("Resistance", ""), ("Magic resistance", ""), ("Reflection", ""),
-        ("Free action", ""), ("Telepathy", ""), ("Stealth", ""), ("See invisible", ""),
-        ("Invisibility", ""), ("Infravision", ""), ("Warning", ""), ("Displacement", ""),
-        ("Clairvoyance", ""), ("Enlightenment", ""), ("Conflict", ""), ("Sustain ability", ""),
-        ("Slow digestion", ""), ("Half spell damage", ""), ("Half physical damage", ""),
-        ("Water walking", ""), ("Flying", ""), ("Levitation", ""), ("Breathless", ""),
-        ("Life saving", ""), ("Protection from shape changers", ""), ("Monster detection", ""),
-        ("Object detection", ""), ("Invulnerability", ""), ("Teleportation", ""),
-        ("Teleport control", ""), ("Teleportitis", ""), ("Polymorph control", ""),
-        ("Polymorphitis", ""), ("Unchanging", ""), ("Regeneration", ""),
-        ("Automatic searching", ""), ("Aggravate monster", ""), ("Jumping", ""),
-        ("Hunger", ""), ("Fumbling", ""),
+        ("Property", "Intrinsic vs extrinsic properties; full list and sources"),
+        ("Resistance", "All resistances and how to obtain each"),
+        ("Magic resistance",
+         "MR: blocks death rays, polymorph, teleport traps, destroy armor and more"),
+        ("Reflection", "Reflects rays and gazes (death, disintegration, Medusa); sources"),
+        ("Free action", "Prevents most paralysis (floating eye, gelatinous cube, potions)"),
+        ("Telepathy", "Sense monsters' minds while blind (intrinsic) or always (extrinsic)"),
+        ("Stealth", "Move without waking sleeping monsters; sources"),
+        ("See invisible", "See invisible monsters; sources"),
+        ("Invisibility", "Being invisible: benefits, shopkeepers refuse service, sources"),
+        ("Infravision", "See warm-blooded monsters in the dark (non-human races)"),
+        ("Warning", "Shows numbers for nearby hostiles by threat level"),
+        ("Displacement",
+         "Displacement property: monsters see you where you are not",
+         "Displacement (property)"),
+        ("Clairvoyance", "Periodically maps the nearby area (donations, cornuthaum, Amulet)"),
+        ("Enlightenment", "Reveals your hidden attributes and intrinsics"),
+        ("Conflict", "Monsters fight each other (ring of conflict); angers peacefuls"),
+        ("Sustain ability", ""),
+        ("Slow digestion", "Greatly reduces food consumption (ring of slow digestion)"),
+        ("Half spell damage", ""),
+        ("Half physical damage", ""),
+        ("Water walking", ""),
+        ("Flying", "Flying: cross water, lava and pits while still reaching the floor"),
+        ("Levitation", "Floating: can't pick up items or go downstairs; escaping it"),
+        ("Breathless", "Magical breathing: can't drown, immune to gases"),
+        ("Life saving", "Amulet of life saving: survive one death"),
+        ("Protection from shape changers", ""),
+        ("Monster detection", ""),
+        ("Object detection", ""),
+        ("Invulnerability", ""),
+        ("Teleportation", "Teleporting within a level: sources, control, no-teleport levels"),
+        ("Teleport control", ""),
+        ("Teleportitis", ""),
+        ("Polymorph control", ""),
+        ("Polymorphitis", ""),
+        ("Unchanging", ""),
+        ("Regeneration",
+         "Regeneration property: 1 HP per turn (ring of regeneration, trolls)",
+         "Regeneration (property)"),
+        ("Automatic searching", ""),
+        ("Aggravate monster", ""),
+        ("Jumping", "Jumping (knights, jumping boots/spell): range and uses"),
+        ("Voracious hunger",
+         "Hunger property: nutrition burns fast (ring of hunger, some corpses)"),
+        ("Ring hunger", "Extra nutrition used by worn rings and amulets"),
+        ("Fumbling", ""),
+        ("Hit point regeneration", "How fast HP comes back naturally, by level and Con"),
+        ("Energy regeneration",
+         "How fast power (Pw) comes back, by role, Wis/Int, energy regeneration"),
     ]),
     ("Resistances", [
-        ("Fire resistance", ""), ("Cold resistance", ""), ("Shock resistance", ""),
-        ("Sleep resistance", ""), ("Disintegration resistance", ""), ("Poison resistance", ""),
-        ("Acid resistance", ""), ("Stoning resistance", ""), ("Drain resistance", ""),
-        ("Immunity to sickness", ""), ("Hallucination resistance", ""),
-        ("Monster resistances", ""),
+        ("Fire resistance", "Fire resistance: sources and what it protects against"),
+        ("Cold resistance", "Cold resistance: sources and protection (Valkyries start with it)"),
+        ("Shock resistance", "Shock resistance: sources and protection"),
+        ("Sleep resistance", "Sleep resistance: sources and protection"),
+        ("Disintegration resistance",
+         "Disintegration resistance: black dragon scales; survive disintegration"),
+        ("Poison resistance", "Poison resistance: essential; sources and what it prevents"),
+        ("Acid resistance", ""),
+        ("Stoning resistance", ""),
+        ("Drain resistance", ""),
+        ("Immunity to sickness", ""),
+        ("Hallucination resistance", ""),
+        ("Monster resistances", "Table of which monsters resist which damage types"),
     ]),
     ("Status effects, ailments and instadeaths", [
-        ("Blindness", ""), ("Confusion", ""), ("Stun", ""), ("Hallucination", ""),
-        ("Deafness", ""), ("Wounded legs", ""), ("Paralysis", ""), ("Sleep", ""),
-        ("Glib", ""), ("Vomiting", ""), ("Choking", ""), ("Stoning", ""), ("Sliming", ""),
-        ("Strangulation", ""), ("Sickness", ""), ("Illness", ""), ("Food poisoning", ""),
-        ("Lycanthropy", ""), ("Level drain", ""), ("Poison", ""), ("Punishment", ""),
-        ("Instant death", ""), ("Delayed instadeath", ""), ("Drowning", ""),
-        ("Disintegration", ""), ("Touch of death", ""), ("Intelligence drain", ""),
+        ("Blindness", ""),
+        ("Confusion", ""),
+        ("Stun", ""),
+        ("Hallucination", ""),
+        ("Deafness", ""),
+        ("Wounded legs", ""),
+        ("Paralysis", ""),
+        ("Sleep", ""),
+        ("Glib", ""),
+        ("Vomiting", ""),
+        ("Stoning", "Turning to stone: cures (lizard, acidic corpse, stone to flesh, prayer)"),
+        ("Sliming", "Turning into green slime: cure with fire, prayer or polymorph"),
+        ("Strangulation", ""),
+        ("Sickness", "Illness and food poisoning: deadly; cure with unicorn horn, prayer, potions"),
+        ("Illness", ""),
+        ("Food poisoning", ""),
+        ("Lycanthropy", ""),
+        ("Level drain", "Losing experience levels to drain attacks", "Drain life (monster attack)"),
+        ("Poison", ""),
+        ("Punishment", ""),
+        ("Instant death", "Catalogue of instadeaths and how to prevent each"),
+        ("Delayed instadeath",
+         "Countdown deaths (stoning, sliming, illness, strangulation) and cures"),
+        ("Drowning", "Drowning by eels or water; how to survive it"),
+        ("Disintegration", ""),
+        ("Touch of death", ""),
+        ("Intelligence drain", ""),
         ("Starvation", ""),
     ]),
     ("Monster mechanics", [
-        ("Monster", ""), ("Monster class", ""), ("Monster difficulty", ""), ("Monster level", ""),
-        ("Monster creation", ""), ("Monster behavior", ""), ("Monster starting inventory", ""),
-        ("Monsters (by speed)", ""), ("Monsters (by experience)", ""),
-        ("Unique monster", ""), ("Player monster", ""), ("Quest guardian", ""),
-        ("Demon lords and princes", ""), ("Covetous", ""), ("Shapeshifter", ""),
-        ("Monster spell", ""), ("Harassment", ""),
+        ("Monster", ""),
+        ("Monster class", ""),
+        ("Monster difficulty", ""),
+        ("Monster level", ""),
+        ("Monster creation", ""),
+        ("Monster behavior", ""),
+        ("Monster starting inventory", ""),
+        ("Monsters (by speed)", ""),
+        ("Monsters (by experience)", ""),
+        ("Unique monster", ""),
+        ("Player monster", ""),
+        ("Quest guardian", ""),
+        ("Demon lords and princes", ""),
+        ("Covetous", ""),
+        ("Shapeshifter", ""),
+        ("Monster spell", ""),
+        ("Passive attack", ""),
+        ("Holding attack", ""),
+        ("Engulfing", ""),
+        ("Gaze attack", ""),
+        ("Theft", ""),
+        ("Werecreature", ""),
+        ("Foocubus", ""),
+        ("Hiding", ""),
+        ("Bribe", ""),
     ]),
     ("Commands and interface", [
-        ("Command", ""), ("Apply", ""), ("Far look", ""), ("Force", ""), ("Loot", ""),
-        ("Untrap", ""), ("Chat", ""), ("Sit", ""), ("Rub", ""), ("Invoke", ""),
-        ("Name", ""), ("Call", ""), ("Pay", ""), ("Throw", ""), ("Firing", ""),
-        ("Quiver", ""), ("Wield", ""), ("Wear", ""), ("Put on", ""), ("Remove", ""),
-        ("Take off", ""), ("Zap", ""), ("Read", ""), ("Quaff", ""), ("Eat", ""),
-        ("Open", ""), ("Close", ""), ("Pick up", ""), ("Drop", ""), ("Rest", ""),
-        ("Search", ""), ("Kick", ""), ("Travel", ""), ("Numeric prefix", ""),
-        ("Swap weapons", ""), ("Dip", ""), ("Offer", ""), ("Turn undead", ""),
-        ("Autopickup", ""), ("Options", ""), ("Autodig", ""), ("You hear", ""),
-        ("Strange feeling", ""), ("Hallucinatory messages", ""),
+        ("Command", ""),
+        ("Apply", ""),
+        ("Far look", ""),
+        ("Force", ""),
+        ("Loot", ""),
+        ("Untrap", ""),
+        ("Chat", ""),
+        ("Sit", ""),
+        ("Rub", ""),
+        ("Invoke", ""),
+        ("Name", ""),
+        ("Call", ""),
+        ("Pay", ""),
+        ("Throw", ""),
+        ("Firing", ""),
+        ("Quiver", ""),
+        ("Wield", ""),
+        ("Wear", ""),
+        ("Put on", ""),
+        ("Remove", ""),
+        ("Take off", ""),
+        ("Zap", ""),
+        ("Read", ""),
+        ("Quaff", ""),
+        ("Eat", ""),
+        ("Open", ""),
+        ("Close", ""),
+        ("Pick up", ""),
+        ("Drop", ""),
+        ("Rest", ""),
+        ("Search", ""),
+        ("Kick", "Kicking doors, objects and monsters; risks", "Kick (command)"),
+        ("Travel", ""),
+        ("Numeric prefix", ""),
+        ("Swap weapons", ""),
+        ("Dip", ""),
+        ("Offer", ""),
+        ("Turn undead", ""),
+        ("Autopickup", ""),
+        ("Options", ""),
+        ("Autodig", ""),
+        ("You hear", ""),
+        ("Strange feeling", ""),
+        ("Hallucinatory messages", ""),
     ]),
 ]
 
@@ -387,25 +588,30 @@ MONSTERS_BY_CLASS = {
     "a": ["giant ant", "killer bee", "soldier ant", "fire ant", "giant beetle", "queen bee"],
     "b": ["acid blob", "quivering blob", "gelatinous cube"],
     "c": ["chickatrice", "cockatrice", "pyrolisk"],
-    "d": ["jackal", "fox", "coyote", "werejackal", "little dog", "dingo", "dog", "large dog", "wolf", "werewolf", "winter wolf cub", "warg", "winter wolf", "hell hound pup", "hell hound"],
+    "d": ["jackal", "fox", "coyote", "werejackal", "little dog", "dingo", "dog", "large dog",
+          "wolf", "werewolf", "winter wolf cub", "warg", "winter wolf", "hell hound pup",
+          "hell hound"],
     "e": ["gas spore", "floating eye", "freezing sphere", "flaming sphere", "shocking sphere"],
     "f": ["kitten", "housecat", "jaguar", "lynx", "panther", "large cat", "tiger"],
     "g": ["gremlin", "gargoyle", "winged gargoyle"],
-    "h": ["hobbit", "dwarf", "bugbear", "dwarf lord", "dwarf king", "mind flayer", "master mind flayer"],
+    "h": ["hobbit", "dwarf", "bugbear", "dwarf lord", "dwarf king", "mind flayer",
+          "master mind flayer"],
     "i": ["manes", "homunculus", "imp", "lemure", "quasit", "tengu"],
     "j": ["blue jelly", "spotted jelly", "ochre jelly"],
     "k": ["kobold", "large kobold", "kobold lord", "kobold shaman"],
     "l": ["leprechaun"],
     "m": ["small mimic", "large mimic", "giant mimic"],
     "n": ["wood nymph", "water nymph", "mountain nymph"],
-    "o": ["goblin", "hobgoblin", "orc", "hill orc", "Mordor orc", "Uruk-hai", "orc shaman", "orc-captain"],
+    "o": ["goblin", "hobgoblin", "orc", "hill orc", "Mordor orc", "Uruk-hai", "orc shaman",
+          "orc-captain"],
     "p": ["rock piercer", "iron piercer", "glass piercer"],
     "q": ["rothe", "mumak", "leocrotta", "wumpus", "titanothere", "baluchitherium", "mastodon"],
     "r": ["sewer rat", "giant rat", "rabid rat", "wererat", "rock mole", "woodchuck"],
     "s": ["cave spider", "centipede", "giant spider", "scorpion", "Scorpius"],
     "t": ["lurker above", "trapper"],
     "u": ["pony", "white unicorn", "gray unicorn", "black unicorn", "horse", "warhorse"],
-    "v": ["fog cloud", "dust vortex", "ice vortex", "energy vortex", "steam vortex", "fire vortex"],
+    "v": ["fog cloud", "dust vortex", "ice vortex", "energy vortex", "steam vortex",
+          "fire vortex"],
     "w": ["baby long worm", "baby purple worm", "long worm", "purple worm"],
     "x": ["grid bug", "xan"],
     "y": ["yellow light", "black light"],
@@ -413,16 +619,24 @@ MONSTERS_BY_CLASS = {
     "A": ["couatl", "Aleax", "Angel", "ki-rin", "Archon"],
     "B": ["bat", "giant bat", "raven", "vampire bat"],
     "C": ["plains centaur", "forest centaur", "mountain centaur"],
-    "D": ["baby gray dragon", "baby silver dragon", "baby red dragon", "baby white dragon", "baby orange dragon", "baby black dragon", "baby blue dragon", "baby green dragon", "baby yellow dragon", "gray dragon", "silver dragon", "red dragon", "white dragon", "orange dragon", "black dragon", "blue dragon", "green dragon", "yellow dragon", "Chromatic Dragon", "Ixoth"],
+    "D": ["baby gray dragon", "baby silver dragon", "baby red dragon", "baby white dragon",
+          "baby orange dragon", "baby black dragon", "baby blue dragon", "baby green dragon",
+          "baby yellow dragon", "gray dragon", "silver dragon", "red dragon", "white dragon",
+          "orange dragon", "black dragon", "blue dragon", "green dragon", "yellow dragon",
+          "Chromatic Dragon", "Ixoth"],
     "E": ["stalker", "air elemental", "fire elemental", "earth elemental", "water elemental"],
-    "F": ["lichen", "brown mold", "yellow mold", "green mold", "red mold", "shrieker", "violet fungus"],
+    "F": ["lichen", "brown mold", "yellow mold", "green mold", "red mold", "shrieker",
+          "violet fungus"],
     "G": ["gnome", "gnome lord", "gnomish wizard", "gnome king"],
-    "H": ["giant", "stone giant", "hill giant", "fire giant", "frost giant", "ettin", "storm giant", "titan", "minotaur", "Cyclops", "Lord Surtur"],
+    "H": ["giant", "stone giant", "hill giant", "fire giant", "frost giant", "ettin",
+          "storm giant", "titan", "minotaur", "Cyclops", "Lord Surtur"],
     "J": ["jabberwock"],
     "K": ["Keystone Kop", "Kop Sergeant", "Kop Lieutenant", "Kop Kaptain"],
     "L": ["lich", "demilich", "master lich", "arch-lich"],
-    "M": ["kobold mummy", "gnome mummy", "orc mummy", "dwarf mummy", "elf mummy", "human mummy", "ettin mummy", "giant mummy"],
-    "N": ["red naga hatchling", "black naga hatchling", "golden naga hatchling", "guardian naga hatchling", "red naga", "black naga", "golden naga", "guardian naga"],
+    "M": ["kobold mummy", "gnome mummy", "orc mummy", "dwarf mummy", "elf mummy", "human mummy",
+          "ettin mummy", "giant mummy"],
+    "N": ["red naga hatchling", "black naga hatchling", "golden naga hatchling",
+          "guardian naga hatchling", "red naga", "black naga", "golden naga", "guardian naga"],
     "O": ["ogre", "ogre lord", "ogre king"],
     "P": ["gray ooze", "brown pudding", "green slime", "black pudding"],
     "Q": ["quantum mechanic"],
@@ -434,13 +648,31 @@ MONSTERS_BY_CLASS = {
     "W": ["barrow wight", "wraith", "Nazgul"],
     "X": ["xorn"],
     "Y": ["monkey", "ape", "owlbear", "yeti", "carnivorous ape", "sasquatch"],
-    "Z": ["kobold zombie", "gnome zombie", "orc zombie", "dwarf zombie", "elf zombie", "human zombie", "ettin zombie", "ghoul", "giant zombie", "skeleton"],
-    "'": ["straw golem", "paper golem", "rope golem", "gold golem", "leather golem", "wood golem", "flesh golem", "clay golem", "stone golem", "glass golem", "iron golem"],
-    "@": ["human", "wererat", "werejackal", "werewolf", "elf", "Woodland-elf", "Green-elf", "Grey-elf", "elf-lord", "Elvenking", "doppelganger", "shopkeeper", "guard", "prisoner", "Oracle", "aligned priest", "high priest", "soldier", "sergeant", "nurse", "lieutenant", "captain", "watchman", "watch captain", "Medusa", "Wizard of Yendor", "Croesus", "archeologist", "barbarian", "caveman", "cavewoman", "healer", "knight", "monk", "priest", "priestess", "ranger", "rogue", "samurai", "tourist", "valkyrie", "wizard", "Lord Carnarvon", "Pelias", "Shaman Karnov", "Hippocrates", "King Arthur", "Grand Master", "Arch Priest", "Orion", "Master of Thieves", "Lord Sato", "Twoflower", "Norn", "Neferet the Green", "Thoth Amon", "Master Kaen", "Master Assassin", "Ashikaga Takauji", "Dark One", "student", "chieftain", "neanderthal", "attendant", "page", "abbot", "acolyte", "hunter", "thug", "ninja", "roshi", "guide", "warrior", "apprentice"],
+    "Z": ["kobold zombie", "gnome zombie", "orc zombie", "dwarf zombie", "elf zombie",
+          "human zombie", "ettin zombie", "ghoul", "giant zombie", "skeleton"],
+    "'": ["straw golem", "paper golem", "rope golem", "gold golem", "leather golem", "wood golem",
+          "flesh golem", "clay golem", "stone golem", "glass golem", "iron golem"],
+    "@": ["human", "wererat", "werejackal", "werewolf", "elf", "Woodland-elf", "Green-elf",
+          "Grey-elf", "elf-lord", "Elvenking", "doppelganger", "shopkeeper", "guard", "prisoner",
+          "Oracle", "aligned priest", "high priest", "soldier", "sergeant", "nurse", "lieutenant",
+          "captain", "watchman", "watch captain", "Medusa", "Wizard of Yendor", "Croesus",
+          "archeologist", "barbarian", "caveman", "cavewoman", "healer", "knight", "monk",
+          "priest", "priestess", "ranger", "rogue", "samurai", "tourist", "valkyrie", "wizard",
+          "Lord Carnarvon", "Pelias", "Shaman Karnov", "Hippocrates", "King Arthur",
+          "Grand Master", "Arch Priest", "Orion", "Master of Thieves", "Lord Sato", "Twoflower",
+          "Norn", "Neferet the Green", "Thoth Amon", "Master Kaen", "Master Assassin",
+          "Ashikaga Takauji", "Dark One", "student", "chieftain", "neanderthal", "attendant",
+          "page", "abbot", "acolyte", "hunter", "thug", "ninja", "roshi", "guide", "warrior",
+          "apprentice"],
     " ": ["ghost", "shade"],
-    "&": ["water demon", "succubus", "horned devil", "incubus", "erinys", "barbed devil", "marilith", "vrock", "hezrou", "bone devil", "ice devil", "nalfeshnee", "pit fiend", "sandestin", "balrog", "Juiblex", "Yeenoghu", "Orcus", "Geryon", "Dispater", "Baalzebub", "Asmodeus", "Demogorgon", "Death", "Pestilence", "Famine", "mail daemon", "djinni", "Minion of Huhetotl", "Nalzok"],
+    "&": ["water demon", "succubus", "horned devil", "incubus", "erinys", "barbed devil",
+          "marilith", "vrock", "hezrou", "bone devil", "ice devil", "nalfeshnee", "pit fiend",
+          "sandestin", "balrog", "Juiblex", "Yeenoghu", "Orcus", "Geryon", "Dispater",
+          "Baalzebub", "Asmodeus", "Demogorgon", "Death", "Pestilence", "Famine", "mail daemon",
+          "djinni", "Minion of Huhetotl", "Nalzok"],
     ";": ["jellyfish", "piranha", "shark", "giant eel", "electric eel", "kraken"],
-    ":": ["newt", "gecko", "iguana", "baby crocodile", "lizard", "chameleon", "crocodile", "salamander"],
+    ":": ["newt", "gecko", "iguana", "baby crocodile", "lizard", "chameleon", "crocodile",
+          "salamander"],
 }
 
 MONSTER_CLASS_NAMES = {
@@ -448,7 +680,8 @@ MONSTER_CLASS_NAMES = {
     "e": "floating eyes and spheres", "f": "cats and other felines", "g": "gremlins and gargoyles",
     "h": "dwarves, hobbits, mind flayers (humanoids)", "i": "imps and minor demons", "j": "jellies",
     "k": "kobolds", "l": "leprechaun", "m": "mimics", "n": "nymphs", "o": "orcs", "p": "piercers",
-    "q": "quadrupeds", "r": "rats and rodents", "s": "spiders and centipedes", "t": "trappers and lurkers above",
+    "q": "quadrupeds", "r": "rats and rodents", "s": "spiders and centipedes",
+    "t": "trappers and lurkers above",
     "u": "horses and unicorns", "v": "vortices", "w": "worms", "x": "grid bugs and xan",
     "y": "lights", "z": "zruty", "A": "angelic beings", "B": "bats and birds", "C": "centaurs",
     "D": "dragons", "E": "elementals and stalkers", "F": "fungi and molds (lichens)", "G": "gnomes",
@@ -969,6 +1202,7 @@ OBJECT_TITLE_OVERRIDES = {
     "cheap plastic imitation of the Amulet of Yendor": [
         "Cheap plastic imitation of the Amulet of Yendor", "Amulet of Yendor"],
     "novel": ["Novel"],
+    "obsidian": ["Obsidian stone", "Gem"],
     "Book of the Dead": ["Book of the Dead"],
     "blank paper@Scrolls": ["Scroll of blank paper"],
     "blank paper@Spellbooks": ["Spellbook of blank paper"],
@@ -988,10 +1222,10 @@ OBJECT_OVERVIEW = {
                 "Potion of unholy water"],
     "Scrolls": ["Scroll"],
     "Spellbooks": ["Spellbook"],
-    "Gems": ["Gem", "Worthless piece of glass", "Gray stone", "Rock"],
+    "Gems": ["Gem", "Gray stone"],
     "Comestibles": ["Comestible", "Glob"],
     "Coins": [],
-    "Other": ["Boulder", "Statue", "Heavy iron ball", "Iron chain"],
+    "Other": [],
     "Artifacts": ["Artifact", "Quest artifact", "Unique item"],
 }
 OBJECT_SECTION_NAMES = {
@@ -1055,8 +1289,8 @@ def build_plan() -> list:
 
     for group, sections in (("strategy", STRATEGY), ("dungeon", DUNGEON), ("mechanics", MECHANICS)):
         for section, items in sections:
-            for title, gist in items:
-                add(Req(key=f"{group}:{title}", candidates=[title], group=group,
+            for title, gist, *wiki in items:
+                add(Req(key=f"{group}:{title}", candidates=wiki or [title], group=group,
                         section=section, label=title, gist=gist))
 
     for letter, names in MONSTERS_BY_CLASS.items():
@@ -1069,7 +1303,7 @@ def build_plan() -> list:
                     section=letter, label=name, need_infobox=need, meta={"symbol": letter}))
         if letter in MONSTER_CLASS_PAGES:
             add(Req(key=f"monsterclass:{letter}", candidates=[MONSTER_CLASS_PAGES[letter]],
-                    group="monsters", section=letter, label=f"class overview",
+                    group="monsters", section=letter, label="class overview",
                     meta={"class_page": True}))
 
     for cls, titles in OBJECT_OVERVIEW.items():
@@ -1079,11 +1313,15 @@ def build_plan() -> list:
     for cls, block in OBJECTS_SRC.items():
         for line in block.strip().splitlines():
             name, appearance, randomized = parse_object_line(line)
+            if name.startswith("worthless piece of"):
+                OBJECT_TITLE_OVERRIDES.setdefault(name, ["Gem"])  # redirects to Gem at the snapshot
             cands = (OBJECT_TITLE_OVERRIDES.get(f"{name}@{cls}") or OBJECT_TITLE_OVERRIDES.get(name)
                      or [OBJECT_TITLE_PREFIX.get(cls, "") + (name if cls in OBJECT_TITLE_PREFIX
                                                             else ucfirst(name))])
+            full = (OBJECT_TITLE_PREFIX[cls].lower() + name if cls in OBJECT_TITLE_PREFIX
+                    and name not in ("novel", "Book of the Dead") else name)
             add(Req(key=f"object:{cls}:{name}", candidates=cands, group="objects", section=cls,
-                    label=name, meta={"appearance": appearance, "random": randomized}))
+                    label=full, meta={"appearance": appearance, "random": randomized}))
     for art in ARTIFACTS:
         add(Req(key=f"object:Artifacts:{art}", candidates=[art], group="objects",
                 section="Artifacts", label=art))
@@ -1182,11 +1420,14 @@ def query_latest(http: Http, titles: list, namespace: int = 0) -> dict:
     return out
 
 
-def query_as_of(http: Http, title: str, as_of: str):
-    """Last revision of `title` at or before `as_of` (None if the page is newer)."""
-    data = http.get(dict(action="query", prop="revisions", titles=title, rvlimit="1",
-                         rvdir="older", rvstart=as_of, rvprop="ids|timestamp|content",
-                         rvslots="main", redirects="1"))
+def query_as_of(http: Http, title: str, as_of: str, follow: bool = True):
+    """Last revision of `title` at or before `as_of` (None if the page is newer).
+    With follow=False a redirect page's own history is used instead of its target's."""
+    params = dict(action="query", prop="revisions", titles=title, rvlimit="1", rvdir="older",
+                  rvstart=as_of, rvprop="ids|timestamp|content", rvslots="main")
+    if follow:
+        params["redirects"] = "1"
+    data = http.get(params)
     pages = data.get("query", {}).get("pages", [])
     if not pages or pages[0].get("missing"):
         return None
@@ -1230,11 +1471,10 @@ REDIRECT_RE = re.compile(r"^\s*#REDIRECT\s*:?\s*\[\[([^\]|#]+)(?:#([^\]|]*))?", 
 # ----------------------------------------------------------------------------
 
 def stem_for(title: str) -> str:
-    """Shell-safe file stem: spaces -> _, drop quotes/parens/punctuation."""
-    s = title.replace(" ", "_").replace("/", "-").replace(":", "-")
-    s = re.sub(r"[\'\"()!?,&*<>|\\;`$#%{}\[\]]", "", s)
-    s = re.sub(r"_+", "_", s).strip("_.-")
-    return s or "page"
+    """File stem = the title's wiki URL form (spaces -> '_'), e.g. Mines'_End,
+    Dwarf_(monster); only '/' (not allowed in file names) becomes '-'."""
+    s = re.sub(r"[\x00-\x1f]", "", title.replace(" ", "_").replace("/", "-"))
+    return s.strip("_") or "page"
 
 
 class State:
@@ -1272,6 +1512,26 @@ class State:
         self.page_file(rec["stem"]).write_text(json.dumps(rec, indent=1, ensure_ascii=False))
 
 
+def assign_output_stems(state: State, currents: list) -> dict:
+    """File stem for each referenced page: its title at the snapshot, made
+    shell-safe. On a (case-insensitive) clash the page that existed at the
+    snapshot and kept its title wins; the others get _2, _3, ..."""
+    recs = {c: state.load_page(state.pages[c]["stem"]) for c in currents}
+
+    def rank(c):
+        r = recs[c]
+        return (bool(r.get("post_snapshot")), r["current_title"] != r["title"], c)
+    out, taken = {}, set()
+    for c in sorted(recs, key=rank):
+        stem = base = stem_for(recs[c]["title"])
+        k = 2
+        while stem.lower() in taken:
+            stem, k = f"{base}_{k}", k + 1
+        taken.add(stem.lower())
+        out[c] = stem
+    return out
+
+
 def log(msg: str):
     print(msg, file=sys.stderr, flush=True)
 
@@ -1304,13 +1564,14 @@ def resolve_requests(http: Http, reqs: list, state: State) -> dict:
                     ok = bool(INFOBOX_CHECK[req.need_infobox].search(info.get("content", "")))
                 if ok:
                     state.resolve[key] = {"title": cands[0], "current": info["current"],
-                                          "fragment": info.get("fragment", "")}
+                                          "fragment": info.get("fragment", ""),
+                                          "requested": req.candidates}
                     del pending[key]
                     break
                 cands.pop(0)
             else:
                 if not cands:
-                    state.resolve[key] = {"missing": True, "tried": by_key[key].candidates}
+                    state.resolve[key] = {"missing": True, "requested": by_key[key].candidates}
                     del pending[key]
     return latest
 
@@ -1375,6 +1636,40 @@ def fetch_pages(http: Http, currents: list, latest_by_title: dict, state: State,
             log(f"  fetched {n}/{len(currents)} pages ({http.count} requests so far)")
     state.save()
     return written
+
+
+def repair_post_snapshot(http: Http, state: State, reqs: list, moves: list, as_of: str) -> dict:
+    """Requests that landed on a page created after the snapshot (typically a new
+    disambiguation page left behind by a rename) are re-pointed at what the
+    title meant at the snapshot: the page it was moved to, or the page it then
+    redirected to. Returns {current title: latest-info} still to be fetched."""
+    todo: dict = {}
+    for r in reqs:
+        res = state.resolve.get(r.key) or {}
+        page = state.pages.get(res.get("current", ""))
+        rec = state.load_page(page["stem"]) if page else None
+        if not rec or not rec.get("post_snapshot"):
+            continue
+        cur, target, frag = res["current"], None, ""
+        moved = [m for m in moves if m["from"] == cur]
+        if moved:
+            target = moved[-1]["to"]  # moves are newest first: take the first move away
+        else:
+            old = query_as_of(http, res.get("title", cur), as_of, follow=False)
+            m = REDIRECT_RE.match(old["content"]) if old else None
+            if m:
+                target, frag = m.group(1).strip(), (m.group(2) or "").strip()
+        if not target:
+            continue
+        info = query_latest(http, [target])[target]
+        if info.get("missing") or info.get("current") == cur:
+            continue
+        log(f"  {r.label}: '{cur}' is newer than the snapshot; using '{info['current']}'")
+        state.resolve[r.key] = {"title": target, "current": info["current"],
+                                "fragment": frag or info.get("fragment", ""),
+                                "requested": r.candidates, "repaired_from": cur}
+        todo[info["current"]] = info
+    return todo
 
 
 # Templates whose content is transcluded into pages (generated skill tables).
@@ -1491,7 +1786,7 @@ ATTRIBUTE_TEXT = {
     "drain": "resists level drain", "plusone": "needs a +1 weapon to hit",
     "plustwo": "needs a +2 weapon to hit", "plusthree": "needs a +3 weapon to hit",
     "plusfour": "needs a +4 weapon to hit", "light": "emits light", "notame": "cannot be tamed",
-    "vampire": "is a vampire",
+    "vampire": "is a vampire", "does_too_eat": "",
 }
 
 INFOBOXES = {
@@ -1588,7 +1883,7 @@ def split_template(inner: str):
 TOK_OPEN, TOK_CLOSE = "\ue000", "\ue001"
 TOK_RE = re.compile("\ue000(\\d+)\ue001")
 TOK_LINE_RE = re.compile("^\\s*\ue000\\d+\ue001\\s*$")
-PIPE, EQ, HEAD = "\ue002", "\ue003", "\ue004"  # {{!}}, {{=}}, heading marker
+PIPE, EQ, HEAD, BR = "\ue002", "\ue003", "\ue004", "\ue005"  # {{!}}, {{=}}, heading, <br> in cells
 TPL_RE = re.compile(r"\{\{(?!\{)((?:(?!\{\{|\}\}).)*?)\}\}", re.S)
 LINK_RE = re.compile(r"\[\[((?:(?!\[\[|\]\]).)*?)\]\]", re.S)
 EXTLINK_RE = re.compile(r"\[((?:https?:|ftp:)?//[^\s\]]+)(?:\s+([^\]]*))?\]")
@@ -1743,7 +2038,7 @@ class Converter:
             sym = MONSTER_SYMBOLS.get(name.lower()) or MONSTER_SYMBOLS.get(self.title.lower())
             rows.append(("Name", name))
             if sym is not None:
-                rows.append(("Symbol", repr(sym) if sym in (" ", "'", ";", ":") else sym))
+                rows.append(("Symbol", "(blank space)" if sym == " " else sym))
         if kind == "level" and pos and pos[0]:
             rows.append(("Level", self.value(pos[0])))
         keymap = LEVEL_KEYS if kind == "level" else INFOBOX_KEYS
@@ -1754,7 +2049,10 @@ class Converter:
             v = self.value(v)
             if not v:
                 continue
-            rows.append((keymap.get(kl, ucfirst(k.strip())), v))
+            key = keymap.get(kl, ucfirst(k.strip()))
+            if key == "Symbol" and " " not in v:
+                v = re.sub(r"(.)\1+", r"\1", v)  # DDDDD -> D
+            rows.append((key, v))
         self.infoboxes.append((kind, rows))
         body = "\n".join(f"{k}: {v}" for k, v in rows)
         return self.token(f"[{INFOBOXES[kind]} infobox]\n{body}\n[end infobox]", block=True)
@@ -1764,10 +2062,12 @@ class Converter:
         v = re.sub(r"^\s*[*#:]+\s*", "", v)
         v = re.sub(r"\n\s*[*#:]+\s*", "; ", v)
         v = re.sub(r"</li>\s*<li\b[^>]*>", "; ", v, flags=re.I)
-        v = re.sub(r"<br\s*/?>", "; ", v, flags=re.I)
+        v = re.sub(r"<\s*/?\s*br\s*/?\s*>", "; ", v, flags=re.I)
+        v = re.sub(r"\s*\n\s*", "; ", v.strip())
         v = re.sub(r"</?(ul|ol|li)\b[^>]*>", "", v, flags=re.I)
         v = self.restore(self.inline(v))
-        return re.sub(r"\s+", " ", v).strip(" ;")
+        v = re.sub(r";\s*\(", " (", re.sub(r"\s+", " ", v))
+        return v.strip(" ;")
 
     # -- tables --
     def tables(self, s: str) -> str:
@@ -1784,7 +2084,7 @@ class Converter:
         return "\n".join(out)
 
     def render_table(self, lines: list) -> str:
-        caption, rows, i = "", [], 1
+        caption, rows = "", []
         cur = None
         body = lines[1:-1] if len(lines) > 1 and TABLE_END_RE.match(lines[-1]) else lines[1:]
 
@@ -1819,7 +2119,9 @@ class Converter:
                 k = j
                 continue
             if st.startswith("|+"):
-                caption = st[2:]
+                parts = split_top(st[2:], "|")
+                caption = ("|".join(parts[1:]) if len(parts) > 1 and ATTR_RE.match(parts[0])
+                           else st[2:])
             elif st.startswith("|-"):
                 cur = None
             elif st.startswith("!"):
@@ -1835,7 +2137,8 @@ class Converter:
         block_mode = False
         for r in rows:
             for c in r:
-                txt = self.restore(self.block_lines(c["text"].strip("\n")))
+                cell = re.sub(r"<\s*/?\s*br\s*/?\s*>", BR, c["text"].strip("\n"), flags=re.I)
+                txt = self.restore(self.block_lines(cell))
                 c["out"] = txt.strip("\n")
                 lines_ = [ln for ln in c["out"].split("\n") if ln.strip()]
                 if len(lines_) > 1 and any(ln.startswith(" ") for ln in lines_):
@@ -1843,7 +2146,7 @@ class Converter:
                 if len(lines_) > 1 and any(ln.startswith(("|", "+")) and ln.rstrip().endswith(("|", "+"))
                                            for ln in lines_):
                     block_mode = True  # nested table
-        cap = self.restore(self.inline(caption)).strip()
+        cap = self.restore(self.inline(caption)).strip().lstrip("|").strip()
         if block_mode:
             out = [f"Table: {cap}"] if cap else []
             for r in rows:
@@ -1852,7 +2155,7 @@ class Converter:
                     if c["h"] and "\n" not in c["out"]:
                         continue
                     label = (heads[0] + ": ") if heads and len(heads) == 1 else ""
-                    out.append(label + c["out"])
+                    out.append(label + re.sub(r"\s*" + BR + r"\s*", "\n", c["out"]))
                     out.append("")
             return "\n".join(out).rstrip()
         # grid with colspan/rowspan expansion
@@ -1871,7 +2174,7 @@ class Converter:
                     col += 1
                     continue
                 c = cells.pop(0)
-                txt = one_line(c["out"])
+                txt = re.sub(r"\s*" + BR + r"\s*", "; ", one_line(c["out"])).strip("; ")
                 for x in range(max(1, min(c["cs"], 20))):
                     line.append((txt if x == 0 else "", c["h"]))
                     if c["rs"] > 1:
@@ -1962,14 +2265,16 @@ class Converter:
         s = re.sub(r"'{5}", "", s)
         s = s.replace("''''", "'")
         s = re.sub(r"'''|''", "", s)
-        s = re.sub(r"<br\s*/?>", "\n", s, flags=re.I)
+        s = re.sub(r"<\s*/?\s*br\s*/?\s*>", "\n", s, flags=re.I)
         s = re.sub(r"<li\b[^>]*>", "\n- ", s, flags=re.I)
         s = re.sub(r"</li>|</?(ul|ol|dl|dd|dt)\b[^>]*>", "", s, flags=re.I)
-        s = re.sub(r"<sup\b[^>]*>(.*?)</sup>", lambda m: "^" + m.group(1) if len(m.group(1)) <= 4 else m.group(1),
+        s = re.sub(r"<sup\b[^>]*>(.*?)</sup>",
+                   lambda m: "^" + m.group(1) if len(m.group(1)) <= 4 else m.group(1),
                    s, flags=re.I | re.S)
         s = re.sub(r"</?sub\b[^>]*>", "", s, flags=re.I)
         s = re.sub(r"<(kbd|code|tt|samp|var|key)\b[^>]*>(.*?)</\1>",
-                   lambda m: f"`{m.group(2)}`" if 0 < len(m.group(2)) <= 40 and "\n" not in m.group(2) else m.group(2),
+                   lambda m: (f"`{m.group(2)}`" if 0 < len(m.group(2)) <= 40
+                              and "\n" not in m.group(2) else m.group(2)),
                    s, flags=re.I | re.S)
         s = INLINE_TAGS_RE.sub("", s)
         s = re.sub(r"__(NO)?(TOC|EDITSECTION|FORCETOC|NEWSECTIONLINK|INDEX|NOINDEX)__", "", s)
@@ -2119,9 +2424,11 @@ def _t_message(c, pos, named):
 
 
 def _t_monsym(c, pos, named):
-    name = (pos[0] if pos else "").strip()
+    name = (pos[0] if pos else "").replace("_", " ").strip()
     sym = MONSTER_SYMBOLS.get(name.lower())
-    return sym if sym not in (None, " ") else (name if sym is None else "' '")
+    if sym is None:
+        return ""  # not a 3.6 monster (variant or deferred)
+    return "' '" if sym == " " else sym
 
 
 def _t_monsymlink(c, pos, named):
@@ -2134,7 +2441,9 @@ def _t_monclass(c, pos, named):
 
 def _t_attributes(c, pos, named):
     flags = [k for k, v in named.items() if v.strip() and v.strip() != "0"]
-    return "; ".join(ATTRIBUTE_TEXT.get(f, f) for f in flags)
+    text = "; ".join(ATTRIBUTE_TEXT.get(f, f) for f in flags if ATTRIBUTE_TEXT.get(f, f))
+    subject = (pos[0] if pos else "").strip()
+    return f"({subject}: {text})" if " also" in subject else text
 
 
 def _t_sa(c, pos, named):
@@ -2152,7 +2461,17 @@ def _t_seealso(c, pos, named):
 
 
 def _t_kbd(c, pos, named):
-    return "`" + "".join(pos) + "`" if pos else ""
+    keys = [k.strip() for k in pos if k.strip()]
+    if not keys:
+        return ""
+    mod = keys[0].lower()
+    if len(keys) == 2 and len(keys[1]) == 1 and mod == "shift":
+        return f"`{keys[1].upper()}`"                  # {{kbd|shift|z}} -> Z
+    if len(keys) == 2 and len(keys[1]) == 1 and mod in ("ctrl", "control", "^"):
+        return f"`^{keys[1].upper()}`"                 # {{kbd|ctrl|x}} -> ^X
+    if len(keys) == 2 and len(keys[1]) == 1 and mod in ("alt", "meta", "m"):
+        return f"`M-{keys[1]}`"
+    return "`" + "+".join(keys) + "`"
 
 
 def _t_commit(c, pos, named):
@@ -2259,11 +2578,14 @@ def render_page(rec: dict, aliases: list):
     return text, conv
 
 
-def first_sentence(body: str, max_words: int = 15) -> str:
+def first_sentence(text: str, max_words: int = 15) -> str:
+    """First sentence of a rendered page's body (skipping header and infobox)."""
+    body = text.split("=" * 78, 1)[-1]
+    body = re.sub(r"^\[\w[\w ]* infobox\]\n.*?^\[end infobox\]$", "", body, flags=re.S | re.M)
     for line in body.split("\n"):
         s = line.strip()
-        if (not s or s.startswith(("#", "[", "|", "(Main", "(See", "Table:", "-", "•"))
-                or TOK_RE.search(s) or ":" in s[:25] and s.split(":")[0].istitle() and len(s) < 60):
+        if (not s or s.startswith(("#", "[", "|", "(Main", "(See", "Table:", "- ", "Guidebook:", '"'))
+                or TOK_RE.search(s)):
             continue
         s = re.split(r"(?<=[a-z0-9\)\]'\"])\.\s", s + " ")[0].strip().rstrip(".")
         words = s.split()
@@ -2299,13 +2621,16 @@ def object_gist(label: str, ib: dict, meta: dict) -> str:
     elif meta.get("appearance"):
         out += f" (unidentified: {meta['appearance']})"
     bits = []
-    for key, fmt in (("cost", "${}"), ("weight", "wt {}"), ("ac", "AC {}"),
-                     ("damage vs small", "d{} sm"), ("damage vs large", "d{} lg"),
-                     ("nutrition", "nutr {}"), ("level", "spell lvl {}"), ("type", "{}")):
-        v = ib.get(key)
-        if v:
-            v = re.sub(r"\s*\(.*?\)", "", v)
-            bits.append(fmt.format(v).replace("dd", "d"))
+    clean = lambda v: re.sub(r"\s*\(.*?\)", "", v or "").strip()
+    for key, fmt in (("cost", "${}"), ("weight", "wt {}"), ("ac", "AC {}")):
+        if clean(ib.get(key)):
+            bits.append(fmt.format(clean(ib.get(key))))
+    sm, lg = clean(ib.get("damage vs small")), clean(ib.get("damage vs large"))
+    if sm or lg:
+        bits.append(f"dmg {sm or '?'}/{lg or '?'}")
+    for key, fmt in (("nutrition", "nutr {}"), ("level", "spell level {}"), ("type", "{}")):
+        if clean(ib.get(key)):
+            bits.append(fmt.format(clean(ib.get(key))))
     if bits:
         out += "; " + ", ".join(bits)
     special = ib.get("special") or ib.get("when wielded") or ib.get("when carried")
@@ -2319,7 +2644,7 @@ def shorten(s: str, n: int) -> str:
     return s if len(s) <= n else s[: n - 3].rstrip() + "..."
 
 
-def build_index(plan: list, state: State, rendered: dict) -> str:
+def build_index(plan: list, state: State, rendered: dict, out_stem: dict) -> str:
     L = ["# NetHack knowledge base index", "",
          "Plain-text copies of NetHackWiki pages for NetHack 3.6.x, one file per page in `wiki/`.",
          "Search them with grep, e.g. `grep -ril 'cockatrice' knowledge/wiki` or",
@@ -2340,8 +2665,7 @@ def build_index(plan: list, state: State, rendered: dict) -> str:
         res = state.resolve.get(r.key) or {}
         if res.get("missing") or "current" not in res:
             return None, ""
-        page = state.pages.get(res["current"])
-        return (page["stem"] if page else None), res.get("fragment", "")
+        return out_stem.get(res["current"]), res.get("fragment", "")
 
     def line_for(r: Req, gist: str) -> str:
         stem, frag = target(r)
@@ -2371,19 +2695,23 @@ def build_index(plan: list, state: State, rendered: dict) -> str:
             for sec, items in sections.items():
                 L += [f"### {sec}", ""]
                 for r in items:
+                    stem, frag = target(r)
+                    if not stem:
+                        continue
                     gist = r.gist or auto_gist(r)
-                    ln = line_for(r, gist if r.label.lower() in gist.lower()[:60] or not gist
-                                  else f"{r.label}: {gist}")
-                    if ln:
-                        L.append(ln)
+                    # name the entry when the file is really about something else
+                    if frag or stem_for(r.label).lower() != stem.lower():
+                        gist = f"{r.label}: {gist}" if gist else r.label
+                    L.append(line_for(r, gist))
                 L.append("")
         elif group == "monsters":
             L += ["Symbol letters as displayed on the map. Stats: level, speed, AC, magic",
                   "resistance, difficulty; attacks; what eating the corpse can convey.", ""]
             for letter in MONSTERS_BY_CLASS:
-                shown = repr(letter) if letter in (" ", "'", ";", ":") else letter
+                shown = "(blank space)" if letter == " " else letter
                 L += [f"### {shown} -- {MONSTER_CLASS_NAMES.get(letter, '')}", ""]
-                for r in [x for x in reqs if x.section == letter]:
+                members = [x for x in reqs if x.section == letter]
+                for r in sorted(members, key=lambda x: not x.meta.get("class_page")):
                     stem, frag = target(r)
                     if not stem:
                         continue
@@ -2425,7 +2753,7 @@ def build_index(plan: list, state: State, rendered: dict) -> str:
 # ----------------------------------------------------------------------------
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0],
+    ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--force", action="store_true", help="re-download everything (ignore cache)")
     ap.add_argument("--reconvert", action="store_true",
@@ -2470,8 +2798,8 @@ def main(argv=None) -> int:
 
     def cached(r: Req) -> bool:
         res = state.resolve.get(r.key)
-        if not res:
-            return False
+        if not res or res.get("requested") != r.candidates:
+            return False  # never resolved, or the plan changed its candidate titles
         if res.get("missing"):
             return True
         page = state.pages.get(res["current"])
@@ -2498,58 +2826,67 @@ def main(argv=None) -> int:
         log(f"downloading {len(currents)} pages (snapshot {as_of or 'latest'})")
         state.data["as_of"], state.data["mode"] = as_of, ("latest" if as_of is None else "snapshot")
         fetched = fetch_pages(http, currents, latest, state, as_of=as_of, moves=moves, force=force)
+        if as_of:
+            fixes = repair_post_snapshot(http, state, plan, moves, as_of)
+            if fixes:
+                fetched += fetch_pages(http, sorted(fixes), fixes, state, as_of=as_of,
+                                       moves=moves, force=force)
         log(f"{len(fetched)} pages downloaded with {http.count} API requests")
         state.save()
 
+    every = full_plan + [r for r in plan if r.group == "extra"]
+    referenced = sorted({res["current"] for r in every
+                         for res in [state.resolve.get(r.key) or {}]
+                         if res.get("current") in state.pages
+                         and state.page_file(state.pages[res["current"]]["stem"]).exists()})
+    out_stem = assign_output_stems(state, referenced)
+
     # Aliases: other requested names that land on the same page.
     aliases: dict = {}
-    for r in full_plan + [r for r in plan if r.group == "extra"]:
+    for r in every:
         res = state.resolve.get(r.key) or {}
         page = state.pages.get(res.get("current", ""))
-        if not page:
+        if not page or res["current"] not in out_stem:
             continue
         name = r.label if not r.meta.get("class_page") else None
         if name and name.lower() != page["title"].lower() and not r.meta.get("overview"):
             frag = res.get("fragment")
-            aliases.setdefault(page["stem"], [])
+            lst = aliases.setdefault(res["current"], [])
             entry = name + (f" (section {frag})" if frag else "")
-            if entry.lower() not in (a.lower() for a in aliases[page["stem"]]):
-                aliases[page["stem"]].append(entry)
+            if entry.lower() not in (a.lower() for a in lst):
+                lst.append(entry)
 
     # Convert every cached page referenced by the plan.
-    stems = sorted({state.pages[res["current"]]["stem"]
-                    for r in full_plan + [r for r in plan if r.group == "extra"]
-                    for res in [state.resolve.get(r.key) or {}]
-                    if res.get("current") in state.pages})
     if not args.reconvert:
-        n_tpl = fetch_templates(http, state, stems, as_of=as_of, force=force)
+        n_tpl = fetch_templates(http, state, [state.pages[c]["stem"] for c in referenced],
+                                as_of=as_of, force=force)
         if n_tpl:
             log(f"{n_tpl} transcluded templates (skill tables) downloaded")
     TEMPLATE_SOURCES.update(load_templates())
     rendered: dict = {}
     unknown = Counter()
     written = 0
-    for stem in stems:
-        rec = state.load_page(stem)
-        if rec is None:
-            continue
-        text, conv = render_page(rec, aliases.get(stem, []))
+    for cur in referenced:
+        rec = state.load_page(state.pages[cur]["stem"])
+        stem = out_stem[cur]
+        text, conv = render_page(rec, aliases.get(cur, []))
         rendered[stem] = (text, conv)
         unknown.update(conv.unknown)
         out = OUT_DIR / f"{stem}.txt"
         if not out.exists() or out.read_text() != text:
             out.write_text(text)
             written += 1
-    log(f"{written} .txt files written/updated in {OUT_DIR.relative_to(ROOT)} ({len(stems)} pages total)")
+    log(f"{written} .txt files written/updated in {OUT_DIR.relative_to(ROOT)} "
+        f"({len(referenced)} pages total)")
 
     if args.prune:
-        keep = {f"{s}.txt" for s in stems}
+        keep = {f"{s}.txt" for s in out_stem.values()}
         for f in OUT_DIR.glob("*.txt"):
             if f.name not in keep:
                 f.unlink()
                 log(f"  pruned {f.name}")
     if not args.no_index and not args.only:
-        INDEX_PATH.write_text(build_index(full_plan, state, rendered))
+        INDEX_PATH.write_text(build_index(full_plan, state, rendered, out_stem))
         log(f"wrote {INDEX_PATH.relative_to(ROOT)}")
 
     missing = [r for r in plan if (state.resolve.get(r.key) or {}).get("missing")]

@@ -58,7 +58,7 @@ Research digest for the claude-plays-nethack team, written 2026-09-26.
    - smoke hiding `@` on the Plane of Fire;
    - natural regeneration masking falling-rock damage.
 
-   Each was found during play and patched mid-game with a regression test. The guard test suite ended at 53 tests.
+   Each was found during play and patched mid-game with a regression test. The harness test suite reached 53 tests by the ascension.
 7. **The agent checked NetHack's 3.6.7 source for mechanics, and was right to.** Facts it confirmed from the source include:
    - a self-zapped wand of polymorph ignores magic resistance (zap.c 2249–2255);
    - a wish adds 50–149 to the prayer timeout;
@@ -447,7 +447,7 @@ The rule column is the general lesson. Turn numbers are from the journals.
 | 16172 | *"batched farlook+F4 hit PEACEFUL TENGU"*. | Disengaged. | The same rule. |
 | 20546 | *"hero74,18water moved6 ontoRelay75,18land, swappedRelayintowater... You drown Relay."* Result: anger 1, −15 alignment, prayer unsafe. | Sacrificed a red naga at T22798. | **Never swap a pet into water or lava.** With water walking or levitation, you can stand where the pet cannot. |
 | 21659 | A soldier ignored Elbereth in the Castle; HP 44. | Read taming and tamed two xorns. | Elbereth does not stop `@` humans or minotaurs (their note; [MECH] monmove.c `onscary`). Keep a non-Elbereth answer. |
-| 21971–21975 | An Olog-hai wielding a **cockatrice corpse**: stoning started. | Ate a lizard; was re-infected; **polymorphed the Olog-hai into a green slime** (!), ate a lizard again, killed the slime with fire. | Carry 2+ lizard corpses. Kill cockatrice-wielders at range. Polymorphing an enemy can create a worse enemy. |
+| 21971–21975 | An Olog-hai wielding a **cockatrice corpse** hit the hero *during a 3-attack batch*, and stoning started (*"3attackbatch caused stiffening"*). | Ate a lizard; was re-infected; **polymorphed the Olog-hai into a green slime** (!), ate a lizard again, killed the slime with fire. | Carry 2+ lizard corpses. Kill cockatrice-wielders at range. Polymorphing an enemy can create a worse enemy. |
 | 22017 | Minotaur ambush in the Castle maze; HP 109→66. | Fought and retreated. | Castle mazes hold minotaurs. Elbereth does not work on them; a scare monster scroll does. |
 | 22842 | Engraved on an altar: Wis −1, alignment −1. | – | Never engrave on altars. |
 | 23682 | On quest Home 6, walked into **lava** after misreading `}` from the visual spacing. | Teleport wand (T23685). | *"ALWAYS Pg BEFORE moving after landing, never assume floor by visual spacing. Use Map features for '}'."* (`Pg` = put on ring g, levitation.) |
@@ -990,7 +990,7 @@ There was **no engine API**. `docs/METHODOLOGY.md` says observations were only t
 
 **`scripts/route.py`** is a read-only BFS over the remembered screen map from the cursor to x,y.
 
-- Walkable cells: `▒·<>$%!?=()[/*`"_` plus `-|` doorways (no diagonal moves through doorways; no squeezing diagonally between two blank rock cells).
+- Walkable cells: `` ▒·<>$%!?=()[/*`"_ `` plus `-|` doorways (no diagonal moves through doorways; no squeezing diagonally between two blank rock cells).
 - `--allow-traps` adds `^`.
 - Output is JSON `keys` (capped by `--limit`), with the warning *"Proposal only: excludes known traps, water, boulders, and occupied tiles; does not predict monster movement."*
 - The keys were then fed to the guarded walker.
@@ -1070,7 +1070,7 @@ There was **no explicit prompt parser**. Detection was implicit.
 3. HP is at least 2/3 of max (*"Health below two-thirds."*).
 4. **No creature or warning glyph within 2 tiles.** That is any letter, or any of `@&12345;:'`, in the 5×5 box, excluding reverse-video pets. (*"Nearby creature or warning; inspect before continuing."*)
 5. The next tile is inside the map.
-6. The next tile is in `'▒·.#<>$%!?=()[/*`"_'`. Otherwise: *"Next tile is unknown, blocked, a door, water, or a trap."*
+6. The next tile is in `` '▒·.#<>$%!?=()[/*`"_' ``. Otherwise: *"Next tile is unknown, blocked, a door, water, or a trap."*
 
 **After each step** (wait for `settled()`; *"Terminal did not settle"* stops the batch):
 
@@ -1184,3 +1184,437 @@ This is a check of `scripts/` against what an engine-backed harness gives for fr
 - No token-cost controls.
 
 All of this was carried by the model plus the journals.
+
+---
+
+## 6. Memory practices
+
+### 6.1 The memory files
+
+| File | Size | Role |
+|---|---|---|
+| `memory/session.md` | 7 KB | Bootstrap and procedures (see below). |
+| `memory/live-run.md`, `run-2.md`, `run-3.md` | 272 KB / 189 KB / 649 KB | Per-run journals, **newest section first**. |
+| `memory/run-2-emergency.json`, `run-3-emergency.json` | 144 KB / 463 KB | The "compact" verified-state file. It was meant to be read quickly under pressure. |
+| `EVIDENCE.md` | 123 KB | Provenance log: checkpoints, ttyrec hashes, harness changes, interruptions. |
+
+`session.md` holds:
+
+- the environment (host, controls, key quirks);
+- *"Read this file at the start of each session, then inspect the actual game screen. Update it before stopping: character, turn, location, inventory discoveries, threats, goals, unresolved prompts, save status, and recording links. Never put passwords or stream keys here. Keep observations separate from guesses."*
+
+The journals start with a `FINAL:` or `CURRENT` block. After that come `## T<turn> — <headline>` sections, and older material is marked with `OLDER:` or "THIS SUPERSEDES…" lines.
+
+### 6.2 What the journal tracked, per entry
+
+Reconstructed from hundreds of entries. Each entry was a dense single paragraph, and the same fields recurred:
+
+- **Position and vitals.** `CURRENT D41 13,14 HP92/168 XP359693 AC-6`, plus hunger, encumbrance, Pw, and attribute changes.
+- **Equipment toggles, by inventory letter.** Examples: `uLEV ON/OFF`, `q` (blindfold) `OFF`, `x` (conflict) `OFF`, `C` (free action) `LEFT`/`RIGHT` hand, `Q` (life saving) `ON`, `X` (reflection) `OFF … READY`, `ExcalWIELD`.
+- **Resources with evidence grade.** Examples:
+  - `hDEATHFORMAL1:1` (the charge count as seen in inventory);
+  - `I sleep EMPTY31472`;
+  - `Nfire0:3 ONE hero use`;
+  - `M dig TWO hero, charges unknown`;
+  - tags `NEVER RECHARGE`, `NEVER BAG` (cancellation), `READY`, `inferred`.
+- **Consumables.** Healing potions, charging scrolls, holy water count, blank scrolls and marker ink, food, and the **last meal turn**.
+- **Prayer.** The last prayer turn (*"LASTPRAYER13565"*), and *"No prayer Gehennom"*.
+- **Threats.** Monster, coordinates, turn last seen, and how it was identified (*"farlook confirmed"* vs *"unID, don't assume type"*), including peacefuls that must not be attacked.
+- **Maps.** `UP x,y` / `DOWN x,y`, doors (`OPEN`/`LOCKED`/`BROKEN`), traps (`AVOID`), **routes as coordinate chains** (`Route UP from 37,17 S37,18 SW36,19 …`), and floor caches.
+- **Errors.** `ERROR<T>: … Preserve error`. Mistakes were logged permanently and never erased. The run-3 journal has explicit ERROR entries for T2606, T4214, T26038, T32778, T33225, T37132 and others.
+- **Source citations for mechanics.** E.g. *"Source zap.c2137 success1/121 per attempt"*, *"teleport.c1576 RIDER tele … relocates ADJACENT hero"*.
+- **Ops.** Audit checkpoint ids and the time of the next audit.
+
+### 6.3 Emergency JSON: structure (field names verbatim)
+
+**Run 2** has 30 top-level keys. The explicitly structured part is:
+
+```
+run_id, last_verified_turn, status, precedence,
+live: {                                  # 124 keys: 20 structured + ~104 time-keyed text blobs
+  level, hero:[x,y], hp, max_hp, ac, xl, xp, gold_outside, conditions:[], blindfold,
+  pet, weapons, healing, wands, bag, other, fountains, route, latest_route, intrinsics,
+  newest_<T> (97 of them, newest first: newest_12269 … newest_6371),
+  newest_route_<T>, combat_<T>, emergency_<T>, pet_correction_<T>
+},
+latest_override_<T> (9: 5523, 5473, 5441, 5263, 5129, 5103, 5072, 4977, 4831):
+    { level, hero, hp, max_hp, ac, xl, xp, dx, gold | gold_outside | gold_in_bag,
+      conditions, blindfold, pet, changes, resources, plan, route, danger, ward },
+uncertain_wand:  { letter, appearance, identity, evidence, uses, remaining_charges, warning },
+current_state:   { level, hero, hp, max_hp, ac, xl, xp, gold, conditions, pet },
+lightning:       { letter, appearance, identity, uses, remaining_charges, warning },
+digging:         { letter, identity, uses, remaining_charges, last_used, warning },
+latest_resource_changes: { <inventory letter>: "<what changed, turn>" },
+current_threats: [str], intrinsics: [str],
+escape_options:  [ {letter, appearance, identity, uses, remaining_charges, warning}
+                 | {letter, identity, quantity, warning} ],
+healing_options: [], sliming_cures: [], stoning_cures: [],
+latest_items_3730: [ {letter, identity, quantity, picked_turn, [uses, remaining_charges, test_turn, warning]} ],
+new_items:       [ {letter, identity, quantity, picked_turn, location:[x,y], note} ],
+critical_equipment: [ {letter, identity, enchantment, buc, wielded|worn, quantity, in_pack, warning} ],
+verification_policy: "Only record observed identities and charges. Unknown is not charged. Verify before entering dangerous areas; update after use or theft.",
+lessons: [ "Movement batches use guarded incremental input; no raw movement batches near monsters.",
+           "Stop immediately on Slime or Stone; never spend remaining turns on an unverified remedy.",
+           "Self-zapping polymorph is not blocked by magic resistance (NetHack 3.6.7 zap.c lines 2249-2255).",
+           "Never put a wand of cancellation into a bag of holding." ]
+```
+
+The `status` and `precedence` fields were used to invalidate everything below them, e.g. *"DEAD status supersedes ALL objects below, including the formerly named live object."*
+
+**Run 3** has 579 top-level keys, of which 574 are free-text blobs (median 726 characters). They were **inserted newest first**, so reading the head of the file gives the latest state.
+
+```
+run_id, FINAL_VERIFIED, FINALIZED, ASCENDED_37140,
+urgent_<T>            ×99   (T32584 … T37116)
+latest_<T>            ×101  (T30682 … T33790)
+urgent_update_<T>     ×92   (T25792 … T30648)
+newest_snapshot_<T>   ×226  (T7905 … T25906)
+audit_<HHMM> ×34, audit_update_<HHMM> ×5, audit_verify_<HHMM> ×3, audit_0446_verify   # UTC wall-clock audit notes
+status, resume_snapshot, last_verified_turn (= 30648), paused_snapshot_26955, pause_evidence_final,
+inventory_curse_24855, correction_14743, wand_g_latest, speed_update_10089,
+current_authoritative_snapshot            # says "T7704 … supersedes older live fields"
+live: { latest_override, level, hero, up, down, hp, max_hp, pet_latest, food_latest, pw, ac, xl, xp,
+        gold, conditions, strength, dexterity, wisdom, skills,
+        inventory: { <letter>: "<identity, BUC, enchant, provenance, turn>" },
+        pet, threats:[str], prayer, magic_defenses, emergency_items, intrinsics, food_used },
+item_identifications: {}, maps: { minetown }, rules: [4 strings]
+```
+
+The run-3 `rules`:
+
+1. *"Never import randomized identities or maps from earlier runs."*
+2. *"Do not attempt Castle without known magic resistance or reflection; prefer both."*
+3. *"Unknown wand charges are not guaranteed available."*
+4. *"Every game input through audited session.py; individually review combat actions."*
+
+### 6.4 What worked and what didn't
+
+**Worked**
+
+- **Evidence grading** (`FORMAL` vs `inferred` vs `UNVERIFIED`; "unknown charges are not available charges"). The agent never trusted a charge it had not seen and always had a fallback. At T31472 the sleep wand was empty and it moved straight to the Orb.
+- **A reserve list with hard constraints**: "NEVER recharge" for the wishing wand and marker after one recharge, "NEVER bag" for cancellation, "keep one charging for …".
+- **A per-turn "CURRENT" line** at the top of every update, which made reorientation after compaction or a restart quick.
+- **Recording errors permanently.** Recurring error classes (blind multi-key input, peacefuls) were visibly re-learned less often in run 3.
+- **Saving the reasons as well as the facts**, e.g. *"NO MR: immediately RETREATED"*.
+
+**Didn't work**
+
+- **Schema drift.** Run 2's JSON had typed fields (`critical_equipment`, `escape_options`, `sliming_cures`), but they stopped being updated. `current_state` still describes Sokoban (T4566) even though the run died at T12271.
+- In run 3 the typed `live` object and `current_authoritative_snapshot` froze at **T7611/T7704**, and `last_verified_turn` froze at **30648**, while play continued to 37140. Only the newest text blob was current. An agent that trusted the typed fields would have been wrong by 30,000 turns.
+- **Unbounded growth.** 463 KB of JSON cannot be read under pressure. The file was "compact" only in name.
+- **Map memory as prose.** Coordinates and route strings were hand-copied from the screen, and some misreadings (lava at T23682) came from exactly that.
+
+[SPEC] A better design keeps a **small typed state file** (`as_of_turn` per field, schema-validated, where stale fields are an error) plus an **append-only event log**. The harness should fill in everything the game can tell it: position, vitals, conditions, inventory letters, and charges when `(x:y)` is shown. The agent writes only IDs, plans and hypotheses.
+
+---
+
+## 7. Hardfought operational details
+
+### 7.1 Connection and login flow
+
+1. **SSH** to `nethack@us.hardfought.org`. This is Hardfought's public dgamelaunch entry, so there is no SSH key or account at this layer.
+   - Astra pinned the server's ED25519 host key in `config/known_hosts` and connected with `StrictHostKeyChecking=yes`.
+   - `session.md` records the fingerprint as `SHA256:6I4FoeQJSX90yDFeWb7XTuq/AeuOFo2F2QEDSwgLWmY`, *"verified against Hardfought's published ED25519 fingerprint"* on 2026-09-06.
+   - `docs/SETUP.md` adds: *"Verify Hardfought's current SSH host key through a trusted channel."*
+2. **dgamelaunch menu: register or log in.**
+   - Registration asks for a password twice ("and again"); login asks for username, then password.
+   - Astra typed credentials only through `session.py credential` while the stream was hidden. The helper checks that the right prompt is on screen, sends the secret unlogged, then Enter.
+   - Credentials were generated with `secrets.token_hex` into `.runtime/credentials.json` (mode 0600, gitignored).
+3. **Logged-in lobby** shows `Logged in as: <name>`. The NetHack 3.6.7 game is `nh367-hdf`. When a save exists the lobby offers **"Resume last save [nh367-hdf]"**.
+   - Keys the journals report:
+     - `r`: Resume last save (run 1, T15474);
+     - **`p`: play, which also reattached or recovered a stale running process** (run 3, T22734, *"p from lobby recovered stale nh367-hdf process after9sec"*).
+   - On Sep 6 `session.md` said to restore from the "version menu" with uppercase `V`. Menu letters evidently differ between screens and dates. **Read the menu before pressing anything.**
+4. **Options.** Hardfought keeps a per-account server-side rc (`CodexDelver.nh36rc`).
+   - Astra installed `config/nethackrc`, backed up the previous server file, and diffed the result (*"only an extra final blank line"*).
+   - [SPEC] It was edited through the lobby's options editor; the materials do not say how.
+
+### 7.2 rc options (`config/nethackrc`) and why they mattered
+
+```
+OPTIONS=windowtype:curses
+OPTIONS=windowborders:2,perm_invent
+OPTIONS=color,menucolors,hilite_pet,hilite_pile
+OPTIONS=showexp,showscore,time,hitpointbar
+OPTIONS=lit_corridor,dark_room,!use_darkgray
+OPTIONS=msg_window:reversed,msghistory:60
+OPTIONS=menu_objsyms,!implicit_uncursed
+OPTIONS=statushilites:10
+OPTIONS=number_pad:1,!autopickup,autodig,fruit:slime mold,boulder:0
++ HILITE_STATUS for hunger, encumbrance, conditions (stone/slime/strngl/foodpois/termill in red inverse), HP%/Pw% bands
++ MENUCOLOR rules for blessed/cursed/uncursed/holy/unholy/worn/wielded/"named empty"/food/gold
+```
+
+Harness-relevant consequences:
+
+| Option | Effect |
+|---|---|
+| curses | "More" is `>>`. The status and perm-inventory geometry is what the parsers expect. The cursor rests on `@` at map prompts. |
+| `hilite_pet` | Reverse-video pets, used by the guard. |
+| `boulder:0` | Boulders are `0` (the Sokoban planner depends on this). |
+| `time` | `T:` is present (the guard needs it). |
+| `!implicit_uncursed` | Every item shows its BUC state once it is known. |
+| `number_pad:1` | **`k` kicks**; counts need `n` (`n20s`). Arrow keys misfired (named Up opened a take-off menu). |
+| `!autopickup` | No accidental pickups (for example of scare monster scrolls). |
+| `autodig` | Walking into rock with a wielded pick digs. |
+
+### 7.3 Save, restore and pauses
+
+- **Save:** `S`, then `y`, then Space at the curses `>>`. That returns to the lobby, where "Resume last save" should be visible.
+- **Restore** returned the exact turn, HP and map every time: the T38 shakedown, and the two multi-day pauses (T12025 and T26955). After one restore (T22734) the journal notes a *"New-moon warning on restore"* ([MECH] the moon phase comes from the server clock).
+- **Disconnects.** The game process can outlive the SSH session; the lobby's play/resume reattaches (§5.8). No saved game was ever lost.
+- **Frozen game** (R1 T15474). SSH was alive and the lobby worked from a second connection, but the game ignored keys. The recovery was a fresh connection plus resume. The documented fallback, if a stale game blocks, is Hardfought's crash-recovery instructions at <https://www.hardfought.org/nethack/>.
+
+### 7.4 Server behaviour and artifacts
+
+- **Version string:** `NetHack Version 3.6.7-1 post-release - last build Sat May 23 11:43:56 2026 (8b4a575d7e9df6eacf187bfed899886b4b79e5f6, branch:hardfought)`.
+- **Clock:** server-local times are **US Eastern**. The run 3 dumplog says ended 16:04:42, which EVIDENCE maps to 20:04:42 UTC.
+- **Dumplogs:** `https://www.hardfought.org/userdata/<Initial>/<name>/nethack/dumplog/<game-start-epoch>.nh.txt` (and `.nh.html`), written at game end. The four CodexDelver ids decode to the four game start times. The text dump includes the final screen and last messages, inventory with container contents, attributes, vanquished, genocided, conduct and the dungeon overview.
+- **ttyrecs:** one segment per connection, named `YYYY-MM-DD.HH:MM:SS.mmm.ttyrec`, under `.../nethack/ttyrec/`.
+  - While active the segment is uncompressed and still growing.
+  - Once finalized it is gzipped, and the uncompressed URL returns 404.
+  - Some finalized segments are served from S3 (`https://hdf-us.s3.amazonaws.com/ttyrec/...`).
+  - Astra hashed and archived partial snapshots of the growing file throughout play.
+- **Bones are shared across players.** Run 3 met four bones levels (D7, D17, D23, D44), two left by the same player.
+- **In-game mail** can arrive. At T37125 on Astral a scroll of mail arrived. Astra **left it unread** and flagged it as possible human interference for provenance purposes. The final inventory still has *"G - an uncursed scroll of mail"*.
+- **Spectators** can watch a game read-only through dgamelaunch. A spectator session was used to confirm the T15474 freeze.
+- **End of game.** The disclosure prompts (`Do you want your possessions identified? [ynq]` … attributes, vanquished, genocided, conduct, overview) must all be answered. Then *"Hardfought finalized the game and returned to its lobby"* with no save.
+
+### 7.5 Timeouts and hangups
+
+Two SSH drops ended with the pane exiting with status 7.
+
+- One was during a pending sandbox or network approval (15:47:46 UTC Sep 20); Astra *"presumed idle timeout, not confirmed"*.
+- One was with a bag menu open (20:17:18 UTC Sep 20).
+
+Client keepalives (`ServerAliveInterval=30`) were already on. [SPEC] So the limit, if it is one, is on user input, not TCP.
+
+**Operational rule:** never leave the game idle behind a long operation. Save first if a wait of many minutes is likely.
+
+---
+
+## 8. Recommendations
+
+**How to read this section**
+
+- §8.1 is a **candidate player rulebook**, ordered by lethality. Most items cite the Astra turn that taught it.
+- The dev CLAUDE.md says "No seeded tactics … Don't preempt". These are knowledge and constraints, not tactic code. Whether to put them in `game/CLAUDE.md` now or hold them back to watch what the gamer reaches for is the team's call.
+- §8.2 covers harness features, mapped onto the current `claude-plays-nethack` server and onto a future Hardfought terminal adapter. As of today the server has `observe`, `do`, `exec` / `continue_exec` (pause on any message, autocontinue regexes, "Really" always pauses, swallowed-yn detection), `harness_note`, auto-`--More--`, `prompt_open` from NLE `internal`, a Monsters block tagged from fork descriptions, the `seen` overlay, a no-progress limit, hooks, and tactics `travel_to` / `walk_to` / `auto_explore` / `look_at`.
+
+### 8.1 Player rules, most important first (53 rules)
+
+Each rule gives its evidence: R*n* = run, T = turn.
+
+#### P0: instadeath and run-ending (never violate)
+
+1. **No Castle, and no loitering at D20+ near soldiers, without magic resistance or reflection. Prefer both.** Evidence: R2 died at full HP (T12271); R3 retreated at T14240, and its reflection saved it at T11892.
+2. **Get reflection early.** [MECH] Sokoban's prize is either an amulet of reflection or a bag of holding, depending on the level variant. Other sources are silver dragon scales and a shield of reflection. Evidence: R3 T11892 (death ray reflected); R2 got the bag instead and died.
+3. **Treat soldiers (sergeant, lieutenant, captain) and any monster seen zapping a wand as carrying a death ray.** Never stand in line with one (row, column or diagonal) at range without MR plus reflection. Evidence: R2 lightning at T12211, then a death ray at T12271.
+4. **On `Slime`, `Stone`, `Strngl`, `TermIll` or `FoodPois`, stop everything; the very next action is a verified cure.** Keep a checked list:
+   - stoning: lizard or acidic corpse (carry at least 2 lizards);
+   - sliming: fire (a wand with known charges, a scroll of fire), or polymorph;
+   - illness: unicorn horn or prayer.
+
+   Evidence: R1 death; R1 T21971–75; R3 T29410, T37123.
+5. **A self-zapped wand of polymorph cures sliming even when you have MR** (zap.c 2249–2255). Prayer does not help in Gehennom. Evidence: R1 died holding `Y` (1:6).
+6. **No multi-step movement, travel or runs with a hostile within 2 squares, near a known slime or cockatrice, or onto unexplored terrain.** Evidence: R1 death (a 24-key batch next to a slime).
+7. **Never batch attacks.** One `F`+direction, look, repeat. Farlook anything that might be peaceful. Evidence: R1 T14427 (the Watch), T16172 (a tengu), T24632 (the Moloch priest).
+8. **Send `z`/`a`/`t` and the direction as separate inputs.** Send the direction only after "In what direction?" is on screen. An empty wand ("Nothing happens") or deafness means there is no prompt, and the direction key becomes a move or an attack. Evidence: R2 T6698; R3 T4214, T32778.
+9. **Wear the amulet of life saving for boss fights and the endgame** once MR comes from armor (GDSM), so the amulet slot is free. **Keep two escapes**, because the first may be empty. Evidence: R3 T31458–31473 (teleport wand, then the Orb invoke); T37012.
+10. **Arrive on Astral** at full HP with:
+    - life saving worn;
+    - a death wand with *verified* charges;
+    - full healing;
+    - a unicorn horn;
+    - **conflict off** (so the guardian angel is tame);
+    - free action on.
+
+    Evidence: R3 T37100–37140. Its death wands ran dry during the approach (L and H tested empty at T37121–22), and only the last blessed charging scroll (T37123) made the Pestilence kill possible.
+11. **Riders.** Identify each with farlook or telepathy.
+    - **Never death-ray Death** (it heals him, zap.c 3663).
+    - **Never teleport a Rider** (it relocates next to you, teleport.c 1576).
+    - Never touch Rider corpses.
+    - Death rays kill Pestilence and Famine.
+12. **Before `#offer`,** confirm the temple priest's god by farlook ("high priest of Tyr"), take off levitation, step onto the altar, and press `:` to read "high altar to Tyr (lawful)". Evidence: R3 T37139–37140.
+13. **Never swap a pet into water or lava.** Moving onto a pet swaps you. Water walking or levitation lets you stand where the pet cannot. Evidence: R1 T20546 (anger, −15 alignment).
+14. **Prayer discipline.**
+    - Track the last prayer turn.
+    - A wish adds 50–149 to the prayer timeout.
+    - Pray only in major trouble with a likely-low timeout.
+    - Never pray in Gehennom.
+
+    Evidence: R1 T23916. R3 prayed only 4 times in 37k turns.
+15. **Don't wear a ring you cannot afford to have stuck (levitation) under gloves during the Wizard fight.** Keep a remove-curse reserve (a scroll, marker plus blank, or holy water) until the Amulet is on the altar. Evidence: R1 T33188 (fatal); R3 T33633→T33816 (fixed).
+16. **Carry a unicorn horn from the midgame on.** Apply it repeatedly; one failure means "apply again". Evidence: R3 T29410 and T37123/37125 (terminal illness cured twice).
+
+#### P1: strategy
+
+17. **Order:** Mines to Minetown (buy a marker if one is for sale), Oracle and Excalibur, **Sokoban**, Mines End luckstone, then the midgame. All three runs broadly did this.
+18. **Excalibur.** Dip a long sword into fountains once XL ≥ 5 [MECH]. Expect many dips (R3 needed 27; R2 needed 12). Dips dry up fountains, so spread them across levels. Evidence: R3 T4532; R2 T5904.
+19. **Buy a magic marker on sight.** It wrote Elbereth, identify, scare monster, remove curse and enchant weapon in R3. Evidence: T1503, T14330, T25915, T26430, T33816.
+20. **First wishes:** MR (GDSM) → 2 blessed charging → speed boots → blessed genocide (for `L`) → blessed magic marker → 3 blessed gain level if short of XL14. Ask for +2, not +3: [MECH] `readobjnam` zeroes an enchantment `s` when `s > rnd(5)`. Ask for 2 of an item rather than 3 ([MECH] 2/3 vs 1/2 grant odds). Evidence: R3 T25891–27772.
+21. **Recharge the wand of wishing exactly once**, with blessed charging (→ 3 charges). A second recharge explodes it. Wrest the last wish (about 1/121 per zap) only at a safe, quiet spot (R3 took 23 tries on Fire). **Magic markers also recharge only once.** Evidence: R3 T25912, T36984; R1 T26008, T33004.
+22. **Genocide `L` as soon as a blessed genocide is available.** Liches cast destroy armor, curse items and touch of death, and an arch-lich guards the Castle entrance. Evidence: R1 T18045; R3 T25913.
+23. **The quest requires XL14.** Gain level is the fast route (XP thresholds XL13 = 40000, XL14 = 80000, exper.c). Evidence: R3 T27093, T27772.
+24. **Vlad's Tower is on Valley+9 to Valley+13** (dungeon.def: Gehennom (9,5)). Search there first. Evidence: both runs searched the wrong range (R1 D37–42; R3 T30362).
+25. **The real Wizard's tower is entered through the magic portal inside a fake-tower level.** There are decoy towers. Evidence: R3 D47 decoy, D49 portal; R1 D48.
+26. **Invocation.** Walk the bottom level until "You feel a strange vibration under your feet". Check the BUC of the Bell, Book and Candelabrum (cursed items fail). Then light the candles, ring the Bell and read the Book, in that order, within a few turns. Evidence: R3 T33792–33794.
+27. **After the invocation the Wizard returns repeatedly.** Kill him with a death wand each time. Cache or secure the invocation items once used. Evidence: R1 lost all three items (T33172–33235); R3 killed him 7 times.
+28. **With the Amulet, expect "mysterious force" setbacks** (R3: 11 of them, T34116–35436). Budget turns and food.
+29. **Planes.** Use a crystal ball (the Valkyrie's Orb of Fate): apply, then `^`, shows the portal as a trap. Carry charging for it. Fire smoke blocks line of sight. On Water, move only inside air bubbles; the portal drifts with its bubble. Evidence: R3 T36690–37105.
+30. **The Castle wand is in a corner tower chest** (R1 NE 67,15; R3 NW 13,15). Check both. Leave the cursed scare monster scroll and the burned Elbereth on that square alone.
+31. **Enter the Castle from the back**: levitate over the moat, use the trapdoor-side door, and wear conflict in the court. Avoid the central hall and barracks. Evidence: R3 T25580–25906; R2 died in the central hall.
+32. **MR without a wish:** gray dragon form via ring of polymorph plus polymorph control. Pack all gear first (the form cannot use containers), compute the form's duration, and expect potion breakage. Evidence: R3 T24841–25505.
+33. **Carry 2+ lizard corpses; kill cockatrice-wielders at range.** Evidence: R1 T21971.
+34. **Stethoscope bosses** to see their real HP. Evidence: R3 T31529 (Yeenoghu HP100).
+35. **Stop enchanting Excalibur at +5.** Reading enchant weapon at +6 or above risks evaporation (wield.c 806). Evidence: R3 T26921.
+36. **Never controlled-polymorph into your own race** ("new man": −2 to +2 XL each time). Evidence: R3 T21292/21310 (−4 XL).
+37. **Never put a wand of cancellation, or a bag containing one, into a bag of holding.** Evidence: R2 lessons; R3 T32169.
+
+#### P2: tactical hygiene
+
+38. **Farlook every ambiguous glyph** (gas spore vs floating eye, `I` markers, statues). Evidence: R1 T1241.
+39. **Don't chase fleeing engulfers or paralysers.** Get free action before the Castle. Evidence: R2 T5236; R3 T16566.
+40. **Blindfold before gaze monsters come into view** (Medusa, pyrolisk, umber hulk). Evidence: R3 T12912, T33754.
+41. **Scare monster scroll:** pick it up at most once (it crumbles on the second pickup, including a price-check re-pick). Use it as a permanent floor ward; it repels minotaurs (and, [MECH], `@` humans). Evidence: R2 T5118, T11867; R3 T3823.
+42. **Elbereth** does not stop `@` humans or minotaurs, and never attack from it. It is fine for resting. Evidence: R1 T21659; R2 JSON.
+43. **After arriving on a level with lava or water,** levitate or read the terrain (`#terrain`, coordinates) before moving. Never trust visual spacing for `}`. Evidence: R1 T23682.
+44. **Check landing squares for invisible monsters before `#jump`.** Evidence: R3 T26038.
+45. **Don't rest next to unresolved threats with pets unattended.** Evidence: R3 T7842, ~T8002.
+46. **Under number_pad, counts need `n` (`n20s`); `k` kicks; don't use arrow keys.** Evidence: R3 T33225; `session.md`.
+47. **Keep a luckstone and feed Luck** (gems to co-aligned unicorns, sacrifices). Evidence: R3 T10001, T21772–21884.
+48. **Engrave-test unknown wands.** Engraving with a wand of wishing grants a wish. Never zap unknown wands toward pets. Evidence: R1 T16678; R3 T2606.
+49. **Don't engrave on altars, don't let pets kill temple priests, and don't force-fight near any peaceful.** Evidence: R1 T22842, T10602, T24632.
+50. **Level teleporters and trapdoors separate you from pets and caches.** Mark every `^` and identify it with the `^` command. Evidence: R2 T11161; R3 T13146.
+51. **Before MR, avoid unknown traps.** Polymorph traps destroy body armor. Evidence: R2 T10165.
+52. **Shops and temples:**
+    - buy markers, full healing and armor;
+    - [MECH] donate 400×XL to a temple priest for protection (R2 paid 3200 at XL8 and 3600 at XL9);
+    - stash gold in the bag.
+
+    Evidence: R2 T6471/T9504; R3 T1503/T36625.
+53. **Always look at the screen after any interruption** (reconnect, popup, animation) before the next key. The run-3 journal's standard phrase: *"Review screen after resume before combat."*
+
+### 8.2 Harness features, prioritized, and how they map onto claude-plays-nethack
+
+> **Note.** While this report was being written, commit `641f9f6` added `src/nh`, a tmux terminal harness for real NetHack 3.6.7. Its commit message and a grep of the code show it already:
+> - sends keys one logical unit at a time and stops the rest when a command finishes early or a `[yn]` prompt cannot take the next key;
+> - pauses its kernel on messages, HP loss, new monsters, status conditions and level changes;
+> - parses `Home N` and `Astral Plane` status lines.
+>
+> The gap table below is written against the NLE MCP server (`src/claude_plays_nethack/server.py`). Check the H-P0 and H-P2 items against `src/nh` as well.
+
+**Astra component → our equivalent → gap**
+
+| Astra | claude-plays-nethack today | Gap to close |
+|---|---|---|
+| `guard.preflight` / `changed` (HP, conditions, proximity, terrain, level, position, turn jump) | `exec` pauses on any message; a synthesised hostile-arrival message; swallowed-`yn` pause | **No pause on silent HP loss, condition bits, hostiles already within 2, hazardous next tile, level change, turn jump or position mismatch.** |
+| `command_preflight` (map prompt required) | `prompt_open` = `yn` / `getlin` from NLE `internal` | Prompt *kinds* are coarse. There is no "expected prompt" check before a direction or item key. |
+| Manual `>>` handling | auto-`--More--` including wrapped markers | Good. Keep joining all messages into the result, as now. |
+| `--inspect-bystanders` farlook | Monsters block tagged `[hostile]/[peaceful]/[tame]` | Good. Add warning digits (1–5) and remembered-invisible `I` markers. |
+| `route.py` | `walk_to`, `travel_to` | Run them under the same safety monitor. |
+| `sokoban.py` | none | Backlog, until the gamer reaches for it ("no seeded tactics"). |
+| `stash-gold`, `wrest-wish`, `wait-pets` | `exec` kernel | Optional vetted helpers. |
+| Emergency JSON | `harness_note`, trajectory | **No typed state or resource ledger.** |
+| Audit ledger (`input_requested` before send) | trajectory JSONL v2, per step | Could add a per-`do` "intent" string (Astra's `--why`). |
+| Reconnect, save, credentials | not needed for local NLE | Needed for a Hardfought adapter (§8.2 H-P2). |
+
+**H-P0 (directly prevents Astra's death or near-death classes)**
+
+1. **Safety monitor for every multi-step path** (`exec`, `travel_to` / `walk_to`, any future repeat helper). After each `env.step`, pause with a reason when any of these hold:
+   - HP dropped by any amount, even with no message (regeneration masking, R3 T31715);
+   - HP is below a threshold (Astra used 2/3);
+   - a **`blstats.condition` bit** is newly set (Stone, Slime, Strngl, FoodPois, TermIll, Blind, Deaf, Stun, Conf, Hallu, Lev);
+   - hunger reaches Weak;
+   - level or dungeon changed;
+   - `time` jumped by more than 2 on a single step (paralysis, sleep, falls);
+   - the position is not the expected one;
+   - a hostile is within Chebyshev distance 2 (not only new arrivals);
+   - the next target cell is water, lava, a trap or unknown.
+
+   NLE gives all of this exactly, with no screen parsing. It fits naturally next to the existing swallowed-`yn` pause in `_drive_paused`. It is a perception and safety feature, not a tactic.
+2. **Emergency banner.** While Stone, Slime, Strngl, TermIll or FoodPois is set, every tool result begins `*** EMERGENCY: <condition> since T<n> ***`, and `exec` refuses to auto-continue. This is the missing piece in R1's death. The banner does not choose a cure; that stays with the gamer.
+3. **Prompt-kind awareness.**
+   - Classify open prompts by text as well as by flag: direction (`In what direction?`), object selection (`What do you want to <verb>? [...]`), confirmation `[yn]`/`[ynq]`, getlin, menu, and `--More--`.
+   - In `exec`, pause before sending a direction or letter key when the expected prompt is not open. The empty-wand, deaf and `10s` incidents are all "key sent into the wrong prompt state".
+   - Extend the banned-autocontinue list with meaning-changing failures: `^Nothing happens`, `^You don't have`, `^Never mind`, `^You can't`, `cannot hear`.
+4. **Peaceful-contact guard.** Refuse `F`+direction and plain moves into a monster tagged `[peaceful]` or `[tame]` unless an explicit override is given, and report it. Astra angered peacefuls 5 times: three force-fight batches (T14427, T16172, T24632), a `#jump` into an invisible naga (T26038), and ray collateral (T37132). `exec` already always pauses on "Really…?"; this closes the force-fight path. Pair it with item 9 (ray-line preview) for the collateral case.
+5. **Resource ledger maintained by the harness.**
+   - Parse inventory strings for charges `(x:y)` and BUC.
+   - Log every zap, engrave, read, quaff and apply as `{letter, item text, turn, resulting message}` in the trajectory.
+   - Expose `observe()['ledger']` with: observed uses since the last formal count, last result ("Nothing happens" means likely empty), last prayer turn, wishes used (detect "For what do you wish?"), and luck items.
+   - This makes Astra's best rule, *"unknown charges are not available charges"*, mechanical.
+6. **Identity and status robustness tests.** The engine gives the status, but tactics and views that assume `@` at the cursor, or that `chars` equals terrain, will break the way Astra's did. Add fixtures for: polymorphed hero (e.g. `D`), invisible hero without see invisible, blind (telepathy-only map), smoke or gas overlays, the Rogue level ASCII tiles, `Home N` quest levels, and the Planes. Fail closed.
+
+**H-P1 (large quality-of-play gains)**
+
+7. **Typed state file plus append-only journal.**
+   - The harness writes the machine-knowable fields (position, vitals, conditions, inventory letters and charges, level features, last prayer turn), each with `as_of_turn`.
+   - The gamer writes IDs, plans and hypotheses, with `FORMAL` / `INFERRED` / `UNVERIFIED` grades.
+   - Stale fields are flagged in `observe()`.
+   - This addresses Astra's JSON drift (§6.4).
+8. **Hazard view.** Classify glyphs into terrain and list water, lava, traps, boulders, doors and stairs with coordinates around `@`. This is the NLE equivalent of Astra's "Map features" plus `#terrain`. It would have prevented R1's lava step.
+9. **Ray-line preview.** For a proposed zap direction, list monsters on the path, including likely bounces, tagged hostile, peaceful or tame. Evidence: R3 T37132 (Angel of Tyr); R2 "avoid rebounds near walls".
+10. **Guarded travel and runs.** Make `_` travel and `G`/`shift` runs go through the safety monitor, stepwise if necessary. Esc at `--More--` does **not** stop a run in progress (R3 T36842).
+11. **A bounded-repeat primitive** with stop conditions (Astra's `wrest-wish`, `wait-pets`, `n20s` search), so tactical loops don't need bespoke guards. For wresting, stop on any message other than "Nothing happens", on an HP change, or on a monster within 4.
+12. **Sokoban planner plus guarded executor** with board-prediction checks after each push. Astra needed it after an ape broke a raw batch. Put it in the backlog and add it when the gamer reaches Sokoban.
+13. **Per-step intent string.** Let `do()` accept an optional short `why` and record it in the trajectory, as Astra's `--why` did. This makes the pairing of keystroke, intent and screen trivial for postmortems. The Claude session JSONL already has reasoning, but aligning the two is laborious.
+
+**H-P2 (future Hardfought terminal adapter)**
+
+14. **Transport:**
+    - tmux + ssh with a pinned host key and `remain-on-exit on`;
+    - refuse to send on a dead pane;
+    - `send-keys -l` for literals; the `;` byte as hex (tmux separator bug); never arrow keys;
+    - `capture-pane -e`, SGR decoding and DEC-graphics mapping;
+    - the settle heuristic (≥0.75 s total, 0.3 s quiet, 4 s cap).
+15. **Screen state machine:**
+    - cursor on `@` inside the map region means a map prompt;
+    - `>>` at the end of a message line is curses "more";
+    - menu, popup and question detection from the message window and cursor row;
+    - status parsers for `Dlvl`, `Home N`, the planes and polymorph titles, each with fixtures.
+      - The level labels Astra actually saw were `Dlvl:N`, `Home N` on the quest, bare `Earth`/`Air`/`Fire`/`Water` on the elemental planes (its guard regex, confirmed against botl.c), and `Astral Plane` on Astral (dumplog final status line).
+      - When polymorphed, the title reads e.g. "the Gray Dragon" and the status shows `HD:15` in place of `Xp`.
+16. **Lobby automation:**
+    - a credential helper that checks the prompt and never logs;
+    - a login → lobby → `p`/`r` → game flow;
+    - stale-process recovery;
+    - after any reconnect, block gameplay keys until turn, HP and position match the last recorded state.
+17. **Idle policy.** Save before long waits or approvals. Watch for status-7 pane deaths. Never leave the game in a menu while blocked.
+18. **Artifacts.** Fetch the dumplog (`<start-epoch>.nh.txt`) at game end and archive ttyrec segments, remembering that they are gzipped after finalization. The dumplog is the authoritative postmortem source.
+19. **Mail and spectators.** Detect in-game mail and have a policy (read or ignore); Astra ignored it for provenance. Spectators are harmless.
+20. **Version-controlled server rc** diffed against the server copy after every edit. The parsers depend on it.
+
+### 8.3 Process lessons
+
+- **Check mechanics in the 3.6.7 source before acting on a belief.** Astra's worst losses came from wrong beliefs (MR blocks self-polymorph; the Vlad range) and its best moves from source reading (the gray dragon MR plan, Rider rules, portal detection). Give the gamer a searchable copy of the 3.6.7 source and spoilers.
+- **Keep errors permanently and re-read them at session start.** Astra's `ERROR<T>: … Preserve error` entries made recurring failure classes visible.
+- **Change the harness only between moves:** tests, then checkpoint, then resume. Astra patched its guard 6 times mid-game without a single harness-caused death.
+- **Budget for about 500 game turns per hour** and about 37k turns for a careful ascension (Astra's winning run: about 74 hours of active play). A "bigger model, fewer turns" approach does not change the turn count, only the cost per turn.
+
+---
+
+## Appendices
+
+### A. Key verbatim quotes
+
+- R2 death: *"A visible-state movement guard cannot guarantee protection from a one-hit kill. The strategic error was advancing through the Castle without known magic resistance or reflection."*
+- R1 death: *"sliming began during an unsafe 24-key movement batch near known slime … SELF-ZAPPING POLYMORPH IGNORES MAGIC RESISTANCE. Could have used zY. immediately in GDSM"*
+- R1 lessons: *"no blind movement batches near dangerous monsters; stop on fresh messages/status changes; VERIFY usable fire charges before Gehennom; maintain uncursing reserve; do not wear levitation during Wizard fight if avoidable."*
+- R3 at T14240: *"NO MR: immediately RETREATED … DO NOT DESCEND CASTLE until magic resistance/genocide/credible protection."*
+- R3 at T25912: *"nWISHWAND NOW RECHARGED ONCE … NEVERRECHARGEAGAIN would explode."*
+- R3 at T37140: *"Real Amulet P offered at western high altar10,20, explicitly verified lawful with look-underfoot before offering."*
+- Run-2 JSON `verification_policy`: *"Only record observed identities and charges. Unknown is not charged. Verify before entering dangerous areas; update after use or theft."*
+- `EVIDENCE.md`, run 2 safety changes: *"Digit-only movement batches … are now sent one step at a time, waiting for a settled screen and stopping for damage, conditions, nearby creatures, unknown/unsafe terrain, prompts, unexpected movement or excess turn advancement. This is conservative visible-state checking, not perfect perception."*
+
+### B. Materials reviewed
+
+| Area | Coverage |
+|---|---|
+| Journals | `memory/live-run.md`, `run-2.md` and `run-3.md` in full (chunked); `memory/session.md` |
+| Emergency JSON | `memory/run-2-emergency.json` and `run-3-emergency.json`: structure fully enumerated; key entries read |
+| Scripts | `session.py`, `guard.py`, `route.py`, `sokoban.py` and `terminal.py` in full; `audit.py` and the tests skimmed; publication scripts, `obs.mjs` and `web/*.html` not gameplay-relevant |
+| Other | `EVIDENCE.md` (connection incidents, harness changes, run summaries); `docs/METHODOLOGY.md`, `SETUP.md`, `RECORDINGS.md`; `config/nethackrc`, `tmux.conf` |
+| Hardfought | Dumplog listing plus `1788718109`, `1788720306`, `1788889409` and `1788964024` `.nh.txt` |
+
+The clone at `/home/user/kenforthewin/nethack_astra` was not modified.
