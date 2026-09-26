@@ -1,113 +1,127 @@
 # Playbook: ascending a lawful dwarven Valkyrie in NetHack 3.6.7
 
-This is the strategic plan. `PLAYER.md` has the interface and the survival protocol; this file says what to do
-and when. Knowledge lookups: `knowledge/wiki/*.txt` (grep it; `knowledge/INDEX.md` lists pages),
-`src/nh/data/*.json` (monsters/objects), and the NetHack source at `~/src/nethack-3.6.7/src` for exact rules.
-When a mechanic matters for a risky decision, **check the source or wiki instead of trusting memory**.
+`PLAYER.md` has the interface and the survival protocol; this file is the strategy. Lookups:
+`knowledge/wiki/*.txt` (grep; `knowledge/INDEX.md`), kernel helpers `mon()`, `corpse()`, `obj()`,
+`wiki()`, `wiki_page()`, and the source at `~/src/nethack-3.6.7/src` (if present) for exact rules.
+**When a mechanic matters for a risky decision, check the wiki/source — don't trust memory.**
 
-Lessons from the only other LLM ascension (Astra, same character, 3 runs, `docs/research/astra-lessons.md`):
-both of its deaths were *not HP deaths* — a death ray at full HP in the Castle (no MR, no reflection) and
-sliming after the invocation (no cure in reserve). The winning run was slow and patient: it retreated from the
-Castle when it lacked magic resistance and came back ~10,000 turns later fully equipped.
+The only other LLM ascension (Astra, same character, 3 runs; `docs/research/astra-lessons.md`): both deaths
+were **not HP deaths** — a sergeant's death ray at full HP in the Castle (no MR, no reflection), and
+sliming after the invocation (no working cure at hand). The win came from patience: it retreated from the
+Castle without MR and returned ~10,000 turns later fully equipped. It prayed only 4 times in 37k turns.
 
-## 0. Character facts
-- Valkyrie: starts with +1 long sword, +0 dagger, +3 small shield, 1 food ration; intrinsic **cold resistance**
-  and **stealth**; gets **speed** at XL7. Excellent melee. Long sword and dagger skills matter.
-- Dwarf: infravision (see warm-blooded monsters in the dark); most Gnomish Mines inhabitants (gnomes, dwarves,
-  gnome lords, hobbits? no — hobbits aren't) are **peaceful** to you → the Mines are relatively safe.
-  **Never eat dwarves** (cannibalism: Luck −2..−5, aggravate).
-- Lawful, god Tyr. Co-aligned altars say "lawful". Excalibur is available (lawful + long sword + XL≥5).
-- `#enhance` whenever the game says "You feel more confident in your weapon skills".
+## A. Non-negotiables (instadeath and run-enders)
 
-## 1. Opening: D1–D4 (target: XL5–8, Excalibur)
-- Explore each level fully (`explore()`), fight weak monsters in melee, let the pet help. Pick up: daggers
-  (throwing: `t`/`f`), armor you can wear, all wands, rings, amulets, scrolls, potions, tools, gems.
-  Don't wear/put on unidentified rings or amulets (strangulation, teleportitis, hunger, levitation lock).
-  Armor from the floor can be cursed: prefer to test it (pet steps over it = not cursed; altar drop) or accept
-  the risk only for real upgrades.
-- Eat corpses of safe fresh kills to save rations (check with the corpse rules). Newts, rats, jackals, etc. are fine.
-- **Excalibur**: at XL5+, stand on a fountain (not in Minetown — the Watch objects) and `#dip` the long sword
-  (`#dip<CR>`, choose the long sword, answer `y` to "into the fountain?"). Each dip has 1/6 chance. Risks per
-  failed dip (~1/30 each): water moccasins, a water nymph (steals), a **water demon** (very dangerous at XL5;
-  sometimes grants a wish instead). Prepare: full HP, known escape route (upstairs close), pet nearby,
-  Elbereth doesn't work on the fountain square — if a demon appears hostile, retreat upstairs / pray if HP
-  crashes. Fountains dry up; use several. Astra needed 6, 12 and 27 dips in its three runs.
-- Sokoban's entrance is the **up staircase on the level just below the Oracle** (Oracle is D5–9). The Gnomish
-  Mines branch down-stairs are on D2–4.
+1. **No Castle, and no loitering on D20+ near soldiers, without magic resistance (MR) or reflection. Prefer
+   both.** Get reflection early (Sokoban prize 50%, silver dragon scales, shield of reflection).
+2. **Soldiers/sergeants/lieutenants/captains and anything seen zapping a wand may carry a death ray.** Never
+   stand in line with one (row, column, diagonal) at range without MR + reflection.
+3. **On `Slime`, `Stone`, `Strngl`, `TermIll`, `FoodPois`: stop everything; the very next action is a
+   verified cure.** Keep a checked list in state.md: stoning → lizard or acidic corpse (carry 2+ lizard
+   corpses from the midgame), prayer; sliming → fire (wand with known charges, scroll of fire) or a
+   **self-zapped wand of polymorph — works even with MR**, prayer (not in Gehennom); illness → unicorn horn
+   (apply repeatedly) or prayer; strangulation → remove the amulet, prayer.
+4. **No multi-step movement/travel/explore with a hostile within 2 squares, near a known slime or
+   cockatrice.** Fight one step at a time.
+5. **Never batch attacks.** One `F`+direction per command, look, repeat. The harness enforces one command
+   per `do`; don't defeat it with `multi=True` in fights.
+6. **Send `z`/`a`/`t`/`r`... and then the direction/answer only after the prompt is on screen** (the harness
+   stops a string if a prompt doesn't appear, e.g. an empty wand says "Nothing happens").
+7. **Never swap a pet into water or lava** (moving onto a pet swaps places). Never let pets kill peacefuls/
+   priests; never attack peacefuls; never engrave on altars.
+8. **Prayer discipline**: track the last prayer turn (`bin/nh info` shows it); first prayer OK after ~T300;
+   then ≥ ~1000 turns apart; **a wish adds 50–149 to the timeout**; pray only in major trouble (HP ≤ 1/7
+   max or ≤ 5, Weak, deadly status); **never pray in Gehennom**.
+9. **Two escapes, always** (the first may be empty): e.g. upstairs + Elbereth early; later a teleport wand,
+   scrolls of teleportation, the quest artifact's invoke.
+10. **Unknown charges are not available charges.** Record wand charges when known (engrave/zap results,
+    shop identification); mark evidence in state.md: [seen] vs [inferred] vs [UNVERIFIED].
+11. From the midgame: carry a **unicorn horn**, 2+ **lizard corpses**, a **remove curse** reserve (scroll,
+    holy water, or marker + blank scroll). Wear **life saving** for boss fights once MR comes from armor.
 
-## 2. Early-mid game: Mines to Minetown, Sokoban (target: XL8–12, AC ≤ 0)
-- **Minetown** (Mines level 3–4, i.e. D5–8): temple (co-aligned priest: buy protection — donate 400×(XL+1)
-  gold when you have ≥ that; 600×(XL+1) if XL≥... check wiki `Priest`/`Donating`), shops (price-identify),
-  altar (drop items to learn B/U/C). Keep the Watch peaceful: don't break doors, don't dip/quaff fountains
-  there, don't anger shopkeepers. Buy/collect **candles** (you need 7 for the Candelabrum much later; Izchak's
-  lighting shop sells them).
-- **Sokoban** (4 levels up): do it early (XL 6–10). Solutions are in `knowledge/wiki/Sokoban_Level_*.txt`
-  — identify the variant and follow the solution exactly. Rules: boulders can't be pushed diagonally; don't
-  break/destroy boulders or read earth there (Luck penalty); watch for monsters behind boulders. Prize at the
-  top: **bag of holding** or **amulet of reflection** (both huge). The top level has a zoo — fight at a choke
-  point.
-- Mines' End has a **luckstone**; worth it when strong enough (XL10+).
-- Build AC: dwarvish iron helm (hard hat), dwarvish mithril coat (from dwarves in the Mines!), boots, gloves,
-  cloak. Aim for AC ≤ 0 before D10, ≤ −5 before D20.
-- Get **poison resistance** (eat killer bees, soldier ants?, scorpions, etc. — check corpse info), and
-  telepathy (floating eye corpse — eat it, never melee it; kill with thrown daggers).
+## B. Character facts
+- Valkyrie: +1 long sword (a), +0 dagger (b), +3 small shield (c), food ration; intrinsic **cold
+  resistance** and **stealth**; **speed at XL7**. Strong melee. `#enhance` when told you're more confident.
+- Dwarf: infravision. Most Gnomish Mines inhabitants (gnomes, gnome lords, dwarves, hobbits? no) are
+  peaceful to dwarves → the Mines are comparatively safe. **Never eat dwarves** (cannibalism).
+- Lawful, god **Tyr**. Excalibur: lawful + long sword + XL≥5 + fountain dips.
 
-## 3. Mid game: D10–D25 (target: XL14+, MR and reflection)
-- **Magic resistance (MR)** sources: gray dragon scale mail (wish), cloak of magic resistance, Magicbane (no),
-  quest artifacts (no, Orb of Fate gives none)... Most likely: a wish.
-- **Reflection** sources: amulet of reflection (Sokoban 50%), shield of reflection, silver dragon scale mail.
-- **Wishes**: magic lamps (bless and #rub), wand of wishing (Castle), fountains/thrones (rare), djinni from
-  smoky potions. First wish: MR if missing (blessed +2 gray dragon scale mail), else reflection.
-- Quest portal level (D11–16) gives a telepathic message. The Valkyrie quest needs **XL14**. Its nemesis
-  Lord Surtur (fire giant) carries the **Bell of Opening** (required for the endgame). Fire resistance helps.
-- **Medusa** (D21–24): needs reflection or blindness (blindfold/towel) against her gaze, and a way over water
-  (levitation, water walking, jumping, freezing the water with cold). Don't look at her without protection.
-- Instadeath checklist before going deeper than ~D20:
-  | threat | protection | cure |
-  |---|---|---|
-  | death ray (wand/spell), touch of death | MR (death ray: also reflection) | none — prevent |
-  | disintegration breath (black dragon) | reflection or disint. res | none |
-  | stoning (cockatrice, Medusa gaze) | reflection/blindness vs gaze; gloves | lizard corpse, acidic corpse, prayer, stone to flesh |
-  | sliming (green slime, Juiblex) | avoid melee range | fire (wand/scroll/spell), polymorph (self-zap works even with MR), prayer (not in Gehennom) |
-  | strangulation (amulet) | don't wear unknown amulets | remove it, prayer |
-  | drowning (eels, krakens) | magical breathing, stay away from water edges | escape/teleport; don't fight eels next to water |
-  | level drain | MR doesn't stop it; Excalibur does (drain res) | restore ability doesn't; gain level |
-  | lycanthropy | avoid were-bites | prayer, holy water, wolfsbane |
-  | illness/food poisoning | don't eat bad corpses | unicorn horn, prayer |
+## C. Opening: D1–D4 (target XL5–8, Excalibur)
+- Explore each level (`explore()`), fight weak monsters one at a time at doorways/corridors, keep the pet.
+  Pick up: daggers (throw them: `t`, or wield later for dagger skill), armor you can wear, all wands, rings,
+  amulets, scrolls, potions, tools, gems, food.
+- Don't put on unidentified rings/amulets (strangulation, teleportitis, levitation-lock, hunger).
+- Eat fresh safe corpses (`corpse('name', age=turns_since_death)`), keep rations for emergencies.
+- **Excalibur**: at XL5+, stand on a fountain (never in Minetown) and `#dip` the long sword. 1/6 per dip;
+  other outcomes ~1/30 each: water moccasins, a water nymph (steals), **a water demon** (dangerous at XL5;
+  sometimes grants a wish if the level is shallow). Full HP, escape route (upstairs) planned. Fountains dry
+  up — spread dips over several fountains/levels; Astra needed 6, 12 and 27 dips.
+- Sokoban's entrance is the up staircase on the level **just below the Oracle** (Oracle: D5–9). The Mines
+  branch staircase is on D2–4.
 
-## 4. The Castle (below Medusa) — **only with MR, preferably MR + reflection**
-- The wand of wishing is in one of the corner towers (in a chest). Astra: run 1 NE tower, run 3 NW tower.
-- Ways in: play the passtune on a musical instrument (learn it: prayer boon or Mastermind game with an
-  instrument near the drawbridge), destroy the drawbridge (force bolt/striking), levitate over the moat, or
-  scroll of earth. Beware soldiers with wands, liches, minotaurs in the maze, sharks/eels in the moat.
-- Standard wishes (adapt): MR (blessed +2 gray dragon scale mail) if missing; "2 blessed scrolls of charging"
-  (recharge the wand of wishing once); blessed +2 speed boots; blessed amulet of life saving; reflection if
-  missing; blessed magic marker; blessed genocide (liches `L` or mind flayers `h`); blessed potions of gain
-  level (for quest XL14); blessed +2 gauntlets of power... Wishes add to the prayer timeout (50–149).
-- Trapdoors at the east end of the Castle drop to the **Valley of the Dead** (Gehennom).
+## D. Early-mid game: Mines → Minetown → Oracle → Sokoban → Mines' End (XL8–12, AC ≤ 0)
+- **Minetown** (Mines level 3–4, ~D5–8): temple (co-aligned priest: donate **400×XL** gold — at least
+  400×XL and **less than 600×XL** — for protection: the first donation gives 2–4 AC, later ones +1),
+  shops (price-identify; **buy a magic marker on sight**; buy candles — the Candelabrum needs 7), altar
+  (drop items to learn B/U/C). Keep the Watch peaceful: no fountain dipping/quaffing, no door breaking,
+  no theft.
+- **Sokoban** (4 levels, up): solutions in `knowledge/wiki/Sokoban_Level_{1a,1b,2a,2b,3a,3b,4a,4b}.txt`;
+  identify the variant by the map and follow the solution exactly with `sokoban.push(x, y, 'dirs')`.
+  Boulders only move orthogonally; you can't squeeze diagonally between boulders; breaking boulders or
+  reading earth costs Luck. A monster behind a boulder blocks the push — wait or deal with it. The top
+  level is a zoo; fight at a chokepoint. Prize: bag of holding or amulet of reflection.
+- **Mines' End luckstone** when strong enough (XL10+). Keep it (it also locks in good Luck).
+- AC: dwarvish iron helm, dwarvish mithril coat (from Mines dwarves), boots, gloves, cloak. AC ≤ 0 before
+  D10; ≤ −5 before D20.
+- Intrinsics to collect: poison resistance (killer bees, soldier ants, scorpions... check `corpse()`
+  benefits), telepathy (floating eye corpse — kill it at range, never melee), fire/sleep/shock resistance.
 
-## 5. Gehennom (MR mandatory)
-- **Prayer does not work in Gehennom.** Carry cures: unicorn horn, lizard corpses, holy water/remove curse,
-  fire source for sliming, escape items (teleport wand/scrolls; cursed scroll of teleportation = level teleport).
-- Levels: Valley (temple of Moloch; undead), then mazes with Juiblex (swamp; engulf → illness), Orcus (town;
-  wand of death), Asmodeus, Baalzebub. **Vlad's Tower** branch is 9–13 levels below the Valley (go up the
-  tower; Vlad has the **Candelabrum**; attach 7 candles). **Wizard's Tower**: entered via the portal on a fake
-  wizard tower level; the Wizard of Yendor has the **Book of the Dead**. He resurrects and harasses forever.
-- Invocation at the vibrating square (bottom of Gehennom): ring the Bell (apply), light the Candelabrum
-  (apply), read the Book → stairs to the Sanctum. Kill the high priest of Moloch, take the Amulet of Yendor.
-- Keep remove curse/holy water and an uncursing plan for the Wizard's curses; don't wear levitation near him.
+## E. Midgame: D10–D25 (XL14+, MR and reflection, then the Castle)
+- **Quest portal** level (D11–16) gives a telepathic message. The quest needs **XL14**. Nemesis Lord Surtur
+  (fire giant) carries the **Bell of Opening** (required). Fire resistance helps.
+- **Medusa** (D21–24): reflection or a blindfold/towel (be blind before she comes into view), a way over
+  water (levitation, water walking, cold wand ice bridge, scroll of earth). With reflection her gaze kills
+  her; otherwise fight blind.
+- **Castle** (below Medusa) — only per rule A1. Wand of wishing: in a chest in a **corner tower** (Astra:
+  NE once, NW once; check both). Approach from the back: levitate over the moat, use the trapdoor-side door,
+  conflict in the court, avoid the central hall and barracks. Minotaurs in the maze ignore Elbereth.
+- **Wishes** (after MR/reflection are covered as needed): blessed +2 gray dragon scale mail (MR) → "2
+  blessed scrolls of charging" (recharge the wand of wishing **exactly once**, to 3) → blessed +2 speed
+  boots → "2 blessed scrolls of genocide" (genocide `L` liches first) → blessed magic marker → blessed
+  potions of gain level if short of XL14 → blessed amulet of life saving / reflection if missing.
+  Ask for +2 (not +3) and "2" (not 3) of stackables. Wrest the last wish only somewhere safe.
+- Stop enchanting Excalibur at +5 (evaporation risk above). Never controlled-polymorph into your own race.
+  Never put a wand of cancellation into a bag of holding.
 
-## 6. Ascension run
-- Climb to D1 with the Amulet (the "mysterious force" sends you back down sometimes — keep going).
-- Elemental Planes via D1's up stairs: Earth, Air, Fire, Water — find each plane's magic portal.
-- Astral Plane: three high temples; find the **lawful** altar (farlook the altar / the priest alignment),
-  stand on it and `#offer` the Amulet. Arrive with full HP, life saving worn, escape items, a charged attack
-  wand. The Riders (Death, Famine, Pestilence) are there — avoid them.
+## F. Gehennom (MR mandatory; prayer doesn't work)
+- Valley of the Dead via the Castle trapdoors. Temple of Moloch — don't anger its priest.
+- Juiblex (swamp; engulf → illness), Orcus (town; wand of death), Asmodeus, Baalzebub.
+- **Vlad's Tower branch is 9–13 levels below the Valley** — search there. Vlad has the **Candelabrum**;
+  attach 7 candles.
+- **Wizard's Tower**: entered through the magic portal on a **fake-tower level**; the Wizard has the **Book
+  of the Dead**. He resurrects and harasses; keep remove-curse reserves; don't wear levitation near him.
+- **Invocation**: walk the bottom level until "You feel a strange vibration under your feet"; check the BUC
+  of Bell, Book, Candelabrum (cursed fails); light the candelabrum, ring the Bell, read the Book, within a
+  few turns. Sanctum: kill the high priest of Moloch, take the Amulet.
 
-## 7. General good habits
-- Keep a stash on a known level (upstairs of a quiet level) for spare stuff; log it in state.md.
-- Name/call item types as you learn them (`#name` / `C`), and write identified appearances in state.md.
-- Use shops to price-identify: base prices tell scroll/potion/ring/wand classes (see wiki `Price_identification`).
-- Engrave-test unknown wands (`E`, choose the wand) — cheap identification (don't do it in shops).
-- Pets: keep one strong pet early; don't let it die needlessly; never swap it into water.
-- Track Luck: don't kill peacefuls, don't break mirrors, pray correctly. A luckstone locks in good Luck.
+## G. Ascension run
+- Climb to D1 with the Amulet ("mysterious force" setbacks — budget turns and food). Kill the Wizard each
+  time he returns (death wand), keep the Amulet safe.
+- Planes: apply the Orb of Fate (crystal ball) + `^` to find each plane's portal; carry charging for it.
+  Fire: smoke blocks sight. Water: move only inside air bubbles.
+- **Astral**: arrive at full HP with life saving worn, a death wand with verified charges, full healing,
+  a unicorn horn, conflict off, free action. Identify the Riders: **never death-ray Death, never teleport a
+  Rider**. Before `#offer`: confirm the priest's god by farlook ("high priest of Tyr"), take off levitation,
+  step onto the altar, `:` should read "high altar to Tyr (lawful)". Then `#offer` the Amulet.
+
+## H. Habits
+- Farlook every ambiguous glyph (the harness does it for new monsters; statues look like monsters).
+- Mark every trap (`^`); identify with the `^` command; avoid unknown traps before MR (polymorph traps
+  destroy armor; level teleporters and trap doors separate you from pets and stashes).
+- Levels with water/lava: read the terrain before moving; never trust visual spacing around `}`.
+- Keep a stash on a quiet level near the upstairs; log it in state.md.
+- Name item types as you learn them (`#name` → item type); record identifications in state.md.
+- Engrave-test unknown wands (not in shops; never zap unknown wands toward pets).
+- Scare monster scroll: pick up at most once (it crumbles on the second pickup); it's a permanent floor
+  ward that even minotaurs respect.
+- After any interruption (reconnect, popup), look at the screen before the next key.
