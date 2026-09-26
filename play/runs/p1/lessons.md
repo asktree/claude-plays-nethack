@@ -8,3 +8,5 @@
 - Sell-offer price-ID: offer = base/2 (or base*3/8 for 25% of shopkeepers). Offer 10 => identify; offer 50 => 100zm ring.
 - Trap doors can drop you a level before you found the downstairs: always know the `<` on arrival (search dead ends for hidden passages).
 - Cropped-map column counting is error prone: use a coordinate-returning helper (`objects()`), not eyeballing.
+- NEVER wield a weapon of unknown B/U/C status (picked-up orcish dagger welded itself to my hand at T:1267). If a throwaway weapon is needed, use the one already known uncursed (my +0 dagger) — or just don't.
+- Prayer does NOT fix minor trouble (welded weapon, cursed items) when Luck is 0 off an altar (pray.c pleased(): action = rn1(Luck+2,1) → 1..2 fixes major only; minor needs action ≥ 3 → Luck ≥ 1). Only pray for major trouble (HP < 1/7, Weak, FoodPois, Stone, Slime, Strngl). Check the source before betting the prayer on a mechanic.

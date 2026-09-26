@@ -18,3 +18,11 @@ T:1053 DL3 — shift ended standing on `<` (19,9): HP 29/29, XL2, AC3, $19, neve
 T:818 DL3 — (container restart) game restored from crash-recovered level files: everything after T:818 (shop visit, coyotes, hidden passage, finding < at 19,9) is UNDONE. Map knowledge of DL3 from the journal may still guide exploration.
 T:849 DL3 — (shift 2, restored timeline) re-found the hidden passage at (16,15)->(16,14) after 10 searches; explore() went north.
 T:858–866 DL3 — killed a sewer rat and a coyote at the corridor choke point (16,9) west of the `<` room door (17,8); re-found `<` at (19,9). Ate the fresh coyote corpse at T:875 (Not Hungry). HP 21/29.
+T:959 DL3 — explore() walked onto the arrow trap at (19,6) despite skip= (-3 HP); the pile there had a MAGIC MARKER (h) + candy bar (g): picked up both.
+T:990–1098 DL3 — killed jackal, gnome zombie, jackal, giant rat, gecko one at a time at doorways/corridors; no damage. Scroll EIRIS SAZUN IDISI (i) picked up at (48,18) in the SE room (down stairs (46,18)).
+T:1121–1123 DL3 — found a hidden door at (48,15) N of the SE room; killed a goblin (it threw an orcish dagger) -> XL3, HP 38/38.
+T:1131 DL3 — wore the goblin's orcish helm (n): AC 3 -> 2. Orcish dagger (o) kept for throwing.
+T:1171–1188 DL3 — acid blob in the tiny E room (58-60,16-18): no melee (sword corrosion); threw both daggers (1 hit), it survived, looped around and got the daggers back. Blob left alive, slow, in the row-18 corridor.
+T:1205–1211 DL3 — Hungry; ate the food ration (d). Food left: candy bars g, j; lichen corpse m. Explore continues on the N side.
+T:1267 DL3 — MISTAKE: wielded the picked-up orcish dagger (o) to kill an acid blob without corroding the sword — it was CURSED and welded to my hand. Killed the blob with it (no splash). Exp 53.
+T:1271 DL3 — PRAYED (1st prayer) hoping to uncurse the welded dagger: "shimmering light ... Tyr is well-pleased" but no glow message: minor trouble is not fixed at Luck 0. Prayer timeout now reset (~50–1000). Long sword (a) cannot be wielded until the dagger is uncursed.
