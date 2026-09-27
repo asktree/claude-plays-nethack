@@ -212,8 +212,10 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
     elif s.state.kind != "command":
         ctx.do("<Esc>", quiet=True)
         raise RuntimeError(f"dip: not standing on a fountain/pool (got {s.state.kind}: {p!r})")
+    msgs = [m for m in msgs if not re.search(r"\[yn\]|\? *$", m)]    # the "Dip ... into the fountain?" prompt
     joined = " | ".join(msgs)
-    outcome = "; ".join(o for pat, o in _DIP_OUTCOMES if re.search(pat, joined)) or "nothing special"
+    outcome = "; ".join(o for pat, o in _DIP_OUTCOMES if re.search(pat, joined)) or \
+        ("nothing special" if msgs else "no message (a silent outcome: the fountain is still there)")
     if s.state.kind == "getlin" and "wish" in (s.state.prompt or "").lower():
         outcome = "WISH"
         ctx.pause("dip: WISH prompt open — follow PLAYBOOK §E (first wish: blessed +2 gray dragon scale mail); "

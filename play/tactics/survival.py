@@ -46,7 +46,10 @@ def _engrave_elbereth():
         elif k == "yn" and "Do you want to" in p:
             s = ctx.do("n", quiet=True)
         elif k == "getlin" and ("write" in p or "engrave" in p):
-            s = ctx.do("Elbereth<CR>")
+            # monsters attacking during the engrave turn are expected (that's why you
+            # engrave); a hit that costs HP still pauses through the kernel's HP check
+            from .combat import ROUTINE
+            s = ctx.do("Elbereth<CR>", ok=ROUTINE + [r"(?:misses|just misses)[!.]$", r"turns to flee"])
             break
         else:
             break
