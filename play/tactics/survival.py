@@ -173,6 +173,38 @@ def _p_timeout_below(limit: int, elapsed: int, xl: int, n: int = 20000) -> float
     return ok / n
 
 
+def _p_timeout_ok(limit: int, hs: dict, now: int, xl: int, n: int = 20000) -> float:
+    """Chance that the prayer timeout (u.ublesscnt) is <= limit now, replaying what the harness saw: it
+    starts at 300 (u_init.c) or at rnz(350) after the last prayer (pray.c pleased(); + rnz(1000) each for
+    being a demigod — the Wizard killed or the invocation done — and for being crowned), drops by 1 a
+    turn but never below 0 (allmain.c), gains 50-149 per wish (zap.c makewish), and a sacrifice showed
+    it at 0 ("four-leaf clover") or reset it with a gift (rnz(300 + 50 * gifts))."""
+    prayers = hs.get("prayers", [])
+    t0 = (prayers[-1].get("turn") or 0) if prayers else 0
+    kick = sum(1 for k in ("demigod", "crowned") if (hs.get(k) or {}).get("turn") is not None
+               and hs[k]["turn"] <= t0) if prayers else 0
+    evs = [(w.get("turn") or 0, "wish") for w in hs.get("wishes", [])]
+    evs += [(e.get("turn") or 0, e.get("kind")) for e in hs.get("prayer_evidence", [])
+            if e.get("kind") in ("zero", "reset")]
+    evs = sorted(e for e in evs if e[0] >= t0)
+    rng = _random.Random(12345)
+    ok = 0
+    for _ in range(n):
+        tmo = _rnz(350, xl, rng) + sum(_rnz(1000, xl, rng) for _k in range(kick)) if prayers else 300
+        t = t0
+        for te, kind in evs:
+            tmo, t = max(0, tmo - (te - t)), te
+            if kind == "wish":
+                tmo += 50 + rng.randrange(100)
+            elif kind == "zero":
+                tmo = 0
+            elif kind == "reset":
+                tmo = _rnz(300, xl, rng)
+        tmo = max(0, tmo - (now - t))
+        ok += tmo <= limit
+    return ok / n
+
+
 def _low_hp(st) -> bool:
     """pray.c critically_low_hp(): HP <= 5, or HP <= max/div with max capped
     at 15*XL and div 5 (XL1-5), 6 (6-13), 7 (14-21), 8 (22-29), 9 (30)."""
@@ -221,28 +253,20 @@ def prayer_check() -> dict:
     prayers = hs.get("prayers", [])
     turn = st.turn or 0
     wishes = hs.get("wishes", [])
-    if not prayers:
-        timeout = 300 - turn + sum(99 for w in wishes)      # 50-149 per wish, take the mean
-        p_safe = 1.0 if timeout <= limit else 0.0
-        since = None
-    else:
-        last = prayers[-1]
-        since = turn - (last.get("turn") or 0)
-        bad = any(k in (last.get("outcome") or "") for k in ("displeased", "You feel guilty"))
-        wish_after = sum(99 for w in wishes if (w.get("turn") or 0) >= (last.get("turn") or 0))
-        p_safe = _p_timeout_below(limit - wish_after, since, st.xl) if not bad else 0.0
-    # sacrifice evidence (pray.c dosacrifice): "four-leaf clover" / "feeling of reconciliation" = the
-    # timeout WAS 0 then; only a prayer, a wish or a gift ("An object appears at your feet") raises it
+    since = turn - (prayers[-1].get("turn") or 0) if prayers else None
+    bad = bool(prayers) and any(k in (prayers[-1].get("outcome") or "")
+                                for k in ("displeased", "You feel guilty"))
+    p_safe = 0.0 if bad else _p_timeout_ok(limit, hs, turn, st.xl)
+    evid = [e for e in hs.get("prayer_evidence", []) if e.get("kind") == "zero"]
     last_raise = max([p.get("turn") or 0 for p in prayers] + [w.get("turn") or 0 for w in wishes]
                      + [e["turn"] for e in hs.get("prayer_evidence", []) if e.get("kind") == "reset"] + [-1])
-    zero = [e for e in hs.get("prayer_evidence", []) if e.get("kind") == "zero" and (e.get("turn") or 0) > last_raise]
-    proven = ""
-    if zero:
-        p_safe = 1.0
-        proven = f" (proven: a sacrifice at T:{zero[-1]['turn']} showed the timeout at 0, nothing raised it since)"
-    elif any(e.get("kind") == "reset" and (e.get("turn") or 0) >= last_raise for e in hs.get("prayer_evidence", [])):
-        since_gift = turn - last_raise
-        p_safe = min(p_safe, _p_timeout_below(limit, since_gift, st.xl))
+    zero = [e for e in evid if (e.get("turn") or 0) > last_raise]
+    proven = (f" (proven: a sacrifice at T:{zero[-1]['turn']} showed the timeout at 0, nothing raised it since)"
+              if zero and not bad else "")
+    recent_w = [w for w in wishes if (w.get("turn") or 0) >= (prayers[-1].get("turn") or 0 if prayers else 0)]
+    if recent_w:
+        proven += (f" ({len(recent_w)} wish(es) since the last prayer: each added 50-149 turns to the timeout, "
+                   "which then counts down 1 per turn)")
     where = hs.get("current_branch") or ""
     advice = []
     if where == "Gehennom":

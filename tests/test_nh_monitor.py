@@ -758,3 +758,28 @@ def test_kernel_reflected_ray_and_closet_and_guard_notes():
     s.messages = ["Suddenly, the guard disappears."]
     k._check_events(snap({}, 12), s)
     assert reasons and "VAULT GUARD gone" in reasons[-1]
+
+
+def test_kernel_bashing_warning_and_battle_noise():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    s = snap({}, 11)
+    s.messages = ["You begin bashing monsters with your pick-axe."]
+    k._check_events(snap({}, 10), s)
+    assert reasons and reasons[-1].startswith("NOT YOUR WEAPON")
+    reasons.clear()
+    s.messages = ["The soldier zaps a wand of striking!", "Boing!"]
+    k._check_events(snap({}, 10), s)
+    assert reasons and "message" in reasons[-1]           # the zap itself is still news...
+    reasons.clear()
+    s.messages = ["Boing!", "You hear a nearby zap.", "The magic missile whizzes by you!",
+                  "The soldier wields a spear!"]
+    k._check_events(snap({}, 10), s)
+    assert reasons == []                                  # ...its harmless echoes are not
+    s.messages = ["The soldier wields a cockatrice corpse!"]
+    k._check_events(snap({}, 10), s)
+    assert reasons and "message" in reasons[-1]

@@ -94,6 +94,12 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You finish (?:taking off|your dressing maneuver)",
     r"^You can see again\.$",           # blindness over (the status line shows it)
     r"^You feel (?:a bit steadier|less wobbly|less confused|less trippy) now\.$",   # stun/confusion over
+    # armed monsters around you (the effects on you — HP, status, burnt items — pause by themselves; a
+    # monster picking up a WAND still pauses, and so does one wielding a cockatrice corpse)
+    r"^Boing!$", r"^You hear a nearby zap\.$",
+    r"^The (?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|"
+    r"fireball|cone of cold) (?:whizzes by you|bounces)!$",
+    r"^The .+ wields (?:an? |the |\d+ )(?!.*\b(?:cockatrice|chickatrice) corpse).*!$",
     r"^You stop searching\.$",          # a counted search cut short (its cause pauses by itself)
     # a monster stumbling into a trap (trap.c mintrap(): the trap is already on the map or now is)
     r"^(?!You )(?:The |An? |[A-Z][\w']*'s )?[\w' -]+ (?:falls into a pit|is caught in a bear trap|"
@@ -416,6 +422,11 @@ class Kernel:
                                  "at Int 3 the next one kills you")
                               + " (life saving doesn't help). Kill it at range, Elbereth, or get away NOW; a worn "
                                 "helmet stops 7 in 8")
+        bash = next((m for m in snap.messages if m.startswith("You begin bashing monsters with ")), None)
+        if bash:
+            # uhitm.c: the first blow with something that isn't a proper weapon (a pick-axe applied to dig,
+            # a lamp after #rub, a wand...)
+            reasons.insert(0, f"NOT YOUR WEAPON — {bash!r}: wield your weapon again (w + its letter)")
         if any(re.match(r"^Suddenly, the .*guard disappears\.", m) for m in snap.messages):
             reasons.insert(0, "VAULT GUARD gone — his temporary corridor turns back into rock behind you as you "
                               "walk: keep walking out to the real corridor/room now (don't wait or go back in it)")

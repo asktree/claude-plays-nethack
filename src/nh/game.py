@@ -562,7 +562,11 @@ class Game:
         (a corpse lies where its monster died), or None if unknown."""
         if cell is None or turn is None:
             return None
-        ages = [turn - t for n, c, t in self.kills.get(self.level_key(), []) if n == name and c == tuple(cell)]
+        recs = self.kills.get(self.level_key(), [])
+        ages = [turn - t for n, c, t in recs if n == name and c == tuple(cell)]
+        if not ages:
+            # "You kill it!" (an invisible or unseen monster) on this square lately: the corpse there is its
+            ages = [turn - t for n, c, t in recs if n == "it" and c == tuple(cell) and 0 <= turn - t <= 50]
         return max(ages) if ages else None
 
     def _recently_gone(self, snap: Snap) -> list:
@@ -659,6 +663,10 @@ class Game:
             return ""
         if w == "":
             return "you are EMPTY-HANDED (w + letter to wield your weapon)"
+        if re.search(r"\bpick-axe\b", w):
+            # applying it to dig wields it (apply.c wield_tool); dig() wields your weapon again, but a
+            # paused/abandoned dig or a pick-axe applied by hand leaves it in your hands
+            return f"you WIELD {w} (a digging tool) — w + letter to wield your weapon again"
         if (self.wielded_class or "").startswith("Weapons"):
             return ""
         if not is_weapon_text(w):
@@ -1359,6 +1367,24 @@ class Game:
                         dx, dy = self._MOVE[data[0]]
                         self.solid.setdefault(self.level_key(snap.status), set()).add(
                             (cur.hero[0] + dx, cur.hero[1] + dy))
+                    mv = data[-1] if data[:1] in (b"F", b"m") and len(data) == 2 else data[0] if len(data) == 1 else None
+                    if mv in self._MOVE and cur.hero is not None and snap.hero == cur.hero:
+                        # hack.c test_move(): a door the harness never saw (a monster or a pile on it) —
+                        # remember it, so routes stop trying the diagonal step
+                        dx, dy = self._MOVE[mv]
+                        door = (cur.hero if any(m.startswith("You can't move diagonally out of an intact doorway")
+                                                for m in messages) else
+                                (cur.hero[0] + dx, cur.hero[1] + dy)
+                                if any(m.startswith("You can't move diagonally into an intact doorway")
+                                       for m in messages) else None)
+                        if door is not None:
+                            self.terrain_seen.setdefault(self.level_key(snap.status), {})[door] = "D"
+                    if mv in self._MOVE and cur.hero is not None and snap.status.ok \
+                            and any(re.match(r"^You (?:kill|destroy) it[.!]", m) for m in messages):
+                        # an unseen monster killed: its corpse (if any) lies on the square you hit — date it,
+                        # or the corpse guard can't tell it's fresh (corpse_age() matches any corpse there)
+                        dx, dy = self._MOVE[mv]
+                        self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
                     self._note_wield(messages)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
@@ -1492,7 +1518,7 @@ class Game:
         return r
 
     def terrain_scan(self) -> dict | None:
-        """What the hero knows of this level's terrain, from NetHack's own
+        """What the hero knows of this level's terrain (and doors), from NetHack's own
         memory: #terrain -> "known map without monsters and objects" shows
         remembered traps even under objects (webs as '"'), and the stairs,
         altars, fountains and thrones under objects too (the game keeps the
@@ -1522,6 +1548,7 @@ class Game:
                 found = None
                 browsing = "Showing known terrain" in s.screen.row(0) or s.state.kind == "getpos"
                 if browsing:
+                    from .mapscan import _door_like
                     found = {"traps": set(), "features": {}}
                     for y in range(MAP_TOP + 1, MAP_BOTTOM + 1):
                         row = s.screen.row(y)
@@ -1530,6 +1557,8 @@ class Game:
                                 found["traps"].add((x, y))
                             elif ch in self.FEATURE_CHARS and feature_at(s.screen, x, y):
                                 found["features"][(x, y)] = ch
+                            elif s.screen.color_at(x, y) == 3 and (ch in "|-" or (ch == "+" and _door_like(s.screen, x, y))):
+                                found["features"][(x, y)] = "D"     # a door, even one under a pile now
                 self._leave_getpos(s, in_getpos=browsing)
                 self.log_event({"ev": "terrain_traps", "ts": round(time.time(), 3),
                                 "traps": sorted(found["traps"]) if found is not None else None,

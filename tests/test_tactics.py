@@ -1620,3 +1620,93 @@ def test_hunt_follows_a_target_out_of_view(monkeypatch):
     r = combat.hunt("hill giant")
     assert sent == ["l", "l", "l", "l"] and pos["x"] == 14       # one step while seen, then to its last square
     assert r["reason"].startswith("lost:") and "last seen at (14, 5)" in r["reason"]
+
+
+def test_prayer_check_counts_wishes_and_demigod(monkeypatch):
+    # zap.c makewish(): every wish adds 50-149 to the prayer timeout, which never drops below 0 before that
+    from tactics import ctx, survival
+    g = _G()
+    g.history = []
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({}, (10, 5), [])
+    s.status.hp, s.status.hpmax, s.status.xl = 10, 145, 13        # low HP: major trouble
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    hs = {"prayers": [{"turn": 18211, "outcome": "You are surrounded by a shimmering light."}],
+          "wishes": [{"turn": t} for t in (20563, 20566, 20568, 20570, 20618)]}
+    monkeypatch.setattr(survival, "_harness_state", lambda: hs)
+    s.status.turn = 20706
+    r = survival.prayer_check()
+    assert r["trouble"] == "major" and r["p_safe"] < 0.05 and "5 wish(es)" in r["advice"]
+    s.status.turn = 21400
+    assert survival.prayer_check()["p_safe"] > 0.95
+    # without the wishes the same prayer 2495 turns ago would be safe
+    hs["wishes"] = []
+    s.status.turn = 20706
+    assert survival.prayer_check()["p_safe"] > 0.95
+    # a demigod (the Wizard killed before that prayer): each prayer also adds rnz(1000)
+    hs["demigod"] = {"turn": 18000}
+    s.status.turn = 18211 + 800
+    p_demi = survival.prayer_check()["p_safe"]
+    del hs["demigod"]
+    assert p_demi < survival.prayer_check()["p_safe"]
+
+
+def test_dig_rewields_before_pausing(monkeypatch):
+    # p2 #136: dig('>') fell into a temple and paused on its message with the pick-axe still in hand
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "a", "text": "a blessed +6 long sword named Excalibur (weapon in hand)"},
+        {"letter": "M", "text": "a pick-axe"}])
+
+    def snap(ld, kind="command", msgs=()):
+        s = _snap({}, (10, 5), [])
+        s.status.ldesc, s.status.turn = ld, 100
+        s.state = State(kind)
+        s.messages = list(msgs)
+        return s
+    frames = {"a": snap("Dlvl:23", "object"), "M": snap("Dlvl:23", "direction"),
+              ">": snap("Dlvl:24", msgs=["You dig a pit in the floor.", "You dig a hole through the floor.",
+                                         "You fall through...", "You experience a strange sense of peace."]),
+              "wa": snap("Dlvl:24", msgs=["a - a blessed +6 long sword named Excalibur (weapon in hand)."])}
+    cur = {"s": snap("Dlvl:23")}
+    sent, pauses = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append((reason, list(sent))))
+    items.dig(">")
+    assert sent == ["a", "M", ">", "wa"]
+    assert len(pauses) == 1 and "sense of peace" in pauses[0][0] and pauses[0][1][-1] == "wa"
+
+
+def test_travel_falls_back_to_head_to_without_a_known_path(monkeypatch):
+    # p1 #155: NetHack's travel only guesses toward a target across never-seen dark floor
+    from nh.parse import State
+    from tactics import ctx, explore, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {4: "        -----", 5: "        |...|", 6: "        |....", 7: "        -----"}
+    s = _snap(rows, (10, 5), [])
+    getpos = _snap(rows, (10, 5), [])
+    getpos.state = State("getpos")
+    cur = {"s": s}
+
+    def fake_do(keys, **kw):
+        cur["s"] = getpos if keys == "_" else s          # the travel command: the hero doesn't move
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y, rounds=5: getpos)
+    called = []
+    monkeypatch.setattr(explore, "head_to", lambda x, y, max_legs=30: called.append((x, y)) or s)
+    assert nav._travel(40, 12, 40, None, 3, 0, False) is s
+    assert called == [(40, 12)]
+    assert nav._HEADING[0] is False

@@ -90,6 +90,8 @@ class Tracker:
             if lv.get("feature_desc") and hasattr(game, "feature_desc"):
                 game.feature_desc[key] = {tuple(int(v) for v in c.split(",")): d
                                           for c, d in lv["feature_desc"].items()}
+            for c in lv.get("doors", []):
+                game.terrain_seen.setdefault(key, {}).setdefault(tuple(c), "D")
             if lv.get("niches") and hasattr(game, "niches"):
                 game.niches[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["niches"].items()}
             if lv.get("flags") and hasattr(game, "level_flags"):
@@ -132,6 +134,17 @@ class Tracker:
                 (not self.state.get("wishes") or self.state["wishes"][-1].get("turn") != st.turn):
             self.state.setdefault("wishes", []).append({"turn": st.turn})
             changed = True
+        for m in snap.messages:
+            # pray.c pleased(): once a demigod (wizard.c wizdead(): the Wizard of Yendor died; spell.c: the
+            # invocation) and again once crowned, every prayer adds rnz(1000) to the prayer timeout
+            key = ("demigod" if (re.search(r"^You (?:kill|destroy) the Wizard of Yendor\b|"
+                                           r"^The Wizard of Yendor (?:is killed|dies)", m)
+                                 or Game._INVOKED.search(m)) else
+                   "crowned" if re.search(r"I crown thee\.\.\.|Thou shalt be my Envoy of Balance|"
+                                          r"Thou art chosen to (?:steal|take) souls", m) else None)
+            if key and not self.state.get(key):
+                self.state[key] = {"turn": st.turn, "msg": m}
+                changed = True
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
             self.need_overview = True
@@ -185,6 +198,7 @@ class Tracker:
                 if bridges:
                     feats["drawbridge"] = bridges
                 lv["features"] = feats
+                lv["doors"] = sorted([x, y] for (x, y), ch in seen.items() if ch == "D")
                 lv["map"] = [snap.screen.row(y).rstrip() for y in range(MAP_TOP, MAP_BOTTOM + 1)]
             for attr in ("traps", "avoid", "solid"):
                 cells = sorted(getattr(self.game, attr, {}).get(key, ()))

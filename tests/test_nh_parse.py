@@ -1097,3 +1097,45 @@ def test_guard_stunned_blows_near_pet_or_peaceful():
     with pytest.raises(PermissionError):
         g._guard(_cmd_snap([jackal, shk], conditions=["Conf"]), b"Fl", force=False)
     g._guard(_cmd_snap([jackal, kitten]), b"Fl", force=False)                # not stunned: fine
+
+
+def test_diagonal_doorway_refusal_teaches_the_door():
+    # a door the harness never saw (a sleeping monster on it, then its loot pile): NetHack's refusal says
+    # where it is, so routes stop trying the diagonal step
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify, parse_status
+    g = Game(term=None, timing=Timing.local())
+    base = {5: "          @[", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    scr = mk(base, cursor=(10, 5))
+    g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+
+    def fake_send(data):
+        rows = dict(base)
+        rows[0] = "You can't move diagonally into an intact doorway."
+        s2 = mk(rows, cursor=(10, 5))
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send
+    g.step("u")
+    assert g.terrain_seen[g.level_key()][(11, 4)] == "D"
+
+    def fake_send2(data):
+        rows = dict(base)
+        rows[0] = "You can't move diagonally out of an intact doorway."
+        s2 = mk(rows, cursor=(10, 5))
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send2
+    g.step("n")
+    assert g.terrain_seen[g.level_key()][(10, 5)] == "D"
+
+
+def test_it_kill_dates_the_corpse_and_pickaxe_wield_note():
+    g = _guard_game()
+    g.last = _cmd_snap([])
+    g.record_kill("it", (11, 5), 100)
+    assert g.corpse_age("troll", (11, 5), 120) == 20        # the invisible troll killed there
+    assert g.corpse_age("troll", (11, 5), 200) is None      # too long ago to be sure
+    assert g.corpse_age("troll", (12, 5), 120) is None
+    g.wielded, g.wielded_class = "a pick-axe", None
+    assert "digging tool" in g.wield_note()
+    g.wielded = "a blessed +6 long sword named Excalibur"
+    assert g.wield_note() == ""

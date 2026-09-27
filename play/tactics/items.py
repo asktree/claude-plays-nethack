@@ -808,6 +808,8 @@ def pickup(pattern: str | None = None) -> list:
     if "You see no objects here" in look or not look:
         print(f"pickup({pattern!r}): there are no objects here" + (f" ({look})" if look else ""))
         return []
+    if pattern and pattern.strip().lower() in ("ring", "rings"):
+        pattern = r"\brings?\b(?!\s+mail)"          # a ring, not a ring mail (250 weight)
     if pattern:
         # the invocation items look different until identified: "papyrus spellbook", "silver bell",
         # "candelabrum" (and a fake "Amulet of Yendor" is identical to the real one)
@@ -878,6 +880,8 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
 
 
 def _dig(direction, tool, max_applies, auto_fightable):
+    from nh.kernel import DEFAULT_BENIGN
+    from .benign import BENIGN
     inv = inventory()
     if tool is None:
         t = next((i for i in inv if re.search(r"pick-axe|mattock", i["text"])), None)
@@ -887,7 +891,9 @@ def _dig(direction, tool, max_applies, auto_fightable):
     weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
     ldesc0 = ctx.last().status.ldesc
     ids0 = {m.get("id") for m in ctx.last().hostiles(7) if m.get("id") is not None}   # already known when you began
+    routine = [re.compile(p) for p in _DIG_OK + [r"^You stop digging\.$"] + list(BENIGN)] + list(DEFAULT_BENIGN)
     msgs: list = []
+    why = ""                       # something dig() must show you AFTER your weapon is back in hand
     for _ in range(max_applies):
         s = ctx.do("a", quiet=True)
         if s.state.kind != "object":
@@ -899,27 +905,31 @@ def _dig(direction, tool, max_applies, auto_fightable):
         if s.state.kind != "direction":
             if s.state.kind != "command":
                 ctx.do("<Esc>", quiet=True)
-            ctx.pause(f"dig(): no dig-direction prompt after applying {tool!r} ({s.state.kind} {s.state.prompt!r}; "
-                      f"messages {s.messages})")
+            why = (f"no dig-direction prompt after applying {tool!r} ({s.state.kind} {s.state.prompt!r}; "
+                   f"messages {s.messages})")
             break
-        # falling through the hole is the point: no level-change pause before the re-wield below
-        # (new monsters there still pause)
-        s = ctx.do(direction, ok=_DIG_OK + [r"^You stop digging\.$"], expect=("level",) if direction == ">" else ())
+        # quiet: the messages of the dig itself (and of the level you fall into) are looked at below, after
+        # the weapon is back in hand (falling through the hole is the point: no level-change pause either)
+        s = ctx.do(direction, ok=_DIG_OK + [r"^You stop digging\.$"], quiet=True,
+                   expect=("level",) if direction == ">" else ())
         msgs += s.messages
         text = " ".join(s.messages)
-        if s.status.ok and s.status.ldesc != ldesc0:
-            break                                   # fell through the hole
+        fell = s.status.ok and s.status.ldesc != ldesc0
+        news = [m for m in s.messages if not any(p.search(m) for p in routine)]
         threats = ([m for m in s.hostiles(7) if not auto_fightable(m, s)
-                    and (m.get("id") not in ids0 or m.get("dist") == 1)] if s.state.kind == "command" else [])
-        if threats or (s.state.kind == "command" and s.adjacent_hostiles()):
-            if weapon:
-                s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
-                msgs += s.messages
-            who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
-                            for m in (threats or s.adjacent_hostiles())[:3])
-            ctx.pause(f"dig(): stopped — {who} in view; " + (f"your weapon ({weapon}) is wielded again. "
-                                                             if weapon else "") + "dig() again to go on")
-            return msgs
+                    and (fell or m.get("id") not in ids0 or m.get("dist") == 1)] if s.state.kind == "command" else [])
+        adjacent = s.adjacent_hostiles() if s.state.kind == "command" else []
+        if threats or adjacent:
+            why = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in (threats or adjacent)[:3]) \
+                  + " in view"
+        if news:
+            why = (why + "; " if why else "") + "messages: " + " | ".join(news[:4])
+        if fell:
+            if why:
+                why = f"fell to {s.status.ldesc} — {why}"
+            break                                   # fell through the hole
+        if why:
+            break
         if "You stop digging" in text:
             continue                                # something came and went: dig on
         if re.search(r"dig a hole through|make an opening|succeed in cutting away|too hard to dig|"
@@ -931,6 +941,9 @@ def _dig(direction, tool, max_applies, auto_fightable):
     if weapon and ctx.last().state.kind == "command":
         s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
         msgs += s.messages
+    if why:
+        ctx.pause("dig(): " + why + (f" — your weapon ({weapon}) is wielded again" if weapon else "")
+                  + "; dig() again to go on digging")
     return msgs
 
 

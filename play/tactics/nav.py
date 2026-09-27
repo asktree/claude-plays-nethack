@@ -386,6 +386,7 @@ def engulfed_check(s, who: str):
                        "(or wait to be expelled)")
 
 
+_HEADING = [False]   # travel() falling back to head_to(): never again from inside it
 DROWNERS = ("giant eel", "electric eel", "kraken")
 EEL_MEMORY = 80      # turns an out-of-view eel keeps its stretch of water dangerous
 
@@ -679,6 +680,18 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     return s
                 if s.hero != h0:
                     continue
+            if not _HEADING[0] and s.state.kind == "command" and s.hero is not None \
+                    and bfs_path(s, s.hero, (x, y), allow_monsters=True) is None:
+                # the way there runs through ground you haven't seen (a dark hall): NetHack's travel only
+                # guesses; go frontier by frontier toward it instead
+                from .explore import head_to
+                print(f"travel: no known path to {(x, y)} from {s.hero} — making for it across unexplored ground "
+                      "(head_to)")
+                _HEADING[0] = True
+                try:
+                    return head_to(x, y)
+                finally:
+                    _HEADING[0] = False
             raise NavError(_no_path_msg(s, h0, (x, y), start))
         if _notable(s.messages) and not s.paused:
             # something happened en route; let the caller look (unless the exec
