@@ -740,3 +740,21 @@ def test_stair_links_follow_level_renames():
     g.rekey_level("Dlvl:3", "The Gnomish Mines / Level 3")
     assert g.stair_links["The Dungeons of Doom / Level 2"][(21, 14)] == "The Gnomish Mines / Level 3"
     assert g.stair_links["The Gnomish Mines / Level 3"] == {(77, 13): "The Dungeons of Doom / Level 2"}
+
+
+def test_long_message_wrapped_onto_row1_is_not_map():
+    # tty split a long quest message: row 1 holds one leftover word at column 0
+    top = "You receive a faint telepathic message from the Norn: Look for a ...ic"
+    s = mk({0: top.ljust(79)[:79].rstrip(), 1: "transporter.", 5: "     |..@..|", 22: STATUS1,
+            23: "Dlvl:11 $:0 HP:98(104) Pw:11(11) AC:-3 Xp:8/1869 T:5817"}, cursor=(8, 5))
+    st = classify(s)
+    assert st.kind == "command" and st.msg_rows == 1
+
+
+def test_fullwidth_text_window_keeps_first_column():
+    # ^O overview as a full-width NHW_MENU text window: --More-- at column 1
+    rows = {0: "The Dungeons of Doom: levels 1 to 11", 1: "   Level 1:", 2: "      Some fountains.",
+            3: " --More--"}
+    s = mk(rows, cursor=(9, 3))
+    st = classify(s)
+    assert st.kind == "text" and st.more_text.startswith("The Dungeons of Doom")

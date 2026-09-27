@@ -350,7 +350,7 @@ def classify(scr: Screen) -> State:
         # a long final message can stay wrapped over the top map rows
         if len(top) >= 50:
             r = 1
-            while r <= 3 and r != cy and _texty(scr.row(r)):
+            while r <= 3 and r != cy and (_texty(scr.row(r)) or _continues(scr.row(r - 1), scr.row(r), scr.width)):
                 r += 1
             st.msg_rows = r - 1
         return st
@@ -362,6 +362,16 @@ def classify(scr: Screen) -> State:
 
 _WORDS = re.compile(r"[A-Za-z']{3,} [A-Za-z']{2,}")
 _PROMPT_END = re.compile(r"(\[[^\]]*\](\s*\([^)]*\))?|\?|:)\s*$")
+
+
+def _continues(prev: str, row: str, width: int) -> bool:
+    """tty's update_topl() splits a message longer than the screen at the last
+    space before column CO-1: the next row starts at column 0 with the word
+    that didn't fit (it can be a lone word: "transporter.")."""
+    if not row or row[0] == " " or not prev.strip():
+        return False
+    word = row.split(" ", 1)[0]
+    return any(c.isalpha() for c in word) and len(prev.rstrip()) + 1 + len(word) >= width - 1
 
 
 def _texty(row: str) -> bool:
@@ -386,8 +396,11 @@ def _classify_prompt(text: str) -> State:
         return State("extcmd", prompt=t)
     if t.startswith("Count:"):
         return State("count", prompt=t)
-    if "In what direction?" in t or re.search(r"in what direction\)?\??\s*$", t, re.I):
-        return State("direction", prompt=t)      # also "Talk to whom? (in what direction)"
+    if "In what direction?" in t or re.search(r"in what direction\)?\??\s*$", t, re.I) \
+            or re.search(r"In what direction do you want to \w+\? \[", t):
+        # also "Talk to whom? (in what direction)" and the pick-axe's
+        # "In what direction do you want to dig? [yln>]" (apply.c)
+        return State("direction", prompt=t)
     if re.search(r"\[type the name(?: or symbol)?\]\s*$", t):
         return State("getlin", prompt=t)         # genocide / polymorph control / ^G: text, not an item
     if "[yes/no]" in t or re.search(r"\(yes\) \[no\]\s*$", t):
@@ -426,7 +439,12 @@ def _parse_window(scr: Screen, end_pos: tuple[int, int], kind: str) -> Menu:
     """Parse a tty menu/text window whose last line holds the end marker at end_pos."""
     x0, yend = end_pos
     # tty menus are left-aligned at the window's offx; the end marker is at offx
-    # too, so x0 is the window's left edge. Full-screen windows have x0 == 0.
+    # too, so x0 is the window's left edge. Full-screen windows have x0 == 0 —
+    # except a full-width NHW_MENU shown as text (the ^O overview): wintty.c's
+    # dmore() puts its --More-- one column right (offset 2) of text that starts
+    # at column 0 ("he Dungeons of Doom" lost its T)
+    if kind == "text" and x0 == 1 and any(scr.row(y)[:1].strip() for y in range(0, yend)):
+        x0 = 0
     rows = []
     for y in range(0, yend):
         seg = scr.row(y)[x0:].rstrip()

@@ -2,98 +2,88 @@
 
 ## Character
 - Name/role: p2 — local practice game, seed 202 (lawful female dwarven Valkyrie, god: Tyr)
-- Turn / Dlvl / XL / HP / Pw / AC: T:4871 / Dlvl 6 (main dungeon) / XL8 (Exp 1298; XL9 at 2560) / 104/104 / 11/11 / **AC -3** (3 points of divine protection bought T:4517) / $0 on me, 32 gold in the sack n
-- Position at shift-6 end: STANDING ON THE D6 `>` at (41,3) (NE room), command prompt, HP 104/104, nothing hostile near except a gold-carrying leprechaun that avoids me (a second one roams the west). NO PET (the large cat stayed in Minetown). Next action: `>` to D7.
+- Turn / Dlvl / XL / HP / Pw / AC: T:5880 / **Dlvl 11 (main dungeon, QUEST PORTAL LEVEL)** / XL8 (Exp 2013; XL9 at 2560) / 104/104 / 11/11 / **AC -3** (3 points of divine protection bought T:4517) / $0 on me, 201 gold in the sack n. Last meal: owlbear corpse finished T:5880 (not Hungry before ~T:6800).
+- Position at shift-7 end (T:~5870): D11 at (54,4), the east doorway of the NE room (51-55,3-8), just finished eating an owlbear corpse, HP 104/104, nothing hostile in view (a wood nymph roams the far SE). The altar room (32-45,5-10) is 10 squares west. Arrived on D11 by FALLING through a hole I dug on D10 — D11's real `<` and `>` and the quest portal are NOT yet found (find them first next shift). NO PET.
 - Attributes (T:3483): St:17 Dx:12 Co:19 In:11 Wi:8 Ch:9 (Cha 9 → shop buy prices ×4/3; carry cap 950)
 - Skills: long sword SKILLED (enhanced T:3719); next #enhance when "more confident" appears
-- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (XL7, T:4212 'You feel quick!'); EXTRINSIC telepathy from the amulet of ESP (worn T:2424). NO poison resistance.
-- Luck notes: nothing done to Luck (no peacefuls killed by me; the cat kills peacefuls/fights watchmen = no penalty to me)
-- Alignment / god anger notes: never prayed; god not angry.
+- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (XL7, T:4212); EXTRINSIC telepathy from the amulet of ESP (worn T:2424); Excalibur gives automatic searching. NO poison resistance (killer bees / soldier ants / spiders / snakes / quasits / spiked pits all carry a 1-in-240-per-hit instadeath).
+- Luck notes: nothing done to Luck (no peacefuls killed by me).
+- Alignment / god anger notes: never prayed; god not angry; prayer timeout has been 0 since ~T:300 (never used).
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
-| — | none yet (first prayer fine in MAJOR trouble only; lycanthropy counts as major) | — |
+| — | none yet. PLAN: the first prayer is reserved either for MAJOR trouble or for the HOLY-WATER prayer on the lawful altar D11 (44,6) with TWO potions of water on it (see plan) | — |
 
 ## Equipment worn/wielded (letter: item)
-- a: EXCALIBUR — blessed rustproof **+6** (wielded; obtained T:2422; enchanted T:3612–3613). NEVER read another enchant weapon on it (+6 = evaporation risk).
-- c: uncursed +3 small shield (worn); DIVINE PROTECTION 3 points (AC -3 total at T:4517)
-- y: +0 scale mail (worn since T:1681) [seen]
-- E: uncursed +0 high boots (worn) [seen] (iron shoes were the same AC 2 — left on the altar)
-- O: uncursed AMULET OF ESP (worn since T:2424) [seen]
+- a: EXCALIBUR — blessed rustproof **+6** (wielded; obtained T:2422; enchanted T:3612–3613). NEVER read another enchant weapon on it. NOTE: applying the pick-axe WIELDS the pick-axe — always `w`,`a` afterwards (done T:5818).
+- c: uncursed +3 small shield (worn); DIVINE PROTECTION 3 points (AC -3 total)
+- y: +0 scale mail (worn) [seen]; E: uncursed +0 high boots (worn) [seen]; O: uncursed AMULET OF ESP (worn) [seen]
 
-## Key inventory (letters) — all BUC below is [seen] from the altar test T:3610 unless marked
-- b: blessed +0 dagger — throw it (`throw('b', dir)`); stepping onto it picks it back up
-- P: 12 BLESSED darts (throw, multishot), U: 7 uncursed elven arrows (no bow), S: uncursed knife
-- m: uncursed PICK-AXE — currently INSIDE THE BAG s (shopkeepers only check top-level inventory, so you can enter shops with it bagged); take it out (`a`, `s`, `o`) before digging. Never carry it loose into a shop.
-- d: **CURSED MAGIC LAMP** (certain: shows as "lamp" while "oil lamp" is identified; black flash on the altar) — do NOT rub; bless it (holy water) first, then #rub for the wish
-- e: uncursed oil lamp; A: brass lantern (bought 16; 1500 turns of light); CANDLES: z uncursed candle + v candle + w 5 tallow candles = 7 (enough for the Candelabrum — keep them, never burn them)
-- n: uncursed SACK (identified; empty — 2832 gold went through it: leprechauns can't steal gold inside a container; `bag_put('n','$')` / `bag_take('n','gold')`). Next protection price: 400 x XL = 3200 at XL8 (+1 AC only).
-- s: BAG = **bag of holding or oilskin sack** (bought 133 zm = base 100; opened as a container, so not a bag of tricks) [inferred]; contains the pick-axe. Test later: fill it and compare Burdened thresholds, or identify.
-- x: curved wand = **WAND OF SLEEP** (engrave: "bugs stop moving" + shop price base 175 excludes death) [certain]; charges unknown (4–8). Ray: bounces — never zap toward a wall next to me or the cat. Primary emergency tool.
-- r: balsa wand = WAND OF SLOW MONSTER (engrave-tested T:3723); charges unknown
-- o: wand of create monster (identified T:1046; charges unknown)
-- J: uncursed scroll of TELEPORTATION (identified T:3674) — ESCAPE ITEM: read when cornered (random teleport on the level; NOT on no-teleport levels)
-- Q: ELBIB YLOH (base-100 group, BUC unknown; never drop-probe it: scare monster turns to dust), M: uncursed KO BATE (= light), D: uncursed unlabeled scroll (blank)
-- F: WAS uncursed potion of GAIN LEVEL (quaffed T:4518 -> XL8); cyan potion = gain level (identified). H: uncursed clear potion (= plain water, not holy); I: uncursed magenta potion = base 100 (healing / extra healing / confusion / hallucination / restore ability / sleeping); N: uncursed murky potion (base 100 group)
-- q: 1 FOOD RATION (ate one T:4205), f: uncursed tin (unknown; tin opener K); B: STEEL RING (unknown, found D6 T:4159, BUC unknown — never put on untested)
-- u: key (= skeleton key; unlocks doors/boxes), t: tin whistle (junk). Sold: amulet of unchanging (75, T:3789).
-- Gems (all uncursed, unidentified; NOTE: 3.6 shopkeepers pay fake prices for unidentified gems, so sell-price-ID of gems does NOT work): R black gem, X 2 black gems (different type from R), W yellowish brown gem, Y red gem, Z yellow gem
-- Escape items: scroll of teleportation J; wand of sleep x; upstairs + Elbereth; pick-axe (dig down) outside Minetown/shops
-- Healing: none known
-- Emergency cures: none carried
-- Food: 1 food ration + tin. Last meal: food ration at T:4205 → next Hungry around T:5000. Eat fresh safe corpses (`corpse()`) when Hungry. NEVER eat leprechaun corpses (teleportitis).
-- Left on the Minetown altar (38,9): uncursed iron shoes, cursed orcish dagger.
+## Key inventory (letters) — BUC [seen] from altars unless marked
+- b: blessed +0 dagger (throw it; stepping onto it picks it back up); P: 12 BLESSED darts; U: 7 uncursed elven arrows (no bow); S: uncursed knife
+- m: uncursed PICK-AXE — now carried LOOSE (top-level) since the D9/D10 digging; put it back in the bag s (`bag_put('s','m')`) before any shop. Dig down = `apply m`, `>`; first apply makes a pit, the second the hole; you land at a RANDOM spot of the level below.
+- d: **CURSED MAGIC LAMP** — do NOT rub; needs 2 holy waters (cursed→uncursed→blessed), then #rub for the wish (80% with blessed)
+- e: uncursed oil lamp; A: brass lantern; CANDLES: z + v + w(5) = 7 (for the Candelabrum — never burn them)
+- n: uncursed SACK: holds 104 gold + scroll Q (ELBIB YLOH) + M (light) + D (blank) + cloth SPELLBOOK i (unread, BUC unknown) + potions I (magenta, base 100), N (murky, base 100), T (WHITE = PARALYSIS, unknown BUC), H (uncursed clear = plain WATER). Take out with `bag_take('n', pattern)`; put in with `bag_put('n', letter)`. Items inside are safe from fire/cold/theft.
+- s: BAG = bag of holding or oilskin sack [inferred], currently EMPTY
+- WANDS: x = SLEEP (curved, uncursed) [certain; 3–7 charges left]; **g = FIRE (jeweled, uncursed, identified T:5095; used 1 charge engraving)** — 6d6 ray, bounces, burns MY scrolls/potions/spellbooks if it hits me (bag them first), kills bee swarms in a line; also the sliming cure and a permanent-Elbereth engraver; V = LIGHT (pine, uncursed); r = SLOW MONSTER (balsa); o = CREATE MONSTER
+- J: uncursed scroll of TELEPORTATION (top-level again) — ESCAPE ITEM
+- L: uncursed GOLDEN potion (unknown); B: CURSED ring of shock resistance (never wear)
+- q: NO FOOD RATIONS LEFT (last eaten T:4918–4925). f: uncursed tin (unknown; tin opener K). Last meals: giant ant corpse T:5204, jaguar corpse T:5470 → not Hungry before ~T:6300. EAT FRESH SAFE CORPSES (`corpse()`); buy/find rations.
+- u: key (skeleton key), t: tin whistle
+- Gems (all uncursed, unidentified): R black, X 2 black (other type), Y 2 red, Z yellow, W yellowish brown
+- Escape items: scroll of teleportation J; wand of sleep x (and fire g); Elbereth (works: T:5814 the dust vortex and centaur fled while I dug); pick-axe (dig down: ~8 turns, random landing spot)
+- Healing: none known. Emergency cures: none carried.
 
 ## Identified appearances (appearance -> identity)
 - YUM YUM -> enchant weapon; ANDOVA BEGARIN -> identify; ELAM EBOW -> scare monster (lost); unlabeled -> blank paper; KO BATE -> light; DAIYEN FOOELS -> TELEPORTATION
 - KERNOD WEL -> base 80 (enchant armor / remove curse); ELBIB YLOH -> base 100 group; HAPAX LEGOMENON -> base 100 group
-- uranium wand -> create monster; curved wand -> SLEEP; balsa wand -> slow monster
-- silver ring -> regeneration; agate ring -> base 100 group; puce potion -> base 150; murky potion -> base 100; YELLOW potion -> SPEED (a leprechaun quaffed one and sped up, T:4174)
+- uranium wand -> create monster; curved wand -> SLEEP; balsa wand -> slow monster; **jeweled wand -> FIRE; pine wand -> LIGHT**
+- silver ring -> regeneration; agate ring -> base 100 group; steel ring -> shock resistance
+- puce potion -> base 150; murky potion -> base 100; magenta -> base 100; YELLOW -> SPEED; cyan -> GAIN LEVEL; clear -> water; **WHITE -> PARALYSIS** (a mountain centaur threw one at me T:5812: "Something seems to be holding you"); golden -> unknown
 - hexagonal amulet -> ESP; oval amulet -> unchanging
 - lamp (plain) -> magic lamp; oil lamp identified; "bag" -> sack identified (n); the other "bag" (s) = holding/oilskin
-- vellum spellbook -> level 1; dull spellbook -> level 4 (sold 200); leathery spellbook -> level 3 (or 4; sold 150); cyan/gold spellbooks -> 533 zm at the D2 bookstore
+- vellum spellbook -> level 1; dull -> level 4; leathery -> level 3/4; cloth -> unknown (i, in the sack)
 
 ## Dungeon map
-| Dlvl | branch | features (stairs, altars+alignment, shops+type, fountains, stashes, traps, notes) |
+| Dlvl | branch | features |
 |---|---|---|
-| 1 | Dungeons | up (8,8); down (10,19); fountains (27,11), (5,18); fully explored |
-| 2 | Dungeons | up (40,6); down (21,14) = GNOMISH MINES BRANCH; down (74,17) = main; Kittamagh's bookstore (2-5,17-19) door (6,18); door (28,13) kicked open, boulder at (37,13); boulder (46,9); SE room fountain (59,16), goblin statue (58,16); homunculus corpse (22,14) |
-| 3 | Dungeons | up (21,18) under the broken large box (use `travel(21,18)`); down (51,10); SLEEPING GAS TRAP (35,8); vault; elven bow at (61,19) |
-| 4 | Dungeons | up (39,18); down (12,18) via hidden passage (8,15); FOUNTAIN (22,17); UPERNAVIK'S GENERAL STORE (69-71,15-17) door (68,16); yellow molds spawn |
-| 5 | Dungeons (ORACLE) | up (9,5); down (58,5); Delphi (34-44,8-16), Oracle (39,12) peaceful; fountains left (39,11), (38,12); PIT (14,15); Sokoban entrance = up stairs of D6 |
-| 3 (Mines 1) | Gnomish Mines | up (77,13) far east; down (50,13); ARROW TRAP (51,4); narrow cave, peaceful gnome lords |
-| 4 (Mines 2) | Gnomish Mines | up (44,10); down (8,10) far west; PIT (65,15); figurine of a green mold (12,9); many peaceful gnomes/dwarves/hobbits, a peaceful monkey (polymorphed gnome) |
-| 5 (Mines 3) = MINETOWN | Gnomish Mines | up (74,5) in a small walled room (66-77,3-6) far NE; `#` corridor along row 3 (23-58) and (23,4)-(23,12); down (3,6) in the far-west walled room (1-11,4-7) with an ANTI-MAGIC FIELD (9,6); west hall (24-28,4-20) doors (24,6), (24,11); TOWN SQUARE x 25-44, y 11-14 with FOUNTAINS (33,12), (43,12) — NEVER dip/quaff; **TEMPLE of ODIN (NEUTRAL, cross-aligned)**: room (36-40,8-11), door (37,12) south wall, ALTAR (38,9), priest peaceful — BUC-test only, never sacrifice/pray/convert; **Kilmihil's RARE BOOKS** (29-31,7-9) door (29,10) — 5 spellbooks left (unpriced; cyan/gold types cost 533 elsewhere); **AlliWar Wickson's HARDWARE STORE** (29-31,15-17) door (30,14) — 2 leashes left; **LARGE MIMIC disguised at (30,16)** (centre square: never step on it, never `s` next to it; disguised mimics don't act); **Pasawahan's DELICATESSEN** (36-38,16-17) door (39,17) (east wall) — cream pie 13, fortune cookie 9 left; sealed closet (32-34,16-17) holds 2 kobold shamans + 2 kittens (hostile, can't get out, ignore); N-S passage x=40 (14-19) with closed door (41,17) east; **Izchak's LIGHTING STORE** (47-49,7-9) door (49,10) — left: 5 wax candles 180, 2 tools at (47,7)/(47,8) unpriced; its large mimic (49,8) is DEAD; **Ouiatchouane's GENERAL STORE** (48-50,15-17) door (49,14) — stock: 8 elven arrows 24 at (50,16), a RING (48,17), a SCROLL (49,17), a tool (48,16), a weapon (50,17) — unpriced (check next visit; buys anything, use it for sell-probes); small structure (43-46,7-9) door (45,9) and closed door (45,14) not entered; x>55 east of the square unexplored except the corridor to the `<`; watch captain patrols the south side (29-46,18-19); SW room (3-11,13-20) with a RED MOLD (6,18); Elbereth engraved in the dust at (30,11) |
-| 6 | Dungeons | up (23,15) in room (20-30,14-16) with a homunculus statue (23,14); doors: (19,14) W doorway, (19,16) W closed, (21,13)/(23,13) N doorways, (31,14) E closed, (31,16) E doorway; corridor (21,9-12) N to the LEPRECHAUN HALL (20-25,4-7) doors (21,8) S open, (23,8) S closed, (19,4)/(19,6) W doorways — cleared T:4238 (18 kills), leprechaun corpses + 7 arrows (23,4) left; **`>` at (41,3)** in the NE room (37-47,2-5), reached by the corridor along row 3 from the hall's NE corner (26,4)->(28-40,3); **SOKOBAN ENTRANCE = second `<` at (4,15)** in the SW room (2-6,13-16); west room (7-10,4-6) with a FOUNTAIN (7,6), door (6,4); hidden passage found at (15,4); 2 awake leprechauns carrying ~my lost gold roam the west; goblin near (32,6) |
-| 6 (Mines 4) | Gnomish Mines | up (45,5); `>` NOT found (x<28 and the SW unexplored); LAND MINE (62,9) now a pit; traps (42,8), (74,18); cave; werejackal killed; dwarvish cloak left at (49,13); potion at (43,8) and a dart (52,12) left; rocks dropped at (50,13); brown mold corpse (64,10) |
+| 1 | Dungeons | up (8,8); down (10,19); fountains (27,11), (5,18) |
+| 2 | Dungeons | up (40,6); down (21,14) = GNOMISH MINES BRANCH; down (74,17) = main; Kittamagh's bookstore (2-5,17-19) door (6,18); fountain (59,16) |
+| 3 | Dungeons | up (21,18) under a broken large box; down (51,10); SLEEPING GAS TRAP (35,8); vault |
+| 4 | Dungeons | up (39,18); down (12,18) via hidden passage (8,15); FOUNTAIN (22,17); UPERNAVIK'S GENERAL STORE (69-71,15-17) door (68,16) |
+| 5 | Dungeons (ORACLE) | up (9,5); down (58,5); Delphi fountains; PIT (14,15) |
+| 3–6 (Mines) | Gnomish Mines | Mines 1 up (77,13) down (50,13); Mines 2 up (44,10) down (8,10); MINETOWN = Mines 3 (Dlvl 5): up (74,5), down (3,6), TEMPLE of ODIN (neutral) altar (38,9) priest (protection bought), shops: Kilmihil books (29-31,7-9), AlliWar hardware (29-31,15-17) with a disguised LARGE MIMIC (30,16), Pasawahan deli (36-38,16-17), Izchak lights (47-49,7-9), Ouiatchouane general (48-50,15-17); Mines 4 (Dlvl 6) up (45,5), `>` not found |
+| 6 | Dungeons | up (23,15); **SOKOBAN `<` (4,15)** (skipped); `>` (41,3) NE room; leprechaun hall (20-25,4-7) cleared; fountain (7,6); 2 gold-carrying leprechauns roam |
+| 7 | Dungeons | up (33,13); **`>` (64,16)** (SE, door (61,16)); NW room (11-24,3-5); N room (34-38,3-5); E room (44-53,7-9) doorway (54,9); SW room (5-12,17-19) with a BURNED ELBERETH at (10,19); SPIKED PIT (23,13); boulders (35,9), (30,8), (30,10), (24,11); arrows (31,18), mummy wrapping (35,16), axe/scimitar left; a peaceful tengu |
+| 8 | Dungeons | up (48,4); **`>` (49,16)** in a small room (48-50,14-16) with a FOUNTAIN (50,15), door (49,13); hidden passage (42,5) W of the `<` room; rooms W/SW; locked doors (10,11), (20,16) are shortcuts only; east third unexplored |
+| 9 | Dungeons | up (31,19) S room (29-41,16-19); **`>` (43,4)** small NW room (39-43,4-6) door (44,4); W room (14-20,13-17) doors (13,14) W, (18,12) N, (21,16) E, axe at (16,14); far-W room (2-6,13-16) door (7,15) with an ARROW TRAP (6,15) and MY HOLE at (4,15) (leads to a random D10 spot); NW room (4-13,3-7) tool at (7,4); NE room (20-34,3-7) tool at (24,7); a carnivorous ape wanders |
+| 10 | Dungeons | **BIG ROOM** (irregular variant with wall fragments, trees, fountains (11,11), (65,11)); up (16,8); **`>` (4,16)** far W; loot seen: spellbooks (15,6), (20,11), scrolls (22,15), (26,10), (48,17), potion (29,17), food; **DANGER: a KILLER BEE HIVE (7+ bees) + giant spider + pyrolisk (fire gaze burns scrolls/potions at range) + mountain centaur (throws potions) + ghoul + beetles near the `<`** — never linger; bees are 12+ squares from the `>` |
+| 11 | Dungeons (**QUEST PORTAL LEVEL**: "faint telepathic message from the Norn" on arrival) | **LAWFUL ALTAR (44,6)** in the N-centre room (32-45,5-10), statue of a hill orc (41,6) = my landing spot, doors (30,6) W closed, (46,8) E doorway, (39,10) S; boulder (48,9); `<` and `>` and the magic portal NOT found yet; a wood nymph (69,19) far SE (item thief — kill at range or avoid) |
 
 ## Pets
-- NONE since shift 6 (the LARGE CAT stayed in Minetown's general store, T:3800). Old notes: LARGE CAT. Kills peaceful gnomes freely (no penalty to me), picks fights with WATCHMEN (they fight back with swords/spears; no penalty to me so far, but it may die), steals kills, picks up and carries items (took the pick-axe once, dropped it 1 square away), doesn't follow downstairs while eating. Never throw with it in the line of fire (`throw()` refuses).
+- NONE (the large cat stayed in Minetown, T:3800).
 
 ## Threats / known dangers
-- Werejackals (3 met, all killed). Bite in `d` form = lycanthropy 1/4 per hit → prayer cures (major trouble). Fight them in @ form / at range.
-- Large mimic in the hardware store (30,16), still disguised: disguised mimics never move or attack (mon.c movemon skips them); stepping into it, searching next to it, OR THE CAT ATTACKING IT wakes it (that happened at Izchak's: it grabbed me, 11 damage, but died to one +6 Excalibur blow). At XL6 with Excalibur it is killable (level 8, 3d4, speed 3); keep the cat away from disguised mimics or accept the fight at full HP.
-- Molds: yellow (stun), red (fire), green (acid), brown (cold — I'm immune). Acid blobs: harmless unless hit.
-- Land mines / pits in the Mines: walk known paths; wounded legs make you Burdened for ~40 turns.
-- Watch for: floating eyes (never melee), gas spores, nymphs/leprechauns, soldier ants, dwarves with mattocks (hostile ones).
-- Never anger the Watch: no fountain use in town, no door kicking, no theft; never enter a shop with the pick-axe.
-- Mines' End is ~5 levels deeper (Dlvl 10–11): NOT at XL5 (playbook: XL10+).
+- **No poison resistance**: killer bees (D10 hive), soldier ants, giant spiders, snakes, quasits, spiked pits → each poisonous hit = 1/8 poison × 1/30 death. Fight them one at a time in corridors, with Elbereth, or the fire wand along a line; never a swarm in the open. Eating bee corpses costs Str without resistance (80%).
+- Yellow lights: NEVER melee (explode → blind ~80 turns; happened T:5573). Pyrolisk: kill fast or break line of sight; bag burnables first.
+- Mummies/zombies are mindless: telepathy does not show them. Gas spores too.
+- Nymphs steal (also worn items); leprechauns steal gold (keep it in the sack).
+- Cockatrices from D8: only Excalibur, never touch/eat corpses.
+- Werejackals: fight in @ form/at range; "You feel feverish" → prayer.
+- Mines' End luckstone only at XL10+.
 
 ## Objective and plan
-- DONE shift 5: temple + altar found and used (BUC of everything), Excalibur +6, both spellbooks sold (350), identify scroll bought and read (amulet of unchanging, sack, scroll of teleportation), 2 food rations bought, bag (holding/oilskin) + skeleton key bought, wands engrave-IDed (sleep, slow monster), long sword Skilled, all 5 shops located, 7 candles + brass lantern bought, XL6 (large mimic kill), potions F/I price-grouped, amulet sold.
-- DONE shift 6: left the Mines, D3–D5 recrossed, D6 leprechaun hall farmed (18 kills, ~2800 gold), XL6->7 (speed) by kills, PROTECTION bought in Minetown (AC0 -> -3), potion of gain level -> XL8, D6 `>` found.
-- NEXT: descend from the D6 `>` (41,3): D7 -> D10-12, exploring each level for its `>`, keeping HP/food up (1 food ration + tin: eat fresh safe corpses). Sokoban skipped this game (entrance = D6 `<` (4,15)). Watch for: soldier ants, cockatrices (D8+; only Excalibur, never touch corpses), floating eyes (never melee), nymphs; no poison resistance yet.
-- OLD NEXT (shift 5): (1) optional: price the general store's ring/scroll (48,17)/(49,17) ($109; a cheap ring could be worth it), peek through (45,9)/(45,14); (2) then leave the Mines: back up to D2 (`<` at (74,5) NE room here, then Mines 2 `<` (44,10), Mines 1 `<` (77,13)), main dungeon D5 → D6 and SOKOBAN (up stairs of D6) for the prize (bag of holding / amulet of reflection) and XP; (3) Mines' End only at XL10+; (4) get holy water (or a co-aligned altar + water) to bless the magic lamp, then #rub for a wish.
-- Protection: BOUGHT T:4517 (2800 at XL7, AC 0 -> -3, 'Thou hast been rewarded for thy devotion'). The next donation (400 x XL again) adds +1 AC only — low priority.
-- Emergency plan: HP < 40% → wand of sleep x at the attacker (never toward the cat/an adjacent wall), or read the scroll of teleportation J, or Elbereth; upstairs (74,5) is far NE.
+- DONE shift 7: D6 → D7 → D8 → D9 → D10 (Big Room) → D11 (quest portal level) by T:5833. Wands of FIRE and LIGHT identified; white potion = paralysis; lawful altar found on D11 next to my landing spot.
+- NEXT (shift 8):
+  1. Find D11's `<` and `>` (escape route first). Kill the wood nymph at range if it approaches (thrown dagger b / sleep wand), never let it get adjacent.
+  2. HOLY WATER PLAN: get a 2nd potion of water (dilute the white paralysis potion T twice in a fountain — D8 (50,15) or D10 (65,11)/(11,11) [bees!] or any D11/D12 fountain; each dip 1/30 water demon etc.), put both H + the new water ON the lawful altar (44,6), `prayer_check()` (no trouble → needs timeout 0 → it is 0 unless I pray before), then `pray()` standing on the altar → both become HOLY WATER → `#dip` the magic lamp d twice (cursed → uncursed → blessed) → `#rub` d for the WISH: "blessed +2 gray dragon scale mail" (magic resistance; swap the scale mail). Note the prayer resets the timeout (~350–1000 turns without an emergency prayer): do it at full HP in a cleared area.
+  3. Food: no rations. Eat fresh safe corpses; consider the tin f. Buy rations if a shop appears.
+  4. XL8 is low for D12+: farm XP carefully; the Sokoban prize is skipped; D12 next after D11 is mapped. The quest itself needs XL14.
+- Emergency plan: HP < 40% → Elbereth (verified working) / upstairs / scroll J / sleep wand x (never toward an adjacent wall); prayer only for major trouble (`prayer_check()` first).
 
 ## Harness/helper calibration notes
-- Verified this shift: the peaceful-step guard (#378) refused steps into Pasawahan/AlliWar/Kilmihil cleanly; `price_id(sell=)`/`(buy=)` lookups correct; the yn "offers ... Sell it?" prompt classified right; the identify menu and drop/pickup menus parsed fine (`obs.menu` lists only the current page: use `>` for page 2); `engrave_test()` verdicts good; `fight_until_clear()` fine.
-- OPEN: `bin/nh cont` after a *message* pause inside `travel()`'s peaceful-wait loop returns from travel() without moving (#15, #124) — use the kernel `go(x,y)` wrapper (re-issues travel until arrival; lost on daemon restart, redefine: `for i in range(4): if look().hero==(x,y): break; travel(x,y)`).
-- `explore()` in Minetown walks into shop doorways while carrying the pick-axe (Kilmihil blocks; harmless but it stalls) — explore by `travel()` to targets instead, or drop the pick-axe first.
-- `loot_all()` only handles floor containers; a carried bag needs `a` + letter → "Do what with your bag?" → `o` → item menu → `<CR>`.
-- Paying with several shopkeepers nearby opens NetHack's "Pay whom?" getpos: move the cursor with hjkl onto the shopkeeper and press `.`.
-- `move_to()` helpers must wait with `.`, never `s` (searching next to the disguised mimic reveals it).
-- Kernel helpers defined this shift (lost on daemon restart): `go(x,y)`, `move_to(tgt,key)`, `pick_here()`, `pay(name)`, `shk_pos(name)`, `clear_adjacent()`.
-- Earlier notes still valid: never call `inventory()`/`here()` unless `obs.kind == 'command'`; `travel()` never autopicks up; plain steps read shop prices, `m`-steps don't; pick-one menus close on the letter alone; sell-probe destroys a picked-up scare monster scroll; `fight()` folds earlier rounds' messages (check `history` for "feverish"); `obs.objects` calls rocks "gem/rock" too.
+- Verified this shift: `eat('q')`, `pickup(pattern)`, `bag_put`/`bag_take`, `go_down()` at single-`>` levels, `fight_until_clear()` (but see the yellow-light gap), `elbereth()` in a pit, `engrave_test()`, `travel()` resume via `cont`, `explore()` frontier/boulder/locked-door reports.
+- GAPS: `fight()`/`fight_until_clear()` attacked an adjacent YELLOW LIGHT (blindness); falling through a hole makes the obs claim `up stairs (under you)`; the pick-axe direction prompt is classified as `object`; message text can leak into the monster list right after a level change; getobj re-prompts after "You don't have that object". Details in harness_notes.md (Shift 7).
+- Earlier notes still valid: never call `inventory()`/`here()` unless `obs.kind == 'command'`; `travel()` never autopicks up; pick-one menus close on the letter alone; `obs.menu` lists only the current page.

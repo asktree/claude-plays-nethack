@@ -916,6 +916,14 @@ class Game:
                            for m in messages):
                         self.wielded = None     # re-check the weapon next time it matters
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
+                    if arrive:
+                        # only a real staircase: not a hole you dug ('>' answered the dig
+                        # direction), a trap door, a level teleport or a fall
+                        stood = self.terrain_seen.get(old_key, {}).get(cur.hero) if old_key else None
+                        fell = any(re.search(r"\bfall|\bhole\b|trap door|\bdig\b|dug|teleport|You float down",
+                                             m, re.I) for m in messages)
+                        if fell or (stood is not None and stood != chr(data[-1])) or cur.state.kind != "command":
+                            arrive = None
                     if arrive and snap.under is None:
                         # took the stairs: you stand on the other end (the '@' hides it)
                         self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive

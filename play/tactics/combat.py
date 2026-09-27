@@ -75,7 +75,7 @@ def _wielding() -> bool:
 def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
     """fight() body; `seen` collects every round's messages (so an early
     'You feel feverish' isn't lost behind later rounds)."""
-    from nh.danger import STOP_PASSIVES, max_hit, passive_attacks, passive_max
+    from nh.danger import STOP_PASSIVES, explodes_at_you, max_hit, passive_attacks, passive_max
     s = ctx.last()
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
@@ -118,6 +118,13 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
             _warned.add(desc)
             print(f"fight: {desc} — passive: " + "; ".join(txt for _dt, txt in pas)
                   + (f" | worst case {pdmg} HP per hit ({pwhat})" if pdmg else ""))
+        expl = explodes_at_you(desc) if desc else ""
+        if expl and not allow_passive and not (expl in ("AD_BLND", "AD_HALU") and "Blind" in st.conditions):
+            ctx.pause(f"fight: the {desc} EXPLODES on you when it attacks ({expl[3:].lower()}: a yellow light blinds "
+                      "you for ~100 turns, a black light makes you hallucinate, spheres burn/freeze/shock). Kill it at "
+                      "range (throw/zap) before it closes in, or melee it now if it's already next to you and you "
+                      "accept the risk: fight(..., allow_passive=True). Already blind: a light can't blind you more.")
+            return ctx.last()
         stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
         if "AD_STON" in stops and _wielding():
             stops.remove("AD_STON")     # uhitm.c: only a bare-handed (no weapon, no gloves) hit petrifies you

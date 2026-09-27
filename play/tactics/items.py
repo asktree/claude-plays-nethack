@@ -379,6 +379,59 @@ def pickup(pattern: str | None = None) -> list:
     return msgs
 
 
+_DIG_OK = [r"^You (?:are )?now wield", r"^You (?:start|continue) digging", r"^You dig a pit in the ",
+           r"^You dig a hole through", r"^You make an opening", r"^You succeed in cutting away",
+           r"^You dig (?:upward|downward)", r"^There's a hole", r"^You fall through", r"^You hit the "]
+
+
+def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> list:
+    """Dig with your pick-axe/mattock (found in the inventory unless `tool`
+    is given) in `direction` ('>' down, or a direction key through rock/a
+    wall), applying again past the "You dig a pit" stage until the hole is
+    through (you fall to the level below) or the passage opens; then wields
+    your previous weapon again. Can't dig on stairs, altars, fountains, in
+    Sokoban or through undiggable walls (the messages say so). Returns the
+    messages. A monster interrupting pauses as usual; call dig() again."""
+    ctx.require_command("dig()")
+    inv = inventory()
+    if tool is None:
+        t = next((i for i in inv if re.search(r"pick-axe|mattock", i["text"])), None)
+        if t is None:
+            raise RuntimeError("dig(): no pick-axe or mattock in the inventory")
+        tool = t["letter"]
+    weapon = next((i["letter"] for i in inv if "weapon in hand" in i["text"] and i["letter"] != tool), None)
+    ldesc0 = ctx.last().status.ldesc
+    msgs: list = []
+    for _ in range(max_applies):
+        s = ctx.do("a", quiet=True)
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"dig(): expected the apply prompt, got {s.state.kind} {s.state.prompt!r}")
+        s = ctx.do(tool, ok=_DIG_OK)
+        msgs += s.messages
+        if s.state.kind != "direction":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            ctx.pause(f"dig(): no dig-direction prompt after applying {tool!r} ({s.state.kind} {s.state.prompt!r}; "
+                      f"messages {s.messages})")
+            break
+        s = ctx.do(direction, ok=_DIG_OK)
+        msgs += s.messages
+        text = " ".join(s.messages)
+        if s.status.ok and s.status.ldesc != ldesc0:
+            break                                   # fell through the hole
+        if re.search(r"dig a hole through|make an opening|succeed in cutting away|too hard to dig|"
+                     r"cannot|can't|here is too hard|The .* here is too hard", text):
+            break
+        if s.state.kind != "command":
+            break
+    if weapon and ctx.last().state.kind == "command":
+        s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
+        msgs += s.messages
+    return msgs
+
+
 def loot_all() -> list:
     """Take everything out of the (single) container on your square with
     #loot: confirms, picks "take something out" in the pick-one "Do what?"

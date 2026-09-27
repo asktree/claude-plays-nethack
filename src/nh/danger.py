@@ -128,7 +128,7 @@ NOTES = {
     "watch captain": "Minetown Watch: don't anger.",
 }
 
-_STRIP = re.compile(r"^(?:peaceful |tame |invisible |saddled )+")
+_STRIP = re.compile(r"^(?:peaceful |tame |invisible |saddled |partly eaten )+")
 # farlook suffixes (pager.c look_at_monster / mhidden_description) and the long worm's "tail of a"
 _SUFFIX = re.compile(r",\s*(?:swallowing you|engulfing you|being held|holding you|leashed to you|trapped in\b|"
                      r"mimicking\b|masquerading as\b|hiding\b).*$")
@@ -249,6 +249,17 @@ _PASSIVE_TEXT = {
 }
 # passive effects that should stop fight() before the first blow
 STOP_PASSIVES = ("AD_PLYS", "AD_STON", "AD_SLIM", "AD_ENCH")
+
+
+def explodes_at_you(desc: str) -> str:
+    """The damage type of an AT_EXPL attack (it explodes on you when it
+    attacks: yellow light blinds, black light hallucinates, spheres burn/
+    freeze/shock), or '' if none."""
+    rec = monster_record(base_name(desc))
+    for a in (rec or {}).get("attacks", []):
+        if a.get("type") == "AT_EXPL":
+            return a.get("damage_type", "AD_?")
+    return ""
 
 
 def passive_attacks(desc: str) -> list[tuple[str, str]]:
