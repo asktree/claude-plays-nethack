@@ -36,6 +36,8 @@ SOUNDS = [
 
 FEATURE_CHARS = {"<": "up stairs", ">": "down stairs", "{": "fountain", "_": "altar", "\\": "throne",
                  "^": "magic portal", "~": "vibrating square", "#": None}
+_TRAP_WORDS = ("trap", "pit", "hole", "board", "portal", "web", "field", "mine", "teleporter")
+
 # traps worth a line in the level record (feature_desc names): the Castle's way down, portals
 NOTABLE_TRAPS = ("trap door", "hole", "level teleporter", "magic portal")
 
@@ -66,6 +68,7 @@ class Tracker:
         self.need_overview = True
         self._refreshing = False
         self.scanned: set[str] = set()     # level keys whose traps were read via #terrain this session
+        self._refit: set = set()           # (level, cell, old name) trap names dropped for a misfitting colour
         if self.state.get("intrinsics") is not None and hasattr(game, "intrinsics"):
             game.intrinsics = set(self.state["intrinsics"])
         # restore level identity and per-level trap/avoid memory
@@ -267,6 +270,14 @@ class Tracker:
     # a '^' of these colours can only be one trap type (mapscan.TRAP_BY_COLOR); others get looked at
     _ONE_TRAP_COLOR = (1, 4, 9, 10, 13)
 
+    @staticmethod
+    def _trap_fits(name: str, col) -> bool:
+        """Does a remembered trap name fit the colour its '^' shows now? (An unknown colour: yes.)"""
+        from .mapscan import trap_names_for_color
+        names = trap_names_for_color(col)
+        n = (name or "").lower()
+        return not names or not any(w in n for w in _TRAP_WORDS) or any(c in n for c in names)
+
     def _describe_features(self, snap, limit: int = 6) -> None:
         """Look once (';', no game time) at traps whose colour leaves several
         types, and at altars (alignment): game.feature_desc[level]."""
@@ -282,6 +293,13 @@ class Tracker:
             for x, ch in enumerate(row):
                 if (x, y) == snap.hero:
                     continue
+                if (x, y) in known and ch == "^" and not getattr(snap, "rogue", False) \
+                        and not self._trap_fits(known[(x, y)], snap.screen.color_at(x, y)) \
+                        and (key, (x, y), known[(x, y)]) not in self._refit:
+                    # another trap now (a land mine blown into a pit; the qa10 check: a wished trap replaced a bear
+                    # trap): forget the old name — a one-colour type names itself, others are looked at again
+                    # (once per name: a look that names a misfit again is believed)
+                    self._refit.add((key, (x, y), known.pop((x, y))))
                 if (x, y) in known:
                     # the Astral Plane's high altars show their alignment only from next to them
                     h = snap.hero

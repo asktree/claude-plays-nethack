@@ -231,6 +231,26 @@ def certain_level(key: str | None = None, s=None) -> str | None:
     return None
 
 
+_CHAIN = {"wizard2": 1, "wizard3": 2}      # dungeon.def CHAINLEVEL: levels right below wizard1
+
+
+def _depth(key: str | None):
+    m = re.search(r" / Level (\d+)$", key or "")
+    return int(m.group(1)) if m else None
+
+
+def _chain_ok(level: str, key: str) -> bool:
+    """wizard2 / wizard3 lie one / two levels below wizard1: once wizard1 is placed, only there."""
+    if level not in _CHAIN:
+        return True
+    ids = getattr(ctx.game, "desmap_ids", None) or {}
+    base = next((k for k, v in ids.items() if v.get("level") == "wizard1" and not v.get("ambiguous")), None)
+    if base is None:
+        return True
+    bd, kd = _depth(base), _depth(key)
+    return bd is None or kd is None or kd == bd + _CHAIN[level]
+
+
 def _identify_certain(name: str, seen: dict):
     """The level is certainly `name`: place its (largest) map at the spot the level generator uses, unless what
     you see plainly contradicts it. None when the map has no fixed spot (slide it as usual then)."""
@@ -317,8 +337,13 @@ def _best_offset(m: dict, seen: dict) -> tuple:
     best = (-10 ** 9, 0, 0, 0, 0)
     second = -10 ** 9
     w, h = m["w"], m["h"]
-    for oy in range(1, max(2, 23 - h)):
-        for ox in range(0, max(1, 81 - w)):
+    fo = fixed_offset(m)
+    # a map with a named GEOMETRY sits only where the level generator puts it (p2 shift 31: wizard2 slid onto
+    # a random maze at (1,1)): try that spot (and next to it, in case) only
+    ys = range(max(1, fo[1] - 2), fo[1] + 3) if fo else range(1, max(2, 23 - h))
+    xs = range(max(0, fo[0] - 2), fo[0] + 3) if fo else range(0, max(1, 81 - w))
+    for oy in ys:
+        for ox in xs:
             score, good, bad = _score_at(m, seen, ox, oy)
             if score > best[0]:
                 second = max(second, best[0])
@@ -381,6 +406,7 @@ def identify(names=None, s=None, min_score: int = 30, remember: bool = True) -> 
         taken = {v["level"] for k, v in (getattr(ctx.game, "desmap_ids", None) or {}).items()
                  if k != key and not v.get("ambiguous")}
         cands = [m for m in cands if m["level"] not in taken or m["level"].startswith(("fakewiz", "bigrm"))]
+        cands = [m for m in cands if _chain_ok(m["level"], key)]
     fixed = _identify_fixed(cands, seen)
     if fixed is not None:
         best = fixed
@@ -681,9 +707,37 @@ def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = Fa
         return _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight_trivial)
 
 
+def _peaceful_on(s, cells) -> list:
+    """Peaceful (not tame) monsters standing on any of `cells`."""
+    cells = set(map(tuple, cells))
+    return [m for m in s.monsters or [] if m.get("peaceful") and not m.get("tame") and not m.get("pet")
+            and (m["x"], m["y"]) in cells]
+
+
+def _let_pass(s, blk, target, chunk, walk_path, NavError):
+    """Step aside from the peaceful(s) `blk` (nav._refuge: a free square next to you, away from them) and wait up
+    to 3 turns for the planned squares to clear. Returns the final snap."""
+    from .benign import BENIGN
+    from .nav import _mdesc, _refuge
+    ref = _refuge(s, blk, target)
+    if ref is not None:
+        print(f"desmap.walk: {_mdesc(blk)} blocks the way — stepping back to {ref} to let it pass")
+        try:
+            s = walk_path([ref])
+        except NavError:
+            s = ctx.last()
+    else:
+        print(f"desmap.walk: {_mdesc(blk)} blocks the way — waiting for it")
+    for _w in range(3):
+        if s.state.kind != "command" or not _peaceful_on(s, chunk):
+            break
+        s = ctx.do(".", ok=BENIGN)
+    return s
+
+
 def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight_trivial):
     s = ctx.last()
-    steps = fights = opened = 0
+    steps = fights = opened = backoffs = 0
     while steps < max_steps:
         s = ctx.last()
         if s.state.kind != "command" or s.hero == (x, y):
@@ -720,6 +774,12 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
             s = ctx.last()
             if fight and fights < 12 and s.adjacent_hostiles() and fight_trivial(s) is not None:
                 fights += 1
+                continue
+            if backoffs < 2 and s.state.kind == "command" and _peaceful_on(s, chunk):
+                # (walk_path already waited 3 turns) a peaceful in a 1-wide corridor (p2 shift 31: a dwarf lord
+                # in Vlad's Tower): like travel(), step back so it can come out, wait for it, then re-plan
+                backoffs += 1
+                s = _let_pass(s, _peaceful_on(s, chunk), (x, y), chunk, walk_path, NavError)
                 continue
             print(f"desmap.walk: stopped — {e}")
             return ctx.last()

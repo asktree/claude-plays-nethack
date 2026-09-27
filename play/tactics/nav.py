@@ -82,6 +82,14 @@ def _farlook(x, y) -> str:
     if s.state.kind not in ("command",):
         # e.g. a lingering prompt; get back to the map
         ctx.do("<Esc>", quiet=True)
+    if txt.startswith("^") and re.search(r"\b(?:trap|pit|hole|board|web|field|portal|teleporter)\b", txt):
+        # an explicit look is the freshest name for a trap square (it may have changed: a land mine -> a pit)
+        from nh.monitor import _clean
+        d = _clean(txt)
+        cur = ctx.last()
+        fd = getattr(ctx.game, "feature_desc", None)
+        if d and fd is not None and cur.status.ok:
+            fd.setdefault(ctx.game.level_key(cur.status), {})[(x, y)] = d
     tr = getattr(ctx.game, "tracker", None)
     lab = tr.relabel(x, y, txt) if tr is not None and hasattr(tr, "relabel") else None
     if lab:
@@ -126,6 +134,22 @@ def bad_squares(s=None) -> set:
 _ROOM_W, _ROOM_H = 14, 6
 
 
+# yendor.des: wizard1's and wizard3's "morgue" REGIONs are `unfilled` — they only mark the tower for mkmaze.c
+# (no undead in them), yet entering one says "You have an uncanny feeling..." (p1 shift 33 #781: the walkway ring
+# round the Wizard's moat became an avoided graveyard)
+UNFILLED_MORGUES = ("wizard1", "wizard3")
+
+
+def unfilled_morgue_level(s=None) -> str | None:
+    """'wizard1' / 'wizard3' when this level is identified (desmap) as one whose 'morgue' is empty; else None."""
+    s = s or ctx.last()
+    if s is None or not s.status.ok:
+        return None
+    ids = getattr(ctx.game, "desmap_ids", None) or {}
+    v = ids.get(ctx.game.level_key(s.status)) or {}
+    return v.get("level") if v.get("level") in UNFILLED_MORGUES and not v.get("ambiguous") else None
+
+
 def special_room_zone(s=None, outside_only: bool = True) -> dict:
     """{(x, y): kind} the squares of the special rooms announced on this
     level (treasure zoo, anthole, beehive, barracks, cockatrice nest, throne
@@ -139,7 +163,10 @@ def special_room_zone(s=None, outside_only: bool = True) -> dict:
         store = getattr(ctx.game, "special_rooms", None) or {}
         mem = store.get(ctx.game.level_key(s.status), {}) if s.status.ok else {}
     out: dict = {}
+    empty = unfilled_morgue_level(s)
     for entry, info in (mem or {}).items():
+        if empty and info.get("kind") == "graveyard":
+            continue
         cells = _room_cells(s, tuple(entry), info.get("prev"))
         if outside_only and s.hero in cells:
             continue
@@ -385,7 +412,16 @@ def walk_path(path, ok=None):
             if s.state.kind != "command":
                 return s
         _check_free(s, cell, "walk_path")
-        s = ctx.do(key, ok=ok if ok is not None else BENIGN)
+        try:
+            s = ctx.do(key, ok=ok if ok is not None else BENIGN)
+        except PermissionError as e:
+            if not str(e).startswith(("refusing to step onto the known trap", "refusing to step into the water")):
+                raise
+            # found on the way (p1 shift 33: Excalibur's auto-search found a sleeping gas trap mid-walk and the
+            # guard's PermissionError crashed desmap.walk): a NavError the callers handle, like a trap they knew
+            what = "a known trap" if "trap" in str(e).split(":")[0] else "water/lava"
+            raise NavError(f"walk_path: the next square {tuple(cell)} is {what} (found on the way) — stopped at "
+                           f"{h}; go around, or step_onto{tuple(cell)} if you mean to cross it") from None
         if s.hero != cell:
             if s.state.kind == "command" and s.hero == h and any(
                     m.startswith(("You are carrying too much to get through", "You try to squeeze")) for m in
@@ -650,10 +686,21 @@ def trap_crossable(name: str, st=None) -> bool:
 
 
 def _trap_names(s) -> dict:
-    """{(x, y): 'dart trap'} known trap types on this level (farlook / #terrain descriptions)."""
+    """{(x, y): 'dart trap'} known trap types on this level (farlook / #terrain descriptions), plus the traps
+    whose COLOUR alone names them (never looked up: p3 shift 14's blue rust trap was 'unknown' to trek())."""
+    from nh.mapscan import TRAP_BY_COLOR
     fd = getattr(ctx.game, "feature_desc", {}) or {}
     key = ctx.game.level_key(s.status) if s.status.ok else None
-    return {c: d for c, d in (fd.get(key) or {}).items() if re.search(r"\btrap\b|\bboard\b|\bpit\b|field", d or "")}
+    out = {c: d for c, d in (fd.get(key) or {}).items() if re.search(r"\btrap\b|\bboard\b|\bpit\b|field", d or "")}
+    for y in range(1, 22):
+        row = s.screen.row(y)
+        x = row.find("^")
+        while x >= 0:
+            name = TRAP_BY_COLOR.get(s.screen.color_at(x, y), "")
+            if (x, y) not in out and name and "/" not in name:
+                out[(x, y)] = name
+            x = row.find("^", x + 1)
+    return out
 
 
 def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
@@ -676,7 +723,7 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
         if s.hero is not None and s.hero != goal and max(abs(s.hero[0] - x), abs(s.hero[1] - y)) == 1 \
                 and ok(goal, names, s.status):
             print(f"trek: stepping onto the {names[goal]} at {goal}")
-            s = step_onto(x, y)
+            s = step_onto(x, y, risky=True)       # (trap_crossable() or your cross_traps list allowed it)
         return s
     for _ in range(max_legs):
         s = ctx.last()
@@ -696,7 +743,7 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
             return finish(travel(x, y))
         if idx == 0:
             print(f"trek: stepping onto the {names[path[0]]} at {path[0]}")
-            s = step_onto(*path[0])
+            s = step_onto(*path[0], risky=True)
             continue
         s = travel(*path[idx - 1])
         if s.hero != path[idx - 1]:
@@ -737,6 +784,40 @@ def _trek_blocked(s, goal, bad, allow, names) -> str:
             + (", ".join(f"{c} {names[c]}" for c in blocking[:6]) or "none") + ") — explore, search or dig")
 
 
+def escape_trap(max_tries: int = 12):
+    """Held in a BEAR TRAP: pull DIAGONALLY until "You finally wriggle free." — hack.c trapmove(): each diagonal
+    try loosens it by one, an orthogonal try only 1 time in 5 (4-7 needed). The pulls go toward a wall or rock
+    when there is one (should you not be held after all, the try just bumps), else a plain free square. One
+    turn per pull; stops on anything else (a pause, a move). Returns the final snap."""
+    from .mapview import is_walkable
+    s = ctx.require_command("escape_trap()")
+    h = s.hero
+    if h is None:
+        raise NavError("escape_trap(): where are you?")
+    diag = {"y": (-1, -1), "u": (1, -1), "b": (-1, 1), "n": (1, 1)}
+    mons = {(m["x"], m["y"]) for m in s.monsters or []}
+    bad = bad_squares(s)
+    cands = []
+    for k, (dx, dy) in diag.items():
+        c = (h[0] + dx, h[1] + dy)
+        if c in mons or c in bad or s.screen.at(*c) in "}^":
+            continue
+        cands.append((is_walkable(s, *c, allow_monsters=False), k))
+    if not cands:
+        raise NavError("escape_trap(): every diagonal square holds a monster, a trap or water — fight/wait first")
+    key = sorted(cands)[0][1]
+    for i in range(max_tries):
+        s = ctx.do(key, ok=[r"^You are caught in a bear trap", r"^You finally wriggle free",
+                            r"^It's (?:a wall|solid stone)\."])
+        if any(m.startswith("You finally wriggle free") for m in s.messages):
+            print(f"escape_trap: free after {i + 1} pull(s)")
+            return s
+        if s.state.kind != "command" or s.hero != h:
+            return s
+    print(f"escape_trap: still held after {max_tries} pulls")
+    return s
+
+
 def covetous_ring(s=None) -> list:
     """Where to fight a wounded covetous monster (Vlad, the Wizard, a quest nemesis, an arch-lich...): the
     walkable squares 6-8 squares from the stairs it heals on (wizard.c choose_stairs(): the UP stairs; the
@@ -749,13 +830,26 @@ def covetous_ring(s=None) -> list:
     key = ctx.game.level_key(s.status) if s.status.ok else ""
     ch = ">" if key.startswith("Vlad's Tower") else "<"
     stairs = known_cells(ch, s)
+    lay: dict = {}
     if not stairs:
-        print(f"covetous_ring: no '{ch}' known on this level")
-        return []
+        # a dark special level: its fixed map knows the stairs and the floor (p2 shift 31: Vlad's top level)
+        c = _desmap_stairs(s, ch)
+        if c is None:
+            print(f"covetous_ring: no '{ch}' known on this level")
+            return []
+        stairs = [c]
+        try:
+            from . import desmap
+            lay = desmap.layout(s)
+        except Exception:  # noqa: BLE001
+            lay = {}
     sx, sy = stairs[0]
+
+    def walkable(x, y):
+        return is_walkable(s, x, y, allow_monsters=False) or (s.screen.at(x, y) == " " and lay.get((x, y)) in
+                                                              (".", "B", "#", "{", "\\", "K", "I"))
     out = [(x, y) for x in range(sx - 8, sx + 9) for y in range(sy - 8, sy + 9)
-           if 25 < (x - sx) ** 2 + (y - sy) ** 2 <= 64 and in_map(x, y) and 1 <= y <= 21
-           and is_walkable(s, x, y, allow_monsters=False)]
+           if 25 < (x - sx) ** 2 + (y - sy) ** 2 <= 64 and in_map(x, y) and 1 <= y <= 21 and walkable(x, y)]
     h = s.hero or stairs[0]
     out.sort(key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
     print(f"covetous_ring: {len(out)} square(s) 6-8 from the heal stairs {stairs[0]}"
@@ -1546,9 +1640,10 @@ def _no_path_msg(s, h0, target, start=None, bad=None) -> str:
                ([f"water/lava at {water_on[:3]}" + (" ..." if len(water_on) > 3 else "")] if water_on else [])
         how = []
         if traps_on:
-            how.append("farlook() the trap(s) and step onto one on purpose with do(dir, force=True) / "
-                       "step_onto(x, y) if it's survivable for you (a fire trap with fire resistance only "
-                       "burns scrolls/potions/spellbooks; levitating floats over holes, trap doors and pits)")
+            how.append("farlook() the trap(s) and step onto one on purpose with step_onto(x, y) if it's survivable "
+                       "for you (a fire trap with fire resistance only burns scrolls/potions/spellbooks; without it "
+                       "step_onto(x, y, risky=True) also costs 2d4 HP and some max HP; levitating floats over "
+                       "holes, trap doors and pits)")
         if water_on:
             how.append("cross the water: FREEZE it (zap a wand of cold / frost horn across it: \"The moat is "
                        "bridged with ice!\" — nothing to take off afterwards), or levitate (a ring on your LEFT "
@@ -1724,18 +1819,63 @@ def travel_to(ch: str, index: int = 0, color_num: int | None = None):
     return travel(*cells[index])
 
 
-def step_onto(x: int, y: int, force: bool = True, quest_ok: bool = False):
+# traps you step onto on purpose to GO somewhere (a level change, a teleport): step_onto() always takes them
+_PASSAGE_TRAPS = ("magic portal", "trap door", "hole", "level teleporter", "teleportation trap")
+_TRAP_HARM = {
+    "sleeping gas trap": "asleep for up to 25 turns without sleep resistance — and MINDLESS monsters (elementals, "
+                         "golems, zombies, vortices) never show on a telepathy scan (p1 shift 33: an air elemental "
+                         "engulfed the sleeper, 165 -> 30 HP)",
+    "polymorph trap": "without magic resistance you polymorph: body armor and cloak can burst, a new form may be "
+                      "weak, and the Amulet/quest items don't care",
+    "fire trap": "without fire resistance it burns you and your scrolls, potions and spellbooks",
+    "magic trap": "a flash that blinds and deafens you and summons monsters around you (or an explosion)",
+    "land mine": "an explosion (and wounded legs, and a pit)",
+    "bear trap": "holds you for 4-7 turns (escape_trap() pulls diagonally)",
+    "web": "holds you (strength decides for how long)",
+    "rust trap": "rusts your weapon or armor",
+    "statue trap": "the statue on it comes alive",
+    "dart trap": "a poisoned dart: without poison resistance it can kill outright",
+    "spiked pit": "poisoned spikes: without poison resistance they can kill outright",
+    "falling rock trap": "2d6 damage — not with fewer than 20 HP",
+    "rolling boulder trap": "a boulder for 2d15 or more — not with fewer than 40 HP",
+}
+
+
+def step_onto_risk(name: str, st=None) -> str:
+    """'' when a deliberate step onto a trap of this type is fine for you now (a passage — portal, trap door,
+    hole, (level) teleporter — or what trap_crossable() allows, or a fire trap with fire resistance); else what it
+    would do to you. An unknown type: ''."""
+    n = (name or "").lower().strip()
+    if not n or n in _PASSAGE_TRAPS or trap_crossable(n, st):
+        return ""
+    if n == "fire trap" and "fire" in (getattr(ctx.game, "intrinsics", None) or set()):
+        return ""
+    return _TRAP_HARM.get(n, "")
+
+
+def step_onto(x: int, y: int, force: bool = True, quest_ok: bool = False, risky: bool = False):
     """One plain step onto the ADJACENT square (x, y) — the way onto a trap
     target (a magic portal, a trap door, a hole, a fire trap you resist) once
     travel() has stopped next to it. Raises NavError if you are not next to
     it (travel may have stopped short: a monster, a message), so a forced
     step never goes off in the wrong direction. force=True (the default)
-    passes the trap/water step guards; never the never-attack check."""
+    passes the trap/water step guards; never the never-attack check. A known
+    trap that would hurt you now (step_onto_risk(): sleeping gas without sleep
+    resistance, a polymorph trap without magic resistance, a land mine, a bear
+    trap...) raises PermissionError saying why; risky=True steps on anyway."""
     s = ctx.require_command("step_onto()")
     h = s.hero
     if h is None or max(abs(x - h[0]), abs(y - h[1])) != 1:
         raise NavError(f"step_onto({x}, {y}): you are at {h}, not next to it — travel there first (travel() may "
                        "have stopped short)")
+    if not risky:
+        key = ctx.game.level_key(s.status) if s.status.ok else None
+        known = (x, y) in ((getattr(ctx.game, "traps", None) or {}).get(key) or ()) or s.screen.at(x, y) == "^"
+        name = _trap_names(s).get((x, y)) if known else None     # (not a name left over from a trap now gone)
+        harm = step_onto_risk(name, s.status) if name else ""
+        if harm:
+            raise PermissionError(f"step_onto({x}, {y}): that is a {name} — {harm}. Go around, or "
+                                  f"step_onto({x}, {y}, risky=True) if you mean it")
     from .mapview import DIR_KEY
     return step(DIR_KEY[(x - h[0], y - h[1])], force=force, quest_ok=quest_ok)
 
@@ -1828,7 +1968,11 @@ _STAIRS_OK = [r"^(?:With great effort, you|You) (?:climb|float|fly) up(?: along)
               r"^You (?:fly|float) down (?:along )?the (?:stairs|ladder)\.$", r"^You fall down the (?:stairs|ladder)\.$",
               r"^You (?:descend the stairs|climb down the ladder)\.$",
               r"^You can't go (?:down|up) here\.$",      # handled below: the stairs memory was wrong
-              r"^(?:The |Your )?[\w' -]+ is still eating\.$"]   # your pet stays behind (said above)
+              r"^(?:The |Your )?[\w' -]+ is still eating\.$",   # your pet stays behind (said above)
+              # do.c goto_level(): entering Gehennom from outside it (flavour; the status line has the level)
+              r"^It is hot here\.$", r"^You smell smoke\.\.\.$", r"^The heat and smoke are gone\.$",
+              r"^You arrive at the Valley of the Dead\.\.\.$",
+              r"^The odor of burnt flesh and decay pervades the air\.$", r"^You hear groans and moans everywhere\.$"]
 
 
 def _forget_stairs(cell, ch: str) -> None:
@@ -1848,8 +1992,24 @@ def _forget_stairs(cell, ch: str) -> None:
         g._annotate(ctx.last())          # the obs shows the corrected memory at once
 
 
+def _desmap_stairs(s, ch: str):
+    """(x, y) of the up ('<') or down ('>') stairs/ladder the identified special level's fixed map places
+    (p3 shift 14: go_up() on Mines' End said "no '<' known" while desmap had it), nearest first; else None."""
+    try:
+        from . import desmap
+        f = desmap.identify(s=s)
+        if not f or f.get("ambiguous") or s.hero is None:
+            return None
+        want = "up" if ch == "<" else "down"
+        cells = [(ft["x"], ft["y"]) for ft in desmap.features(s) if ft["kind"] in ("stair", "ladder")
+                 and ft["detail"] == want]
+    except Exception:  # noqa: BLE001  (no fixed map: nothing to add)
+        return None
+    return min(cells, key=lambda c: dist(c, s.hero)) if cells else None
+
+
 def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None, with_pet=None,
-                _retried: bool = False, pass_hostile: bool = False):
+                _retried: bool = False, pass_hostile: bool = False, _via_map: bool = False):
     s = ctx.last()
     engulfed_check(s, "go_down()" if ch == ">" else "go_up()")
     if s.status.ok and "Lev" in s.status.conditions:
@@ -1857,6 +2017,13 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
                        "stairs\") — remove the ring/boots of levitation or wait for it to wear off")
     cells = known_cells(ch, s, rescan=True)
     if not cells:
+        c = None if _via_map else _desmap_stairs(s, ch)
+        if c is not None:
+            print(f"{'go_down' if ch == '>' else 'go_up'}(): no {ch!r} seen yet — this level's fixed map puts "
+                  f"it at {c}: going there")
+            travel(*c)
+            return _use_stairs(ch, tries, wait_pet, to, with_pet, _retried=_retried, pass_hostile=pass_hostile,
+                               _via_map=True)
         raise NavError(f"no {ch!r} known on this level" + (_ways_down_hint(s) if ch == ">" else ""))
     fallback: list = []
     if s.hero is not None and len(cells) > 1:
@@ -1931,7 +2098,8 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
             # arrival square): forget that square, re-read the map, try once more
             print(f"stairs: no {ch} at {target} after all — forgetting it and re-reading the map (#terrain)")
             _forget_stairs(target, ch)
-            return _use_stairs(ch, tries, wait_pet, to, with_pet, _retried=True, pass_hostile=pass_hostile)
+            return _use_stairs(ch, tries, wait_pet, to, with_pet, _retried=True, pass_hostile=pass_hostile,
+                               _via_map=_via_map)
         raise NavError(f"pressed {ch!r} at {target} but you are still on {ld0}"
                        + (f": {cur.messages}" if cur.messages else "") + " — look at why before going on")
     return s

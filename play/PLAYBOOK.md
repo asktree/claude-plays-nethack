@@ -265,6 +265,11 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
     - Freeze a path with a cold ray or frost horn (a cold ray also forces an eel out of hiding onto the ice),
       then dig through the room's wall. The walls inside the moat can be dug.
     - Squeaky boards sit at the room's two gaps.
+    - He WAITS until he SEES you or is hurt: waking him (a whistle, a squeaky board) is not enough, because
+      mon.c wake_nearto() leaves a unique's "wait for you" strategy on (monmove.c clears it only on sight or
+      damage; so do Vlad and the quest nemeses). p1 shift 33 blew a whistle and he stayed put for 30+ turns.
+      Open a sightline instead (zap digging across the moat: it digs one wall square of the maze level) and
+      fight where few can reach you.
     - Kill him and take the Book. He comes back later ("double trouble", curses, summoned nasties); magic
       resistance stops his touch of death.
 - **Invocation** (checked in a wizard-mode run): walk the bottom level until "You feel a strange vibration
@@ -279,7 +284,7 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   BUC-unknown item — force=True for unknown — or fewer than 7 candles). **The way back**: the new `>` is
   ringed by 8 fire traps, 2 rows of floor, then a 2-wide moat, and you come back up onto it with the Amulet:
   `step_onto(x, y)` onto one fire trap (fire resistance: no HP loss, but scrolls/potions/spellbooks can
-  burn — bag them), then FREEZE the moat with a wand of cold / frost horn ("The moat is bridged with ice!")
+  burn — bag them; without it `step_onto(x, y, risky=True)`: 2d4 HP and some max HP too), then FREEZE the moat with a wand of cold / frost horn ("The moat is bridged with ice!")
   and walk across — or levitate, but put the ring on your LEFT hand: in the wizard-mode test the Wizard's
   harassment cursed the wielded sword, and a cursed weapon locks the right-hand ring on ("You cannot free a
   weapon hand to remove the ring.") — stuck floating above the up stairs. Keep remove curse / holy water.

@@ -69,6 +69,7 @@ class Snap:
     burn_note: str = ""        # in Gehennom: scrolls/potions outside the bag (fire traps destroy them)
     wand_note: str = ""        # set on the step a monster zapped a wand / a wand ray came at you
     wand_kind: str | None = None   # ... and what that wand does ("sleep", "death", "striking"...), if known
+    held_trap: str = ""        # "bear trap" while it holds you (hack.c trapmove: pull diagonally — escape_trap())
     wand_users: dict = field(default_factory=dict)  # {monster name: {"kind", "wand", "turn"}} zappers here
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
@@ -447,6 +448,7 @@ class Game:
                                                   # (gold/gems embedded in the Mines' rock look walkable)
         self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
         self.wand_users: dict[str, dict] = {}    # level -> {monster name: {"kind", "wand", "turn"}} (_note_wand_zaps)
+        self.held_trap = ""                       # "bear trap" while it holds you (_note_held)
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -566,6 +568,9 @@ class Game:
         if kind is None or snap.hero is None or not snap.status.ok:
             return
         key = self.level_key(snap.status)
+        ident = (getattr(self, "desmap_ids", None) or {}).get(key) or {}
+        if kind == "graveyard" and ident.get("level") in ("wizard1", "wizard3") and not ident.get("ambiguous"):
+            return      # yendor.des: an UNFILLED 'morgue' region that only marks the tower (no undead: p1 shift 33)
         rooms = self.special_rooms.setdefault(key, {})
         if any(max(abs(c[0] - snap.hero[0]), abs(c[1] - snap.hero[1])) <= 1 and r.get("kind") == kind
                for c, r in rooms.items()):
@@ -741,6 +746,17 @@ class Game:
                           "a wand ray came at you") + (f" — a WAND OF {kind.upper()}" if kind else
                                                        " (what it does isn't known yet)")
         snap.wand_kind = kind
+
+    _HELD_RE = re.compile(r"^(?:A|Your) bear trap closes on your |^You are caught in a bear trap")
+
+    def _note_held(self, cur: Snap, snap: Snap, messages: list[str]) -> None:
+        """Held in a bear trap: from "A bear trap closes on your foot!" / "You are caught in a bear trap." until
+        "You finally wriggle free." or a move off the square (p2 shift 31: 12 orthogonal pulls did nothing)."""
+        if any(self._HELD_RE.search(m) for m in messages):
+            self.held_trap = "bear trap"
+        elif self.held_trap and (any(m.startswith("You finally wriggle free") for m in messages)
+                                 or (cur.hero is not None and snap.hero is not None and cur.hero != snap.hero)):
+            self.held_trap = ""
 
     def _note_wield(self, messages: list[str]) -> None:
         """Keep self.wielded current from the messages: "You now wield a
@@ -1592,6 +1608,7 @@ class Game:
                         self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
                     self._note_wield(messages)
                     self._note_wand_zaps(snap, messages)
+                    self._note_held(cur, snap, messages)
                     self._note_used_up(cur, data)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
@@ -1651,6 +1668,8 @@ class Game:
         # "... under <it>!" and an invisible one's "You see a tower of flame erupt ..." (p1 shift 27)
         r"^A tower of flame (?:erupts|bursts) from (?!.*\bunder\b)|momentarily lethargic|"
         r"momentarily blinded by a flash of light|You trigger a rolling boulder trap|triggered an? land mine|"
+        # trap.c ROCKTRAP: the rocks it drops lie on the trap and hide its '^' (p3 shift 14)
+        r"^A trap door in .+? opens(?: and .+ falls on your|, but nothing falls out)|"
         r"You (step onto|float over|fly over|feel) an? polymorph trap|^You (float|fly) over an? )")
 
     def _note_traps(self, snap: Snap, messages: list[str], moved_level: bool = False) -> None:
@@ -1911,6 +1930,7 @@ class Game:
         snap.niche_mem = dict(self.niches.get(key, {})) if key is not None else {}
         snap.no_squeeze = bool(getattr(self, "no_squeeze", False))
         snap.wand_users = dict(self.wand_users.get(key, {})) if key is not None else {}
+        snap.held_trap = getattr(self, "held_trap", "") or ""
         snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,

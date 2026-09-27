@@ -226,6 +226,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
 
     def result(reason):
         now = ctx.last()
+        held = getattr(now, "held_trap", "") if now is not None else ""
+        if held and not reason.startswith("HELD"):
+            # (p2 shift 31: "frontiers travel couldn't reach" while a bear trap held the hero)
+            reason = f"HELD in a {held}: escape_trap() first (diagonal pulls) — then: " + reason
         # (carried to the next call on this level: explore(max_legs=3) in a loop must still notice that its
         # legs go back and forth showing nothing new — p1 shift 31: 16 calls walked a closed pocket 53 turns)
         _STALE.update(key=ctx.game.level_key(now.status) if now is not None and now.status.ok else None,
@@ -332,8 +336,12 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                           f"(last messages: {s.messages}) — look at the screen and act by hand")
         known = _known_count(s)
         if legs > legs0:                       # (only travel legs count; fights and door-opening don't)
-            stale = stale + 1 if known <= known0 else 0
-            ends = ends + [s.hero] if known <= known0 else []
+            # (a leg a peaceful stopped — NetHack's travel won't start next to one — isn't a stale one: p3
+            # shift 14's Mines corridors full of gnomes ended "stuck: N legs showed nothing new")
+            held = any(m.get("peaceful") for m in blockers(s))
+            if not held:
+                stale = stale + 1 if known <= known0 else 0
+                ends = ends + [s.hero] if known <= known0 else []
             legs0 = legs
         known0 = max(known0, known)
         if stale >= 12:
@@ -498,9 +506,19 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                     if s2 is not None and s2.hero != hero:
                         stuck += 1
                         continue
+                if stuck in (2, 5) and all(m.get("peaceful") for m in blk):
+                    # it blocks a 1-wide corridor (p3 shift 14: Mines gnomes): stand aside so it can come out
+                    from .nav import _refuge
+                    ref = _refuge(ctx.last(), blk, target)
+                    if ref is not None:
+                        print(f"explore: {_mdesc(blk)} blocks the way — stepping aside to {ref} to let it pass")
+                        try:
+                            walk_path([ref])
+                        except NavError:
+                            pass
                 ctx.do(".", ok=BENIGN)            # ...else give it a turn to move off
                 stuck += 1
-                if stuck > 5:
+                if stuck > 8:
                     return result(f"blocked: {_mdesc(blk)} stays next to you; step around it, then explore()")
                 continue
         if "blocks your path" in text and "boulder" not in text:

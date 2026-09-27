@@ -1594,6 +1594,87 @@ def test_fight_until_clear_holds_the_square(monkeypatch):
     assert combat.fight_until_clear()["reason"].startswith("clear") and sent == []
 
 
+def test_fight_until_clear_passes_near_water_to_fight(monkeypatch):
+    # p1 shift 33 #801: fight_until_clear(near_water=True) at a walkway corner still paused inside fight()
+    from tactics import combat, ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    eel = {"x": 11, "y": 5, "ch": ";", "desc": "giant eel", "dist": 1}
+
+    def snap_with(mons):
+        s = _snap({5: "        ..}}"}, (10, 5), mons)
+        s.status.turn, s.status.hp, s.status.hpmax = 100, 50, 50
+        s.adjacent_hostiles = lambda: [m for m in mons if m.get("dist") == 1]
+        s.hostiles = lambda radius=None: list(mons)
+        return s
+    cur = {"s": snap_with([eel])}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "drowners_adjacent", lambda s: [m for m in s.monsters or [] if m["ch"] == ";"])
+    calls = []
+
+    def fake_fight(*a, **kw):
+        calls.append(kw)
+        cur["s"] = snap_with([])
+        cur["s"].messages = ["You kill the giant eel!"]
+        return cur["s"]
+    monkeypatch.setattr(combat, "fight", fake_fight)
+    assert combat.fight_until_clear()["reason"].startswith("DROWNING RISK") and calls == []
+    r = combat.fight_until_clear(near_water=True)
+    assert calls and calls[0].get("near_water") is True and r["reason"].startswith("clear")
+
+
+def test_step_onto_refuses_a_trap_that_would_hurt_you(monkeypatch):
+    # p1 shift 33 #694: step_onto() a sleeping gas trap without sleep resistance: asleep, a mindless air
+    # elemental (no telepathy blip) engulfed the hero, 165 -> 30 HP
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    g.feature_desc = {"L": {(11, 5): "sleeping gas trap", (9, 5): "trap door"}}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "        .^@^"}, (10, 5), [])
+    s.status.hp, s.status.hpmax = 100, 100
+    monkeypatch.setattr(ctx, "require_command", lambda what: s)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    with pytest.raises(PermissionError, match="sleeping gas trap"):
+        nav.step_onto(11, 5)
+    assert sent == []
+    nav.step_onto(11, 5, risky=True)
+    nav.step_onto(9, 5)                         # a trap door: a way down, taken on purpose
+    g.intrinsics = {"cold", "sleep"}
+    nav.step_onto(11, 5)                        # sleep resistant: fine
+    assert sent == ["l", "h", "l"]
+    g.feature_desc["L"][(10, 6)] = "bear trap"   # a name left over from a trap that is gone (no '^', not known)
+    nav.step_onto(10, 6)
+    assert sent[-1] == "j"
+    assert nav.step_onto_risk("fire trap") and not nav.step_onto_risk("magic portal")
+    g.intrinsics = {"fire"}
+    assert not nav.step_onto_risk("fire trap")
+
+
+def test_walk_path_turns_a_trap_found_on_the_way_into_a_nav_error(monkeypatch):
+    # p1 shift 33 #662: Excalibur's auto-search found a sleeping gas trap mid-walk; the step guard's
+    # PermissionError escaped desmap.walk() and crashed the exec
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({5: "        ....."}, (8, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+
+    def refuse(msg):
+        def do(keys, **kw):
+            raise PermissionError(msg)
+        return do
+    monkeypatch.setattr(ctx, "do", refuse("refusing to step onto the known trap at (9, 5) (NetHack doesn't ask)."))
+    with pytest.raises(nav.NavError, match=r"\(9, 5\) is a known trap"):
+        nav.walk_path([(9, 5), (10, 5)])
+    monkeypatch.setattr(ctx, "do", refuse("refusing to attack/move into the monster at (9, 5) while hallucinating"))
+    with pytest.raises(PermissionError):
+        nav.walk_path([(9, 5)])
+
+
 def test_read_identify_never_escapes_the_menu(monkeypatch):
     from nh.parse import Menu, MenuItem, State
     from tactics import ctx, items
@@ -2519,6 +2600,34 @@ def test_special_room_is_remembered_and_kept_out(monkeypatch):
     assert nav.forget_room() == [] and nav.special_room_zone(out) == {}
 
 
+def test_wizard_tower_unfilled_morgue_is_not_a_graveyard(monkeypatch):
+    # p1 shift 33 #781: wizard1's 'morgue' region (yendor.des: unfilled, it only marks the tower) said "You have
+    # an uncanny feeling..." and the walkway ring round the moat became an avoided graveyard
+    from nh.game import Game, Timing
+    from tactics import ctx, nav
+    rows = {10: "  ---------", 11: "  |.......|", 12: "  |........##", 13: "  ---------"}
+    g = Game(term=None, timing=Timing.local())
+    s = _snap(rows, (10, 12), [])
+    s.status = Status(ok=True, ldesc="Dlvl:37", dlvl=37, turn=500)
+    key = g.level_key(s.status)
+    g.desmap_ids = {key: {"level": "wizard1", "ox": 20, "oy": 5}}
+    g._note_special_room(s, ["You have an uncanny feeling..."], prev_hero=(11, 12))
+    assert not g.special_rooms.get(key) and not getattr(s, "room_note", "")
+    g.desmap_ids = {key: {"level": "valley", "ox": 1, "oy": 1}}          # a real graveyard elsewhere: kept
+    g._note_special_room(s, ["You have an uncanny feeling..."], prev_hero=(11, 12))
+    assert g.special_rooms[key][(10, 12)]["kind"] == "graveyard"
+    # registered before the level was identified: the zone drops it once desmap knows it is wizard1
+    g2 = _G()
+    g2.desmap_ids = {"L": {"level": "wizard1", "ox": 20, "oy": 5}}
+    monkeypatch.setattr(ctx, "game", g2)
+    out = _snap(rows, (12, 12), [])
+    out.status = Status(ok=True, ldesc="Dlvl:37", dlvl=37, turn=500)
+    out.room_mem = {(10, 12): {"kind": "graveyard", "prev": (11, 12), "turn": 500}}
+    assert nav.special_room_zone(out) == {}
+    g2.desmap_ids = {}
+    assert nav.special_room_zone(out)
+
+
 def test_levitation_route_crosses_water_and_unseen_squares(monkeypatch):
     # p2 shift 26 #366: NetHack's travel plans only over seen squares; levitating, water is a road
     import pytest
@@ -2705,6 +2814,24 @@ def test_covetous_ring_and_box_trap_check(monkeypatch):
     monkeypatch.setattr(ctx, "require_command", lambda what: s)
     monkeypatch.setattr(ctx, "last", lambda: s)
     assert items.check_box(3) == "trapped" and sent == ["#untrap<CR>", ".", "y", "n"]
+
+
+def test_covetous_ring_on_a_dark_level_uses_the_fixed_map(monkeypatch):
+    # p2 shift 31: a dark special level (Vlad's top) showed no stairs and no floor; the fixed map has both
+    from tactics import ctx, desmap, nav
+    g = _G()
+    g.terrain_seen = {}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({10: " " * 20 + "@"}, (20, 10), [])
+    monkeypatch.setattr(nav, "_desmap_stairs", lambda s, ch: (13, 10) if ch == "<" else None)
+    lay = {(x, y): "." for x in range(3, 33) for y in range(3, 20)}
+    lay[(19, 7)] = "-"                              # a wall on the map: never a place to stand
+    monkeypatch.setattr(desmap, "layout", lambda s: lay)
+    ring = nav.covetous_ring(s)
+    assert ring and all(25 < (x - 13) ** 2 + (y - 10) ** 2 <= 64 for x, y in ring)
+    assert (19, 10) in ring and (19, 7) not in ring and (17, 10) not in ring and (2, 10) not in ring
+    monkeypatch.setattr(nav, "_desmap_stairs", lambda s, ch: None)
+    assert nav.covetous_ring(s) == []
 
 
 def test_sokoban_holes_filled_out_of_order():
@@ -2935,6 +3062,46 @@ def test_desmap_walk_stops_before_an_unsettled_variant_square(monkeypatch):
     assert walked == [[(23, 7), (24, 7)], [(25, 7), (26, 7)]] and s.hero == (26, 7)
 
 
+def test_desmap_walk_lets_a_peaceful_out_of_a_corridor(monkeypatch):
+    # p2 shift 31 #997: a peaceful dwarf lord in a 1-wide tower corridor stopped desmap.walk() dead, while
+    # travel() steps back, waits and gets past — walk() does the same now (twice at most)
+    from tactics import ctx, desmap, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    row = {7: " " * 20 + "........"}                 # a corridor x=20..27
+    dwarf = {"x": 23, "y": 7, "ch": "h", "desc": "peaceful dwarf lord", "peaceful": True, "dist": 1}
+
+    def snap_at(h, mons):
+        s = _snap(row, h, mons)
+        s.hostiles = lambda radius=None: []
+        return s
+    cur = {"s": snap_at((22, 7), [dwarf]), "leaves": True}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    walked, waited = [], []
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        if any((m["x"], m["y"]) in cells for m in cur["s"].monsters):
+            raise nav.NavError("walk_path: peaceful dwarf lord is on (23, 7) — Wait a turn ('.') or go around.")
+        cur["s"] = snap_at(tuple(cells[-1]), cur["s"].monsters)
+        return cur["s"]
+
+    def fake_do(keys, **kw):
+        waited.append(keys)
+        cur["s"] = snap_at(cur["s"].hero, [] if cur["leaves"] else cur["s"].monsters)
+        return cur["s"]
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(desmap, "route", lambda x, y, s=None, **kw: {
+        "path": [(c, 7) for c in range(s.hero[0] + 1, x + 1)], "secret": [], "traps": [], "uncertain": []})
+    s = desmap.walk(25, 7)
+    assert s.hero == (25, 7) and waited == ["."] and walked[1] == [(21, 7)]     # stepped back, then on
+    # it never moves: two step-backs, then walk() stops (no endless loop)
+    cur.update(s=snap_at((22, 7), [dwarf]), leaves=False)
+    walked.clear()
+    s = desmap.walk(25, 7)
+    assert s.hero == (20, 7) and [w for w in walked if len(w) == 1] == [[(21, 7)], [(20, 7)]]
+
+
 def test_hunt_desmap_step_over_dark_unseen_floor(monkeypatch):
     # p2 shift 29 #221: sleepers deep in the Valley's dark graveyard — the fixed map knows the floor
     from tactics import combat, ctx, desmap
@@ -2963,6 +3130,8 @@ def test_zap_reports_a_monster_gone_without_a_message():
     after = _snap({5: "        ..@......", 6: "        ........."}, (10, 5), [newt])
     assert _vanished([mino], after) == [mino]
     after.messages = ["You kill the minotaur!"]
+    assert _vanished([mino], after) == []
+    after.messages = ["The bolt of fire misses the minotaur."]         # named by the zap: it simply moved
     assert _vanished([mino], after) == []
 
 
@@ -3157,3 +3326,152 @@ def test_explore_verdict_names_the_fixed_maps_down_stairs(monkeypatch):
     assert "minetn-5" in h and "(48, 4)" in h and "travel(48, 4)" in h
     monkeypatch.setattr(desmap, "identify", lambda s=None, **kw: None)
     assert explore._desmap_stairs_hint(s) == ""
+
+
+def test_desmap_never_slides_a_fixed_geometry_map_off_its_spot(monkeypatch):
+    # p2 shift 31 #1575: wizard2 (GEOMETRY center,center) was "found" at (1,1) on a random corridor maze
+    from tactics import ctx, desmap
+    g = _G()
+    g.level_key = lambda status=None: "Gehennom / Level 41"
+    monkeypatch.setattr(ctx, "game", g)
+    w2 = next(m for m in desmap.maps() if m["level"] == "wizard2")
+    fo = desmap.fixed_offset(w2)
+    assert fo == (24, 6)
+
+    def drawn(ox, oy):
+        rows = {y: [" "] * 80 for y in range(24)}
+        colors = {}
+        for my, row in enumerate(w2["rows"]):
+            for mx, ch in enumerate(row):
+                x, y = mx + ox, my + oy
+                if 0 <= x < 80 and 1 <= y <= 21 and ch in "-|.":
+                    rows[y][x] = ch
+        return _snap({y: "".join(r) for y, r in rows.items()}, (40, 10), [], colors=colors)
+    s = drawn(1, 1)                                   # the same walls, somewhere the generator never puts them
+    assert desmap._best_offset(w2, desmap._screen_cls(s))[1:3] != (1, 1)
+    r = desmap.identify(names="wizard2", s=s, remember=False)
+    assert r is None or (r["ox"], r["oy"]) != (1, 1)
+    s2 = drawn(*fo)                                   # at its real spot: found
+    r2 = desmap.identify(names="wizard2", s=s2, remember=False)
+    assert r2 is not None and (r2["ox"], r2["oy"]) == fo
+    # dungeon.def CHAINLEVEL: wizard2 lies right below wizard1
+    g.desmap_ids = {"Gehennom / Level 42": {"level": "wizard1", "ox": 24, "oy": 6}}
+    assert not desmap._chain_ok("wizard2", "Gehennom / Level 41")
+    assert desmap._chain_ok("wizard2", "Gehennom / Level 43") and desmap._chain_ok("wizard3", "Gehennom / Level 44")
+    assert desmap._chain_ok("valley", "Gehennom / Level 41")
+
+
+def test_trek_crosses_a_trap_its_colour_names(monkeypatch):
+    # p3 shift 14 #1172: trek(cross_traps=['rust trap']) refused a blue '^' nobody had looked at
+    from tactics import ctx, nav
+    g = _G()
+    g.traps = {"L": {(12, 5)}}
+    monkeypatch.setattr(ctx, "game", g)
+    rows = {4: "        --------", 5: "        |...^..|", 6: "        --------"}
+    colors = {(12, 5): 4}                            # blue: a rust trap (the only blue trap)
+    cur = {"s": _snap(rows, (10, 5), [], colors=colors)}
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: cur["s"])
+    assert nav._trap_names(cur["s"]) == {(12, 5): "rust trap"}
+    calls = []
+
+    def move(x, y, **kw):
+        calls.append((x, y))
+        s = _snap(rows, (x, y), [], colors=colors)
+        s.status = cur["s"].status
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(nav, "travel", move)
+    monkeypatch.setattr(nav, "step_onto", move)
+    nav.trek(14, 5, cross_traps=["rust trap"])
+    assert (12, 5) in calls and cur["s"].hero == (14, 5)
+
+
+def test_go_up_uses_the_fixed_maps_stairs_when_none_is_seen(monkeypatch):
+    # p3 shift 14 #2609: go_up() on the identified Mines' End raised "no '<' known"
+    import pytest
+    from tactics import ctx, desmap, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "   ..@.."}, (5, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [])
+    monkeypatch.setattr(desmap, "identify", lambda s=None, **kw: {"level": "minend-1", "ox": 0, "oy": 0})
+    monkeypatch.setattr(desmap, "features", lambda s=None, names=None: [
+        {"kind": "stair", "x": 38, "y": 8, "detail": "up"}, {"kind": "stair", "x": 60, "y": 3, "detail": "down"}])
+    assert nav._desmap_stairs(s, "<") == (38, 8) and nav._desmap_stairs(s, ">") == (60, 3)
+    went = []
+    monkeypatch.setattr(nav, "travel", lambda x, y, **kw: went.append((x, y)) or s)
+    with pytest.raises(nav.NavError, match="no '<' known"):
+        nav._use_stairs("<")                       # (the stairs still not seen there: no loop)
+    assert went == [(38, 8)]
+
+
+def test_bear_trap_held_state_and_diagonal_escape(monkeypatch):
+    # p2 shift 31 #1610: 12 orthogonal pulls did nothing (hack.c trapmove: diagonal always loosens it)
+    from nh.game import Game, Timing
+    from tactics import ctx, nav
+    g = Game(term=None, timing=Timing.local())
+    cur, nxt = _snap({}, (20, 5), []), _snap({}, (20, 5), [])
+    g._note_held(cur, nxt, ["A bear trap closes on your foot!"])
+    assert g.held_trap == "bear trap"
+    g._note_held(cur, nxt, ["You finally wriggle free."])
+    assert g.held_trap == ""
+    g._note_held(cur, nxt, ["You are caught in a bear trap."])
+    g._note_held(cur, _snap({}, (21, 5), []), [])
+    assert g.held_trap == ""                             # moved off: not held
+    # escape_trap(): diagonal pulls toward the wall first, until "finally wriggle free"
+    g2 = _G()
+    monkeypatch.setattr(ctx, "game", g2)
+    rows = {3: "        ------", 4: "        |....", 5: "        |....", 6: "        |...."}
+    s = _snap(rows, (9, 4), [])
+    monkeypatch.setattr(ctx, "require_command", lambda what: s)
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        s2 = _snap(rows, (9, 4), [])
+        s2.messages = ["You finally wriggle free."] if len(sent) == 4 else []
+        return s2
+    monkeypatch.setattr(ctx, "do", fake_do)
+    r = nav.escape_trap()
+    assert len(sent) == 4 and len(set(sent)) == 1 and sent[0] in ("y", "b")     # toward a wall (8,3)/(8,5)
+    assert "finally wriggle free" in r.messages[0]
+
+
+def test_a_changed_trap_is_looked_at_again(tmp_path, monkeypatch):
+    # qa10 live check (p1 shift 33 fixes): a bear trap's square became a sleeping gas trap; the remembered name
+    # stayed "bear trap" (a land mine blown into a pit does the same) — its colour says otherwise: look again
+    from nh.mapscan import trap_names_for_color
+    from nh.tracker import Tracker
+    assert trap_names_for_color(6) == {"arrow trap", "dart trap", "bear trap"}
+    assert trap_names_for_color(12) == {"sleeping gas trap", "magic trap", "anti-magic field"}
+
+    class G:
+        def __init__(self):
+            self.feature_desc = {"L": {(12, 5): "bear trap", (14, 5): "dart trap"}}
+            self.terrain_seen, self.history, self.last, self.looked = {}, [], None, []
+
+        def level_key(self, status=None):
+            return "L"
+
+        def describe_cells(self, cells):
+            self.looked.extend(cells)
+            return {c: "^       a trap (sleeping gas trap)" for c in cells}
+    g = G()
+    tr = Tracker(g, tmp_path / "state.json")
+    s = _snap({5: "        ..@.^.^"}, (10, 5), [], colors={(12, 5): 12, (14, 5): 6})
+    s.status = Status(ok=True, ldesc="Dlvl:4", turn=70)
+    tr._describe_features(s)
+    assert g.looked == [(12, 5)]                       # the dart trap still fits its colour: not looked at
+    assert g.feature_desc["L"] == {(12, 5): "sleeping gas trap", (14, 5): "dart trap"}
+    # a look that names a misfit again is believed (no look on every obs)
+    g.describe_cells = lambda cells: (g.looked.extend(cells), {c: "^  a trap (dart trap)" for c in cells})[1]
+    s2 = _snap({5: "        ..@.^.^.^"}, (10, 5), [], colors={(12, 5): 12, (14, 5): 6, (16, 5): 12})
+    s2.status = s.status
+    g.feature_desc["L"][(16, 5)] = "dart trap"
+    g.looked.clear()
+    tr._describe_features(s2)
+    tr._describe_features(s2)
+    assert g.looked == [(16, 5)] and g.feature_desc["L"][(16, 5)] == "dart trap"

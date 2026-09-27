@@ -23,6 +23,19 @@ TRAP_BY_COLOR = {
     0: "pit/spiked pit", 8: "pit/spiked pit", 5: "teleportation trap/level teleporter", 13: "magic portal",
     10: "polymorph trap",
 }
+_TRAP_NOUNS = ("trap", "board", "hole", "door", "pit", "field", "teleporter", "portal", "mine")
+
+
+def trap_names_for_color(col) -> set:
+    """The trap types a '^' of this colour can be: {'arrow trap', 'dart trap', 'bear trap'} for 6."""
+    out = set()
+    for part in (TRAP_BY_COLOR.get(col) or "").split("/"):
+        part = part.strip()
+        if part:
+            out.add(part if part.endswith(_TRAP_NOUNS) else part + " trap")
+    return out
+
+
 VIBRATING_SQUARE_COLOR = 5     # a magenta '~' (a long worm's tail is brown)
 # the Rogue level (drawing.c init_r_symbols): no colours; stairs up AND down are '%', every door is a
 # doorless doorway '+', food ':', amulets ',', armor ']', gold and gems '*', boulders '`'

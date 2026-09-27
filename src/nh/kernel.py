@@ -199,6 +199,25 @@ _RAYS = (r"(?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stre
 _REFLECTED = re.compile(rf"^The {_RAYS} hits you!$|^The .+ zaps an? wand of (?:sleep|fire|cold|lightning|"
                         rf"magic missile|death)!$|^But it reflects from your ")
 
+# a monster buffing itself (muse.c potions/wands, mcastu.c cure self, worn.c mon_adjust_speed): routine when
+# every monster of that name in view is PEACEFUL (p3 shift 14: Minetown gnomes quaffing speed and invisibility
+# paused travel); a hostile's still pauses
+_SELF_BUFF = re.compile(r"^(?:The |An? )?(?P<n>[\w' -]+?)(?:'s? body takes on an? [\w ]+ transparency\.|"
+                        r" drinks [^!]+!| is suddenly moving (?:much )?faster\.| looks (?:better|completely healed)\.|"
+                        r" seems more experienced\.)$")
+
+
+def peaceful_self_buff(m: str, *snaps) -> bool:
+    mm = _SELF_BUFF.search(m)
+    if not mm:
+        return False
+    from .danger import base_name
+    name = mm.group("n").strip().lower()
+    seen = [x for s in snaps if s is not None for x in (s.monsters or [])
+            if base_name(x.get("desc") or "").lower() == name]
+    return bool(seen) and all(x.get("peaceful") and not x.get("tame") for x in seen)
+
+
 # a poison gas cloud (region.c inside_gas_cloud; a green dragon's breath leaves them, so do stinking cloud
 # scrolls and Gehennom's fumaroles): with poison resistance only a 1-turn blindness and a cough each turn
 # you stand in it — news once per level; without it "Something is burning your lungs!" costs HP
@@ -495,6 +514,7 @@ class Kernel:
                 and not any(p.search(m) for p in DEFAULT_BENIGN)
                 and not (reflected and _REFLECTED.search(m))
                 and not (resisted and re.search(r" was poisoned!$", m))
+                and not peaceful_self_buff(m, before, snap)
                 and not self._heard_before(m, snap)]
         if msgs and not quiet:
             reasons.append("message")

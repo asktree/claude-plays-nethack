@@ -157,7 +157,8 @@ def _key_toward(hero, m):
 
 
 def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max_blows: int = 25,
-          allow_passive: bool = False, only=None, force: bool = False, attack_peaceful: bool = False):
+          allow_passive: bool = False, only=None, force: bool = False, attack_peaceful: bool = False,
+          near_water: bool = False):
     """Melee an adjacent hostile (the one at (x, y) if given) until it's gone,
     it moves out of reach, or HP falls below stop_hp * max (then pauses).
     Returns the final Snap.
@@ -188,13 +189,18 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
       looks at it (';', no game time) unless its label came from a look this
       turn; a peaceful/tame one pauses instead (a peaceful adult black naga
       labeled like the hostile hatchlings next to it). attack_peaceful=True
-      hits it anyway (angering a peaceful costs alignment; killing one, more)."""
+      hits it anyway (angering a peaceful costs alignment; killing one, more).
+    - Next to water with a drowner (eel, kraken, an unseen monster) in it, it
+      pauses before the first blow; near_water=True fights on there (a spot
+      touching ONE water square, chosen on purpose: p1 shift 33 cleared the
+      Wizard's moat one sea monster at a time) — force=True does too, but
+      also passes every other guard."""
     import contextlib
     seen: list[str] = []
     rules = getattr(ctx, "hp_rules", None)
     try:
         with (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
-            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only, force, attack_peaceful)
+            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only, force, attack_peaceful, near_water)
     finally:
         last = ctx.last()
         if seen and last is not None:
@@ -252,7 +258,8 @@ def _check_target(m) -> tuple:
                     and not t.get("statue")), None)
 
 
-def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False, attack_peaceful=False):
+def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False, attack_peaceful=False,
+           near_water=False):
     """fight() body; `seen` collects every round's messages (so an early
     'You feel feverish' isn't lost behind later rounds)."""
     from nh.danger import STOP_PASSIVES, base_name, explodes_at_you, max_hit, passive_attacks, passive_max
@@ -320,13 +327,13 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         from .nav import drowners_adjacent
         drown = drowners_adjacent(s) if targets or any(m.get("unseen") and m.get("dist") == 1
                                                        for m in s.monsters or []) else []
-        if drown and not force and "drown" not in seen_notes:
+        if drown and not force and not near_water and "drown" not in seen_notes:
             seen_notes.add("drown")
             ctx.pause("fight: you stand next to WATER with " + ", ".join(
                 f"{m.get('desc') or 'an unseen monster'} at ({m['x']},{m['y']})" for m in drown[:3])
                 + " in it — one wrap holds you and the next DROWNS you (levitation doesn't help). Step to a square "
                   "with no water next to it first and fight what follows you there (or Elbereth / freeze the "
-                  "water); fight(..., force=True) to fight on here")
+                  "water); fight(..., near_water=True) to fight on here")
             return ctx.last()
         if x is None:
             from nh.monitor import _stationary
@@ -602,10 +609,18 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             if s.state.kind != "command" or s.hero is None:
                 return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
             if ctx.unwatch_monsters is not None:
-                # holding a square to fight what comes: monsters closing in within the radius are the plan,
-                # not an 'approaching' surprise (p2 shift 28: fire ants from the census watch list)
-                ctx.unwatch_monsters([m["id"] for m in s.monsters or [] if m.get("id") is not None
-                                      and m.get("dist") is not None and m["dist"] <= max(radius + 3, 5)])
+                # holding a square to fight what comes: monsters closing in are the plan, not an 'approaching'
+                # surprise (p2 shift 28: fire ants from the census watch list; shift 31: a gray dragon, a
+                # demilich and Vlad reached the doorway in one step, before a radius+3 unwatch saw them) —
+                # everything within max(radius + 8, 12), in view or just out of it (a teleporter)
+                far = max(radius + 8, 12)
+                near_ids = [m["id"] for m in s.monsters or [] if m.get("id") is not None
+                            and m.get("dist") is not None and m["dist"] <= far]
+                tr = getattr(ctx.game, "tracker", None)
+                if tr is not None and hasattr(tr, "gone") and s.hero is not None:
+                    near_ids += [r["id"] for r in tr.gone(s.status.turn) if r.get("id") is not None
+                                 and max(abs(r["x"] - s.hero[0]), abs(r["y"] - s.hero[1])) <= far]
+                ctx.unwatch_monsters(near_ids)
             st = s.status
             if st.ok and st.hp < stop_hp * max(1, st.hpmax):
                 return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%} — Elbereth / retreat / pray if HP <= 1/7")
@@ -619,7 +634,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             from nh.monitor import _stationary
             mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")]
             if mobile_adj:
-                s = fight(stop_hp=stop_hp, allow_passive=allow_passive)
+                s = fight(stop_hp=stop_hp, allow_passive=allow_passive, near_water=near_water)
                 kills += killed_names(s.messages, include_it=True)
                 best, idle = None, 0
                 if s.adjacent_hostiles() and s.status.ok and s.status.hp < stop_hp * max(1, s.status.hpmax):
@@ -773,6 +788,7 @@ def _monsters_in_line(direction: str, maxlen: int = 13, s=None) -> list:
 def _vanished(before: list, s) -> list:
     """Monsters from `before` whose square no longer shows them and no kill message names them: a wand of
     teleportation / make invisible / polymorph leaves no message (p3 shift 12: a minotaur zapped away)."""
+    from nh.danger import base_name
     from nh.monitor import killed_names
     shown = {(m["x"], m["y"]): m for m in s.monsters or []}
     killed = set(killed_names(s.messages, include_it=True))
@@ -784,6 +800,9 @@ def _vanished(before: list, s) -> list:
         name = (m.get("desc") or "").split(" [")[0]
         if name and any(k and k in name for k in killed):
             continue
+        bn = base_name(name) if name else ""
+        if bn and any(re.search(rf"\b{re.escape(bn)}\b", msg, re.I) for msg in s.messages or []):
+            continue        # the zap named it ("The bolt of fire misses the warg."): it just moved (p1 shift 33)
         out.append(m)
     return out
 
@@ -1144,7 +1163,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                     print("hunt: " + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})" for e in others)
                           + f" is next to you too — fighting the {species or target} first (fight()'s HP checks "
                           "count every adjacent hostile)")
-                s = fight(m["x"], m["y"], stop_hp=stop_hp)
+                s = fight(m["x"], m["y"], stop_hp=stop_hp, near_water=near_water)
                 kills += killed_names(s.messages, include_it=True)
                 if s.state.kind == "command" and any(e.get("id") == want for e in s.adjacent_hostiles()) \
                         and not killed_names(s.messages):
@@ -1185,15 +1204,28 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                     from .mapview import dist as _d
                     from .nav import travel
                     here_d = _d(s.hero, goal)
-                    fr = sorted((c for c in screen_frontiers(s) if _d(c, goal) < here_d and c != s.hero
-                                 and c not in tried and bfs_path(s, s.hero, c, allow_monsters=False,
-                                                                 allow_pets=True) is not None),
+                    cands = [c for c in screen_frontiers(s) if _d(c, goal) < here_d and c != s.hero
+                             and c not in tried]
+                    # (never along the water where a drowner may be: p1 shift 33 #869 — the frontier trip warned
+                    # and walked 2 squares beside the Wizard's moat, then the next turn said 'blocked')
+                    fr = sorted((c for c in cands if bfs_path(s, s.hero, c, avoid=frozenset(set(zone) - {c}),
+                                                              allow_monsters=False, allow_pets=True) is not None),
                                 key=lambda c: (_d(c, goal), _d(c, s.hero)))
+                    if not fr and zone:
+                        wet = [p for p in (bfs_path(s, s.hero, c, allow_monsters=False, allow_pets=True)
+                                           for c in cands) if p]
+                        hit = [c for c in (wet[0] if wet else []) if c in zone]
+                        if hit:
+                            return out(f"blocked: the only way toward the {species or target} at {goal} passes "
+                                       f"{hit[0]}, next to water — {zone[hit[0]][0]} (its wrap drowns you). Wait "
+                                       "for it away from the water, fight it at range, or hunt(..., "
+                                       "near_water=True) if you levitate / wear a greased or oilskin cloak / "
+                                       "accept that")
                     moved = False
                     for c in fr[:4]:
                         tried.add(c)
                         try:
-                            s = travel(*c)
+                            s = travel(*c, near_water=near_water)
                         except NavError as e:
                             print(f"hunt: couldn't get to the frontier {c} ({str(e)[:90]}) — trying another")
                             s = ctx.last()

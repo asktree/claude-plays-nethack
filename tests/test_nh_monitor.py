@@ -1195,3 +1195,28 @@ def test_undirected_spells_from_afar_pause_once():
     a.messages = ["The nalfeshnee casts a spell at you!"]
     k._check_events(b, a)
     assert reasons                           # a spell AT you is news
+
+
+def test_peaceful_self_buffs_are_routine():
+    # p3 shift 14 #653/#3083/#3134: Minetown gnomes hasting themselves / turning invisible paused travel
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel, peaceful_self_buff
+    gnome = {"x": 12, "y": 5, "ch": "G", "desc": "peaceful gnome", "peaceful": True}
+    wiz = {"x": 14, "y": 5, "ch": "G", "desc": "peaceful gnomish wizard", "peaceful": True}
+    b, a = snap({}, 40), snap({}, 41)
+    b.monsters, a.monsters = [gnome, wiz], [wiz]          # the gnome is invisible now
+    assert peaceful_self_buff("The gnome's body takes on a strange transparency.", b, a)
+    assert peaceful_self_buff("The gnomish wizard is suddenly moving faster.", b, a)
+    assert not peaceful_self_buff("The gnome lord is suddenly moving faster.", b, a)    # none in view: news
+    b.monsters = [gnome, dict(gnome, x=10, desc="gnome", peaceful=False)]
+    assert not peaceful_self_buff("The gnome is suddenly moving faster.", b, a)         # a hostile one too
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    b.monsters = [gnome, wiz]
+    a.messages = ["The gnome drinks a potion of invisibility!", "The gnome's body takes on a strange transparency."]
+    k._check_events(b, a)
+    assert reasons == []
+    b.monsters = [dict(gnome, desc="gnome", peaceful=False)]
+    k._check_events(b, a)
+    assert reasons                                        # a hostile turning invisible is news

@@ -54,6 +54,7 @@ from tactics.nav import drowners_adjacent, eel_level, eel_zone, squeaky_boards  
 from tactics.nav import forget_mimic, known_mimics, remember_mimic  # noqa: E402,F401
 from tactics.nav import clear_I, forget_room, levitate_to, push_boulder, special_room_zone, special_rooms  # noqa: E402,F401
 from tactics.nav import covetous_ring, trap_crossable, trek  # noqa: E402,F401
+from tactics.nav import escape_trap, step_onto_risk  # noqa: E402,F401
 from tactics.items import check_box  # noqa: E402,F401
 from tactics.combat import throw_can_hit  # noqa: E402,F401
 from tactics.combat import WandEmpty  # noqa: E402,F401
