@@ -314,6 +314,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                                      getattr(ctx.game, "intrinsics", ())) == "dangerous"
 
     ctx.require_command("fight_until_clear()")
+    warn_bounce("fight_until_clear()")
     t0 = ctx.last().status.turn or 0
     kills: list = []
     best, idle = None, 0
@@ -388,6 +389,36 @@ def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13
         elif not ray and not m.get("unseen"):
             break                           # the first hostile stops a thrown object
     return out
+
+
+def bounce_risk(s=None) -> list:
+    """Hostiles with a breath weapon in a straight line from you (within 13
+    squares) while a wall or rock is right behind you on that line: their ray
+    hits you, bounces off the wall and hits you again. Returns
+    [(monster, direction)]."""
+    from nh.danger import base_name, monster_record
+    s = s or ctx.last()
+    if s.hero is None:
+        return []
+    hx, hy = s.hero
+    out = []
+    for m in s.hostiles():
+        rec = monster_record(base_name(m.get("desc") or "")) or {}
+        if not any(a.get("type") == "AT_BREA" for a in rec.get("attacks", [])):
+            continue
+        dx, dy = m["x"] - hx, m["y"] - hy
+        if not (dx == 0 or dy == 0 or abs(dx) == abs(dy)) or max(abs(dx), abs(dy)) > 13:
+            continue
+        sx, sy = (dx > 0) - (dx < 0), (dy > 0) - (dy < 0)
+        if s.screen.at(hx - sx, hy - sy) in " |-" and s.screen.color_at(hx - sx, hy - sy) != 3:
+            out.append((m, (sx, sy)))
+    return out
+
+
+def warn_bounce(who: str, s=None) -> None:
+    for m, _d in bounce_risk(s):
+        print(f"{who}: !! you stand in line with the {m.get('desc')} at ({m['x']},{m['y']}), which BREATHES, with "
+              "a wall right behind you: its ray hits you, bounces and hits you again — step off the line")
 
 
 def _objects_in_line(direction: str, maxlen: int = 13, s=None) -> list:
@@ -532,6 +563,12 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
             st = s.status
             if st.ok and st.hp < stop_hp * max(1, st.hpmax):
                 return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%}")
+            if getattr(s, "engulfed", False):
+                s = fight(stop_hp=stop_hp)             # inside it: any direction hits the engulfer
+                kills += killed_names(s.messages)
+                if getattr(s, "engulfed", False):
+                    return out("still ENGULFED (fight() stopped: HP) — pray at 1/7 HP")
+                continue
             if want is None:
                 hs = [m for m in s.hostiles() if not m.get("statue")]
                 hs = [m for m in hs if (m["x"], m["y"]) == tuple(target)] if isinstance(target, tuple) else \
@@ -545,7 +582,9 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                 if m is None:
                     return out("killed" if species and species in kills else
                                f"lost: the {species or target} is out of view")
-            others = [e for e in s.adjacent_hostiles() if e is not m and not auto_fightable(e, s)]
+            from nh.monitor import _stationary
+            others = [e for e in s.adjacent_hostiles() if e is not m and not auto_fightable(e, s)
+                      and not _stationary(e.get("desc") or "")]     # a mold can't follow: walk on past it
             if others:
                 return out("blocked: " + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})"
                                                    for e in others) + " is next to you — your call")

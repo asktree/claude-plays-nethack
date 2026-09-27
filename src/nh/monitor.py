@@ -216,9 +216,12 @@ class MonsterTracker:
             m.update(id=None, desc="", new=False, statue=False)
         for m in special:
             if m["ch"] == "I":
+                note = "an unseen monster was here (blind/invisible): could be anything, even a peaceful"
+                if "telepathy" in (getattr(self.game, "intrinsics", None) or ()) and "Blind" not in st.conditions:
+                    note += (" — if your telepathy (blind, or extrinsic) doesn't show it, it's MINDLESS: a BLACK "
+                             "LIGHT explodes into hallucination (step away), or a stalker")
                 m.update(id=None, desc="remembered, unseen monster", new=False, statue=False, unseen=True,
-                         tame=False, peaceful=False,
-                         note="an unseen monster was here (blind/invisible): could be anything, even a peaceful")
+                         tame=False, peaceful=False, note=note)
             else:
                 key = (self.level, m["x"], m["y"])
                 m.update(id=None, desc="mimic (posing as a strange object ']')", new=key not in self.mimics_seen,

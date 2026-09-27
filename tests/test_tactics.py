@@ -1047,3 +1047,15 @@ def test_hunt_steps_into_unexplored_dark_floor(monkeypatch):
     s = _snap({5: "        ..@   "}, (10, 5), [troll])
     assert _greedy_step(s, (13, 5), set()) == (11, 5)          # blank (unexplored) square toward it
     assert _greedy_step(s, (13, 5), {(11, 5), (11, 4), (11, 6)}) is None
+
+
+def test_bounce_risk_breather_in_line_with_wall_behind(monkeypatch):
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    naga = {"x": 20, "y": 5, "ch": "N", "desc": "red naga", "dist": 10}
+    s = _snap({5: "         |@.........."}, (10, 5), [naga])
+    assert [d for _m, d in combat.bounce_risk(s)] == [(1, 0)]
+    s2 = _snap({5: "         .@.........."}, (10, 5), [naga])
+    assert combat.bounce_risk(s2) == []                       # open floor behind: no bounce
+    s3 = _snap({5: "         |@.........."}, (10, 5), [dict(naga, y=7, dist=10)])
+    assert combat.bounce_risk(s3) == []                       # not lined up

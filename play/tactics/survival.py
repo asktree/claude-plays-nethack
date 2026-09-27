@@ -18,6 +18,8 @@ def rest(n: int = 20):
     """Rest n turns in place (count-prefixed '.'; needs !rest_on_space off: '.').
     A monster fleeing from your Elbereth ("turns to flee") doesn't pause."""
     ctx.require_command("rest()")
+    from .combat import warn_bounce
+    warn_bounce("rest()")
     return _counted(f"{int(n)}.", int(n), [r"turns to flee", r"^You stop searching"])
 
 
@@ -423,6 +425,8 @@ def rest_on_elbereth(turns: int = 100, until_hp: int | None = None, burst: int =
     comes within 3 squares (@ humans/elves, minotaurs, shopkeepers, guards,
     blind monsters — it pauses). Returns the last snap."""
     s = ctx.require_command("rest_on_elbereth()")
+    from .combat import warn_bounce
+    warn_bounce("rest_on_elbereth()")
     if "Blind" in s.status.conditions:
         ctx.pause("rest_on_elbereth(): you are Blind — a dust Elbereth can't be verified; rest elsewhere or cure it")
         return ctx.last()

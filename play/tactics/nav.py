@@ -148,6 +148,13 @@ def walk_path(path, ok=None):
         key = DIR_KEY.get((cell[0] - h[0], cell[1] - h[1]))
         if key is None:
             raise NavError(f"walk_path: {cell} is not adjacent to {h}")
+        for _w in range(3):
+            occ = occupants(s, cell)
+            if not occ or not all(m.get("peaceful") for m in occ):
+                break
+            s = ctx.do(".", ok=BENIGN)             # a wandering peaceful on the next square: give it a turn
+            if s.state.kind != "command":
+                return s
         _check_free(s, cell, "walk_path")
         s = ctx.do(key, ok=ok if ok is not None else BENIGN)
         if s.hero != cell:

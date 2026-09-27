@@ -87,6 +87,7 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^A board beneath (?:the |an? )[\w' -]+ squeaks",
     r"^You hear an? [A-G][\w ]* squeak (?:nearby|in the distance)\.",   # a monster on a squeaky board (trap.c)
     r"^The poison doesn't seem to affect you\.",       # poison resistance at work
+    r"^A mysterious force prevents (?:the |an? )?[\w' -]+ from teleporting!$",   # a no-teleport level (Sokoban)
     # exercise (attrib.c exerchk): gains are good news; the status line shows the attribute
     r"^You feel (?:very )?(?:strong|smart|wise|agile|tough|charismatic)!$",
     r"^You must have been (?:exercising diligently|very observant|working on your reflexes|leading a healthy)",
