@@ -920,7 +920,8 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
     when your pet or a peaceful is anywhere on the straight line (rays and
     beams go through monsters; force=True to zap anyway). A wand known to be
     EMPTY raises WandEmpty (no game time) — `except WandEmpty:` tries the next
-    one; force=True wrests at it."""
+    one; force=True wrests at it. A zap that finds the wand empty ("Nothing
+    happens": a turn, no charge) raises WandEmpty right away too."""
     ctx.require_command("zap()")
     empty = getattr(ctx.game, "empty_wands", None)
     if empty and wand in empty and not force:
@@ -943,14 +944,18 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             ctx.do("<Esc>", quiet=True)
         ctx.pause(f"zap: expected an item prompt, got {s.state.kind}: {s.state.prompt!r}")
         return ctx.last()
-    s = ctx.do(wand)
+    s = ctx.do(wand, ok=[r"^Nothing happens\.?$"])
     if s.state.kind == "command" and any(m.startswith("Nothing happens") for m in s.messages):
-        # zap.c zappable(): a wand with 0 charges does nothing (no direction asked)
+        # zap.c dozap(): !zappable() — a wand with 0 charges (or cancelled) does nothing, asks no direction and
+        # spends no charge
         if getattr(ctx.game, "empty_wands", None) is None:
             ctx.game.empty_wands = set()
         ctx.game.empty_wands.add(wand)
         print(f"zap: wand {wand} is EMPTY (\"Nothing happens\": 0 charges) — recharge it (scroll of charging); "
               "zap() now refuses it unless force=True (wresting a last charge: 1 in 121 per zap)")
+        if not force:
+            # (p1 shift 34 #206: returning normally skipped the script's `except WandEmpty:` fallback this turn)
+            raise WandEmpty(f"zap: wand {wand} is EMPTY — \"Nothing happens\" (0 charges; the turn is spent)")
     if s.state.kind == "direction":
         if direction is None:
             ctx.do("<Esc>", quiet=True)

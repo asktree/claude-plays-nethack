@@ -133,7 +133,8 @@ NOTES = {
                         "artifact, then teleports off to heal; casts touch of death (MR stops it), summon nasties, "
                         "curses, destroy armor, double trouble (clones himself). Comes back after being killed. "
                         "In his tower he WAITS until he SEES you or is hurt — waking him (a whistle, a squeaky "
-                        "board) is not enough (mon.c: uniques keep waiting); open a sightline into his room. "
+                        "board) is not enough (mon.c: uniques keep waiting); open a sightline into his room, in "
+                        "his row or column (no diagonal gaps). "
                         "Keep MR, reflection and uncursing ready; kill him fast.",
     "Lord Surtur": "QUEST NEMESIS (fire giant king): 2d10 weapon x2 and fire (you need fire resistance on his "
                    "lava level); his claw STEALS the Orb of Fate / the Amulet and he TELEPORTS away to heal (often "

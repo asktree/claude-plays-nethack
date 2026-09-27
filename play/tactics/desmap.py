@@ -231,6 +231,23 @@ def certain_level(key: str | None = None, s=None) -> str | None:
     return None
 
 
+def tower_interior(s=None):
+    """(x1, y1, x2, y2) screen box inside the Wizard's Tower walls on wizard1-3 (yendor.des: a 28x13 walled map,
+    undiggable, no door out) once identify() has placed the level; else None."""
+    s = s or ctx.last()
+    if s is None or not s.status.ok:
+        return None
+    v = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) or {}
+    if v.get("level") not in ("wizard1", "wizard2", "wizard3") or v.get("ambiguous"):
+        return None
+    ox, oy = v["ox"], v["oy"]
+    return ox + 1, oy + 1, ox + 26, oy + 11
+
+
+def in_box(box, c) -> bool:
+    return box is not None and c is not None and box[0] <= c[0] <= box[2] and box[1] <= c[1] <= box[3]
+
+
 _CHAIN = {"wizard2": 1, "wizard3": 2}      # dungeon.def CHAINLEVEL: levels right below wizard1
 
 

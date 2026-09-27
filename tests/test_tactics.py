@@ -3653,3 +3653,72 @@ def test_throw_looks_again_at_a_peaceful_target(monkeypatch):
     monkeypatch.setattr(nav, "farlook", lambda x, y: looked.append((x, y)) or "d  dog (tame little dog)")
     combat.throw("d", "l", force=True)
     assert looked == [(14, 5)]                  # where the same monster (id 7) is now
+
+
+def test_covetous_ring_in_the_wizards_tower_uses_its_ladder(monkeypatch):
+    # p1 shift 34 #13: on wizard1 covetous_ring() used the level's up stairs outside the tower; teleport.c rloc()
+    # sends the Wizard to the tower's DOWN ladder while you are inside it (the up ladder on the bottom level)
+    from tactics import ctx, desmap, nav
+    g = _G()
+    g.terrain_seen = {}
+    monkeypatch.setattr(ctx, "game", g)
+    rows = {y: "  |" + "." * 30 + "|" for y in range(3, 20)}
+    rows[4] = "  |" + "." * 2 + "<" + "." * 27 + "|"            # the level's up stairs (3+2=5,4)
+    s = _snap(rows, (36, 15), [])
+    monkeypatch.setattr(desmap, "tower_interior", lambda s=None: (25, 7, 50, 17))
+    monkeypatch.setattr(desmap, "features", lambda s=None, names=None: [
+        {"kind": "ladder", "detail": "down", "x": 30, "y": 11}, {"kind": "stair", "detail": "up", "x": 5, "y": 4}])
+    monkeypatch.setattr(desmap, "layout", lambda s=None, names=None: {})
+    ring = nav.covetous_ring(s)
+    assert ring and all(25 < (x - 30) ** 2 + (y - 11) ** 2 <= 64 for x, y in ring)
+    # outside the tower: the level's up stairs as before
+    s2 = _snap(rows, (10, 5), [])
+    ring2 = nav.covetous_ring(s2)
+    assert ring2 and all(25 < (x - 5) ** 2 + (y - 4) ** 2 <= 64 for x, y in ring2)
+
+
+def test_zap_raises_wand_empty_on_the_first_nothing_happens(monkeypatch):
+    # p1 shift 34 #206: zap('m', 'j') returned normally after "Nothing happens"; the script's
+    # `except WandEmpty:` fallback to the next wand never ran that turn
+    import pytest
+    from nh.parse import State
+    from tactics import combat, ctx
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    base = _snap({5: "          @....."}, (10, 5), [])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to zap? [jm or ?*]")
+    empty = _snap({5: "          @....."}, (10, 5), [])
+    empty.messages = ["Nothing happens."]
+    frames = {"z": obj, "m": empty}
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    with pytest.raises(combat.WandEmpty, match="EMPTY"):
+        combat.zap("m", "j")
+    assert "m" in g.empty_wands
+    cur["s"] = base
+    with pytest.raises(combat.WandEmpty):
+        combat.zap("m", "j")                   # known empty: refused before any key
+
+
+def test_bag_put_leaves_the_invocation_items_out(monkeypatch):
+    # p1 shift 34 #295: bag_put('D', 'w') tried to bag the Book of the Dead ("cannot be confined in such trappings")
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({}, (10, 5), [])
+    monkeypatch.setattr(ctx, "require_command", lambda what: s)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "D", "text": "a bag of holding", "class": "Tools"},
+        {"letter": "w", "text": "an uncursed papyrus spellbook", "class": "Spellbooks"},
+        {"letter": "p", "text": "a candelabrum (7 candles attached)", "class": "Tools"}])
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    assert items.bag_put("D", "wp") == [] and sent == []
+    assert items._INVOCATION.search("a silver bell") and not items._INVOCATION.search("a bell")

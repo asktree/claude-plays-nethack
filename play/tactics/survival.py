@@ -500,19 +500,10 @@ _BLINDF_OK = [r"^You are now wearing ", r"^You can't see any more\.", r"^You wer
               r"^You can see again\.", r"^You still cannot see\.", r"^You can see!",
               # monmove.c: a mind flayer's blast from more than 13 squares off does nothing (p2 shift 32: the
               # scan stopped at its put-on step); the census lists the flayer anyway
-              r"^You sense a faint wave of psychic energy\.$"]
-
-
-def _tower_interior(s):
-    """(x1, y1, x2, y2) screen box inside the Wizard's Tower walls on wizard1-3 (yendor.des: a 28x13 walled
-    map, undiggable, no door out) when desmap has placed the level; else None."""
-    if s is None or not s.status.ok:
-        return None
-    v = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) or {}
-    if v.get("level") not in ("wizard1", "wizard2", "wizard3") or v.get("ambiguous"):
-        return None
-    ox, oy = v["ox"], v["oy"]
-    return ox + 1, oy + 1, ox + 26, oy + 11
+              r"^You sense a faint wave of psychic energy\.$",
+              # Excalibur / an intrinsic's auto-search during the scan's turns (p1 shift 34 #231): the found trap
+              # is recorded anyway (the #terrain re-read), the scan still prints its census
+              r"^You find an? "]
 
 
 def _scan_watch_list(mons: list, s) -> list:
@@ -524,10 +515,11 @@ def _scan_watch_list(mons: list, s) -> list:
     xl = s.status.xl if s.status.ok else None
     hp = s.status.hp if s.status.ok else None
     res = getattr(ctx.game, "intrinsics", ()) or ()
-    box = _tower_interior(s)
+    from .desmap import in_box, tower_interior
+    box = tower_interior(s)
 
     def inside(c):
-        return box is not None and box[0] <= c[0] <= box[2] and box[1] <= c[1] <= box[3]
+        return in_box(box, c)
     return [m for m in mons if m.get("id") is not None and not m.get("tame") and not m.get("peaceful")
             and m.get("desc") and threat_level(m["desc"], xl, hp, res) == "dangerous"
             and (box is None or s.hero is None or inside((m["x"], m["y"])) == inside(s.hero)

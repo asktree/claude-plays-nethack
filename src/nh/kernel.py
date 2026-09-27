@@ -639,6 +639,10 @@ class Kernel:
                                   ". Suspects (B/U/C unknown at the last inventory()): " + ", ".join(sus[:14])
                                   + (f" (+{len(sus) - 14} more)" if len(sus) > 14 else "") if sus else
                                   ". Run inventory(): only the items without a B/U/C shown can have been hit"))
+        if any(m.startswith("Your medallion ") or m.startswith("The medallion crumbles") for m in snap.messages):
+            # end.c done(): you died and the amulet of life saving brought you back at full HP (Con -1)
+            reasons.insert(0, "LIFE SAVED — you DIED and your amulet of life saving is used up (full HP now, Con -1): "
+                              "put on a spare at once if you have one, and get away from what killed you")
         bash = next((m for m in snap.messages if m.startswith("You begin bashing monsters with ")), None)
         if bash:
             # uhitm.c: the first blow with something that isn't a proper weapon (a pick-axe applied to dig,

@@ -72,7 +72,7 @@ def inventory():
         # the open pack (a bag protects them): the obs warns there
         ctx.game.loose_burnables = [it["letter"] for it in items
                                     if it["class"] in ("Scrolls", "Potions", "Spellbooks")
-                                    and not re.search(r"\bBook of the Dead\b", it["text"])]
+                                    and not _INVOCATION.search(it["text"])]   # (the Book never burns)
         ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
         ctx.game.punished = any("(chained to you)" in it["text"] for it in items)   # objnam.c: ball and chain
         # (our rc: !implicit_uncursed — a known B/U/C always shows): a curse spell can only have hit these
@@ -668,6 +668,12 @@ def _boh_risk(bag_text: str, item_text: str) -> str:
     return ""
 
 
+# the Amulet of Yendor, the Candelabrum, the Bell of Opening and the Book of the Dead, named or not (their looks:
+# "candelabrum", "silver bell", "papyrus spellbook"); a bag refuses the real ones
+_INVOCATION = re.compile(r"\b(?:Amulet of Yendor|Candelabrum of Invocation|candelabrum|Bell of Opening|silver bell|"
+                         r"Book of the Dead|papyrus spellbook)\b")
+
+
 def bag_put(bag: str, letters: str, one_move: bool = True, force: bool = False) -> list:
     """Put the inventory items `letters` (e.g. 'mq') into the carried
     container `bag`. one_move=True (default): the container's "put something
@@ -686,6 +692,14 @@ def bag_put(bag: str, letters: str, one_move: bool = True, force: bool = False) 
     missing = [c for c in letters if c not in inv]
     if missing:
         raise LookupError(f"bag_put: no inventory item(s) {missing}")
+    held = [c for c in letters if _INVOCATION.search(inv[c])]
+    if held:
+        # pickup.c in_container(): "cannot be confined in such trappings" (p1 shift 34 #295: the Book of the Dead)
+        print("bag_put: the invocation items stay in your pack — the game refuses to bag them: "
+              + ", ".join(f"{c} ({inv[c]})" for c in held))
+        letters = "".join(c for c in letters if c not in held)
+        if not letters:
+            return []
     risky = [(c, _boh_risk(inv[bag], inv[c])) for c in letters]
     risky = [(c, why) for c, why in risky if why]
     if risky and not force:

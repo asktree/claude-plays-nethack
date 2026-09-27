@@ -389,6 +389,12 @@ def _detect_browse(lines, top: str = "") -> bool:
 _PARANOID = re.compile(r"\(yes\) \[no\]|\[yes/no\]")     # a paranoid_confirmation prompt (typed answer)
 
 
+def _death_page(snap) -> bool:
+    """A lone "You die...--More--" page: nothing to decide there, and an amulet of life saving may speak on the
+    next page ("But wait..."): step on to see (the end-of-game questions still stop everything)."""
+    return snap.state.kind == "gameover" and (snap.state.more_text or "").rstrip().endswith("You die...")
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
@@ -718,36 +724,60 @@ class Game:
     _RAY_KIND = {"sleep ray": "sleep", "death ray": "death", "bolt of fire": "fire", "bolt of cold": "cold",
                  "bolt of lightning": "lightning", "magic missile": "magic missile"}
 
-    def _note_wand_zaps(self, snap: Snap, messages: list[str]) -> None:
+    _DANGER_ORDER = {"death": 0, "sleep": 1, None: 2}
+
+    def _note_wand_zaps(self, snap: Snap, messages: list[str], cur: Snap | None = None) -> None:
         """Remember monsters that zap attack wands at you (per level, by name) and what the wand does: the
         kernel pauses on a SLEEP / DEATH ray you don't resist, the monster list keeps a note on the zapper, and
-        fight()/hunt() warn before closing in on one (p3 shift 13: an ogre king's wand of sleep, twice)."""
-        zap = next((self._ZAP_RE.match(m) for m in messages if self._ZAP_RE.match(m)), None)
-        ray = next((self._RAY_RE.match(m) for m in messages if self._RAY_RE.match(m)), None)
-        striking = any(m in ("The wand hits you!", "The wand misses you.") for m in messages)
-        if zap is None and ray is None and not striking:
-            return
-        kind = None
-        if zap is not None:
-            wm = re.search(r"wand of ([\w ]+)$", zap.group("wand"))
-            kind = wm.group(1) if wm else None
-        if ray is not None:
-            kind = self._RAY_KIND.get(ray.group("ray"), kind)
-        elif striking and kind is None:
-            kind = "striking"
-        name = zap.group("mon") if zap is not None else None
-        if name is not None and (" itself" in name or name.startswith("You")):
+        fight()/hunt() warn before closing in on one (p3 shift 13: an ogre king's wand of sleep, twice).
+        Messages are read in order: a zap owns the ray (or "Boing!") that follows it, not one from before it —
+        p1 shift 34: the hero's own bouncing fire ray and an Olog-hai's magic missile were pinned on a storm
+        giant that zapped striking. Rays answering YOUR zap/spell (the step answered a direction prompt) that
+        no monster's zap precedes are yours."""
+        own = cur is not None and cur.state.kind == "direction"
+        events: list[list] = []            # [name or None, wand text or None, kind or None]
+        pending = None
+        for m in messages:
+            z = self._ZAP_RE.match(m)
+            if z is not None:
+                name = z.group("mon")
+                if " itself" in name or name.startswith("You"):
+                    pending = None
+                    continue
+                wm = re.search(r"wand of ([\w ]+)$", z.group("wand"))
+                pending = [name, z.group("wand"), wm.group(1) if wm else None, False]
+                events.append(pending)
+                continue
+            r = self._RAY_RE.match(m)
+            if r is not None:
+                kind = self._RAY_KIND.get(r.group("ray"))
+                if pending is not None and not pending[3]:
+                    pending[2], pending[3] = kind or pending[2], True
+                elif pending is None and not own:
+                    events.append([None, None, kind, True])     # a ray at you from someone unseen
+                continue
+            if m in ("The wand hits you!", "The wand misses you.", "Boing!"):
+                if pending is not None:
+                    pending[2] = pending[2] or "striking"
+                    pending[3] = True
+                elif not own:
+                    events.append([None, None, "striking", True])   # striking from someone unseen
+        if not events:
             return
         key = self.level_key(snap.status) if snap.status.ok else None
         store = self.wand_users.setdefault(key, {}) if key else {}
-        if name:
-            from .danger import base_name
-            name = base_name(name) or name
-            rec = store.get(name) or {}
-            store[name] = {"kind": kind or rec.get("kind"), "wand": zap.group("wand") if zap else rec.get("wand"),
-                           "turn": snap.status.turn if snap.status.ok else None}
-            kind = store[name]["kind"]
-        snap.wand_note = (f"the {name} zapped {zap.group('wand') if zap else 'a wand'}" if name else
+        from .danger import base_name
+        notes = []
+        for name, wand, kind, _ray in events:
+            if name:
+                name = base_name(name) or name
+                rec = store.get(name) or {}
+                store[name] = {"kind": kind or rec.get("kind"), "wand": wand or rec.get("wand"),
+                               "turn": snap.status.turn if snap.status.ok else None}
+                kind = store[name]["kind"]
+            notes.append((self._DANGER_ORDER.get(kind, 3), name, wand, kind))
+        _o, name, wand, kind = min(notes, key=lambda n: n[0])      # the most dangerous one this step
+        snap.wand_note = (f"the {name} zapped {wand or 'a wand'}" if name else
                           "a wand ray came at you") + (f" — a WAND OF {kind.upper()}" if kind else
                                                        " (what it does isn't known yet)")
         snap.wand_kind = kind
@@ -1251,7 +1281,10 @@ class Game:
                         "with levitation/water walking you're sure of"
                         + (" (Plane of Water: levitation and water walking don't work here — only magical "
                            "breathing makes water safe, and your things still get wet)."
-                           if snap.status.ldesc == "Water" else "."))
+                           if snap.status.ldesc == "Water" else ".")
+                        + (" You are BLIND: that '}' is only REMEMBERED — if you froze it ('You hear a crackling "
+                           "sound.') it may be ice now; take the blindfold off and look before forcing a step "
+                           "(p1 shift 34)." if "Blind" in conds else ""))
             if unit in (b"t", b"f") and snap.hero is not None and snap.status.ok \
                     and self.shop_at(snap.hero, snap.status):
                 raise PermissionError(
@@ -1547,7 +1580,7 @@ class Game:
                 snap = self.send_bytes(unit)
                 sent_any = True
                 pages = 0
-                while auto_more and snap.state.kind in ("more", "text") and pages < max_more:
+                while auto_more and (snap.state.kind in ("more", "text") or _death_page(snap)) and pages < max_more:
                     txt = snap.state.more_text
                     if snap.state.kind == "more":
                         messages.extend(_split_top(txt))
@@ -1642,7 +1675,7 @@ class Game:
                         dx, dy = self._MOVE[mv]
                         self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
                     self._note_wield(messages)
-                    self._note_wand_zaps(snap, messages)
+                    self._note_wand_zaps(snap, messages, cur)
                     self._note_held(cur, snap, messages)
                     self._note_monster_hole(cur, snap, messages)
                     self._note_used_up(cur, data)

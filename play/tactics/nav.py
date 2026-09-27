@@ -832,16 +832,30 @@ def escape_trap(max_tries: int = 12):
 def covetous_ring(s=None) -> list:
     """Where to fight a wounded covetous monster (Vlad, the Wizard, a quest nemesis, an arch-lich...): the
     walkable squares 6-8 squares from the stairs it heals on (wizard.c choose_stairs(): the UP stairs; the
-    DOWN ladder in Vlad's Tower, which is built upward). There it can't heal (it does while you are more
-    than 8 squares off: distu > BOLT_LIM^2) and can't leave by those stairs (muse.c: only if it thinks you
-    are within 5). Nearest to you first; [] when those stairs aren't known (or in the Wizard's own tower,
-    where he teleports at random instead)."""
+    DOWN ladder in Vlad's Tower, which is built upward; for the Wizard while you are inside his tower, the
+    tower's down ladder — the up ladder on its bottom level: teleport.c rloc()). There it can't heal (it does
+    while you are more than 8 squares off: distu > BOLT_LIM^2) and can't leave by those stairs (muse.c: only
+    if it thinks you are within 5). Nearest to you first; [] when those stairs aren't known."""
     from .mapview import in_map, is_walkable
     s = s or ctx.last()
     key = ctx.game.level_key(s.status) if s.status.ok else ""
     ch = ">" if key.startswith("Vlad's Tower") else "<"
     stairs = known_cells(ch, s)
     lay: dict = {}
+    try:
+        from . import desmap
+        box = desmap.tower_interior(s)
+        if box is not None and desmap.in_box(box, s.hero):
+            # teleport.c rloc(): the Wizard teleporting while YOU are in his tower goes to its DOWN ladder (the up
+            # ladder on the bottom level), not the level's up stairs outside (p1 shift 34 #13)
+            lad = {ft["detail"]: (ft["x"], ft["y"]) for ft in desmap.features(s) if ft["kind"] == "ladder"}
+            heal = lad.get("down") or lad.get("up")
+            if heal is not None:
+                print(f"covetous_ring: inside the Wizard's Tower — the Wizard heals at its ladder {heal}")
+                stairs = [heal]
+                lay = desmap.layout(s)
+    except Exception:  # noqa: BLE001  (no fixed map: the stairs rule below)
+        pass
     if not stairs:
         # a dark special level: its fixed map knows the stairs and the floor (p2 shift 31: Vlad's top level)
         c = _desmap_stairs(s, ch)

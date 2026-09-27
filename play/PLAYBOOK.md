@@ -269,7 +269,12 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
       mon.c wake_nearto() leaves a unique's "wait for you" strategy on (monmove.c clears it only on sight or
       damage; so do Vlad and the quest nemeses). p1 shift 33 blew a whistle and he stayed put for 30+ turns.
       Open a sightline instead (zap digging across the moat: it digs one wall square of the maze level) and
-      fight where few can reach you.
+      fight where few can reach you. Dig it STRAIGHT, in his row or column: vision.c doesn't see through a
+      diagonal gap between two wall corners more than one square deep (p1 shift 34 dug (39,12) diagonally to
+      him at (40,11) and waited 37 turns for nothing; a ray north through (40,13) woke him at once).
+    - Inside his tower he heals at the tower's LADDER (teleport.c rloc(): the down ladder; the up ladder on the
+      bottom level), not at the level's up stairs: covetous_ring() knows. His death drops the Book where he
+      stood: over the moat it sinks — freeze that square and the invocation items come up onto the ice.
     - Kill him and take the Book. He comes back later ("double trouble", curses, summoned nasties); magic
       resistance stops his touch of death.
 - **Invocation** (checked in a wizard-mode run): walk the bottom level until "You feel a strange vibration

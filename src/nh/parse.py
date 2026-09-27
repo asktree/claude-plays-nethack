@@ -235,6 +235,10 @@ GETPOS_HINTS = ("Where do you want to travel", "Pick an object", "(For instructi
                 "Pick a monster", "Where do you want to", "Select an object",
                 "Pick a location")
 
+# end.c done(): an amulet of life saving (or wizard mode's "Die?" -> no) turns "You die..." around on the same or the
+# next page — that is not the end (p1 shift 34: two life savings read as GAME OVER)
+LIFESAVED_HINTS = ("But wait...", "medallion begins to glow", "medallion feels warm", "OK, so you don't die",
+                   "OK, so you don't choke")
 GAMEOVER_HINTS = ("Do you want your possessions identified?", "DYWYPI", "You die...",
                   "REST IN PEACE", "Goodbye ", "You are dead", "Farewell ",
                   "Do you want to see your attributes", "Do you want an account of creatures vanquished",
@@ -306,7 +310,8 @@ def classify(scr: Screen) -> State:
             menu = _parse_window(scr, pos, kind="text")
             txt = "\n".join(i.text for i in menu.items)
             st = State("text", more_text=txt, menu=menu)
-        if "REST IN PEACE" in full or any(h in txt for h in GAMEOVER_HINTS):
+        if ("REST IN PEACE" in full or any(h in txt for h in GAMEOVER_HINTS)) \
+                and not any(h in txt for h in LIFESAVED_HINTS):
             if st.kind == "more":
                 st.kind = "gameover"
                 st.prompt = txt

@@ -1322,3 +1322,41 @@ def test_bare_y_or_n_at_a_paranoid_prompt_types_the_word():
     with pytest.raises(PermissionError, match="continue eating"):
         g.step("y")
     assert sent == []
+
+
+def test_life_saving_is_not_game_over():
+    # p1 shift 34 #146/#196: "You die...  But wait...  Your medallion begins to glow!--More--" paused as GAME OVER
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify, parse_status
+    base = {5: " " * 10 + "@", 22: STATUS1, 23: "Dlvl:37 $:0 HP:0(165) Pw:1(1) AC:-8 Xp:15/1 T:27383"}
+
+    def page(text, hp="0"):
+        rows = dict(base)
+        rows[0] = text
+        rows[23] = rows[23].replace("HP:0(", f"HP:{hp}(")
+        cur = (len(text), 0) if text.endswith("--More--") else (10, 5)
+        scr = mk(rows, cursor=cur)
+        return Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    saved = page("You die...  But wait...  Your medallion begins to glow!--More--")
+    assert saved.state.kind == "more"
+    lone = page("You die...--More--")
+    assert lone.state.kind == "gameover"
+    # a lone death page is stepped past (nothing to decide there): life saving speaks on the next page
+    g = Game(term=None, timing=Timing.local())
+    g.last = page("", hp="12")
+    g.last = Snap(screen=mk({**base, 23: base[23].replace("HP:0(", "HP:12(")}, cursor=(10, 5)),
+                  state=classify(mk(base, cursor=(10, 5))), status=parse_status(mk(base, cursor=(10, 5))))
+    pages = iter([lone, page("But wait...  Your medallion begins to glow!--More--"),
+                  page("You feel much better!  The medallion crumbles to dust!--More--", hp="165"),
+                  page("", hp="165")])
+    g.send_bytes = lambda data: next(pages)
+    s = g.step("s")
+    assert s.state.kind == "command" and "Your medallion begins to glow!" in s.messages
+    # a real death still stops at the end-of-game question
+    dywypi = page("Do you want your possessions identified? [ynq] (n) ")
+    dywypi.screen.cursor = (len("Do you want your possessions identified? [ynq] (n) "), 0)
+    pages = iter([lone, Snap(screen=dywypi.screen, state=classify(dywypi.screen), status=dywypi.status)])
+    g.last = page("", hp="12")
+    g.send_bytes = lambda data: next(pages)
+    s = g.step("s")
+    assert s.state.kind == "gameover"

@@ -1242,3 +1242,28 @@ def test_temple_entry_and_far_psychic_wave_pause_once_per_level():
             k._check_events(b, a)
         assert len(reasons) == 1, (msgs, reasons)
         reasons.clear()
+
+
+def test_wand_zaps_are_pinned_on_the_right_monster():
+    # p1 shift 34 #142/#149: the hero's own bouncing fire ray made the storm giant (it zapped STRIKING) a fire
+    # zapper, and an Olog-hai's magic missile was pinned on the storm giant too
+    from nh.game import Game, Timing
+    from nh.parse import State
+    g = Game(term=None, timing=Timing.local())
+    before = snap({}, 40)
+    before.state = State("direction", prompt="In what direction?")      # the hero answered a zap
+    s = snap({}, 41)
+    g._note_wand_zaps(s, ["The bolt of fire hits the green dragon!", "The bolt of fire bounces!",
+                          "The bolt of fire hits you!", "But it reflects from your shield!",
+                          "The storm giant zaps a wand of striking!", "Boing!"], before)
+    key = g.level_key(s.status)
+    assert g.wand_users[key]["storm giant"]["kind"] == "striking" and s.wand_kind == "striking"
+    s2 = snap({}, 42)
+    g._note_wand_zaps(s2, ["The storm giant zaps a wand of striking!", "The wand misses you.",
+                           "The Olog-hai zaps a wand of magic missile!", "The magic missile hits you!"], snap({}, 41))
+    assert g.wand_users[key]["storm giant"]["kind"] == "striking"
+    assert g.wand_users[key]["Olog-hai"]["kind"] == "magic missile"
+    # a sleep ray from an unseen zapper (no zap line) while you didn't zap: still named
+    s3 = snap({}, 43)
+    g._note_wand_zaps(s3, ["You hear a nearby zap.", "The sleep ray hits you!"], snap({}, 42))
+    assert s3.wand_kind == "sleep" and s3.wand_note.startswith("a wand ray came at you")
