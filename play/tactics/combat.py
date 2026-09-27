@@ -21,7 +21,9 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            # weapon-wielding monsters announce each swing (mhitu.c); leg attacks (xan)
            r"^The .+ (?:swings|thrusts) (?:his|her|its) ", r" pricks your (?:left |right )?leg!$",
            # ranged/weapon flavour (the damage, if any, is caught by the HP checks); thefts still pause
-           r"^The .+ wields (?:an? |the |\d+ )", r"^The .+ (?:throws|shoots|fires) ", r"^The .+ breathes ",
+           # (never "wields a cockatrice corpse": a gloved monster hitting you with one stones you)
+           r"^The .+ wields (?:an? |the |\d+ )(?!.*\b(?:cockatrice|chickatrice) corpse)",
+           r"^The .+ (?:throws|shoots|fires) ", r"^The .+ breathes ",
            r"^You are hit by ", r"^The .+ misses you[.!]$",
            r"^(?:The )?.+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$",   # also "Jay's ghost touches you!"
            # an engulfer's routine attack from inside (mhitu.c gulpmu()); the damage is the HP check's job
@@ -47,7 +49,15 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^The (?:\d+(?:st|nd|rd|th) )?[\w' -]+ (?:hits|misses) (?!you\b)(?:the |an? |it[.!]|[A-Z])",
            r" hurls (?:an? |the |\d+ )", r"^The [\w' -]+ crashes on your \w+ and breaks into shards\.",
            r"^The [\w' -]+ evaporates?\.$", r"^Crash!$", r" drinks (?:an? |the )[\w' -]+!$",
-           r"^The [\w' -]+ misses[.!]$", r"^You are almost hit by "]
+           r"^The [\w' -]+ misses[.!]$", r"^You are almost hit by ",
+           # battles with armed crowds (the Castle): polearm thrusts from 2 squares (mthrowu.c thrwmu),
+           # missiles named with an article, monsters dressing, cursed weapons, revivals, potions breaking
+           # on others, create monster (the newcomers pause by themselves), rays that bounce or miss you
+           r"^The .+ thrusts (?:an? |the )", r"^(?:An?|The) [\w' -]+ misses you[.!]$", r"^The .+ puts on ",
+           r"^The .+ (?:is|are) welded to (?:his|her|its) hands?!$", r" rises from the dead!$",
+           r"^The [\w' -]+ crashes on .+ and breaks into shards\.$", r"^The .+ reads a scroll of create monster!$",
+           r"^The (?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|"
+           r"fireball|cone of cold) (?:bounces|whizzes by you)!$"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
@@ -61,6 +71,17 @@ _warned: set = set()
 _warned_expl: set = set()
 
 
+def _ench_safe() -> bool:
+    """zap.c drain_item(): a disenchanter's passive can't take enchantment from a weapon that defends
+    against level drain (Excalibur, Stormbringer, the Staff of Aesculapius) or has none to lose (+0 or
+    less); other artifacts resist it 9 times in 10."""
+    w = getattr(ctx.game, "wielded", None) or ""
+    if re.search(r"\b(?:Excalibur|Stormbringer|Staff of Aesculapius)\b", w):
+        return True
+    m = re.search(r"(?:^|\s)([+-]\d+) ", w)
+    return m is not None and int(m.group(1)) <= 0
+
+
 def _passive_refusal(desc: str, st) -> str:
     """Why fight() won't melee this monster without allow_passive (its
     passive paralyses/stones/slimes/disenchants, or can cost too much HP),
@@ -72,6 +93,8 @@ def _passive_refusal(desc: str, st) -> str:
     stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
     if "AD_STON" in stops and getattr(ctx.game, "wielded", None):
         stops.remove("AD_STON")
+    if "AD_ENCH" in stops and _ench_safe():
+        stops.remove("AD_ENCH")
     if stops:
         return "; ".join(txt for _dt, txt in pas)
     pdmg, _pw = passive_max(desc, resists=getattr(ctx.game, "intrinsics", ()))
@@ -145,6 +168,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
     s = ctx.last()
     locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
     engulf_warned = False
+    seen_notes: set = set()
     t_first = s.status.turn if s.status.ok and s.status.turn is not None else 0
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
@@ -169,6 +193,29 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                       "with do('F'+dir, force=True) only a monster that is attacking you, or retreat.")
             return ctx.last()
         targets = s.adjacent_hostiles()
+        dizzy = {"Stun", "Conf"} & set(st.conditions)
+        if dizzy and targets:
+            # hack.c domove(): stunned, every blow goes in a random open direction (confused, 1 in 5), and
+            # NetHack doesn't ask "Really attack?" then — never with a peaceful, your pet or a floating eye near
+            near = [m for m in s.monsters or [] if m.get("dist") == 1 and not m.get("statue")
+                    and (m.get("peaceful") or m.get("tame") or m.get("pet")
+                         or base_name(m.get("desc") or "") in ("floating eye", "gas spore", "green slime"))]
+            if near and not force:
+                ctx.pause("fight: you are " + " and ".join({"Stun": "Stunned", "Conf": "Confused"}[c]
+                                                          for c in sorted(dizzy)) + " — blows go astray "
+                          + ("in a random direction" if "Stun" in dizzy else "1 time in 5")
+                          + " and NetHack attacks WITHOUT asking: "
+                          + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in near)
+                          + " next to you. Wait it out (do('s')) or step away once it wears off; force=True "
+                            "swings anyway")
+                return ctx.last()
+            if "Stun" in dizzy and "stun" not in seen_notes:
+                seen_notes.add("stun")
+                hx, hy = s.hero
+                n = sum(1 for dx in (-1, 0, 1) for dy in (-1, 0, 1) if (dx or dy)
+                        and s.screen.at(hx + dx, hy + dy) not in " -|")
+                print(f"fight: Stunned — each blow goes in a random open direction (about 1 in {max(1, n)} "
+                      "lands on the target; the others hit thin air); no peaceful/pet is next to you, so swinging")
         if x is None:
             from nh.monitor import _stationary
             sessile = [m for m in targets if _stationary(m.get("desc") or "")]
@@ -191,8 +238,15 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 killed = re.compile(r"^You (?:kill|destroy) (?:it\b|(?:the |an? |poor )?" + re.escape(locked_on) + ")")
                 if not any(re.search(r"^You (?:kill|destroy) ", m) for m in seen) \
                         and not any(killed.search(m) for m in recent):
-                    print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed (it teleported, fled out of "
-                          "view or hid): look around (a covetous one teleports to heal and comes back)")
+                    moved = [m for m in s.monsters or [] if base_name(m.get("desc") or "") == locked_on
+                             and not m.get("tame") and not m.get("statue")]
+                    if moved:
+                        m2 = min(moved, key=lambda m: m.get("dist") or 99)
+                        print(f"fight: the {locked_on} stepped away from ({x},{y}) to ({m2['x']},{m2['y']}) "
+                              f"(d={m2.get('dist')}) — NOT killed; hunt(({m2['x']}, {m2['y']})) goes after it")
+                    else:
+                        print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed (it teleported, fled out "
+                              "of view or hid): look around (a covetous one teleports to heal and comes back)")
                 return s
         if not targets:
             if "Blind" in st.conditions and any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
@@ -234,7 +288,9 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         pdmg, pwhat = passive_max(desc, resists=getattr(ctx.game, "intrinsics", ())) if desc else (0, "")
         if pas and desc not in _warned:
             _warned.add(desc)
-            print(f"fight: {desc} — passive: " + "; ".join(txt for _dt, txt in pas)
+            print(f"fight: {desc} — passive: " + "; ".join(
+                txt + (" — not your wielded weapon: it resists (drain resistance) or has no enchantment to "
+                       "lose" if dt == "AD_ENCH" and _ench_safe() else "") for dt, txt in pas)
                   + (f" | worst case {pdmg} HP per hit ({pwhat})" if pdmg else ""))
         expl = explodes_at_you(desc) if desc else ""
         if expl and desc not in _warned_expl:
@@ -256,6 +312,8 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
         if "AD_STON" in stops and _wielding():
             stops.remove("AD_STON")     # uhitm.c: only a bare-handed (no weapon, no gloves) hit petrifies you
+        if "AD_ENCH" in stops and _ench_safe():
+            stops.remove("AD_ENCH")     # drain-resistant (Excalibur) or unenchanted weapon: nothing to lose
         if not allow_passive and stops:
             ctx.pause(f"fight: not meleeing the {desc}: " + "; ".join(txt for _dt, txt in pas)
                       + ". Use ranged attacks or leave it (fight(..., allow_passive=True) to override).")
@@ -313,7 +371,7 @@ def fight_trivial(s=None):
 
 
 def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6,
-                      ignore=(), allow_passive: bool = False) -> dict:
+                      ignore=(), allow_passive: bool = False, hold: int = 0, unseen: bool = False) -> dict:
     """Hold your square and fight a crowd (a zoo from its doorway, a pack in a
     corridor): melee whatever hostile comes adjacent (fight(): passive checks,
     worst-case HP rule), wait a turn while hostiles within `radius` aren't
@@ -327,7 +385,12 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     it or leave it); or "max_turns". ignore=('killer bee',): newcomers of
     these species never pause (a swarm you decided to fight); an outer
     monster_filter() block still applies too. allow_passive=True is passed
-    to fight() (a cockatrice at a doorway, with your weapon wielded)."""
+    to fight() (a cockatrice at a doorway, with your weapon wielded).
+    hold=N: keep the square for N turns even while nothing is within the
+    radius (search 's' each turn; whatever comes next to you is fought) —
+    holding a chokepoint for a garrison that trickles in; reason "held".
+    unseen=True: also swing (F) at an adjacent remembered unseen monster 'I'
+    (invisible attackers; never where a peaceful may be)."""
     import contextlib
     from nh.danger import base_name, threat_level
     from nh.monitor import killed_names
@@ -352,7 +415,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     guard = ctx.monster_filter(dangerous) if ctx.monster_filter else contextlib.nullcontext()
     rules = getattr(ctx, "hp_rules", None)
     with guard, (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
-        for _ in range(max_turns):
+        for _ in range(max(max_turns, hold)):
             s = ctx.last()
             if s.state.kind != "command" or s.hero is None:
                 return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
@@ -368,8 +431,22 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 if s.adjacent_hostiles() and s.status.ok and s.status.hp < stop_hp * max(1, s.status.hpmax):
                     return out(f"HP {s.status.hp}/{s.status.hpmax} below {stop_hp:.0%} with hostiles adjacent")
                 continue
+            if unseen:
+                ivs = [m for m in s.monsters or [] if m.get("unseen") and m.get("dist") == 1]
+                key = _key_toward(s.hero, ivs[0]) if ivs else None
+                if key:
+                    s = ctx.do("F" + key, ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
+                                                        r"^Wait!  There's (?:something|\w+) there"])
+                    kills += killed_names(s.messages)
+                    continue
             near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")]
+            if not near and hold and (s.status.turn or t0) - t0 < hold:
+                s = ctx.do("s", ok=ROUTINE)          # keep the square: wait for the next one to come
+                kills += killed_names(s.messages)
+                continue
             if not near:
+                if hold:
+                    return out("held")
                 beyond = [m for m in s.hostiles() if not _stationary(m.get("desc") or "")]
                 recent = [g for g in getattr(s, "gone", None) or [] if (g.get("ago") or 0) <= 2]
                 return out("clear" + (" (beyond the radius: " + ", ".join(

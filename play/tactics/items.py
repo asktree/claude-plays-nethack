@@ -860,8 +860,18 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
     through (you fall to the level below) or the passage opens; then wields
     your previous weapon again. Can't dig on stairs, altars, fountains, in
     Sokoban or through undiggable walls (the messages say so). Returns the
-    messages. A monster interrupting pauses as usual; call dig() again."""
+    messages. "You stop digging." (something came into view) with nothing
+    but trivial monsters around just digs on; otherwise it wields your
+    weapon again first and then pauses (call dig() again to go on)."""
     ctx.require_command("dig()")
+    import contextlib
+    from .combat import auto_fightable
+    guard = ctx.monster_filter(lambda m: False) if ctx.monster_filter else contextlib.nullcontext()
+    with guard:            # newcomers are judged below, after the weapon is back in hand
+        return _dig(direction, tool, max_applies, auto_fightable)
+
+
+def _dig(direction, tool, max_applies, auto_fightable):
     inv = inventory()
     if tool is None:
         t = next((i for i in inv if re.search(r"pick-axe|mattock", i["text"])), None)
@@ -870,6 +880,7 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
         tool = t["letter"]
     weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
     ldesc0 = ctx.last().status.ldesc
+    ids0 = {m.get("id") for m in ctx.last().hostiles(7) if m.get("id") is not None}   # already known when you began
     msgs: list = []
     for _ in range(max_applies):
         s = ctx.do("a", quiet=True)
@@ -887,11 +898,24 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
             break
         # falling through the hole is the point: no level-change pause before the re-wield below
         # (new monsters there still pause)
-        s = ctx.do(direction, ok=_DIG_OK, expect=("level",) if direction == ">" else ())
+        s = ctx.do(direction, ok=_DIG_OK + [r"^You stop digging\.$"], expect=("level",) if direction == ">" else ())
         msgs += s.messages
         text = " ".join(s.messages)
         if s.status.ok and s.status.ldesc != ldesc0:
             break                                   # fell through the hole
+        threats = ([m for m in s.hostiles(7) if not auto_fightable(m, s)
+                    and (m.get("id") not in ids0 or m.get("dist") == 1)] if s.state.kind == "command" else [])
+        if threats or (s.state.kind == "command" and s.adjacent_hostiles()):
+            if weapon:
+                s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
+                msgs += s.messages
+            who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                            for m in (threats or s.adjacent_hostiles())[:3])
+            ctx.pause(f"dig(): stopped — {who} in view; " + (f"your weapon ({weapon}) is wielded again. "
+                                                             if weapon else "") + "dig() again to go on")
+            return msgs
+        if "You stop digging" in text:
+            continue                                # something came and went: dig on
         if re.search(r"dig a hole through|make an opening|succeed in cutting away|too hard to dig|"
                      r"cannot|can't|here is too hard|The .* here is too hard|boulder falls apart|"
                      r"statue shatters", text):

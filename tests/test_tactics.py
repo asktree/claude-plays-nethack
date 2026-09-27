@@ -71,6 +71,15 @@ def test_dead_ends():
     s = _snap(rows, (10, 5), [])
     # (18,5) is the end of the corridor going NE, (15,8) the end of the branch S
     assert sorted(dead_ends(s)) == [(15, 8), (18, 5)]
+    # standing on a corridor end: your own square ('@') counts too
+    rows[8] = "               @"
+    s = _snap(rows, (15, 8), [])
+    assert sorted(dead_ends(s)) == [(15, 8), (18, 5)]
+    # ...but not in a room
+    rows[8] = "               #"
+    rows[5] = "        |@..|     #"
+    s = _snap(rows, (9, 5), [])
+    assert sorted(dead_ends(s)) == [(15, 8), (18, 5)]
 
 
 def test_squeeze_steps():
@@ -1465,3 +1474,89 @@ def test_hunt_steps_around_a_peaceful_in_the_way(monkeypatch):
     except RuntimeError:
         pass
     assert sent and sent[0] in ("u", "n")        # around the gnome lord (diagonally), not into it
+
+
+def test_travel_detours_around_eel_water(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    # a moat along row 7; the eel (visible) at (14,7); two ways east: along the moat (row 6) or row 4
+    rows = {3: "        ...........",
+            4: "        ...........",
+            5: "        .---------.",
+            6: "        ...........",
+            7: "        }}}}}}}}}}}"}
+    colors = {(x, 7): 4 for x in range(8, 19)}
+    eel = {"x": 14, "y": 7, "ch": ";", "desc": "giant eel", "dist": 5}
+    s = _snap(rows, (8, 6), [eel], colors=colors)
+    z = nav.eel_zone(s)
+    assert (14, 6) in z and (13, 6) in z and (15, 6) in z and (11, 6) not in z
+    walked = {}
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(nav, "walk_path", lambda path, ok=None: walked.setdefault("p", path) and s)
+    nav._travel(18, 6, 40, None, 3, None, False)
+    assert walked["p"][-1] == (18, 6) and not any(c in z for c in walked["p"][:-1])
+    # no other way (the wall row is closed): refused while the eel is in view
+    rows[5] = "        -----------"
+    s2 = _snap(rows, (8, 6), [eel], colors=colors)
+    monkeypatch.setattr(ctx, "last", lambda: s2)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s2)
+    with pytest.raises(nav.NavError, match="drowns you"):
+        nav._travel(18, 6, 40, None, 3, None, False)
+    assert sent == []
+    # lava is no eel water
+    s3 = _snap(rows, (8, 6), [eel], colors={(x, 7): 1 for x in range(8, 19)})
+    assert set(nav.eel_zone(s3)) <= {(13, 6), (14, 6), (15, 6)}
+
+
+def test_disenchanter_passive_vs_excalibur_and_battle_noise(monkeypatch):
+    import re
+    from tactics import combat, ctx
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    st = _snap({}, (10, 5), []).status
+    st.hp, st.hpmax = 100, 100
+    g.wielded = "a - a blessed rustproof +6 Excalibur (weapon in hand)"
+    assert combat._ench_safe() and combat._passive_refusal("disenchanter", st) == ""
+    g.wielded = "a - a +3 long sword (weapon in hand)"
+    assert not combat._ench_safe() and "DISENCHANTS" in combat._passive_refusal("disenchanter", st)
+    g.wielded = "a - a +0 long sword (weapon in hand)"
+    assert combat._ench_safe()
+
+    def routine(m):
+        return any(re.search(p, m) for p in combat.ROUTINE)
+    for m in ("The soldier thrusts a halberd.", "A halberd misses you.", "The lieutenant puts on a helmet.",
+              "The soldier's short sword is welded to her hand!", "The ice troll rises from the dead!",
+              "The sleep ray bounces!", "The soldier wields a dagger!",
+              "The vial crashes on the soldier's head and breaks into shards."):
+        assert routine(m), m
+    assert not routine("The soldier wields a cockatrice corpse!")
+
+
+def test_fight_until_clear_holds_the_square(monkeypatch):
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    turn = {"t": 100}
+
+    def snap_now():
+        s = _snap({5: "        ....."}, (10, 5), [])
+        s.status.turn, s.status.hp, s.status.hpmax = turn["t"], 50, 50
+        return s
+    cur = {"s": snap_now()}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        turn["t"] += 1
+        cur["s"] = snap_now()
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    r = combat.fight_until_clear(hold=5)
+    assert r["reason"] == "held" and sent == ["s"] * 5
+    sent.clear()
+    assert combat.fight_until_clear()["reason"].startswith("clear") and sent == []

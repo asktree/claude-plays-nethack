@@ -93,9 +93,12 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You were wearing (?!.*\bcursed\b)", r"^You are now wearing (?!.*\bcursed\b)",
     r"^You finish (?:taking off|your dressing maneuver)",
     r"^You can see again\.$",           # blindness over (the status line shows it)
+    r"^You feel (?:a bit steadier|less wobbly|less confused|less trippy) now\.$",   # stun/confusion over
+    r"^You stop searching\.$",          # a counted search cut short (its cause pauses by itself)
     # a monster stumbling into a trap (trap.c mintrap(): the trap is already on the map or now is)
     r"^(?!You )(?:The |An? |[A-Z][\w']*'s )?[\w' -]+ (?:falls into a pit|is caught in a bear trap|"
     r"is caught in a web|steps on a squeaky board|is hit by a (?:little dart|arrow))!$",
+    r"^A gush of water hits (?!you\b|your\b)",        # a monster on a rust trap (yours still pauses)
     # a monster's spell that fumbled or wasn't aimed at you (mcastu.c cursetxt(), castmu() fumble)
     r"^.+ points (?:at you, then curses|all around, then curses|and curses in your general direction)\.$",
     r"^You hear a mumbled curse\.$", r"^The air crackles around .+\.$",
@@ -128,6 +131,11 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
 )]
 
+
+_RAYS = (r"(?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|"
+         r"fireball|cone of cold)")
+_REFLECTED = re.compile(rf"^The {_RAYS} hits you!$|^The .+ zaps an? wand of (?:sleep|fire|cold|lightning|"
+                        rf"magic missile|death)!$|^But it reflects from your ")
 
 # a poison gas cloud (region.c inside_gas_cloud; a green dragon's breath leaves them, so do stinking cloud
 # scrolls and Gehennom's fumaroles): with poison resistance only a 1-turn blindness and a cough each turn
@@ -360,10 +368,14 @@ class Kernel:
         in_cloud = any(_CLOUD.search(m) for m in snap.messages)
         cloud_key = (snap.status.ldesc if snap.status.ok else "", "cloud")
         cloud_news = in_cloud and cloud_key not in self._heard
+        # a ray you reflected (zap.c buzz(): "The sleep ray hits you!" + "But it reflects from your
+        # shield!"): the hit and the monster's zap before it are news only without the reflection
+        reflected = any(m.startswith("But it reflects from your ") for m in snap.messages)
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
                 and not any(p.search(m) for p in extra)
                 and not any(p.search(m) for p in DEFAULT_BENIGN)
+                and not (reflected and _REFLECTED.search(m))
                 and not self._heard_before(m, snap)]
         if msgs and not quiet:
             reasons.append("message")
@@ -378,6 +390,8 @@ class Kernel:
         lt = getattr(self.game, "last_theft", None)
         if lt and lt.get("msg") in snap.messages and getattr(snap, "theft_note", ""):
             reasons.insert(0, "THEFT — " + snap.theft_note)
+        if getattr(snap, "niche_note", ""):
+            reasons.insert(0, "TRAPPED CLOSET — " + snap.niche_note)
         keys = getattr(self, "_last_keys", b"") or b""
         if len(keys) == 1 and chr(keys[0]) in "hjklyubn" and before is not None and before.state.kind == "command" \
                 and any(re.match(r"^You (?:hit|miss|smite|kill|destroy) ", m) for m in snap.messages):
@@ -402,6 +416,9 @@ class Kernel:
                                  "at Int 3 the next one kills you")
                               + " (life saving doesn't help). Kill it at range, Elbereth, or get away NOW; a worn "
                                 "helmet stops 7 in 8")
+        if any(re.match(r"^Suddenly, the .*guard disappears\.", m) for m in snap.messages):
+            reasons.insert(0, "VAULT GUARD gone — his temporary corridor turns back into rock behind you as you "
+                              "walk: keep walking out to the real corridor/room now (don't wait or go back in it)")
         if any(m.startswith("A mysterious force momentarily surrounds you") for m in snap.messages):
             reasons.insert(0, "MYSTERIOUS FORCE (you carry the Amulet): the climb failed — you were moved on this "
                               "level or sent down a few; climb again (1 in 4 climbs deep in the dungeon)")

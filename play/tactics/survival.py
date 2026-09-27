@@ -8,7 +8,9 @@ from . import ctx
 
 
 def search(n: int = 10):
-    """Search n turns in place (count-prefixed 's'; interrupted by monsters).
+    """Search n times in place (count-prefixed 's'; interrupted by monsters).
+    n counts your actions, not game turns: while Fast/Very fast (speed boots)
+    15 searches take only ~9-11 turns of the T: counter.
     A monster fleeing from your Elbereth ("turns to flee") doesn't pause."""
     ctx.require_command("search()")
     return _counted(f"{int(n)}s", int(n), [r"turns to flee"])

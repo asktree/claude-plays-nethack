@@ -221,7 +221,8 @@ def waypoint(s, target, cap):
 
 
 def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
-           fight_through=False, near_exploders=False, water_plane=False, medusa_ok=False, quest_ok=False):
+           fight_through=False, near_exploders=False, water_plane=False, medusa_ok=False, quest_ok=False,
+           near_water=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -253,7 +254,11 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     is always allowed); it refuses to end next to the quest leader unless you
     are ready (XL14+, piously aligned: piety(); quest_ok=True overrides). A
     trap square as target: it stops next to it (step onto it yourself). It
-    stops (NavError) if the level changes under it."""
+    stops (NavError) if the level changes under it.
+    Water with a drowning monster (eel_zone(): a giant/electric eel or kraken
+    seen there lately): a route passing next to that water walks a detour
+    around it; with no detour it refuses while the eel is in view next to the
+    way, else warns and goes on (near_water=True skips all that)."""
     import contextlib
     ctx.require_command("travel()")
     s0 = ctx.last()
@@ -284,7 +289,7 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
         x, y = tr
     with guard:
         return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget,
-                       fight_through, near_exploders)
+                       fight_through, near_exploders, near_water)
 
 
 def _medusa_check(s, target, who: str, ok: bool) -> None:
@@ -381,6 +386,48 @@ def engulfed_check(s, who: str):
                        "(or wait to be expelled)")
 
 
+DROWNERS = ("giant eel", "electric eel", "kraken")
+EEL_MEMORY = 80      # turns an out-of-view eel keeps its stretch of water dangerous
+
+
+def eel_zone(s=None) -> dict:
+    """Land squares next to water where a drowning monster (giant/electric
+    eel, kraken) is now or was seen lately: {(x, y): "why"}. Its wrap attack
+    from the water drowns you on its next hit (levitation doesn't help), and
+    it hides under the surface, so the water around its last sighting stays
+    dangerous a while (reach grows ~1 square per 2 turns since, up to 6)."""
+    from nh.danger import base_name
+    s = s or ctx.last()
+    turn = s.status.turn if s.status.ok else None
+    seen = []
+    for m in s.monsters or []:
+        bn = base_name(m.get("desc") or "")
+        if not m.get("tame") and not m.get("peaceful") and bn in DROWNERS:
+            seen.append((m["x"], m["y"], 0, bn))
+    tr = getattr(ctx.game, "tracker", None)
+    if tr is not None and hasattr(tr, "gone") and turn is not None:
+        for r in tr.gone(turn):
+            d = r.get("desc") or ""
+            bn = base_name(d)
+            ago = turn - r.get("turn", turn)
+            if bn in DROWNERS and 0 <= ago <= EEL_MEMORY and not d.startswith(("tame ", "peaceful ")):
+                seen.append((r["x"], r["y"], ago, bn))
+    out: dict = {}
+    for ex, ey, ago, bn in seen:
+        reach = 1 if ago == 0 else min(6, 1 + ago // 2)
+        why = f"{bn} at ({ex},{ey})" if ago == 0 else f"{bn} last seen at ({ex},{ey}) {ago} turns ago"
+        for wy in range(ey - reach, ey + reach + 1):
+            for wx in range(ex - reach, ex + reach + 1):
+                if (wx, wy) != (ex, ey) and not (s.screen.at(wx, wy) == "}" and s.screen.color_at(wx, wy) != 1):
+                    continue                        # water only (a red '}' is lava)
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        c = (wx + dx, wy + dy)
+                        if c not in out and s.screen.at(*c) not in "} " and 1 <= c[1] <= 21:
+                            out[c] = why
+    return out
+
+
 def _exploders_near(s, cells, radius: int = 2) -> list:
     """Known exploding monsters (a yellow light's blinding burst) within
     `radius` of any of `cells`."""
@@ -391,7 +438,7 @@ def _exploders_near(s, cells, radius: int = 2) -> list:
 
 
 def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget=None,
-            fight_through=False, near_exploders=False):
+            fight_through=False, near_exploders=False, near_water=False):
     s = ctx.last()
     engulfed_check(s, f"travel{(x, y)}")
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
@@ -407,6 +454,25 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     # objects or squares we chose to avoid: if the direct route crosses one,
     # walk our own detour step by step instead.
     bad = {c for c in bad_squares(s) if c != (x, y)}
+    zone = {} if near_water or s.hero is None else {c: w for c, w in eel_zone(s).items()
+                                                    if c not in (s.hero, (x, y))}
+    if zone:
+        direct = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad), allow_monsters=True)
+        hit = [c for c in direct or [] if c in zone]
+        if hit:
+            detour = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad | set(zone)), allow_monsters=False,
+                              allow_pets=True)
+            if detour is not None:
+                print(f"travel: detour of {len(detour)} steps away from the water by {hit[0]} — {zone[hit[0]]} "
+                      "(its wrap from the water drowns you); travel(..., near_water=True) takes the short way")
+                return walk_path(detour)
+            if any(" last seen " not in zone[c] for c in hit):
+                raise NavError(f"travel to {(x, y)}: the only known way passes {hit[0]}, next to the water with "
+                               f"the {zone[hit[0]]} — its wrap drowns you (levitation doesn't help). Kill it or "
+                               "freeze the water (cold ray) first, wait for it to leave, or travel(..., "
+                               "near_water=True)")
+            print(f"travel: WARNING — the only known way passes {hit[0]}, next to the water with the "
+                  f"{zone[hit[0]]}; going on (\"swings itself around you\" = Elbereth or kill it NOW)")
     if bad and s.hero is not None:
         direct = bfs_path(s, s.hero, (x, y), allow_monsters=True)
         if direct and any(c in bad for c in direct):

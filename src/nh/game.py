@@ -67,6 +67,8 @@ class Snap:
     medusa_risk: bool = False  # probably Medusa's level and you are neither blind nor known to reflect
     gold_note: str = ""        # loose gold while you carry a bag (leprechauns take the purse, not the bag)
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
+    niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
+    niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -303,6 +305,45 @@ def is_weapon_text(text: str) -> bool:
 WIELDED_RE = re.compile(r"\((?:tethered )?weapon in \w+|\(wielded\)")
 
 
+# engrave.c wipeout_text(): a rubbed-out letter becomes '?' (or ' ' for '?' and small punctuation) or a
+# look-alike from this table; leading/trailing blanks are then dropped
+_RUBOUTS = {"A": "^", "B": "Pb[", "C": "(", "D": "|)[", "E": "|FL[_", "F": "|-", "G": "C(", "H": "|-", "I": "|",
+            "K": "|<", "L": "|_", "M": "|", "N": "|\\", "O": "C(", "P": "F", "Q": "C(", "R": "PF", "T": "|",
+            "U": "J", "V": "/\\", "W": "V/\\", "Z": "/", "b": "|", "d": "c|", "e": "c", "g": "c", "h": "n",
+            "j": "i", "k": "|", "l": "|", "m": "nr", "n": "r", "o": "c", "q": "c", "w": "v", "y": "v"}
+
+
+def _rubbed_forms(ch: str) -> set:
+    seen, todo = {ch}, [ch]
+    while todo:
+        for r in _RUBOUTS.get(todo.pop(), ""):
+            if r not in seen:
+                seen.add(r)
+                todo.append(r)
+    return seen | {"?", " "}
+
+
+def engraving_is(text: str, orig: str) -> bool:
+    """`text` reads like `orig` worn down by wipeout_text(): some letters rubbed out to '?'/' ' or to a
+    look-alike ('m' -> 'n'/'r', 'd' -> 'c'/'|'...), blanks at the ends dropped; at least half of the
+    letters must still be intact."""
+    t = text.strip()
+    if not t or len(t) > len(orig):
+        return False
+    need = max(3, (len(orig.replace(" ", "")) + 1) // 2)
+    for off in range(len(orig) - len(t) + 1):
+        exact = 0
+        for c, o in zip(t, orig[off:off + len(t)]):
+            if c == o:
+                exact += o != " "
+            elif o == " " or c not in _rubbed_forms(o):
+                break
+        else:
+            if exact >= need:
+                return True
+    return False
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
@@ -343,6 +384,7 @@ class Game:
         self.here_seen: dict[str, dict] = {}      # level key -> {(x, y): last "You see here"/pile text}
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
+        self.niches: dict[str, dict] = {}         # level key -> {(x, y) of a trapped closet: 'teleport'/'trapdoor'}
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
         self.wielded_class: str | None = None     # inventory() class header of the wielded item ("Weapons")
@@ -384,7 +426,8 @@ class Game:
                   self.solid):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
-        for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc):
+        for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
+                  self.niches):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -442,17 +485,61 @@ class Game:
             here.pop(snap.hero, None)
         engr = self.engr_seen.setdefault(key, {})
         read = False
+        dust = any(m.startswith("Something is written here in the dust.") for m in messages)
         for m in messages:
             mm = self._ENGR_READ.search(m)
             if mm:
                 engr[snap.hero] = mm.group(1)
                 read = True
+                if dust:
+                    self._note_niche(snap, key, mm.group(1))
             elif self._ENGR_GONE.search(m):
                 engr.pop(snap.hero, None)
         if not read and prev_hero is not None and prev_hero != snap.hero \
                 and "Blind" not in snap.status.conditions:
             # arriving on a square shows its engraving; none shown = none left (smudged away)
             engr.pop(snap.hero, None)
+
+    # mklev.c makeniche(): a closet (one hidden corridor square) behind a SECRET door in a room's top or
+    # bottom wall that holds a ONE-TIME trap is marked by a dust engraving on the room square just inside
+    # that door (trap_engravings[]; aged by wipe_engr_at(5)): "ad aerarium" = a teleporter INTO THE CLOSED
+    # GOLD VAULT (makevtele; below DL15 it can be a level teleporter instead), "Vlad was here" = a trap door
+    # (DL6-24). The same words also turn up as random graffiti, which is never dust.
+    NICHE_ENGR = (("ad aerarium", "teleport"), ("Vlad was here", "trapdoor"))
+
+    def _note_niche(self, snap: Snap, key: str, text: str) -> None:
+        kind = next((k for words, k in self.NICHE_ENGR if engraving_is(text, words)), None)
+        if kind is None or snap.hero is None:
+            return
+        ex, ey = snap.hero
+        cells = []
+        for d in (-1, 1):
+            between = snap.screen.at(ex, ey + d)      # the (secret) door in the wall row, or room floor
+            if between in "-|+" or (between == "." and snap.screen.at(ex - 1, ey + d) == "-"
+                                    and snap.screen.at(ex + 1, ey + d) == "-"):
+                cells.append((ex, ey + 2 * d))
+        if not cells:                                 # can't tell which wall: both
+            cells = [(ex, ey - 2), (ex, ey + 2)]
+        cells = [c for c in cells if 1 <= c[1] <= 21 and 0 <= c[0] < 80]
+        known = self.niches.setdefault(key, {})
+        new = [c for c in cells if c not in known]
+        for c in cells:
+            known[c] = kind
+            self.avoid.setdefault(key, set()).add(c)
+        if new:
+            where = " or ".join(str(c) for c in new)
+            depth = snap.status.dlvl or 0
+            what = ("a ONE-TIME TELEPORTER INTO THE CLOSED GOLD VAULT (the guard then makes you drop ALL your "
+                    "gold, bagged gold included, before he leads you out)"
+                    + (" — or, this deep, a LEVEL TELEPORTER to a random level (up to 3 deeper)" if depth > 15
+                       else "") + "; with magic resistance it does nothing"
+                    if kind == "teleport" else "a ONE-TIME TRAP DOOR (drops you to a deeper level)")
+            snap.niche_note = (f"the engraving {text!r} here marks a closet behind the (secret) door beside you: "
+                               f"its square {where} holds {what}. Marked avoided (travel/explore keep out); to "
+                               f"use it on purpose, step_onto() it" + (" with no gold on you and a way to dig "
+                                                                     "out within ~30 turns (the vault holds 4 "
+                                                                     "piles of gold)" if kind == "teleport"
+                                                                     else ""))
 
     def on_elbereth(self, snap: Snap, cell=None) -> bool:
         """The hero (or `cell`) stands on an engraving last read as exactly 'Elbereth'."""
@@ -962,16 +1049,23 @@ class Game:
                         "refusing to step blind onto the square with the cockatrice corpse: while blind you feel "
                         "the objects you step on, and feeling it bare-handed is instant stoning. Wait until you "
                         "can see, go around, or force=True if you wear gloves.")
-            if step in self._MOVE and snap.hero is not None and conds & {"Conf", "Stun"}:
+            fkey = key if unit[:1] == b"F" else None
+            if (step in self._MOVE or fkey in self._MOVE) and snap.hero is not None and conds & {"Conf", "Stun"}:
+                # hack.c domove(): stunned, every move/F-blow goes in a random direction (confused, 1 in 5),
+                # and uhitm.c attack_checks() skips "Really attack?" while confused/stunned; a blow (not
+                # a plain step, which swaps places) can also land on your pet
                 from .danger import base_name
-                near = [m for m in snap.monsters or [] if m.get("dist") == 1 and not m.get("tame")
-                        and (m.get("peaceful") or base_name(m.get("desc") or "") in self.NEVER_MELEE)]
+                near = [m for m in snap.monsters or [] if m.get("dist") == 1 and not m.get("statue")
+                        and (not m.get("tame") or fkey in self._MOVE)
+                        and (m.get("peaceful") or m.get("tame") or m.get("pet")
+                             or base_name(m.get("desc") or "") in self.NEVER_MELEE)]
                 if near:
                     raise PermissionError(
-                        "refusing to move while " + "/".join(sorted(conds & {"Conf", "Stun"})) + " next to "
+                        "refusing to " + ("swing" if fkey in self._MOVE else "move") + " while "
+                        + "/".join(sorted(conds & {"Conf", "Stun"})) + " next to "
                         + ", ".join(f"the {m.get('desc')} at ({m['x']},{m['y']})" for m in near)
-                        + ": your step can go astray into it, and NetHack attacks without asking while you "
-                        "are confused/stunned. Wait ('.') until it wears off, or force=True.")
+                        + ": it can go astray into it, and NetHack attacks without asking while you "
+                        "are confused/stunned. Wait ('s') until it wears off, or force=True.")
             if key in self._MOVE and snap.hero is not None and "Blind" not in conds:
                 dx, dy = self._MOVE[key]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
@@ -1542,6 +1636,7 @@ class Game:
             for c in [c for c in solid if c == snap.hero or snap.screen.at(*c) in ".#"]:
                 solid.discard(c)            # dug out since (or you stand there)
         snap.solid_mem = set(solid or ())
+        snap.niche_mem = dict(self.niches.get(key, {})) if key is not None else {}
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,
     # a fall, or the Amulet's mysterious force (1 in 4 climbs in Gehennom: you land somewhere on a DEEPER level)

@@ -1047,3 +1047,53 @@ def test_crowded_level_far_newcomers_do_not_pause():
                    {"ch": "a", "x": 61, "y": 3, "desc": "soldier ant", "new": True, "dist": 25, "note": "fast"}]
     k._check_events(msnap({}, 10), s)
     assert reasons and "soldier ant" in reasons[-1] and "sewer rat" not in reasons[-1]
+
+
+def test_trapped_closet_engraving_marks_the_niche():
+    # mklev.c makeniche(): "ad aerarium" in the dust just inside a (secret) door of the room's top or
+    # bottom wall marks a one-time teleporter in the closet beyond the door
+    from nh.game import Snap, engraving_is
+    from nh.parse import State, Status
+    assert engraving_is("ad ae?ar?um", "ad aerarium") and engraving_is("d aerariun", "ad aerarium")
+    assert engraving_is("V|ad was ?ere", "Vlad was here")
+    assert not engraving_is("Elbereth", "ad aerarium") and not engraving_is("ad aerarium", "Vlad was here")
+    g = _guard_game()
+    rows = {4: "          -------", 5: "          |.@...|", 6: "          |.....|", 7: "          -------",
+            22: STATUS1, 23: "Dlvl:8 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    s = Snap(screen=mk(rows, cursor=(12, 5)), state=State("command"), status=Status(ok=True, ldesc="Dlvl:8", dlvl=8))
+    # random graffiti with the same words is not a closet marker
+    g._remember_here(s, ["There's some graffiti on the floor here.", 'You read: "ad aerarium".'])
+    assert not g.niches and not getattr(s, "niche_note", "")
+    g._remember_here(s, ["Something is written here in the dust.", 'You read: "ad ae?arium".'])
+    assert g.niches["Dlvl:8"] == {(12, 3): "teleport"}          # the top wall is above: closet at y-2
+    assert (12, 3) in g.avoid["Dlvl:8"]
+    assert "GOLD VAULT" in s.niche_note and "LEVEL TELEPORTER" not in s.niche_note
+    # reading it again doesn't raise a new note
+    s2 = Snap(screen=s.screen, state=State("command"), status=s.status)
+    g._remember_here(s2, ["Something is written here in the dust.", 'You read: "ad aerarium".'])
+    assert not s2.niche_note
+    # a trap door marker on the bottom row (the wall is below)
+    rows[5], rows[6] = "          |.....|", "          |...@.|"
+    s3 = Snap(screen=mk(rows, cursor=(14, 6)), state=State("command"), status=Status(ok=True, ldesc="Dlvl:8", dlvl=8))
+    g._remember_here(s3, ["Something is written here in the dust.", 'You read: "Vlad was here".'])
+    assert g.niches["Dlvl:8"][(14, 8)] == "trapdoor" and "TRAP DOOR" in s3.niche_note
+    g._annotate(s3)
+    from nh.render import render
+    assert "trapped closet(s), avoided: (12,3) one-time teleporter" in render(s3)
+
+
+def test_guard_stunned_blows_near_pet_or_peaceful():
+    import pytest
+    g = _guard_game()
+    jackal = {"x": 11, "y": 5, "desc": "jackal", "dist": 1}
+    kitten = {"x": 9, "y": 5, "desc": "tame kitten", "tame": True, "dist": 1}
+    s = _cmd_snap([jackal, kitten], conditions=["Stun"])
+    with pytest.raises(PermissionError):
+        g._guard(s, b"Fl", force=False)          # the blow can go astray into the kitten
+    g._guard(s, b"Fl", force=True)
+    g._guard(s, b"l", force=False)               # a plain stunned step into a pet just swaps places
+    g._guard(_cmd_snap([jackal], conditions=["Stun"]), b"Fl", force=False)   # only the hostile: fine
+    shk = {"x": 10, "y": 4, "desc": "peaceful shopkeeper", "peaceful": True, "dist": 1}
+    with pytest.raises(PermissionError):
+        g._guard(_cmd_snap([jackal, shk], conditions=["Conf"]), b"Fl", force=False)
+    g._guard(_cmd_snap([jackal, kitten]), b"Fl", force=False)                # not stunned: fine

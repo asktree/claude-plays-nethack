@@ -732,3 +732,29 @@ def test_known_mold_is_not_new_when_you_come_back_to_its_level():
     s.screen.cursor = (47, 8)
     t.update(s)
     assert (48, 8) not in t.sessile.get("Dlvl:3", {})
+
+
+def test_kernel_reflected_ray_and_closet_and_guard_notes():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    s = snap({}, 11)
+    s.messages = ["The soldier zaps a wand of sleep!", "The sleep ray hits you!", "But it reflects from your shield!"]
+    k._check_events(snap({}, 10), s)
+    assert reasons == []                         # reflected: nothing to decide
+    s.messages = ["The soldier zaps a wand of sleep!", "The sleep ray hits you!"]
+    k._check_events(snap({}, 10), s)
+    assert reasons and "message" in reasons[-1]  # not reflected: news
+    reasons.clear()
+    s = snap({}, 12)
+    s.niche_note = "the engraving 'ad aerarium' here marks a closet"
+    k._check_events(snap({}, 11), s)
+    assert reasons and "TRAPPED CLOSET" in reasons[-1]
+    reasons.clear()
+    s = snap({}, 13)
+    s.messages = ["Suddenly, the guard disappears."]
+    k._check_events(snap({}, 12), s)
+    assert reasons and "VAULT GUARD gone" in reasons[-1]

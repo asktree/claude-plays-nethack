@@ -294,3 +294,19 @@
 - T:13986–14013 D21 — **"Welcome to David's treasure zoo!"** (68-76, 14-16): all asleep (Stealth). From the doorway (68,16): cockatrice + dust vortex (1 blow each); then hunt((x, y)) in a loop: lynx, iguana, quasit, warhorse, orc-captain, flaming sphere (survived the blow, EXPLODED: -19; scrolls pre-bagged), gremlin (11:00 local = day), kitten, quasit, blue jelly. Peaceful gnome lord + tengu spared. Zoo gold ~1370 → sack n ≈ 3848.
 - T:14028–14037 D21 — TWO SERGEANTS (one threw a knife): closed in and killed both (-10). No wands. **+0 leather gloves (Y) worn → AC -9**; C-ration → bag i.
 - SHIFT 19 END T:14052 D21 — on the `<` (49,15), HP 130/131, XL11 (Exp 16066), AC -9, slightly Burdened, not hungry. Prayer ready (p_safe 1.0). Plan: unburden, finish D21 west/south, then back up to D20 to explore it (its `>` unknown); Medusa (D22-24) still needs a water crossing.
+
+## Shift 20
+- T:14053 D21 — unburdened: 4013 gold + murky potion moved from plain sack n into bag of holding s (halves the weight); empty sack dropped on the `<` (49,15).
+- T:14095–14103 D21 — lizard killed; sleeping MOUNTAIN NYMPH hunted (1 blow, no theft); its pile had a LOOKING GLASS (d, mirror = Medusa tool) + potion of object detection (left).
+- T:14143 D21 — an INVISIBLE BLACK LIGHT exploded (hallucination) — unicorn horn cured it in 1 apply. Explore finished D21; potion of sleeping (37,13) left; gold (7,11) +155.
+- T:14265 **D20** (via `<`) — arrived on D20's `>` (12,19). T:14276 **LEVEL TELEPORT TRAP (9,6)**: "You shudder for a moment" = rolled the same level (no MR!). Blindness potion f moved to the main pack after that.
+- T:14303–14379 D20 — ROCK TROLL (glaive; -25 in one exchange) killed 3 times: it read create monster (3 hill orcs, killed; one quaffed DARK GREEN = INVISIBILITY), then revived twice mid-meal; third corpse eaten completely. Hungry → fixed.
+- T:14409–14447 D20 — ogre king (2 blows, -10), xorn (0 damage). Gold +43.
+- T:14465–14489 D20 — **BEEHIVE (64-68,6-8)**: 7 killer bees + queen bee, all asleep, hunt() loop — 0 damage (poison res). 5 lumps of ROYAL JELLY; ate 2 → **St 18/02**.
+- T:14497–14543 D20 — FOUR HILL GIANTS (one threw boulders; -17 worst), giant beetle. Partly ate a giant (Satiated, no Str msg). Loot: **scroll of IDENTIFY**, potion of EXTRA HEALING, 4 yellowish brown + 4 white gems.
+- T:14533 — identify → **sapphire = cursed ring of AGGRAVATE MONSTER** (dropped). Dropped junk: 2 spellbooks, cursed spherical amulet (39,7).
+- T:14607–14718 D20 — locked door (51,12) unlocked; SE room: gold +248, **copper ring I** (unknown). D20 explored.
+- T:14807 **D22 (new)** via descend(2): `<` (3,18), pit (2,17) next to it. NOT Medusa. GELATINOUS CUBE adjacent in a dark room: stepped back, 3 striking zaps killed it (q nearly empty), 0 damage.
+- T:14992–15023 D22 — xan (wounded legs ~30 turns), warhorse, dog, quasit killed (-25 total). **D22 `>` (76,4)** + fountain; gold +211 → ~4670 in bag s.
+- T:15133–15144 D22 — 2nd scroll of IDENTIFY (10,7) → **milky = SICKNESS** (dropped). Leprechaun auto-fought (no loose gold).
+- SHIFT 20 END T:15165 D22 on the `<` (3,18), HP 131/131, XL11 (Exp 19279), AC -9, not hungry, unencumbered. No prayer used. Medusa is on D23–28. Plan: the dig-past-Medusa operation (state.md).

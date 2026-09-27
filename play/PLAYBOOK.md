@@ -56,6 +56,19 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   on stairs a third of what you drop falls to the level below. Fight them in `@` form or at range.
 - Don't let a far-away travel target burn dozens of turns (use `travel(x, y, max_dist=N)`), and check that
   a target square isn't shop stock before "fetching" it.
+- **Gold vaults and their teleporter** (vault.c, mklev.c). A vault is a closed 2x2 room holding 4 piles of
+  gold. It has no door. A guard shows up on your 30th turn inside, asks "Hello stranger, who are you?", and
+  makes you drop **all** your gold, including gold in bags.
+  - Answer with your real name. For a lawful hero any other name costs alignment. "Croesus" sends the guard
+    away but leaves you locked in.
+  - Drop the gold and follow him out through the corridor he digs. It turns back into rock behind you, so
+    keep walking to the real corridor.
+  - A closet marked by a dust engraving "ad aerarium" just inside a room's door holds a one-time teleporter
+    into the vault. The harness pauses and marks the closet avoided. Magic resistance makes the teleporter
+    do nothing.
+  - Use the teleporter on purpose only with a pick-axe or wand of digging and no gold on you: land, take the
+    gold, and dig out through a vault wall before the 30 turns are up.
+  - Gold lost to a guard stays on the vault floor and can be dug out the same way.
 
 ## A3. Poison, unknown items, genocide (checked in the 3.6.7 source)
 - **Poison can kill outright until you have poison resistance.** Every poisonous hit (soldier ant and

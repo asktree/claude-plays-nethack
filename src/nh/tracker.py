@@ -90,6 +90,8 @@ class Tracker:
             if lv.get("feature_desc") and hasattr(game, "feature_desc"):
                 game.feature_desc[key] = {tuple(int(v) for v in c.split(",")): d
                                           for c, d in lv["feature_desc"].items()}
+            if lv.get("niches") and hasattr(game, "niches"):
+                game.niches[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["niches"].items()}
             if lv.get("flags") and hasattr(game, "level_flags"):
                 game.level_flags.setdefault(key, set()).update(lv["flags"])
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
@@ -197,6 +199,9 @@ class Tracker:
             fd = getattr(self.game, "feature_desc", {}).get(key)
             if fd:
                 lv["feature_desc"] = {f"{c[0]},{c[1]}": d for c, d in fd.items()}
+            ni = getattr(self.game, "niches", {}).get(key)
+            if ni:
+                lv["niches"] = {f"{c[0]},{c[1]}": k for c, k in ni.items()}
             fl = getattr(self.game, "level_flags", {}).get(key)
             if fl:
                 lv["flags"] = sorted(fl)

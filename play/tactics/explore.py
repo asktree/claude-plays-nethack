@@ -202,6 +202,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             left.append(f"locked doors {locked} (unlock(x, y) with a key/lock pick/credit card, or "
                         "kick_door(x, y) from an orthogonally adjacent square — never a shop door ('Closed for "
                         "inventory'), and no kicking anywhere in Minetown)")
+        niches = dict(getattr(ctx.last(), "niche_mem", None) or {})
+        if niches:
+            # a trapped closet is one square with nothing behind it: not a frontier worth reporting
+            why["avoided"] = [c for c in why["avoided"] if c not in niches]
         if why["avoided"]:
             bad = sorted(bad_squares())
             fd = getattr(ctx.last(), "feature_desc", None) or {}
@@ -502,6 +506,11 @@ def dead_ends(s=None, limit: int = 8) -> list:
             if sum(1 for c in neighbors(x, y) if is_walkable(s, *c)) <= 1:
                 out.append((x, y))
     h = s.hero
+    if h is not None and h not in out:
+        # the square you stand on shows '@', not '#': a corridor end with you on it counts too
+        nb = [c for c in neighbors(*h) if is_walkable(s, *c)]
+        if len(nb) <= 1 and all(s.screen.at(*c) == "#" for c in nb):
+            out.append(h)
     if h:
         out.sort(key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
     return out[:limit]
@@ -510,10 +519,16 @@ def dead_ends(s=None, limit: int = 8) -> list:
 def _hidden_stairs_hint() -> str:
     """If no down stairs are known on this level, name the object squares you
     haven't stood on: stairs under an object or a statue don't show."""
-    from .nav import known_cells
+    from .nav import find, known_cells
     s = ctx.last()
-    if known_cells(">", s):
-        return ""
+    known = known_cells(">", s, rescan=True)      # (#terrain, no game time: stairs under gold you've seen)
+    if known:
+        shown = set(find(s, ">"))
+        hidden = [c for c in known if c not in shown]
+        if shown or not hidden:
+            return ""
+        return (f" — the down stairs are at {hidden[0]}, hidden under an object or monster (the game's own "
+                "map, #terrain): travel_to('>') / go_down() use it")
     visited = ctx.game.visited.get(ctx.game.level_key(s.status), set())
     cands = [(o["x"], o["y"]) for o in s.objects if (o["x"], o["y"]) not in visited and o["ch"] not in "0`"
              and _on_known_ground(s, o["x"], o["y"])]
