@@ -75,22 +75,23 @@ def farlook(x, y) -> str:
 
 
 def bad_squares(s=None) -> set:
-    """Known trap squares (incl. ones hidden under objects) + the player's
-    avoid set for the current level."""
+    """Known trap squares (incl. ones hidden under objects; read from the
+    game's own memory via #terrain on each level) + the player's avoid set
+    for the current level. Both persist across daemon restarts."""
     s = s or ctx.last()
-    lv = s.status.ldesc
-    traps = getattr(ctx.game, "traps", {})
-    av = getattr(ctx.game, "avoid", {})
-    return set(traps.get(lv, set())) | set(av.get(lv, set()))
+    lv = ctx.game.level_key(s.status)
+    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set()))
 
 
-def avoid(*cells):
+def avoid(*cells, clear=False):
     """Mark squares to avoid on this level: avoid((19,6), (20,6)). Honoured by
-    travel(), explore() and walk_path(). avoid() with no args lists them."""
+    travel(), explore() and walk_path(); remembered across daemon restarts.
+    avoid() lists all bad squares; avoid(clear=True) forgets this level's
+    avoid set (traps stay)."""
     s = ctx.last()
-    if not hasattr(ctx.game, "avoid"):
-        ctx.game.avoid = {}
-    st = ctx.game.avoid.setdefault(s.status.ldesc, set())
+    st = ctx.game.avoid.setdefault(ctx.game.level_key(s.status), set())
+    if clear:
+        st.clear()
     for c in cells:
         st.add(tuple(c))
     return sorted(bad_squares(s))
@@ -112,12 +113,27 @@ def walk_path(path, ok=None):
     return s
 
 
-def travel(x, y, max_legs=6, max_dist=None):
+def blockers(s=None) -> list:
+    """Non-tame monsters next to the hero. NetHack's travel/run never starts
+    beside one (lookaround() stops before the first step, silently)."""
+    s = s or ctx.last()
+    return [m for m in (s.monsters or []) if m.get("dist") == 1 and not m.get("tame")
+            and not m.get("pet") and not m.get("statue")]
+
+
+def _mdesc(ms) -> str:
+    return ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in ms)
+
+
+def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
     max_dist: refuse (NavError) if the known-map path is longer than this —
-    a guard against burning many turns on a far-away target."""
+    a guard against burning many turns on a far-away target.
+    If the hero doesn't move at all, raises NavError saying why (a hostile
+    adjacent; a peaceful that stays in the way after `wait_peaceful` waits;
+    no known path) instead of returning silently."""
     s = ctx.last()
     if max_dist is not None and s.hero is not None:
         path = bfs_path(s, s.hero, (x, y), allow_monsters=True)
@@ -134,6 +150,7 @@ def travel(x, y, max_legs=6, max_dist=None):
             if detour is None:
                 raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
             return walk_path(detour)
+    waits = 0
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):
@@ -146,8 +163,23 @@ def travel(x, y, max_legs=6, max_dist=None):
         if s.state.kind != "command":
             return s
         h1 = s.hero
-        if h1 == (x, y) or h1 is None or h1 == h0:
+        if h1 == (x, y) or h1 is None:
             return s
+        if h1 == h0:
+            blk = blockers(s)
+            hostile = [m for m in blk if not m.get("peaceful")]
+            if hostile:
+                raise NavError(f"travel to {(x, y)} did not move: hostile {_mdesc(hostile)} adjacent — "
+                               "travel never starts next to one. Fight it (fight()) or step away by hand.")
+            if blk and waits < wait_peaceful:
+                waits += 1
+                s = ctx.do("s", ok=BENIGN)      # give the peaceful a turn to move off
+                continue
+            if blk:
+                raise NavError(f"travel to {(x, y)} did not move: {_mdesc(blk)} stays next to you; "
+                               "step around it by hand.")
+            raise NavError(f"travel to {(x, y)} did not move (no known path?)"
+                           + (f"; messages: {s.messages}" if s.messages else ""))
         if s.messages:
             return s   # something happened en route; let the caller look
     return s

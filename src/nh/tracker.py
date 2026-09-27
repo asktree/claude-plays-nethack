@@ -33,6 +33,17 @@ class Tracker:
                 pass
         self._last_ldesc = None
         self.need_overview = True
+        self._refreshing = False
+        self.scanned: set[str] = set()     # level keys whose traps were read via #terrain this session
+        # restore level identity and per-level trap/avoid memory
+        if self.state.get("current_level") and self.state.get("current_ldesc"):
+            game.level_name = self.state["current_level"]
+            game.level_name_ldesc = self.state["current_ldesc"]
+        for key, lv in self.state["levels"].items():
+            for attr in ("traps", "avoid"):
+                cells = {tuple(c) for c in lv.get(attr, [])}
+                if cells:
+                    getattr(game, attr).setdefault(key, set()).update(cells)
 
     def save(self):
         tmp = self.path.with_suffix(".tmp")
@@ -62,8 +73,15 @@ class Tracker:
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
             self.need_overview = True
+        if snap.state.kind == "command" and st.ok and self.need_overview and not self._refreshing:
+            # learn the level's name right away (^O takes no game time), so
+            # this step's features/traps are filed under the right level
+            try:
+                self.refresh_overview()
+            except Exception as e:  # noqa: BLE001
+                self.game.log_event({"ev": "overview_error", "err": repr(e)})
         if snap.state.kind == "command" and st.ok:
-            key = self.state.get("current_level") or st.ldesc
+            key = self.game.level_key(st)
             lv = self.state["levels"].setdefault(key, {"first_turn": st.turn})
             lv["last_turn"] = st.turn
             lv["ldesc"] = st.ldesc
@@ -77,21 +95,48 @@ class Tracker:
                         if [x, y] not in lst:
                             lst.append([x, y])
             lv["map"] = [snap.screen.row(y).rstrip() for y in range(MAP_TOP, MAP_BOTTOM + 1)]
+            for attr in ("traps", "avoid"):
+                cells = sorted(getattr(self.game, attr).get(key, ()))
+                if cells or attr in lv:
+                    lv[attr] = [list(c) for c in cells]
             changed = True
         if changed:
             self.save()
 
     def refresh_overview(self):
-        """Run ^O (no game time) and record branch/level. Call only in command state."""
+        """Run ^O (no game time) and record branch/level; on a level not yet
+        scanned this session, also read its known traps via #terrain. Call
+        only in command state."""
+        if self._refreshing:
+            return
+        self._refreshing = True
+        try:
+            self._refresh_overview()
+        finally:
+            self._refreshing = False
+
+    def _refresh_overview(self):
         saved = self.game.last
+        ldesc = saved.status.ldesc if saved is not None and saved.status.ok else None
         snap = self.game.step(b"\x0f")
         text = "\n".join(snap.messages)
         if snap.state.kind not in ("command",):
             self.game.step(b"\x1b")
         self.game.last = saved
         self.need_overview = False
-        if not text:
-            return
+        if text and ldesc:
+            self._parse_overview(text, snap, ldesc)
+        key = self.game.level_key()
+        if key and key not in self.scanned and saved is not None and saved.status.ok \
+                and not {"Hallu", "Conf", "Stun"} & set(saved.status.conditions):
+            found = self.game.terrain_traps()
+            self.game.last = saved
+            if found is not None:
+                self.scanned.add(key)
+                self.game.traps.setdefault(key, set()).update(found)
+        self.save()
+
+    def _parse_overview(self, text: str, snap, ldesc: str):
         self.state["overview"] = text
         self.state["overview_turn"] = snap.status.turn
         branch = None
@@ -106,7 +151,22 @@ class Tracker:
                 lvl = lm.group(1) if lm else line.split(":")[0]
                 self.state["current_branch"] = branch
                 self.state["current_level"] = f"{branch} / {lvl}"
-        self.save()
+                self.state["current_ldesc"] = ldesc
+                self.game.level_name = self.state["current_level"]
+                self.game.level_name_ldesc = ldesc
+                # merge anything filed under the provisional key (the ldesc)
+                name = self.state["current_level"]
+                self.game.rekey_level(ldesc, name)
+                levels = self.state["levels"]
+                if ldesc in levels and ldesc != name:
+                    prov = levels.pop(ldesc)
+                    lv = levels.setdefault(name, {"first_turn": prov.get("first_turn")})
+                    for k, cells in prov.get("features", {}).items():
+                        lst = lv.setdefault("features", {}).setdefault(k, [])
+                        lst.extend(c for c in cells if c not in lst)
+                    for k in ("map", "last_turn", "ldesc"):
+                        if k in prov:
+                            lv[k] = prov[k]
 
     def summary(self) -> str:
         st = self.game.last.status if self.game.last else None

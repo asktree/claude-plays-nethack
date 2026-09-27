@@ -127,6 +127,27 @@ def write_rc(name: str, extra: list[str], base_file: str | None = None) -> Path:
     return p
 
 
+def _claim_current(name: str) -> None:
+    """Make `name` the current game unless another game that is still
+    running holds that slot (a concurrent player may rely on it). Scripts
+    should pass --game anyway."""
+    from .paths import CURRENT_FILE
+    try:
+        cur = CURRENT_FILE.read_text().strip()
+    except FileNotFoundError:
+        cur = ""
+    if cur and cur != name:
+        try:
+            meta = load_meta(cur)
+            alive = _tmux("has-session", "-t", f"={meta['tmux_session']}", check=False).returncode == 0
+        except Exception:
+            alive = False
+        if alive:
+            print(f"note: current game stays {cur!r} (still running); use --game {name} or `nh use {name}`")
+            return
+    set_current(name)
+
+
 def cmd_start_local(a) -> int:
     name = a.name
     d = game_dir(name)
@@ -162,7 +183,7 @@ def cmd_start_local(a) -> int:
     from .tmuxterm import TmuxTerminal
     term = TmuxTerminal(session, d / "raw.log")
     term.start(command, env=env, cwd=str(d))
-    set_current(name)
+    _claim_current(name)
     spawn_daemon(name)
     print(f"started local game {name!r} (tmux -L nh attach -r -t {session} to watch)")
     return _print(request(name, {"op": "obs", "mode": "full"}))
@@ -184,7 +205,7 @@ def cmd_start_remote(a) -> int:
     from .tmuxterm import TmuxTerminal
     term = TmuxTerminal(session, d / "raw.log")
     term.start(command, env=env, cwd=str(d))
-    set_current(name)
+    _claim_current(name)
     spawn_daemon(name)
     return _print(request(name, {"op": "screen"}))
 

@@ -8,6 +8,7 @@ can't land in a prompt we haven't seen yet.
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -144,6 +145,23 @@ def _cursor_keys(cx: int, cy: int, tx: int, ty: int) -> str:
     return "".join(keys)
 
 
+def _explosion_frame(scr: Screen) -> bool:
+    """True if an explosion animation (explode.c: a 3x3 ring of / - \\ |
+    glyphs around a blank centre) is on the map. The corners are the tell:
+    '/' top-left and bottom-right, '\\' top-right and bottom-left, all in one
+    colour; at least three must match (part of a blast can be out of sight)."""
+    rows = [scr.row(y) for y in range(scr.height)]
+    want = ((-1, -1, "/"), (1, -1, "\\"), (-1, 1, "\\"), (1, 1, "/"))
+    for y in range(MAP_TOP + 1, MAP_BOTTOM):
+        if "/" not in rows[y - 1] + rows[y + 1] and "\\" not in rows[y - 1] + rows[y + 1]:
+            continue
+        for x in range(1, scr.width - 1):
+            hits = [scr.fg[y + dy][x + dx] for dx, dy, ch in want if rows[y + dy][x + dx] == ch]
+            if len(hits) >= 3 and len(set(hits)) == 1:
+                return True
+    return False
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
@@ -172,6 +190,30 @@ class Game:
         self.visited: dict[str, set] = {}   # level (ldesc) -> hero positions seen in command state
         self.traps: dict[str, set] = {}     # level (ldesc) -> squares known to hold traps
         self.avoid: dict[str, set] = {}     # level (ldesc) -> squares the player asked to avoid
+        self.real_xl: int | None = None    # last XL read while not polymorphed
+        self.last_status: Status | None = None
+        # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
+        # dungeon vs Gnomish Mines), so the memory tracker sets the ^O
+        # overview name ("The Gnomish Mines / Level 3") for the ldesc it saw.
+        self.level_name: str | None = None
+        self.level_name_ldesc: str | None = None
+
+    def level_key(self, status: Status | None = None) -> str:
+        """Key for per-level memory (traps, avoid, visited): the overview
+        name of the current level when known, else the status ldesc."""
+        st = status if status is not None else (self.last.status if self.last is not None else None)
+        ld = st.ldesc if st is not None else ""
+        if self.level_name and self.level_name_ldesc == ld:
+            return self.level_name
+        return ld
+
+    def rekey_level(self, old: str, new: str) -> None:
+        """Merge per-level memory recorded under a provisional key."""
+        if old == new:
+            return
+        for d in (self.traps, self.avoid, self.visited):
+            if old in d:
+                d.setdefault(new, set()).update(d.pop(old))
 
     # ---- low level ---------------------------------------------------------
     def capture(self) -> Snap:
@@ -184,6 +226,21 @@ class Game:
         elif st.kind not in ("command", "getpos"):
             self.getpos_active = False
         status = parse_status(scr)
+        if status.ok:
+            if status.hd is None:
+                self.real_xl = status.xl
+            else:
+                # polymorphed: the status line shows HD instead of Xp; keep the
+                # hero's own level in .xl so scripts keyed on it stay sane
+                status.polymorphed = True
+                status.xl = self.real_xl or 0
+            self.last_status = status
+        elif st.kind not in ("command", "unknown") and self.last_status is not None:
+            # a menu/text window covers the status lines: report the last
+            # readable status, flagged stale
+            status = copy.copy(self.last_status)
+            status.conditions = list(status.conditions)
+            status.stale = True
         snap = Snap(screen=scr, state=st, status=status, n=self.n)
         return snap
 
@@ -207,6 +264,8 @@ class Game:
                 return False
             if cy == 1:
                 return False   # the hero never stands on map row 1 (level edge): likely wrapped text
+            if _explosion_frame(snap.screen):
+                return False   # an explosion animation is still on screen (explode() puts the cursor on @)
         return True
 
     def _settle(self, size0: int, expect_output: bool = True) -> Snap:
@@ -244,6 +303,15 @@ class Game:
         k = snap.state.kind
         if k == "command":
             key = unit[1] if unit[:1] == b"F" and len(unit) > 1 else unit[0] if len(unit) == 1 else None
+            step = unit[1] if unit[:1] == b"m" and len(unit) == 2 else unit[0] if len(unit) == 1 else None
+            if step in self._MOVE and snap.hero is not None and snap.status.ok:
+                dx, dy = self._MOVE[step]
+                tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
+                if (tx, ty) in self.traps.get(self.level_key(snap.status), ()):
+                    raise PermissionError(
+                        f"refusing to step onto the known trap at {(tx, ty)} (NetHack doesn't ask). Go around "
+                        "(travel() avoids traps), or force=True if you mean it (jumping into a hole/trap "
+                        "door on purpose, entering a magic portal).")
             if key in self._MOVE and snap.hero is not None and "Blind" not in snap.status.conditions:
                 dx, dy = self._MOVE[key]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
@@ -382,8 +450,9 @@ class Game:
             if snap.hero is not None:
                 self.hero_pos = snap.hero
                 if snap.status.ok:
-                    self.visited.setdefault(snap.status.ldesc, set()).add(snap.hero)
-                    self._note_traps(snap, messages)
+                    self.visited.setdefault(self.level_key(snap.status), set()).add(snap.hero)
+                    moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
+                    self._note_traps(snap, messages, moved_level=moved)
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -402,24 +471,35 @@ class Game:
                     pass
             return snap
 
-    _TRAP_MSG = re.compile(r"(trap|An arrow shoots out|A little dart shoots out|A trap door|A bear trap|"
-                           r"You fall into a pit|land on a set of sharp iron spikes|A board beneath you|"
-                           r"You are caught in a|A cloud of gas|You feel a wrenching|flash of light|"
-                           r"You step onto a polymorph trap|magic trap|anti-magic field|A gush of water|"
-                           r"rust trap|fire trap|A tower of flame)", re.I)
+    # Messages meaning the hero is standing on a trap *now* (teleporters, trap
+    # doors, holes and portals move you away, so they're not listed; their '^'
+    # is picked up from the map or the per-level #terrain scan instead).
+    _TRAP_MSG = re.compile(
+        r"(^There is an? .*\b(trap|pit|web)\b.* here\.|^You escape an? |An arrow shoots out at you|"
+        r"A little dart shoots out at you|bear trap closes on your|You are caught in an? bear trap|"
+        r"^You (fall|step|tumble|jump|land) into an? pit|on a set of sharp iron spikes|A board beneath you|"
+        r"loose board below you|crease in the linoleum|spider web!|A cloud of gas puts you to sleep|"
+        r"You are enveloped in a cloud of gas|A gush of water hits|tower of flame|momentarily lethargic|"
+        r"momentarily blinded by a flash of light|You trigger a rolling boulder trap|triggered an? land mine|"
+        r"You (step onto|float over|fly over|feel) an? polymorph trap|^You (float|fly) over an? )")
 
-    def _note_traps(self, snap: Snap, messages: list[str]) -> None:
+    def _note_traps(self, snap: Snap, messages: list[str], moved_level: bool = False) -> None:
         """Remember trap squares per level: every displayed '^', and the hero's
         square when a trap message fires there (objects can hide a trap)."""
-        lv = snap.status.ldesc
+        lv = self.level_key(snap.status)
         known = self.traps.setdefault(lv, set())
+        # a seen trap stays drawn as '^' unless something stands/lies on it:
+        # plain floor/corridor there means it's gone (disarmed, used up, filled)
+        for c in list(known):
+            if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
+                known.discard(c)
         for y in range(1 + snap.state.msg_rows, 22):
             row = snap.screen.row(y)
             x = row.find("^")
             while x >= 0:
                 known.add((x, y))
                 x = row.find("^", x + 1)
-        if any(self._TRAP_MSG.search(m) for m in messages) and snap.hero is not None:
+        if not moved_level and snap.hero is not None and any(self._TRAP_MSG.search(m) for m in messages):
             known.add(snap.hero)
 
     def farlook(self, x: int, y: int) -> str:
@@ -459,6 +539,122 @@ class Game:
                 return desc
             finally:
                 self.last = saved
+
+    def terrain_traps(self) -> set | None:
+        """Every trap the hero knows on this level, from NetHack's own memory:
+        #terrain -> "known map without monsters and objects" shows remembered
+        traps even under objects (and webs as '"'). No game time. Returns
+        the set of trap squares, or None if the view couldn't be read (e.g.
+        hallucinating/confused: "You are too disoriented for this.")."""
+        with self.lock:
+            saved = self.last
+            try:
+                s = self.send_bytes(b"#terrain\r")
+                if s.state.kind != "menu" or not s.state.menu:
+                    self._leave_getpos(s)
+                    return None
+                letter = None
+                for it in s.state.menu.selectable():
+                    if "without monsters and objects" in it.text:
+                        letter = it.letter
+                if letter is None:
+                    self.send_bytes(b"\x1b")
+                    return None
+                s = self.send_bytes(letter.encode())
+                for _ in range(3):
+                    if s.state.kind not in ("more", "text"):
+                        break
+                    s = self.send_bytes(s.state.dismiss.encode())
+                found = None
+                browsing = "Showing known terrain" in s.screen.row(0) or s.state.kind == "getpos"
+                if browsing:
+                    found = set()
+                    for y in range(MAP_TOP + 1, MAP_BOTTOM + 1):
+                        row = s.screen.row(y)
+                        for x, ch in enumerate(row):
+                            if ch == "^" or ch == '"':
+                                found.add((x, y))
+                self._leave_getpos(s, in_getpos=browsing)
+                self.log_event({"ev": "terrain_traps", "ts": round(time.time(), 3),
+                                "traps": sorted(found) if found is not None else None})
+                return found
+            finally:
+                self.last = saved
+
+    def describe_cells(self, cells: list[tuple[int, int]]) -> dict:
+        """Describe several map cells in one ';' session: turn on getpos
+        autodescribe ('#'), move the cursor to each cell and read NetHack's
+        own description off the top line ("peaceful dwarf", "jackal"), then
+        turn autodescribe off again and leave with ESC. No game time. Costs
+        about one keystroke per cell instead of ~4 for separate farlooks.
+        Returns {(x, y): raw description}; cells it couldn't read are
+        missing. A single cell uses farlook() (cheaper for one)."""
+        cells = list(dict.fromkeys(cells))
+        if len(cells) <= 1:
+            return {c: self.farlook(*c) for c in cells}
+        out: dict = {}
+        with self.lock:
+            saved = self.last
+            try:
+                s = self.send_bytes(b";")
+                if s.state.kind != "getpos":
+                    if s.state.kind != "command":
+                        self.send_bytes(b"\x1b")
+                    return out
+                on = False
+                for _ in range(2):
+                    s = self.send_bytes(b"#")
+                    top = s.screen.row(0)
+                    if "Automatic description" not in top:
+                        break
+                    if " is on" in top:
+                        on = True
+                        break
+                if not on:
+                    self._leave_getpos(s, in_getpos=True)
+                    return {c: self.farlook(*c) for c in cells}
+                for (x, y) in cells:
+                    for _ in range(3):
+                        cx, cy = s.screen.cursor
+                        if (cx, cy) == (x, y):
+                            break
+                        s = self.send_bytes(_cursor_keys(cx, cy, x, y).encode())
+                    if s.screen.cursor == (x, y) and s.state.kind == "getpos":
+                        out[(x, y)] = s.screen.row(0).strip()
+                    elif s.state.kind != "getpos":
+                        break
+                # autodescribe off again (prints its message plus the goal
+                # prompt, usually with a --More-- between them), then leave
+                if s.state.kind == "getpos":
+                    s = self.send_bytes(b"#")
+                    for _ in range(3):
+                        if s.state.kind not in ("more", "text"):
+                            break
+                        s = self.send_bytes(s.state.dismiss.encode())
+                    if "is on" in s.screen.row(0):   # we toggled the wrong way: once more
+                        s = self.send_bytes(b"#")
+                self._leave_getpos(s, in_getpos=True)
+                self.log_event({"ev": "describe", "ts": round(time.time(), 3),
+                                "cells": {f"{x},{y}": d for (x, y), d in out.items()}})
+                return out
+            finally:
+                self.last = saved
+
+    def _leave_getpos(self, s: Snap, in_getpos: bool = False) -> Snap:
+        """Back to the command prompt from a position prompt (or a --More--
+        on the way out). in_getpos=True: we know a position prompt is open,
+        so send ESC even if the screen reads like the command state."""
+        for i in range(4):
+            if in_getpos and i == 0 and s.state.kind not in ("more", "text"):
+                s = self.send_bytes(b"\x1b")
+                continue
+            if s.state.kind == "command" and not self.getpos_active and self._plausible(s):
+                break
+            if s.state.kind in ("more", "text"):
+                s = self.send_bytes(s.state.dismiss.encode())
+            else:
+                s = self.send_bytes(b"\x1b")
+        return s
 
     def look(self) -> Snap:
         """Capture without sending anything."""

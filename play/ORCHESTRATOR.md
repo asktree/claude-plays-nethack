@@ -80,6 +80,16 @@ If it asks "Shall I pick character's race, role...", the rc didn't load — quit
 possible and fix the rc first. On later sessions use `p) Play last game [nh367-hdf]` (`server.play_last_game()`)
 or `r) Resume last save`.
 
+Check that the rc took effect (no game time):
+```
+bin/nh --game live exec <<'EOF'
+o = options.bool_options()
+print({k: o.get(k) for k in ("timed_delay", "sparkle", "autodescribe", "mail", "autopickup", "rest_on_space")})
+EOF
+```
+Expect `timed_delay: False, sparkle: False, autodescribe: False, mail: False`. If one is wrong, fix it for this
+session with `options.set_bool('timed_delay', False)` etc., and fix the rc file for the next game.
+
 Then create the run memory: `mkdir -p play/runs/live`, copy `play/runs/TEMPLATE-state.md` to
 `play/runs/live/state.md`, create `journal.md`, and note the game's start time and dumplog URL
 (`https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/dumplog/`).

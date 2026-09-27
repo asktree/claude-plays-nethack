@@ -182,3 +182,85 @@ def test_hard_wrapped_sell_prompt():
     st = classify(s)
     assert st.kind == "yn" and st.choices == "ynaq" and st.default == "y"
     assert "Sell it?" in st.prompt and st.msg_rows == 1
+
+
+def test_explosion_frame_detected():
+    from nh.game import _explosion_frame
+    rows = {9: "      |....../-\\...|", 10: "      |......| |...|", 11: "      |......\\-/...|",
+            22: STATUS1, 23: "Dlvl:3 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    s = mk(rows, cursor=(9, 5))
+    for (x, y) in ((13, 9), (15, 9), (13, 11), (15, 11), (14, 9), (14, 11), (13, 10), (15, 10)):
+        s.fg[y][x] = 2      # one blast colour
+    assert _explosion_frame(s)
+    # a closet made of walls is not an explosion, nor a lone wand and throne
+    walls = mk({9: "      |---|", 10: "      |.@.|", 11: "      |---|"}, cursor=(8, 10))
+    assert not _explosion_frame(walls)
+    items = mk({9: "   /  \\", 11: "   \\"}, cursor=(0, 5))
+    items.fg[9][3], items.fg[9][6], items.fg[11][3] = 5, 3, 3
+    assert not _explosion_frame(items)
+
+
+def test_polymorphed_status_keeps_real_xl():
+    from nh.game import Game, Timing
+
+    class Term:
+        def __init__(self, scr):
+            self.scr = scr
+
+        def capture(self):
+            return self.scr
+
+    normal = mk({5: "      |..@..|", 22: STATUS1, 23: "Dlvl:3 $:0 HP:30(49) Pw:1(1) AC:6 Xp:4/100 T:900"},
+                cursor=(9, 5))
+    poly = mk({5: "      |..d..|", 22: STATUS1, 23: "Dlvl:3 $:0 HP:10(10) Pw:1(1) AC:7 HD:2 T:901"},
+              cursor=(9, 5))
+    menu = mk({0: "                     Weapons", 1: "                     a - a long sword (weapon in hand)",
+               2: "                     (end)"}, cursor=(26, 2), reverse_cells=[(x, 0) for x in range(21, 28)])
+    g = Game(term=Term(normal), timing=Timing.local())
+    assert g.capture().status.xl == 4
+    g.term.scr = poly
+    st = g.capture().status
+    assert st.polymorphed and st.hd == 2 and st.xl == 4
+    g.term.scr = menu
+    s = g.capture()
+    assert s.state.kind == "menu" and s.status.ok and s.status.stale and s.status.hp == 10
+
+
+def test_level_key_and_rekey():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    from nh.parse import Status
+    st = Status(ok=True, ldesc="Dlvl:3")
+    assert g.level_key(st) == "Dlvl:3"
+    g.traps["Dlvl:3"] = {(5, 5)}
+    g.level_name, g.level_name_ldesc = "The Gnomish Mines / Level 3", "Dlvl:3"
+    g.rekey_level("Dlvl:3", g.level_name)
+    assert g.level_key(st) == "The Gnomish Mines / Level 3"
+    assert g.traps == {"The Gnomish Mines / Level 3": {(5, 5)}}
+    assert g.level_key(Status(ok=True, ldesc="Dlvl:4")) == "Dlvl:4"
+
+
+def test_trap_message_regex():
+    from nh.game import Game
+    r = Game._TRAP_MSG
+    for m in ("There is a bear trap here.", "You escape a bear trap.", "An arrow shoots out at you!",
+              "You fall into a pit!", "A board beneath you squeaks loudly.", "You stumble into a spider web!",
+              "KAABLAMM!!!  You triggered a land mine!", "There is a spiked pit here."):
+        assert r.search(m), m
+    for m in ("You can't set a trap on the stairs!", "You find a trap door.", "A trap door opens up under you!",
+              "You set the bear trap.", "There is a staircase down here.", "You disarm the trap."):
+        assert not r.search(m), m
+
+
+def test_step_onto_known_trap_guard():
+    import pytest
+    g = _guard_game()
+    snap = _cmd_snap([])
+    g.traps[g.level_key(snap.status)] = {(11, 5)}
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"l", force=False)
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"ml", force=False)
+    g._guard(snap, b"Fl", force=False)        # attacking that square is fine
+    g._guard(snap, b"h", force=False)
+    g._guard(snap, b"l", force=True)

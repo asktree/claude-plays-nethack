@@ -195,3 +195,87 @@ def monster_summary(name: str) -> str:
             f"spd {rec['speed']} AC {rec['ac']} MR {rec['mr']} | attacks: {atk or '-'} | resists: {res} | "
             f"corpse conveys: {conv} | {' '.join(f[3:].lower() for f in flags)}"
             + (f"\n  NOTE: {note}" if note else ""))
+
+
+# ---- melee risk helpers (used by fight()) ------------------------------------
+
+_PASSIVE_TEXT = {
+    "AD_ACID": "acid: splashes you and can corrode your weapon",
+    "AD_CORR": "corrodes your weapon",
+    "AD_RUST": "rusts your weapon",
+    "AD_ENCH": "DISENCHANTS your weapon (Excalibur loses its enchantment)",
+    "AD_PLYS": "PARALYSES you when you hit it (deadly without free action)",
+    "AD_STON": "touching it STONES you (never barehanded/without gloves)",
+    "AD_COLD": "cold (you resist it as a Valkyrie)",
+    "AD_FIRE": "burns you",
+    "AD_ELEC": "shocks you",
+    "AD_STUN": "stuns you",
+    "AD_POIS": "poisons you",
+    "AD_SLIM": "SLIMES you",
+    "AD_DISE": "gives you disease",
+    "AD_HALU": "makes you hallucinate",
+    "AD_MAGM": "magic damage",
+}
+# passive effects that should stop fight() before the first blow
+STOP_PASSIVES = ("AD_PLYS", "AD_STON", "AD_SLIM", "AD_ENCH")
+
+
+def passive_attacks(desc: str) -> list[tuple[str, str]]:
+    """[(damage_type, text)] for a monster's passive (AT_NONE) and death
+    (AT_BOOM: explodes when killed) attacks."""
+    rec = monster_record(base_name(desc))
+    out = []
+    for a in (rec or {}).get("attacks", []):
+        if a.get("type") == "AT_BOOM":
+            out.append(("AT_BOOM", f"EXPLODES when killed ({a.get('damage_type', '')[3:].lower()} {a.get('dice')})"))
+        elif a.get("type") == "AT_NONE":
+            dt = a.get("damage_type", "")
+            out.append((dt, _PASSIVE_TEXT.get(dt, dt[3:].lower() + " (passive)")))
+    return out
+
+
+def max_hit(desc: str) -> int:
+    """Rough worst-case damage this monster can do to you in one of your
+    turns: sum of its active attacks' maxima (weapon attacks at least 12),
+    times its moves per turn at your speed 12."""
+    name = base_name(desc)
+    rec = monster_record(name)
+    if not rec:
+        return 20
+    total = 0
+    for a in rec.get("attacks", []):
+        t = a.get("type")
+        if t in ("AT_NONE", "AT_BOOM"):
+            continue
+        n, d = int(a.get("n") or 0), int(a.get("d") or 0)
+        dmg = n * d
+        if t == "AT_WEAP":
+            # the wielded weapon's damage replaces the listed dice: small
+            # monsters carry d4-d8 weapons; dwarves carry mattocks (d12)
+            dmg = max(dmg, 12 if (rec.get("level", 0) >= 4 or "dwarf" in name) else 8)
+        if t == "AT_MAGC" and dmg == 0:
+            dmg = 12
+        total += dmg
+    moves = max(1, -(-int(rec.get("speed", 12)) // 12))
+    return total * moves
+
+
+def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None) -> str:
+    """'trivial' | 'normal' | 'dangerous' for a monster description vs you.
+    dangerous: has a danger note, deadly passive, or difficulty >= XL+3, or
+    its worst-case hit is >= half your HP; trivial: difficulty <= XL/2 and
+    worst-case hit < a fifth of your HP (or <= 4)."""
+    name = base_name(desc or "")
+    rec = monster_record(name)
+    if not rec:
+        return "normal"
+    xl = hero_xl or 1
+    diff = rec.get("difficulty", 0)
+    mh = max_hit(name)
+    if NOTES.get(name) or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
+        return "dangerous"
+    if diff >= xl + 3 or (hp is not None and mh * 2 >= hp):
+        return "dangerous"
+    if diff <= max(1, xl // 2) and (mh <= 4 or (hp is not None and mh * 5 < hp)):
+        return "trivial"
+    return "normal"

@@ -44,12 +44,20 @@ def elbereth():
     return s
 
 
+_ENGR_KIND = re.compile(r"(is written here in the (dust|frost)|is engraved here on the|"
+                        r"has been (burned|melted) into the|some graffiti on the|scrawled in blood here)")
+_ENGR_TEXT = re.compile(r"^You (read|feel the words): ")
+
+
 def engraving_here() -> str:
-    """Read what's engraved here (via ':' look). No game time."""
+    """What's engraved here (via ':' look; no game time), e.g.
+    'Some text has been burned into the floor here. You read: "Elbereth".'
+    The first sentence tells the kind: written in the dust (smudges),
+    engraved (semi-permanent), burned (permanent), graffiti, blood.
+    Returns '' when nothing is engraved here."""
     s = ctx.do(":", quiet=True)
-    txt = " | ".join(s.messages)
-    m = re.search(r"(?:Something is written here in the dust|You read): ?\"?([^\"]*)\"?", txt)
-    return txt if not m else m.group(0)
+    parts = [m for m in s.messages if _ENGR_KIND.search(m) or _ENGR_TEXT.search(m)]
+    return " ".join(parts)
 
 
 import json as _json

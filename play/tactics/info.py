@@ -89,3 +89,30 @@ def wiki_page(title: str, max_chars: int = 6000) -> str:
         return f"no page {title!r}; similar: {[c.stem for c in cands]}"
     t = f.read_text()
     return t[:max_chars] + ("\n...[truncated; read the file for more]" if len(t) > max_chars else "")
+
+
+def threat(desc: str) -> str:
+    """'trivial' | 'normal' | 'dangerous' for a monster vs you right now
+    (difficulty vs XL, worst-case hit vs HP, danger notes, deadly passives):
+    threat('newt') -> 'trivial'. Use it to decide what to ignore."""
+    from nh.danger import threat_level
+    from . import ctx
+    st = ctx.last().status
+    return threat_level(desc, st.xl if st.ok else None, st.hp if st.ok else None)
+
+
+def last_seen(name: str | None = None) -> list[dict]:
+    """Monsters seen recently on this level that are out of view now, newest
+    first: [{desc, x, y, turn, ago}]. last_seen('gas spore') filters by name."""
+    from . import ctx
+    tr = getattr(ctx.game, "tracker", None)
+    if tr is None:
+        return []
+    turn = ctx.last().status.turn or 0
+    out = []
+    for r in tr.gone(turn):
+        if name and name not in r.get("desc", ""):
+            continue
+        out.append({"desc": r.get("desc"), "x": r["x"], "y": r["y"], "turn": r.get("turn"),
+                    "ago": turn - (r.get("turn") or turn)})
+    return out

@@ -42,10 +42,12 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^There (is|are) (a|an|several|many|\d+) .* here\.?$",
     r"^You hear (some noises|a door open|the footsteps of a guard|bubbling water|water falling|the splashing|a gurgling|a slow drip|a chugging|someone counting money|the chime of a cash register|someone cursing shoplifters)",
     r"^You hear some noises in the distance",
-    r"^\$ - \d+ gold pieces?\.",
+    r"^\$ - (\d+|a) gold pieces?\.",
     r"^[a-zA-Z] - (?!.*\b(cursed|loadstone)\b).*\.$",   # pickup/inventory result "i - a scroll ..."
     r"^The door opens\.",
     r"^You stop in front of the door\.",
+    r"^You are in full health\.",                      # a counted search/rest stops at full HP
+    r"^Your (?!wielded ).*\b(corpse|corpses|egg|eggs)\b.* rots? away\.$",   # carried food rotting
 )]
 
 
@@ -224,6 +226,9 @@ class Kernel:
                 reasons.append(f"level: {b.ldesc} -> {a.ldesc}")
             if a.xl != b.xl:
                 reasons.append(f"XL {b.xl}->{a.xl}")
+            if a.polymorphed != b.polymorphed or (a.polymorphed and a.hd != b.hd):
+                reasons.append(f"polymorphed (HD:{a.hd}; own XL {a.xl})" if a.polymorphed
+                               else "back in your own form")
         if self.pause_on_monsters and snap.state.kind == "command":
             if snap.monsters:
                 new = [m for m in snap.monsters if m.get("new") and not m.get("statue")

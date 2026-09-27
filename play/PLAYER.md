@@ -57,7 +57,10 @@ monsters:
   - `[menu]`: items with letters; type letters to toggle, then `<CR>`. `>` next page, `<Esc>` cancel.
   - `[getpos]`: a map cursor (travel/farlook). Tactics handle these; `<Esc>` cancels.
 - **Monsters are identified automatically** with farlook (`;`) the first time they appear, so you see
-  `peaceful dwarf`, `tame kitten`, `statue of a newt` (statues look like monsters!), `jackal`.
+  `peaceful dwarf`, `tame kitten`, `statue of a newt` (statues look like monsters!), `jackal`. Labels
+  follow each monster; when same-looking monsters crowd together (a werejackal and the jackals it
+  summoned, peaceful and hostile gnomes) they are looked at again, and a returning monster that was
+  peaceful is re-checked, so a hostile never inherits a peaceful label.
   Anything marked `peaceful` must not be attacked (it angers your god and/or the monster's friends).
   Dangerous monsters get a `!!` note underneath (special threat, and "stronger than you" when their
   difficulty is well above your XL). Take those notes seriously.
@@ -79,20 +82,23 @@ Available in the kernel:
 | `do(keys, quiet=False, ok=None)` | one step; `quiet=True` = don't pause on messages (info-only keys); `ok=[regex]` = these messages don't pause |
 | `obs` | last snapshot: `obs.status.hp`, `.hpmax`, `.turn`, `.hunger`, `.conditions`, `.ldesc`; `obs.hero` (x,y); `obs.messages`; `obs.kind` (`command`, `yn`, `menu`...), `obs.prompt`; `obs.screen.at(x,y)`, `obs.screen.chars` (24 strings), `obs.screen.dump()`; `obs.monsters` (dicts: ch,x,y,color,dist,desc,note,new,tame,peaceful,statue,pet), `obs.hostiles(radius)`, `obs.adjacent_hostiles()`; `obs.objects` (ch,x,y,kind,pile,color,dist); `obs.features` (name,x,y: stairs, fountain, altar, doors, traps...); `obs.menu` (iterate it for selectable items: `.letter`, `.text`, `.selected`; `.page`/`.pages`) |
 | `look()` | re-read the screen without acting |
-| `travel(x, y)` | NetHack's travel command to a known map spot (stops when something happens) |
+| `travel(x, y)` | NetHack's travel command to a known map spot (stops when something happens). NetHack never starts a travel next to a non-tame monster: `travel()` then waits for a peaceful to move, and raises `NavError` naming the hostile/peaceful (or "no known path") instead of silently not moving. `blockers()` lists non-tame monsters adjacent to you |
 | `travel_to('>')` | travel to the nearest `>` (or any map symbol); `go_down()` / `go_up()` travel + use stairs |
-| `explore()` | auto-explore this level using the game's own unexplored-frontier data; pauses on events; returns a summary (e.g. `explored (no reachable frontier left)` → search for secret doors or move on) |
+| `explore()` | auto-explore this level using the game's own unexplored-frontier data; pauses on events; returns a dict whose `reason` is `explored ...` only when nothing reachable is left (→ search for secret doors or move on), or `blocked: ...` naming locked doors (kick them yourself with `kick_door(x, y)` — never shop doors or in Minetown), frontiers cut off by avoided squares, or an adjacent hostile |
 | `frontiers()` | list unexplored frontier spots, nearest first |
 | `farlook(x, y)` | describe what is at (x,y) (no game time) |
 | `inventory()` / `inventory_text()` | parsed inventory: list of dicts with keys `letter`, `text`, `class`, `buc` |
 | `here()` | what's on the floor here (`:`) |
 | `search(n)`, `rest(n)` | count-prefixed search / rest (interrupted by events) |
 | `elbereth()` | engrave Elbereth in the dust; `engraving_here()` reads it back |
-| `fight(x=None, y=None, stop_hp=0.45)` | melee adjacent hostiles one checked blow at a time until dead/gone or HP < stop_hp (then pauses); never touches peacefuls/pets |
-| `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move) |
+| `fight(x=None, y=None, stop_hp=0.45)` | melee adjacent hostiles one checked blow at a time until dead/gone; below stop_hp it pauses unless the adjacent hostiles' worst-case damage is under a third of your HP (a newt can't hurt you at 21 HP). Prints the target's passive attacks (acid, rust...) before the first blow and refuses paralysing/stoning/sliming/disenchanting ones (`allow_passive=True` overrides). Never touches peacefuls/pets. **Run fights with `bin/nh exec --hp-pause 0.4`** so ordinary hits below 70% HP don't pause every round |
+| `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move); the thrown item's own hit/miss message doesn't pause |
+| `engrave_test('f')` | engrave-identify wand f in one call (writes a dust "x" first if nothing is engraved here, answers the prompts, writes Elbereth); returns/prints the verdict ("sleep or death", "digging", ...). Refuses on a burned/permanent engraving; pauses on a wish prompt. Not in shops |
+| `threat('gnome lord')` | `trivial` / `normal` / `dangerous` vs you now (difficulty vs XL, worst-case hit vs HP, notes) — use it to ignore harmless monsters consistently |
+| `last_seen('gas spore')` | monsters that recently left view: last position, turn, turns ago |
 | `prayer_check()`, `pray(force=False)` | trouble class (major/minor/none) + estimated chance the timeout is low enough + advice; `pray()` refuses without major trouble and ≥80% odds (force=True overrides). Read §3! |
 | `step(dir, n)` | move n squares one at a time |
-| `avoid((x,y), ...)`, `bad_squares()`, `walk_path(cells)` | mark squares to avoid on this level (known traps — even ones hidden under objects — are remembered automatically); `travel()`/`explore()` detour around them |
+| `avoid((x,y), ...)`, `bad_squares()`, `walk_path(cells)` | mark squares to avoid on this level (`avoid(clear=True)` forgets them). Known traps are remembered automatically — on each level the harness reads the game's own trap memory with `#terrain`, so traps hidden under objects count too — and both survive daemon restarts; `travel()`/`explore()` detour around them |
 | `pause(reason)` | hand control back to yourself from inside a script |
 | `mon('soldier ant')` | monster stats (level, speed, attacks, resistances, corpse benefits) + danger note |
 | `corpse('killer bee', age=0, poison_res=False)` | is this corpse safe for us to eat? (SAFE/RISKY/DEADLY/NEVER + benefits) |
@@ -102,6 +108,11 @@ Available in the kernel:
 
 Also `bin/nh info`: the harness's own memory — current branch/level (from the game's `^O` overview),
 prayer log with turns-ago, per-level stairs/fountains/altars seen.
+
+Status while polymorphed: the game shows `HD:n` instead of `Xp`; `obs.status.polymorphed` is True,
+`obs.status.hd` is the form's hit dice and `obs.status.xl` keeps your own level (a pause says
+"polymorphed" / "back in your own form"). While a full-screen menu covers the status lines,
+`obs.status` is the last readable one with `obs.status.stale == True`.
 
 Example — explore, and stop to think whenever anything happens:
 ```

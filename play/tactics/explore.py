@@ -61,7 +61,7 @@ def object_frontiers(s=None):
     """Object-covered squares bordering blank (maybe unexplored) space that
     we haven't stood next to — NetHack's own finder can't see these."""
     s = s or ctx.last()
-    visited = ctx.game.visited.get(s.status.ldesc, set())
+    visited = ctx.game.visited.get(ctx.game.level_key(s.status), set())
     near = set()
     for (vx, vy) in visited:
         for dx in (-1, 0, 1):
@@ -82,15 +82,22 @@ def object_frontiers(s=None):
     return out
 
 
-def _pick_target(skip):
+def _pick_target(skip, bad=frozenset(), why=None):
     """Open the travel prompt and place the cursor on the nearest usable
-    frontier. Returns the target (cursor left there) or None (prompt closed)."""
+    frontier: not in `skip` and, when there are squares to avoid, reachable
+    around them (checked on our side, inside the same prompt — no game time).
+    Returns the target (cursor left there) or None (prompt closed).
+    why["avoided"] collects frontiers cut off by avoided squares,
+    why["seen"] every frontier NetHack offered."""
+    why = why if why is not None else {}
+    why.setdefault("avoided", [])
     s = ctx.do("_", quiet=True)
     if s.state.kind != "getpos":
         if s.state.kind != "command":
             ctx.do("<Esc>", quiet=True)
         return None
     hero = ctx.game.hero_pos
+    from .mapview import bfs_path
     seen = []
     for _ in range(20):
         s = ctx.do("x", quiet=True)
@@ -98,8 +105,18 @@ def _pick_target(skip):
         if c == hero or c in seen:
             break
         seen.append(c)
-        if c not in skip:
-            return c
+        if c in skip:
+            continue
+        if bad and hero is not None:
+            av = frozenset(set(bad) - {c})
+            if (bfs_path(s, hero, c, avoid=av, allow_monsters=True) is None
+                    and bfs_path(s, hero, c, allow_monsters=True) is not None):
+                skip.add(c)
+                why["avoided"].append(c)
+                continue
+        why["seen"] = seen
+        return c
+    why["seen"] = seen
     # NetHack found nothing new: try object-covered frontier squares
     for c in object_frontiers():
         if c not in skip:
@@ -121,28 +138,47 @@ def explore(max_legs: int = 150, skip: set | None = None):
 def _explore(max_legs: int, skip: set):
     """Travel to unexplored frontiers until none remain (or max_legs).
 
-    Returns a dict: {"reason": ..., "legs": n, "unreachable": [...], "locked": [...]}.
-    Inside `nh exec` it pauses like any do() on anything unusual (combat,
-    big HP loss, new hostile monsters, non-routine messages). Locked doors are
-    recorded and skipped (kick them yourself if needed: #force/kick)."""
+    Returns a dict: {"reason", "legs", "unreachable", "locked", "avoided"}.
+    "reason" starts with "explored" only when nothing is left that could be
+    reached; when locked doors, avoided squares or an adjacent monster stop
+    it, it says "blocked: ..." with what to do. Inside `nh exec` it pauses
+    like any do() on anything unusual (combat, big HP loss, new hostile
+    monsters, non-routine messages). Locked doors are never kicked
+    automatically (shop doors, Minetown): use kick_door(x, y) yourself."""
+    from .mapview import bfs_path
+    from .nav import _mdesc, bad_squares, blockers, travel
     legs = 0
     unreachable, locked = [], []
+    why = {"avoided": []}
     stuck = 0
 
     def result(reason):
-        return {"reason": reason, "legs": legs, "unreachable": unreachable, "locked": locked}
+        return {"reason": reason, "legs": legs, "unreachable": unreachable, "locked": locked,
+                "avoided": why["avoided"]}
+
+    def finished():
+        left = []
+        if locked:
+            left.append(f"locked doors {locked} (kick_door(x, y) from an orthogonally adjacent square — "
+                        "never a shop door ('Closed for inventory') or anywhere in Minetown)")
+        if why["avoided"]:
+            left.append(f"frontiers {why['avoided']} only reachable across avoided squares {sorted(bad_squares())}")
+        if unreachable:
+            left.append(f"frontiers {unreachable} travel couldn't reach")
+        if not left:
+            return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages")
+        return result("blocked: " + "; ".join(left))
 
     while legs < max_legs:
         s = ctx.last()
         if s.state.kind != "command":
             return result(f"not at command prompt ({s.state.kind}: {s.state.prompt!r})")
         hero = s.hero
-        target = _pick_target(skip)
+        bad = bad_squares()
+        target = _pick_target(skip, bad, why)
         if target is None:
-            return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages")
-        from .mapview import bfs_path
-        from .nav import bad_squares, travel
-        bad = bad_squares() - {target}
+            return finished()
+        bad = bad - {target}
         cur = ctx.last()
         direct = bfs_path(cur, hero, target, allow_monsters=True) if (bad and hero) else None
         if direct and any(c in bad for c in direct):
@@ -177,6 +213,18 @@ def _explore(max_legs: int, skip: set):
             locked.append(target)
             skip.add(target)
             continue
+        if s.hero == hero and not text:
+            blk = blockers(s)
+            hostile = [m for m in blk if not m.get("peaceful")]
+            if hostile:
+                return result(f"blocked: hostile {_mdesc(hostile)} adjacent — travel never starts next to "
+                              "one; fight() it or step away, then explore() again")
+            if blk:
+                ctx.do("s", ok=BENIGN)            # a peaceful in the way: give it a turn
+                stuck += 1
+                if stuck > 3:
+                    return result(f"blocked: {_mdesc(blk)} stays next to you; step around it, then explore()")
+                continue
         if "blocks your path" in text and "boulder" not in text:
             # a peaceful (e.g. shopkeeper) in the way: wait a turn and retry
             ctx.do("s", ok=BENIGN)

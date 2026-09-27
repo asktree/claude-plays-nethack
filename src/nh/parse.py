@@ -64,7 +64,9 @@ class Status:
     ac: int = 0
     xl: int = 0
     exp: int | None = None
-    hd: int | None = None    # set when polymorphed
+    hd: int | None = None    # set when polymorphed (the status line shows HD instead of Xp)
+    polymorphed: bool = False  # set by the Game when HD is shown (xl then keeps the last real XL)
+    stale: bool = False      # copied from the last readable status (a window covers the status lines)
     turn: int | None = None
     hunger: str = ""
     encumbrance: str = ""
@@ -205,7 +207,8 @@ _OBJ = re.compile(r"\[(?P<choices>[^\]]*)\]\s*$")
 _MENU_END = re.compile(r"\((?:end|(?P<page>\d+) of (?P<pages>\d+))\)\s*$")
 _ITEM = re.compile(r"^(?P<letter>[A-Za-z$#*]) (?P<sel>[-+#]) (?P<text>.*)$")
 
-GETPOS_HINTS = ("Where do you want to travel", "Pick an object", "(For instructions type a ?)",
+GETPOS_HINTS = ("Where do you want to travel", "Pick an object", "(For instructions type a",
+                "Showing known terrain", "Showing underlying terrain",
                 "Pick a monster", "Where do you want to", "Select an object",
                 "Pick a location")
 
