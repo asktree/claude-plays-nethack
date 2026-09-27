@@ -40,6 +40,7 @@ class Daemon:
         self.tracker = MonsterTracker(self.game)
         self.game.tracker = self.tracker
         self.memory = Tracker(self.game, self.dir / "harness_state.json")
+        self.game.memory = self.memory        # tactics read/write the harness memory through it
         self.game.on_step.append(self.memory.on_step)
         # make repo-level tactic/view packages importable in the kernel
         for p in (REPO_ROOT / "play", REPO_ROOT / "src"):

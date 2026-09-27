@@ -243,7 +243,81 @@ _UDLR = {"u": "k", "d": "j", "l": "h", "r": "l"}
 
 def _levels():
     from .sokoban_data import LEVELS
-    return LEVELS
+    adj = _adjustments()
+    if not adj:
+        return LEVELS
+    out = dict(LEVELS)
+    for name, a in adj.items():
+        if name in out and (a.get("remove") or a.get("add")):
+            out[name] = _apply_adjust(out[name], a)
+    return out
+
+
+def _adjustments() -> dict:
+    """{level name: {"remove": [[x, y]...], "add": [...]}} (level coordinates), kept in the harness
+    memory (run/<game>/harness_state.json) so they survive daemon restarts."""
+    g = getattr(ctx, "game", None)
+    st = getattr(getattr(g, "memory", None), "state", None)
+    if isinstance(st, dict):
+        return st.get("sokoban_adjust", {})
+    if g is not None and "sokoban_adjust" in g.__dict__:
+        return g.__dict__["sokoban_adjust"]
+    from .survival import _harness_state          # (an older daemon without game.memory)
+    return _harness_state().get("sokoban_adjust", {})
+
+
+def _apply_adjust(lv: dict, a: dict) -> dict:
+    import copy
+    lv = copy.deepcopy(lv)
+    rem = {tuple(c) for c in a.get("remove", [])}
+    add = [tuple(c) for c in a.get("add", [])]
+
+    def fix(lst):
+        out = [b for b in lst if tuple(b) not in rem]
+        have = {tuple(b) for b in out}
+        return out + [list(c) for c in add if c not in have]
+    lv["boulders"] = fix(lv["boulders"])
+    for st in lv["steps"]:
+        st["after"]["boulders"] = fix(st["after"]["boulders"])
+    return lv
+
+
+def adjust(remove=(), add=(), clear: bool = False) -> dict:
+    """Tell the solver about boulders that differ from its plan FOR GOOD
+    (SCREEN coordinates, as the obs shows them): remove=[(x, y)] = boulders
+    the plan keeps on that square from here on that are gone (teleported
+    away, destroyed); add=[(x, y)] = extra boulders — or a mimic posing as
+    one — that will stay there. Only for squares no later push uses (a
+    spare boulder that took a lost one's role: push it by hand first).
+    Stored per Sokoban level in the harness memory (survives daemon
+    restarts); clear=True forgets this level's adjustments. Returns
+    progress() with them applied."""
+    from .sokoban_data import LEVELS
+    s = ctx.last()
+    ident = identify(s)
+    if ident is None:
+        raise ValueError("adjust(): this doesn't look like a Sokoban level")
+    name, ox, oy = ident["level"], ident["ox"], ident["oy"]
+    g = ctx.game
+    tr = getattr(g, "memory", None)
+    store = tr.state.setdefault("sokoban_adjust", {}) if tr is not None and isinstance(getattr(tr, "state", None),
+                                                                                         dict) \
+        else g.__dict__.setdefault("sokoban_adjust", {})
+    cur = {"remove": [], "add": []} if clear else store.get(name, {"remove": [], "add": []})
+    for key, cells in (("remove", remove), ("add", add)):
+        for (x, y) in cells:
+            c = [x - ox, y - oy]
+            if c not in cur[key]:
+                cur[key].append(c)
+    store[name] = cur
+    if tr is not None and hasattr(tr, "save"):
+        tr.save()
+    if name not in LEVELS:
+        raise ValueError(f"adjust(): no plan for {name}")
+    p = progress(s)
+    print(f"sokoban.adjust(): {p['wiki']}: boulders gone {[(x + ox, y + oy) for x, y in cur['remove']]}, extra "
+          f"{[(x + ox, y + oy) for x, y in cur['add']]} — the plan now matches step {p['done']}/{p['total']}")
+    return p
 
 
 def identify(s=None):

@@ -50,7 +50,9 @@
 | **Soko 4 (Dlvl 2)** | **4a** | `>` (27,5) top-left. Holes on row 5 (34..49): 13 plugged, **3 left** (47..49,5) = steps 24 (B), 25 (A), 26 (E). ZOO room x=44..48, y=14..20, doors (43,15), (43,17), (43,19) west, (49,17) east (reached by the x=50 corridor from (50,5)). A WAND at (50,5); a RING at (29,8); my stolen balsa wand at (31,13). |
 | 7–13 | Dungeons | 7: up (33,13) `>` (64,16); 8: up (48,4) `>` (49,16); 9: up (31,19) `>` (43,4); 10 BIG ROOM `<` (16,8) `>` (4,16); 11: `<` (48,19) `>` (14,19) LAWFUL ALTAR (44,6); 12: `<` (48,3) land mine (47,4) `>` (13,4); 13: `<` (74,7) `>` (66,16) LAWFUL ALTAR (17,18) |
 
-## SOKOBAN 4 SOLVER PATCH (kernel only — RE-APPLY after any daemon restart / reload before `sokoban.solve()`)
+## SOKOBAN 4 SOLVER PATCH — now PERSISTENT (harness memory, `sokoban.adjust()`); do NOT re-apply the code below
+(The orchestrator stored it as `sokoban.adjust(remove=[(29,16)], add=[(35,16), (29,6)])` in screen coordinates = level (3,12) gone, (9,12) and the mimic square (3,2) extra; it survives restarts. If the mimic at (29,6) moves or dies: `sokoban.adjust(clear=True)` then `sokoban.adjust(remove=[(29,16)], add=[(35,16)])`.)
+Old kernel-only version, for reference:
 Boulder P was teleported away (T:9311), spare O took its role, spare Q never moves, giant mimic #2 shows as a boulder at level (3,2) = screen (29,6):
 ```
 lv = sokoban._levels()['soko1-1']

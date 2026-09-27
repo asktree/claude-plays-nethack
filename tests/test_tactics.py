@@ -928,3 +928,26 @@ def test_travel_steps_away_from_a_floating_eye(monkeypatch):
         assert "hostile floating eye adjacent" not in str(e)
     steps = [k for k in sent if k in ("y", "k", "u", "h", "l", "b", "j", "n")]
     assert sent[:2] == ["_", "."] and steps and steps[0] in ("h", "y", "b")   # then a plain step away
+
+
+def test_sokoban_adjust_applies_to_every_plan_state(monkeypatch):
+    from tactics import ctx, sokoban
+    from tactics.sokoban_data import LEVELS
+
+    class _T:
+        def __init__(self):
+            self.state, self.saved = {}, 0
+
+        def save(self):
+            self.saved += 1
+    g = _G()
+    g.memory = _T()
+    monkeypatch.setattr(ctx, "game", g)
+    name = next(iter(LEVELS))
+    lv0 = LEVELS[name]
+    spare = tuple(lv0["boulders"][0])
+    g.memory.state["sokoban_adjust"] = {name: {"remove": [list(spare)], "add": [[1, 1]]}}
+    lv = sokoban._levels()[name]
+    assert spare not in {tuple(b) for b in lv["boulders"]} and (1, 1) in {tuple(b) for b in lv["boulders"]}
+    assert all((1, 1) in {tuple(b) for b in st["after"]["boulders"]} for st in lv["steps"])
+    assert spare in {tuple(b) for b in LEVELS[name]["boulders"]}       # the plan itself is untouched
