@@ -81,6 +81,24 @@ def _covetous(name) -> bool:
     return any(f.startswith("M3_WANTS") for f in rec.get("flags3") or [])
 
 
+def _ignores_elbereth(m) -> bool:
+    try:
+        from nh.game import ignores_elbereth
+    except ImportError:          # (an older core)
+        return m.get("ch") == "@"
+    return ignores_elbereth(m)
+
+
+def _elbereth_holds(s) -> bool:
+    """You stand on an engraving last read as exactly 'Elbereth' where it works (monmove.c onscary(): not
+    in Gehennom, not on the Planes). Monsters that can't see (blinded) ignore it all the same."""
+    g = ctx.game
+    if not hasattr(g, "on_elbereth") or not g.on_elbereth(s):
+        return False
+    key = g.level_key(s.status) if s.status.ok else ""
+    return not (key or "").startswith(("Gehennom", "The Elemental Planes"))
+
+
 def _ench_safe() -> bool:
     """zap.c drain_item(): a disenchanter's passive can't take enchantment from a weapon that defends
     against level drain (Excalibur, Stormbringer, the Staff of Aesculapius) or has none to lose (+0 or
@@ -182,6 +200,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
     s = ctx.last()
     locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
     engulf_warned = False
+    inside = False                   # swung from inside an engulfer during this call
     seen_notes: set = set()
     t_first = s.status.turn if s.status.ok and s.status.turn is not None else 0
     for _ in range(max_blows):
@@ -201,7 +220,15 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                           "swinging (you can't walk out) down to 1/7, then pray")
             s = ctx.do("Fk", ok=ROUTINE + [r"^You (hit|miss) the ", r"^You get (expelled|regurgitated)"])
             seen.extend(s.messages)
+            inside = True
             continue
+        if inside:
+            # the engulfer died or spat you out: you are back on the map, maybe beside other monsters and
+            # off the square you had prepared (Elbereth) — a new situation, not more of the same fight
+            print("fight: out of the engulfer (" + ("killed" if any(re.search(r"^You (?:kill|destroy) ", m)
+                                                                    for m in seen) else "expelled")
+                  + ") — stopped; look around before fighting on")
+            return s
         if "Hallu" in st.conditions:
             ctx.pause("fight: hallucinating — can't tell hostile from peaceful (and NetHack won't ask). Attack "
                       "with do('F'+dir, force=True) only a monster that is attacking you, or retreat.")
@@ -307,7 +334,11 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 print(f"fight: the {locked_on} at ({x},{y}) is gone — a {nm} is there now; stopped (fight({x}, "
                       f"{y}) again to attack it)")
                 return s
-        worst = sum(max_hit(m.get("desc") or "") for m in s.adjacent_hostiles())
+        threats = s.adjacent_hostiles()
+        if _elbereth_holds(s):
+            # monmove.c onscary(): on a working Elbereth only the monsters that ignore it can attack you
+            threats = [m for m in threats if _ignores_elbereth(m)]
+        worst = sum(max_hit(m.get("desc") or "") for m in threats)
         if st.ok and st.hp < stop_hp * max(1, st.hpmax) and worst * 3 >= st.hp:
             ctx.pause(f"fight: HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} and the adjacent hostiles can "
                       f"deal ~{worst}/turn — disengage? (Elbereth, retreat, pray if HP <= 1/7 max)")

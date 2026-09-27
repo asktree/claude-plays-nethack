@@ -2011,3 +2011,109 @@ def test_travel_pass_hostile_walks_past_a_sleeper(monkeypatch):
     monkeypatch.setattr(nav, "walk_path", fake_walk)
     r = nav._travel(16, 5, 40, None, 3, 0, False, pass_hostile=True)
     assert walked and (10, 4) not in walked[0] and r.hero == (16, 5)
+
+
+def test_fight_stops_once_out_of_the_engulfer(monkeypatch):
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    inside = _snap({}, (10, 5), [])
+    inside.engulfed = True
+    hulk = {"x": 11, "y": 5, "ch": "U", "desc": "umber hulk", "dist": 1}
+    out = _snap({5: "         ...."}, (10, 5), [hulk])
+    out.messages = ["You kill the lurker above!"]
+    for s in (inside, out):
+        s.status.hp, s.status.hpmax, s.status.xl = 100, 139, 12
+    cur = {"s": inside}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = out
+        return out
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(combat, "_wielding", lambda: True)
+    combat.fight(max_blows=6)
+    assert sent == ["Fk"]                        # one blow inside; the umber hulk outside is not attacked
+
+
+def test_fight_worst_case_on_elbereth_counts_only_ignorers(monkeypatch):
+    from tactics import combat, ctx
+    g = _G()
+    g.on_elbereth = lambda s, cell=None: True
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    monkeypatch.setattr(combat, "_wielding", lambda: True)
+    dragon = {"x": 11, "y": 5, "ch": "D", "desc": "green dragon", "dist": 1}
+    giant = {"x": 9, "y": 5, "ch": "H", "desc": "storm giant", "dist": 1}
+    soldier = {"x": 10, "y": 4, "ch": "@", "desc": "soldier", "dist": 1}
+    s = _snap({}, (10, 5), [dragon, giant, soldier])
+    s.status.hp, s.status.hpmax, s.status.xl = 40, 139, 12
+    paused, sent = [], []
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "pause", lambda r: paused.append(r))
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    combat.fight(10, 4, max_blows=1)             # the soldier ignores Elbereth; the dragon and giant are scared
+    assert not any("disengage" in p for p in paused)
+    g.on_elbereth = lambda s, cell=None: False    # no Elbereth: all three count
+    paused.clear()
+    combat.fight(10, 4, max_blows=1)
+    assert any("disengage" in p for p in paused)
+
+
+def test_burn_elbereth_skips_empty_wands_and_verifies(monkeypatch):
+    from tactics import ctx, items, survival
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    base = _snap({}, (10, 5), [])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to write with? [- gly or ?*]")
+    worn = _snap({}, (10, 5), [])
+    worn.messages = ["The wand is too worn out to engrave."]
+    add = _snap({}, (10, 5), [])
+    add.state = State("yn", prompt="Do you want to add to the current engraving? [ynq] (y)")
+    getlin = _snap({}, (10, 5), [])
+    getlin.state = State("getlin", prompt="What do you want to burn into the floor here?")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["Flames fly from the wand."]
+    flow = {("E", 0): obj, ("g", 0): worn, ("E", 1): obj, ("l", 1): add, ("n", 1): getlin,
+            ("Elbereth<CR>", 1): done}
+    cur = {"s": base, "try": 0}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        nxt = flow[(keys, cur["try"])]
+        if nxt is worn:
+            cur["try"] = 1
+        cur["s"] = nxt
+        return nxt
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: base)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "g", "text": "a wand of fire", "class": "Wands", "buc": ""},
+        {"letter": "l", "text": "a wand of fire", "class": "Wands", "buc": ""},
+        {"letter": "m", "text": "a wand of fire (0:0)", "class": "Wands", "buc": ""},
+        {"letter": "y", "text": "a wand of lightning (0:5)", "class": "Wands", "buc": ""}])
+    monkeypatch.setattr(survival, "engraving_here",
+                        lambda: 'Something is burned into the floor here. You read: "Elbereth".')
+    r = survival.burn_elbereth(wands=["g", "l"])
+    assert r["ok"] and r["wand"] == "l" and r["empty"] == ["g"] and "g" in g.empty_wands
+    assert sent == ["E", "g", "E", "l", "n", "Elbereth<CR>"]
+    # default choice: identified fire wands only (not lightning), skipping the ones known empty: 'g' (it
+    # said so above) and 'm' ("(0:0)") -> just 'l'
+    cur["s"], cur["try"] = base, 1
+    sent.clear()
+    r = survival.burn_elbereth()
+    assert sent[:2] == ["E", "l"] and r["ok"]
+    # blind: refused
+    blind = _snap({}, (10, 5), [])
+    blind.status.conditions = ["Blind"]
+    monkeypatch.setattr(ctx, "require_command", lambda who: blind)
+    paused = []
+    monkeypatch.setattr(ctx, "pause", lambda m: paused.append(m))
+    sent.clear()
+    r = survival.burn_elbereth()
+    assert not r["ok"] and paused and "garbled" in paused[0] and sent == []

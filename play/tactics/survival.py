@@ -569,3 +569,101 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
                      + (f"  !! {m['note']}" if m['note'] else "") for m in out[:30]))
           + (f"\n  ... {len(out) - 30} more" if len(out) > 30 else ""))
     return out
+
+
+# engrave.c doengrave(): what burning with a wand says
+_BURN_OK = [r"^Flames fly from the wand", r"^Lightning arcs from the wand", r"^You are blinded by the flash",
+            r"^You (?:burn|melt) into the", r"^You will overwrite the current message", r"^You wipe out the message",
+            r"^This .+ is a wand of (?:fire|lightning)!", r"^You feel the wand heat up", r"^You hear crackling",
+            r"^Your hair stands up", r"^You add to the text", r"^The engraving now reads"]
+_BURN_WAND = re.compile(r"\bwands? of (fire|lightning)\b")
+
+
+def burn_elbereth(wands=None, lightning: bool = False, force: bool = False) -> dict:
+    """Burn a PERMANENT Elbereth where you stand with a wand of fire (a wand of lightning only with
+    lightning=True: its flash blinds you for up to 50 turns). Tries the wands in turn: one that is "too
+    worn out to engrave" (empty) is remembered as EMPTY (zap() refuses it too) and the next is tried.
+    Refuses while Blind, Hallucinating, Stunned or Confused (letters come out garbled: blind 1 in 11 each)
+    unless force=True. Reads it back (burned text can be felt even blind).
+    wands: letters to try, in order (default: your identified wands of fire, then lightning if allowed).
+    Returns {"ok", "wand", "text", "empty"}.
+    A burned Elbereth never smudges: fighting monsters that ignore it (@ humans/elves, minotaurs,
+    shopkeepers, guards, priests) from it costs nothing; attacking one that RESPECTS it is hypocrisy
+    (-5 alignment) and deletes it. It does nothing in Gehennom or on the Planes."""
+    from .combat import ROUTINE
+    from .items import inventory
+    s = ctx.require_command("burn_elbereth()")
+    out = {"ok": False, "wand": None, "text": "", "empty": []}
+    bad = {"Blind", "Hallu", "Stun", "Conf"} & set(s.status.conditions if s.status.ok else ())
+    if bad and not force:
+        ctx.pause(f"burn_elbereth(): you are {'/'.join(sorted(bad))} — the letters would come out garbled (a "
+                  "burned engraving can't be fixed, only burned over): wait it out or cure it (unicorn horn); "
+                  "force=True burns anyway")
+        return out
+    inv = inventory()
+    empty = getattr(ctx.game, "empty_wands", None)
+    if empty is None:
+        ctx.game.empty_wands = empty = set()
+    if wands is None:
+        kinds = ("fire", "lightning") if lightning else ("fire",)
+        cands = []
+        for kind in kinds:
+            cands += [i["letter"] for i in inv if (_BURN_WAND.search(i["text"]) or [None, None])[1] == kind]
+    else:
+        cands = list(wands)
+    texts = {i["letter"]: i["text"] for i in inv}
+    cands = [c for c in cands if force or (c not in empty and not re.search(r"\(\d+:0\)", texts.get(c, "")))]
+    if not cands:
+        ctx.pause("burn_elbereth(): no wand to try (identified wands of fire" + (" / lightning" if lightning else "")
+                  + " that aren't known EMPTY) — pass wands=['x'] to try an unidentified one, or elbereth() "
+                    "for dust")
+        return out
+    for w in cands:
+        s = ctx.do("E", quiet=True)
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            ctx.pause(f"burn_elbereth(): 'E' didn't ask what to write with ({s.state.kind}: {s.state.prompt!r})")
+            return out
+        s = ctx.do(w, quiet=True, ok=_BURN_OK)
+        wrote = False
+        for _ in range(6):
+            k, p = s.state.kind, s.state.prompt or ""
+            if k == "yn" and "add to the current engraving" in p:
+                s = ctx.do("n", quiet=True, ok=_BURN_OK)
+            elif k == "getlin":
+                s = ctx.do("Elbereth<CR>", ok=ROUTINE + _BURN_OK + [r"(?:misses|just misses)[!.]$",
+                                                                     r"turns to flee"])
+                wrote = True
+                break
+            elif k == "yn" and "Do you want to" in p:
+                s = ctx.do("n", quiet=True)
+            else:
+                break
+        msgs = " ".join(ctx.last().messages or []) + " " + " ".join(s.messages or [])
+        if "too worn out to engrave" in msgs or (not wrote and re.search(r"You wrest|glows and fades", msgs)):
+            empty.add(w)
+            out["empty"].append(w)
+            print(f"burn_elbereth(): wand {w} is EMPTY (\"too worn out to engrave\") — trying the next one")
+            continue
+        if ctx.last().state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        if not wrote:
+            print(f"burn_elbereth(): wand {w} didn't burn anything ({msgs.strip() or 'no message'})")
+            continue
+        out["wand"] = w
+        if not re.search(r"Flames fly|Lightning arcs|heat up|crackling|hair stands up|burn into|melt into",
+                         msgs):
+            print(f"burn_elbereth(): wand {w} wrote, but not by burning? ({msgs.strip()}) — the read-back tells")
+        txt = engraving_here()
+        out["text"] = txt
+        out["ok"] = _elbereth_ok(txt) and bool(re.search(r"burned into|melted into", txt))
+        if out["ok"]:
+            print(f"burn_elbereth(): OK — burned with wand {w}: {txt}")
+        else:
+            print(f"burn_elbereth(): NOT a clean burned Elbereth ({txt!r}) — burn again over it (it asks to "
+                  "add: the helper answers n = overwrite)")
+        return out
+    ctx.pause(f"burn_elbereth(): every wand tried was EMPTY ({out['empty']}) — engrave in the dust (elbereth()) "
+              "or recharge one")
+    return out

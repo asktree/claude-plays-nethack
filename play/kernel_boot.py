@@ -49,7 +49,7 @@ from tactics.nav import drowners_adjacent, eel_level, eel_zone, squeaky_boards  
 from tactics.nav import forget_mimic, known_mimics, remember_mimic  # noqa: E402,F401
 from tactics.combat import throw_can_hit  # noqa: E402,F401
 from tactics import desmap  # noqa: E402,F401
-from tactics.survival import offer, prayer_verdict, telepathy_scan  # noqa: E402,F401
+from tactics.survival import burn_elbereth, offer, prayer_verdict, telepathy_scan  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401
 from tactics.combat import auto_fightable, hunt  # noqa: E402,F401
 from tactics.endgame import ascend, invoke, on_vibrating_square  # noqa: E402,F401

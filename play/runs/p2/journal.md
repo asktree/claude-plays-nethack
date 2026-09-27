@@ -333,3 +333,14 @@
 - T:15622–15663 — Elbereth in the fort, rested to 139/139 (non-@ monsters fled; the troll rose again and walked off).
 - SHIFT 22 END T:15663 D28 on Elbereth at (11,12), HP 139/139, XL12, AC -8. No prayer used (last T:10649). Garrison still large and awake; the wand is in the SE tower.
 - T:15663–15693 — the peaceful titan and the storm giant lifted most fort boulders; killed one more soldier with a raw `F` (the harness guard refused fight() on it from Elbereth); re-engraved Elbereth. FINAL T:15693: on Elbereth at (11,12), HP 139/139, Exp 25361; adjacent (all scared by Elbereth): yellow light (10,11), storm giant (12,12), rust monster (10,13).
+
+## Shift 23 (the Castle fort, continued)
+- T:15694 D28 — struck the adjacent yellow light from the dust Elbereth: the blow smudged the dust FIRST (uhitm.c u_wipe_engr before the hypocrisy check) → no hypocrisy, but the light survived and the storm giant hit (-18). A soldier's thrown RUBY potion = ACID (named).
+- T:15694 — **BURNED Elbereth at (11,12) with wand g** (1 action, never smudges when I fight @). Fort loop: 13+ soldiers, 3 sergeants, **2 LIEUTENANTS** killed from it (T:15694-15933) at almost no HP cost.
+- T:15697 — the DEMILICH cast summon nasties ("Monsters appear from nowhere!": red dragon, purple worm, ogre king, xan). Red dragon's own fire killed the troll (it revived T:15730).
+- T:15774 — hypocrisy strike on the storm giant (-5 align, burned Elbereth deleted): 2 hits, then it QUAFFED FULL HEALING; re-burned with y (HP 101).
+- T:15803-15811 — umber hulk gaze confused me twice (unicorn horn L fixed it, 1-2 applies). T:15836 hulk stepped adjacent → struck + killed with no damage, re-burned (y).
+- T:15876-15901 — 2nd lieutenant killed (its striking wand missed); struck the storm giant again, re-burned (y).
+- **T:15916 — struck the storm giant; it READ CREATE MONSTER: 2 umber hulks, 2 lurkers above, jabberwock, giant beetle, green dragon, violet fungus, 2 Mordor orcs, orc zombie, a chameleon (manes→panther→gray dragon), black light, peaceful gnome lord.** Re-burn failed: g EMPTY (lost turn) → a LURKER ABOVE ENGULFED me; killed it from inside (2 blows). Expelled into the green dragon's POISON GAS (blinds each turn): 3 blind burns garbled ("Elberpth"), y and N EMPTY; umber hulk #2 killed; HP 130 → 28.
+- T:15928 — burned Elbereth with l while NOT blind: OK (verified). Quaffed extra healing (28→45), horn fixed confusion, killed 2 more soldiers. A gas-blinded giant beetle kept biting through Elbereth (blind monsters aren't scared).
+- SHIFT 23 END T:15941 D28 on the burned Elbereth (11,12), HP 52/139, XL12 (Exp 29224, +3863 this shift), AC -8. No prayer used (last T:10649). Fire wands g/y/N empty, l unknown. Garrison: soldiers thinned (~10 left, mostly in the towers), but the create-monster/summon crowd is big (jabberwock, dragons, storm giant, umber hulk, liches + demilich).

@@ -51,7 +51,9 @@ NOTES = {
                    "off to heal.",
     "arch-lich": "deadliest caster: TOUCH OF DEATH without MR, summons nasties, curses, destroys armor, hastes "
                  "itself. Needs MR. Covetous: wants the Book of the Dead — follows you, teleports off to heal.",
-    "disenchanter": "disenchants your weapon/armor on hit. Don't melee with good gear.",
+    "disenchanter": "each hit drains +1 from a worn piece of POSITIVELY enchanted armor (or a ring); hitting it "
+                    "drains your weapon's positive enchantment — but Excalibur (drain-resistant) and gear at +0 or "
+                    "less can't be drained (zap.c drain_item). Kill it at range, or melee with Excalibur.",
     "rust monster": "no HP damage. Its touches rust iron armor (a worn cloak covers body armor; helmet, shield, "
                     "gloves, boots can rust); hitting it rusts an iron weapon unless rustproof (a fountain "
                     "Excalibur is). Eats metal off the floor.",
@@ -366,7 +368,11 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
         bits.append(n.rstrip(". ") if len(n) > 1 else n)     # (joined with "; " below: no ".;")
     rec = monster_record(name)
     if rec and not desc.startswith("peaceful ") and any(f in COVETOUS_FLAGS for f in rec.get("flags3", [])):
-        bits.append(COVETOUS_NOTE)
+        if n and "Covetous:" in n:
+            bits[-1] = bits[-1].replace("Covetous:", "COVETOUS (it teleports next to you, even on no-teleport "
+                                        "levels):")
+        else:
+            bits.append(COVETOUS_NOTE)
     if rec and hero_xl is not None and not desc.startswith("peaceful "):
         diff = rec.get("difficulty", 0)
         if diff >= hero_xl + 4:
@@ -410,7 +416,7 @@ _PASSIVE_TEXT = {
     "AD_ACID": "acid: splashes you and can corrode your weapon",
     "AD_CORR": "corrodes your weapon",
     "AD_RUST": "rusts your weapon",
-    "AD_ENCH": "DISENCHANTS your weapon (Excalibur loses its enchantment)",
+    "AD_ENCH": "DISENCHANTS your weapon when you hit it (not Excalibur, nor a weapon at +0 or less)",
     "AD_PLYS": "PARALYSES you when you hit it (deadly without free action)",
     "AD_STON": "touching it STONES you (never barehanded/without gloves)",
     "AD_COLD": "cold (you resist it as a Valkyrie)",

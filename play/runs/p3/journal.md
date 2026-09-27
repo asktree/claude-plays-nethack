@@ -107,3 +107,9 @@ T:6836-6851 SOKO4 — threw 26 things: only weapons/glass can hit (6 hits); NON-
 T:6859-6915 — gave up Soko4 for now; went down Soko3 -> Soko2 (stepped past the nymph) -> Soko1 (killed a grid bug; took scroll of magic mapping X and a crossbow bolt at (42,7); left the crossbow + 3 bolts) -> D10 (4,8).
 T:6919 D10 — end of shift 7: HP 102/102, XL8 (Exp 2056), AC-3, safe at (9,7), no monsters in view.
 T:6938 D10 — altar test at the temple (38,5): Q (NR 9), N (engagement ring), magic mapping, wands V/R, food rations, bolt: all UNCURSED. T:6949 picked up 11 arrows (26,10). End of shift 7 in the doorway (26,10), HP 102/102.
+
+## Shift 8
+T:6953 D10 — kicked the gray stone at (20,11): "Thump!" with open floor beyond = LOADSTONE (left it).
+T:6979 D11 — arrived (33,9). Topaz ring Z (32,11). TEMPLE OF LOKI (chaotic, peaceful priest), altar (52,7): Z tested UNCURSED. No quest message (not the portal level).
+T:7033 D11 — Hungry: ate a food ration (5 left). Killed a snake (it had hidden under a lucern hammer at (50,17): the "It misses!" I). Snake corpse skipped (80% lose 1-4 Str, 27% poison res).
+T:7131 D11 — 30 searches on the temple's east wall and 18 at (54,11): nothing. Read magic mapping (1 left): `>` at (63,10). HIDDEN DOOR (53,17) in the small room's east wall (locked: unlocked with the key). Yellow gem e at (64,9).

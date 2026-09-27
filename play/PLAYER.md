@@ -295,6 +295,15 @@ applying or kicking while standing on it smudges it too (and attacking a monster
 alignment: "You feel like a hypocrite"); dust also decays at random. `elbereth()` reads it back and
 re-engraves once if a letter slipped; `engraving_here()` flags a BROKEN one. While Blind, dust can't be
 felt: an engraving made blind is unverified. Engrave *before* HP gets critical.
+Your melee blow wipes a DUST Elbereth before the hypocrisy check (uhitm.c u_wipe_engr), so hitting from
+dust usually just breaks it, with no alignment loss. A **burned** Elbereth survives the wipe, so hitting a
+monster that respects it is hypocrisy (-5 alignment) and deletes the engraving.
+`burn_elbereth()` burns a permanent one with a wand of fire. It tries your fire wands in turn and
+remembers the empty ones ("too worn out to engrave"). It refuses while Blind, Confused, Stunned or
+Hallucinating (the letters garble, and a burned mistake can only be burned over), then reads the result
+back. From a burned Elbereth, fighting the monsters that ignore it (`@` soldiers, minotaurs) costs
+nothing. fight()'s "disengage?" worst case then counts only those ignorers, but a monster blinded by gas
+ignores it too.
 
 Never:
 - melee a **floating eye** (blue `e`) — paralysis = death. Kill it with thrown daggers/arrows or ignore it.
