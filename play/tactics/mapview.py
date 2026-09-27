@@ -27,6 +27,8 @@ def in_map(x, y):
 
 
 def is_door(s, x, y) -> bool:
+    if (x, y) == s.hero and getattr(s, "under", None) == "D":
+        return True          # you stand in a doorway with a door (the '@' hides it)
     return is_open_door(s, x, y) or is_closed_door(s, x, y)
 
 
@@ -127,11 +129,12 @@ def neighbors(x, y, diag=True):
             yield nx, ny
 
 
-def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False):
+def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False, allow_water=False):
     """Shortest 8-connected path over known-walkable cells (doors: no diagonal
     moves into/out of doorways, per NetHack rules). Returns list of cells
-    excluding start, or None. allow_traps=True also crosses '^' squares (to
-    tell "the only way is over a trap" from "no known way")."""
+    excluding start, or None. allow_traps=True also crosses '^' squares,
+    allow_water=True water/lava '}' squares (to tell "the only way is over a
+    trap / across water" from "no known way")."""
     from collections import deque
     if start == goal:
         return []
@@ -144,7 +147,8 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_trap
             if nxt in prev or nxt in avoid:
                 continue
             if nxt != goal and not is_walkable(s, nx, ny, allow_monsters=allow_monsters) \
-                    and not (allow_traps and cell(s, nx, ny) == "^"):
+                    and not (allow_traps and cell(s, nx, ny) == "^") \
+                    and not (allow_water and cell(s, nx, ny) == "}"):
                 continue
             if nxt == goal and not (is_walkable(s, nx, ny, allow_monsters=True) or cell(s, nx, ny) == " "):
                 continue

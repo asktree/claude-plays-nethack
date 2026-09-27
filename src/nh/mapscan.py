@@ -24,6 +24,9 @@ TRAP_BY_COLOR = {
     10: "polymorph trap",
 }
 VIBRATING_SQUARE_COLOR = 5     # a magenta '~' (a long worm's tail is brown)
+# remembered features (Game.terrain_seen / Snap.feature_mem) by their glyph
+MEM_NAMES = {"<": "up stairs", ">": "down stairs", "{": "fountain", "_": "altar", "\\": "throne",
+             "^": "magic portal", "~": "vibrating square"}
 
 
 _ON_FLOOR = set(".") | set(OBJECT_CLASSES) | set(MONSTER_CHARS) | {"@"}
@@ -159,8 +162,25 @@ def features_in_view(snap, hero=None) -> list[dict]:
             out.append({"ch": ch, "x": x, "y": y, "name": name, "dist": d,
                         "color": COLOR_NAMES[col] if 0 <= col < 16 else str(col)})
     under = getattr(snap, "under", None)
-    if under and hero and FEATURES.get(under):
-        out.append({"ch": under, "x": hero[0], "y": hero[1], "name": FEATURES[under] + " (under you)",
+    fdesc = getattr(snap, "feature_desc", None) or {}
+    if under and hero and MEM_NAMES.get(under):
+        name = fdesc.get(hero) if under == "_" and fdesc.get(hero) else MEM_NAMES[under]
+        out.append({"ch": under, "x": hero[0], "y": hero[1], "name": name + " (under you)",
                     "dist": 0, "color": ""})
+    # remembered features the map doesn't show now: under an object or a monster (stairs under a
+    # scroll, an altar under its priest), or a magic portal on the Planes of Air/Water (no map memory)
+    shown = {(f["x"], f["y"]) for f in out}
+    top = MAP_TOP + getattr(snap.state, "msg_rows", 0)
+    for (x, y), ch in (getattr(snap, "feature_mem", None) or {}).items():
+        if (x, y) in shown or (hero and (x, y) == hero) or ch not in MEM_NAMES or not top <= y <= MAP_BOTTOM:
+            continue
+        now = scr.at(x, y)
+        if now == ch:
+            continue                      # shown as itself (listed above, or not a feature by colour)
+        why = ("under a monster" if now in MONSTER_CHARS or now in "I@" else
+               "under an object" if now in OBJECT_CLASSES else "remembered")
+        name = fdesc.get((x, y)) if ch == "_" and fdesc.get((x, y)) else MEM_NAMES[ch]
+        d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
+        out.append({"ch": ch, "x": x, "y": y, "name": f"{name} ({why})", "dist": d, "color": ""})
     out.sort(key=lambda e: (e["dist"] if e["dist"] is not None else 99, e["y"], e["x"]))
     return out

@@ -83,8 +83,19 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^The [\w' -]+ (?:throws|shoots|fires) ", r" welds itself to the [\w' -]+'s hand!$",
     r"^You stop at the edge of the (?:water|lava)\.",
     r"^A board beneath (?:the |an? )[\w' -]+ squeaks",
+    r"^You hear an? [A-G][\w ]* squeak (?:nearby|in the distance)\.",   # a monster on a squeaky board (trap.c)
     # dropping things on an altar to learn their BUC (the flash/landing is the answer, not an event)
     r" lands? on the altar\.$", r"^There is an? (?:amber|black) flash as .* hits? the altar\.$",
+)]
+
+
+# level sounds worth ONE pause per level (the tracker records them in `nh info`); repeats are noise
+ONCE_PER_LEVEL = [re.compile(p) for p in (
+    r"^You hear an? [\w' -]+ howling at the moon\.",           # a were-creature changed form out of sight
+    r"^You hear (?:a low buzzing|an angry drone)", r"^You suddenly realize it is unnaturally quiet",
+    r"^You hear (?:blades being honed|loud snoring|dice being thrown|General MacArthur)",
+    r"^You hear (?:the tones of courtly conversation|a sceptre pounded|Queen Beruthiel)",
+    r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
 )]
 
 
@@ -158,11 +169,13 @@ class Kernel:
         self.pause_on_monsters = True
         self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
         self._announced: dict[str, dict] = {}   # species -> {turn, level, cells} of its last new-monster pause
+        self._heard: set = set()     # (level, ONCE_PER_LEVEL index) already paused for
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
         self._reply_sent: bytes | None = None   # the `cont --reply` keys just sent for the script
         self.parked = False        # True while an exec worker waits at a pause point
         self.hp_pause = 0.7        # pause on HP loss when HP < this fraction of max...
         self.hp_hit_pause = 0.15   # ...or when one step costs >= this fraction of max
+        self.fight_floor: float | None = None   # hp_rules(): inside a fight, the HP floor instead of the above
         self.budget_steps = 400
         self.budget_seconds = 110.0
         self._steps = 0
@@ -217,13 +230,27 @@ class Kernel:
             finally:
                 k.new_monster_filter = old
 
+        @contextlib.contextmanager
+        def hp_rules(floor: float):
+            """Inside this block (fight(), fight_until_clear()) HP loss pauses
+            only when HP falls below floor * max, when two more steps losing
+            what this one lost would take it there, or when one step costs a
+            quarter of max HP — not after every blow below 70% (the helper
+            checks HP before each blow itself). Nested blocks keep the higher floor."""
+            old = k.fight_floor
+            k.fight_floor = floor if old is None else max(old, floor)
+            try:
+                yield
+            finally:
+                k.fight_floor = old
+
         def set_activity(text: str = "") -> None:
             """What a long helper is doing right now (e.g. 'sokoban step 25/26, 12 pushes done'):
             shown after the reason of any pause until changed or cleared."""
             k.activity = text or ""
 
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
-                       set_activity=set_activity)
+                       set_activity=set_activity, hp_rules=hp_rules)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -281,11 +308,15 @@ class Kernel:
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
                 and not any(p.search(m) for p in extra)
-                and not any(p.search(m) for p in DEFAULT_BENIGN)]
+                and not any(p.search(m) for p in DEFAULT_BENIGN)
+                and not self._heard_before(m, snap)]
         if msgs and not quiet:
             reasons.append("message")
         trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)
                    and not m.startswith("There is")]
+        lt = getattr(self.game, "last_theft", None)
+        if lt and lt.get("msg") in snap.messages and getattr(snap, "theft_note", ""):
+            reasons.insert(0, "THEFT — " + snap.theft_note)
         if trapmsg and snap.hero is not None and not quiet and not getattr(snap, "engulfed", False):
             # (inside an energy vortex "your magical energy drain away" is its attack, not a magic trap)
             reasons.append(f"trap at {snap.hero}")
@@ -303,10 +334,18 @@ class Kernel:
         if before is not None and before.status.ok and snap.status.ok:
             b, a = before.status, snap.status
             if a.hp < b.hp:
-                big_hit = (b.hp - a.hp) >= max(4, self.hp_hit_pause * max(1, a.hpmax))
-                low = a.hp < self.hp_pause * max(1, a.hpmax)
-                if big_hit or low:
-                    reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}")
+                loss, mx = b.hp - a.hp, max(1, a.hpmax)
+                if self.fight_floor is not None:
+                    floor = self.fight_floor * mx
+                    if a.hp < floor or a.hp - 2 * loss < floor or loss >= 0.25 * mx:
+                        reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}" + (
+                            f" (-{loss}: two more like that and you're below {self.fight_floor:.0%})"
+                            if a.hp >= floor and loss < 0.25 * mx else ""))
+                else:
+                    big_hit = loss >= max(4, self.hp_hit_pause * mx)
+                    low = a.hp < self.hp_pause * mx
+                    if big_hit or low:
+                        reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}")
             new_conds = [c for c in a.conditions if c not in b.conditions]
             if new_conds:
                 reasons.append("status: +" + ",".join(new_conds))
@@ -348,6 +387,17 @@ class Kernel:
                     reasons.append("new monster in view: " + ",".join(sorted(set(new))))
         if reasons:
             self._maybe_pause("; ".join(reasons), snap)
+
+    def _heard_before(self, m: str, snap: Snap) -> bool:
+        """A ONCE_PER_LEVEL noise already paused for on this level."""
+        for i, p in enumerate(ONCE_PER_LEVEL):
+            if p.search(m):
+                key = (snap.status.ldesc if snap.status.ok else "", i)
+                if key in self._heard:
+                    return True
+                self._heard.add(key)
+                return False
+        return False
 
     SWARM_TURNS = 5      # another member of a species announced this recently...
     SWARM_DIST = 4       # ...and this close to its group doesn't pause again (bee swarms, orc packs)

@@ -231,3 +231,44 @@ invocation; the Sanctum; the Elemental Planes and the Astral Plane.
   before #offer; keep "of <god>" in the label.
 - AS2 (low) `info` for the Astral Plane lists `altar [[39, 7], [9, 11], [69, 11]]` without alignments (the
   one learned, lawful at (39,7), isn't stored); no plane records its magic portal.
+
+State left behind: `qa2` is on the Astral Plane at (39,8) next to the lawful high altar, T:97, XL30,
+HP 255/262, Hungry, a master lich adjacent, the (re-wished) Amulet `x` in the pack, wizard mode.
+
+## Summary: findings ranked by danger to a real character
+
+| # | Level / step | Finding | Risk |
+|---|---|---|---|
+| 1 | Fire #226 (F1) | Amulet theft ("It hits! \| It steals the Amulet of Yendor!") pauses only as a generic `message` among 6 lines + trap/monster reasons; nothing in obs says the Amulet is gone; the invisible Wizard had followed through ^V | MED-HIGH: the one event that ends an ascension run if missed |
+| 2 | Sanctum #125-#143 (S2) | no `!!` note for the high priest(ess) of Moloch or priests of Moloch (clerical casters: summon insects, lightning, paralysis; hurting them brings Moloch's lightning -> blinded twice); `threat()` does say dangerous | MEDIUM |
+| 3 | Dlvl 48 #183-#190 (E1, V2, V3) | after the invocation: the new `>` is not learned (obs.under None, not in features/info) and the fire traps are not re-read; the way back up (8 fire traps + a 2-wide moat) makes `go_up()`/`travel()` fail with "no known path? — explore()/head_to()" — wrong advice; the real recipe (levitate, force a fire trap, cross, remove ring, go_up) is nowhere | MEDIUM (every ascension passes here) |
+| 4 | Air #209-#210, Water #232-#233 (A1, A2, W1) | Air/Water have no hero memory: the portal found with ^F (or an Orb of Fate) is shown only inside a browse getpos and forgotten after Esc (`features []`, not in `info`); blank = air/bubble but "unexplored" to the planner, `#` clouds = corridor; `path_to` None | MEDIUM (slows; the portal is the whole level) |
+| 5 | Water #236-#238 (W1) | `travel()` on the Plane of Water drifts the hero into open water with the bubble ("You plunge into the water", "Water turbulence ...") — items rust/dilute every leg; the water guard covers only plain steps; `Lev` disappears ("You can't levitate in here") | MEDIUM (inventory damage; drowning without breathing) |
+| 6 | Sanctum #129-#132 (S3; round-1 C4) | `fight()` pauses after almost every blow in crowded boss fights (monster misses, "You hear a door open.", spell lines) at -25..-50 HP/turn: one tool call per game turn | MEDIUM (budget; slows the most dangerous fights) |
+| 7 | Astral #248-#252 (AS1, S5) | priest label loses "of Tyr" on re-description; the altar vanishes from `features` while its priest stands on it (also stairs under a scroll, altar under a devil) | LOW-MED (the alignment check before #offer) |
+| 8 | Sanctum #117-#122, #173 (S1) | travel/go_up toward an unreachable target walk NetHack's "guess" route (2 squares, 3 turns) and then say "did not move (no known path?)" — false text; no Sanctum hint (secret doors, undiggable walls) | LOW-MED |
+| 9 | Dlvl 48 #100-#111 (V1) | standing on the vibrating square, obs/features/info say nothing (only the one-time message); an invocation helper can't verify its position | LOW-MED |
+| 10 | Castle #68, #76 (C1, C2, C3) | `go_down()` gives no trap-door hint; `info` lacks trap doors/drawbridge; the trap guard says "force=True" but `step()` has no `force` (TypeError) — `do(dir, force=True)` works | LOW |
+| 11 | various | missing notes: jabberwock, zruty, baluchitherium, xan, player-monster "wizard called Kevin the Sorcerer"; `pickup('Amulet')` also took an unknown amulet (case-insensitive); `auto_fightable` documented but not in the kernel; ^V endgame menu letters differ from the dungeon menu; squeaky-board noise pauses travel | LOW |
+
+Regression checks of round-1 fixes: G3 (travel/go_down/travel_to/step never step into an adjacent
+monster: PASS, no keys sent), M4 (auto-fight never engages with a non-trivial neighbour: PASS; the exact
+"steps into the dead target's square" timing couldn't be staged), M8 (go_down while levitating refuses up
+front: PASS, also go_up), M1 (water/lava summarized, stairs first: PASS on Medusa, the Castle, Fire, Water),
+C1/W1 (trap doors, drawbridge, magic portals, vibrating square named in features: PASS), P1 (arrival labels
+on a crowded plane: fixed — real names, one documented `unidentified ... (not looked at yet)`), Astral altar
+alignment once adjacent: PASS (`lawful high altar`). Still open from round 1: C4/P2 noise (#6 above), C5
+Castle hint, M2/W6 guess-travel toward unreachable targets (#8), C2 "no known path" when traps are the
+blocker (#3).
+
+Worked well: the trap-door fall into the Valley (one clean level-change pause), the vibrating square shown
+as a feature (never a worm tail) and not blocked by the trap guard, every invocation prompt parsed
+(`object`, `yn` "Attach your candles to your candelabrum?"), the invocation's multi-line --More-- sequence
+handled in one pause, `go_down()` onto the unknown Sanctum stairs, the Sanctum temple-entry pause, the
+`unaligned high altar` label, `here()`/`pickup()` for the Amulet pile, arrival handling on all five Planes
+(status `Earth`/`Air`/`Fire`/`Water`/`Astral Plane` parsed, `where:` correct), the ^F browse getpos on
+Air/Water reported as `[getpos]` (exec refuses until answered), magic portals named on Earth/Fire.
+
+Not covered (budget): digging/tunnelling with `dig()` on the Plane of Earth; the "mysterious force" on the
+Gehennom climb (^V used instead); explore()/head_to() on the Planes without adjacent hostiles; #offer of the
+Amulet; Asmodeus/Baalzebub; the fake Amulet cases.

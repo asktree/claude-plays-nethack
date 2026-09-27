@@ -127,7 +127,7 @@ NOTES = {
     "ice troll": "revives.",
     "water troll": "revives.",
     "xorn": "phases through walls.",
-    "master of thieves": "steals.",
+    "Master of Thieves": "steals.",
     "dwarf": "hostile ones hit hard (mattock d12) early; as a dwarf most Mines dwarves are peaceful.",
     "dwarf lord": "hits hard with mattock early.",
     "hill orc": "comes in packs.",
@@ -146,7 +146,19 @@ NOTES = {
     "ghost": "slow but hard to hit; blocks corridors.",
     "shade": "only silver/blessed hurts; paralysis? touch can remove speed.",
     "Angel": "strong, spellcaster; don't anger peaceful ones.",
-    "aligned priest": "don't anger temple priests.",
+    "aligned priest": "temple priest: clerical spells (summons insects, paralysis without MR, lightning, fire "
+                      "pillar, curses items) and a 4d10 weapon; hitting it while YOU stand in its temple (door "
+                      "included) may call its god's lightning — reflection stops the damage, not the BLINDING "
+                      "flash. Fight it from outside the temple (it won't leave it) or blindfolded with telepathy.",
+    "high priest": "SANCTUM BOSS / Astral temple priest: clerical spells (summons insects, paralysis without MR, "
+                   "lightning, fire pillar, curses items), 4d10 weapon + kick; hitting it while YOU stand in its "
+                   "temple (door included) may call its god's lightning — reflection stops the damage, not the "
+                   "BLINDING flash: fight from outside the temple (it stays inside), or blindfolded with "
+                   "telepathy, unicorn horn ready. It carries the Amulet (Sanctum).",
+    "jabberwock": "4 attacks up to 2d10 each (~80 a turn at worst), flies: fight it at full HP or at range.",
+    "zruty": "hits hard (3 attacks, up to ~42 a turn) but slow (speed 8): you can walk away from it.",
+    "baluchitherium": "hits hard (two 5d4 claws, ~40 a turn).",
+    "xan": "leg sting: WOUNDED LEGS (can't kick; lower carrying capacity) — fast (18) and flies; kill it quickly.",
     "shopkeeper": "NEVER anger (very strong).",
     "watchman": "Minetown Watch: don't anger (no fountain dipping/quaffing, no door breaking, no theft).",
     "watch captain": "Minetown Watch: don't anger.",
@@ -157,8 +169,19 @@ NOTES = {
 INFO_NOTES = {"hill orc", "Uruk-hai", "dwarf", "dwarf lord", "leprechaun", "chameleon", "tengu", "cave spider",
               "ghost", "xorn", "hill giant", "stone giant", "giant beetle", "owlbear", "leocrotta",
               "ettin", "troll", "rock troll", "ice troll", "water troll", "Olog-hai", "python", "rust monster",
-              "blue jelly", "nurse", "rotting corpse", "master of thieves", "water moccasin", "centipede",
-              "scorpion", "pit viper", "large mimic", "giant mimic", "ice vortex", "dust vortex"}
+              "blue jelly", "nurse", "rotting corpse", "Master of Thieves", "water moccasin", "centipede",
+              "scorpion", "pit viper", "large mimic", "giant mimic", "ice vortex", "dust vortex",
+              "zruty", "baluchitherium", "xan"}
+
+# player-monsters ("wizard called Kevin the Sorcerer"): on the Astral Plane they are level 15-30 with a
+# +4..+8 weapon, half the time an ARTIFACT, good armor and sometimes wands (mplayer.c mk_mplayer special)
+PLAYER_MONSTERS = {"archeologist", "barbarian", "caveman", "cavewoman", "healer", "knight", "monk", "priest",
+                   "priestess", "rogue", "ranger", "samurai", "tourist", "valkyrie", "wizard"}
+PLAYER_MONSTER_NOTE = ("player-monster: on the Astral Plane level 15-30 with a +4..+8 weapon (half the time an "
+                       "ARTIFACT), good armor, maybe wands; don't let several gang up on you.")
+PEACEFUL_PRIEST_NOTE = ("peaceful temple priest: never anger it (protection: donate at least 400*XL but under "
+                        "600*XL gold — buy_protection()); on Astral its god must be yours before you #offer the "
+                        "Amulet.")
 
 # notes whose danger is the poison: with poison resistance the level/damage rating decides
 POISON_NOTES = {"killer bee", "water moccasin", "pit viper", "centipede", "scorpion"}
@@ -168,6 +191,10 @@ _STRIP = re.compile(r"^(?:peaceful |tame |invisible |saddled |partly eaten )+")
 _SUFFIX = re.compile(r",\s*(?:swallowing you|engulfing you|being held|holding you|leashed to you|trapped in\b|"
                      r"mimicking\b|masquerading as\b|hiding\b).*$")
 _TAIL = re.compile(r"^(?:peaceful |tame )?tail of (?:a )?")
+# priest.c priestname(): "the high priestess of Moloch", "priest of Tyr" (a temple priest: aligned priest),
+# "high priestess" (an Astral high priest seen from afar); minions: "guardian Angel of Tyr", "Aleax of Tyr"
+_PRIEST = re.compile(r"^(?:renegade )?(?P<high>high )?(?:priest|priestess|poohbah)(?: of (?P<god>.+))?$")
+_MINION = re.compile(r"^(?:renegade )?(?:guardian )?(?P<sp>.+?) of (?P<god>[A-Z][\w' -]*)$")
 
 
 def base_name(desc: str) -> str:
@@ -179,8 +206,16 @@ def base_name(desc: str) -> str:
     d = _TAIL.sub("", d)
     d = re.sub(r",? called .*$", "", d)
     d = re.sub(r"\s+named .*$", "", d)
+    d = re.sub(r"\b(coyote) - .+$", r"\1", d)       # pager.c coyotename(): "coyote - Eatius-Slobbius"
     d = _STRIP.sub("", d)
     d = re.sub(r"^(?:a|an|the) ", "", d)
+    d = _STRIP.sub("", d.strip())          # "the invisible high priest ..."
+    m = _PRIEST.match(d)
+    if m and (m.group("high") or m.group("god")):
+        return "high priest" if m.group("high") else "aligned priest"
+    m = _MINION.match(d)
+    if m and d not in _monsters() and m.group("sp") in _monsters():
+        return m.group("sp")
     return d.strip()
 
 
@@ -238,6 +273,10 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
     n = NOTES.get(name)
     if n and name in POISON_NOTES and "poison" in resists:
         n = "poisonous (you resist the poison)"
+    if name in ("aligned priest", "high priest") and desc.startswith("peaceful "):
+        n = PEACEFUL_PRIEST_NOTE
+    elif name in PLAYER_MONSTERS and not desc.startswith("peaceful "):
+        n = PLAYER_MONSTER_NOTE
     if n:
         bits.append(n)
     rec = monster_record(name)
@@ -398,7 +437,8 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None, r
     xl = hero_xl or 1
     diff = rec.get("difficulty", 0)
     mh = max_hit(name)
-    noted = NOTES.get(name) and name not in INFO_NOTES and not (name in POISON_NOTES and "poison" in resists)
+    noted = (NOTES.get(name) or name in PLAYER_MONSTERS) and name not in INFO_NOTES \
+        and not (name in POISON_NOTES and "poison" in resists)
     if noted or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"
     if diff >= xl + 3 or (hp is not None and mh * 4 >= hp * 3):

@@ -35,7 +35,9 @@ SOUNDS = [
 ]
 
 FEATURE_CHARS = {"<": "up stairs", ">": "down stairs", "{": "fountain", "_": "altar", "\\": "throne",
-                 "#": None}
+                 "^": "magic portal", "~": "vibrating square", "#": None}
+# traps worth a line in the level record (feature_desc names): the Castle's way down, portals
+NOTABLE_TRAPS = ("trap door", "hole", "level teleporter", "magic portal")
 
 
 # a monster in view set off / got caught in a trap (trap.c mintrap): the game now
@@ -70,7 +72,8 @@ class Tracker:
         if self.state.get("current_level") and self.state.get("current_ldesc"):
             game.level_name = self.state["current_level"]
             game.level_name_ldesc = self.state["current_ldesc"]
-        feat_ch = {"up stairs": "<", "down stairs": ">", "fountain": "{", "altar": "_", "throne": "\\"}
+        feat_ch = {"up stairs": "<", "down stairs": ">", "fountain": "{", "altar": "_", "throne": "\\",
+                   "magic portal": "^", "vibrating square": "~"}
         for key, lv in self.state["levels"].items():
             for fname, fcells in lv.get("features", {}).items():
                 if fname in feat_ch:
@@ -128,7 +131,8 @@ class Tracker:
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
             self.need_overview = True
-        if st.ok and any(MON_TRAP_RE.search(m) for m in snap.messages):
+        if st.ok and any(MON_TRAP_RE.search(m) or Game._INVOKED.search(m) for m in snap.messages):
+            # (the invocation rebuilds the area around the new stairs: a ring of fire traps, a moat)
             self.scanned.discard(self.game.level_key(st))
             self.need_overview = True        # the refresh re-reads this level's traps
         if snap.state.kind == "command" and st.ok and self.need_overview and not self._refreshing:
@@ -165,6 +169,17 @@ class Tracker:
                     name = FEATURE_CHARS.get(ch)
                     if name:
                         feats.setdefault(name, []).append([x, y])
+                fd = getattr(self.game, "feature_desc", {}).get(key, {})
+                for (x, y), d in sorted(fd.items(), key=lambda kv: (kv[0][1], kv[0][0])):
+                    nm = next((n for n in NOTABLE_TRAPS if n in d), None)
+                    if nm and [x, y] not in feats.get(nm, []):
+                        feats.setdefault(nm, []).append([x, y])
+                bridges = list((lv.get("features") or {}).get("drawbridge", []))
+                for f in snap.features:
+                    if "drawbridge" in f["name"] and [f["x"], f["y"]] not in bridges:
+                        bridges.append([f["x"], f["y"]])
+                if bridges:
+                    feats["drawbridge"] = bridges
                 lv["features"] = feats
                 lv["map"] = [snap.screen.row(y).rstrip() for y in range(MAP_TOP, MAP_BOTTOM + 1)]
             for attr in ("traps", "avoid"):
@@ -328,7 +343,11 @@ class Tracker:
     def levels_text(self) -> str:
         out = []
         for key, lv in self.state["levels"].items():
-            f = lv.get("features", {})
+            f = dict(lv.get("features", {}))
+            fd = lv.get("feature_desc") or {}
+            if f.get("altar"):
+                # "altar [[39, 7], ...]" -> with the alignment learned by looking ("lawful high altar")
+                f["altar"] = [fd.get(f"{x},{y}", "altar") + f" ({x},{y})" for x, y in f["altar"]]
             fs = ", ".join(f"{k} {v}" for k, v in f.items() if v)
             snd = ("; heard: " + ", ".join(lv["sounds"])) if lv.get("sounds") else ""
             out.append(f"{key}: T{lv.get('first_turn')}-{lv.get('last_turn')} {fs}{snd}")

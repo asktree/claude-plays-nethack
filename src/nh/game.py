@@ -59,6 +59,8 @@ class Snap:
     shop: str = ""             # the shop you stand in ("Carignan's antique weapons outlet"), if known
     last_pos: tuple | None = None   # the hero's last known square (set while a prompt hides the cursor)
     feature_desc: dict = field(default_factory=dict)   # {(x, y): "trap door"} looked up on this level
+    feature_mem: dict = field(default_factory=dict)    # {(x, y): '<'/'>'/'{'/'_'/'\\'/'^' portal/'~' vib. square}
+    theft_note: str = ""       # set for a while after a monster stole something from you
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -342,6 +344,7 @@ class Game:
         self.feature_desc: dict[str, dict] = {}   # level key -> {(x, y): "trap door" / "lawful altar"} (farlook)
         self.intrinsics: set = {"cold", "stealth"}   # Valkyrie start; more learned from messages (_note_intrinsics)
         self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
+        self.last_theft: dict | None = None       # {"turn", "msg", "what"}: the latest theft from you
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -381,6 +384,19 @@ class Game:
             lst.extend(e for e in self.shops.pop(old) if e not in lst)
 
     FEATURE_CHARS = "<>{_\\"
+    # remembered per level beside FEATURE_CHARS (terrain_seen): a magic portal ('^', bright magenta; on the
+    # Planes of Air/Water the game itself keeps no map, so this is the only memory of it) and the vibrating
+    # square ('~', magenta)
+    PORTAL_COLOR, VIBRATING_COLOR = 13, 5
+    ENDGAME = ("Earth", "Air", "Fire", "Water", "Astral Plane")
+    # the invocation (mkinvokearea): the stairs appear under you; the area around is rebuilt (x +-6, y +-5)
+    _INVOKED = re.compile(r"^You are standing at the top of a stairwell leading down!")
+    # steal.c: "The nymph stole a +0 dagger." / "She stole ..." / "It steals the Amulet of Yendor!"
+    # (stealamulet(), stealarm()); muse.c: "The ... snatches your long sword!" (a bullwhip);
+    # "Your purse feels lighter." (a leprechaun took gold). Not monster-vs-monster ("... from the gnome!")
+    THEFT_RE = re.compile(r"^(?!You )(?P<who>.+?) (?:steals|stole|removed your chain and stole|snatches) "
+                          r"(?P<what>.+?)[.!]$|^Your purse feels lighter")
+    THEFT_TURNS = 300      # how long the obs keeps saying so (unless you get it back)
     # look_here(): "There is %s here." with dfeature_at() (invent.c) — "an opulent throne",
     # "an altar to Tyr (lawful)", "a high altar to ..." on Astral/Sanctum
     _HERE_FEATURE = re.compile(r"^There is an? (?:high )?(staircase up|staircase down|ladder up|ladder down|"
@@ -511,6 +527,29 @@ class Game:
                 if re.search(pat, m):
                     (self.intrinsics.add if gained else self.intrinsics.discard)(name)
 
+    def _note_theft(self, messages: list[str], turn) -> None:
+        for m in messages:
+            mm = self.THEFT_RE.search(m)
+            if mm and " from " not in (mm.group("what") or "") and "some gold from" not in m:
+                self.last_theft = {"turn": turn, "msg": m, "what": (mm.group("what") or "gold").strip()}
+                continue
+            lt = self.last_theft
+            if lt and re.match(r"^[a-zA-Z$] - ", m):
+                core = re.sub(r"^(?:the|an?|your|\d+) ", "", lt["what"]).split(" (")[0]
+                if core and core.lower() in m.lower():
+                    self.last_theft = None        # picked it back up
+
+    def theft_note(self, turn) -> str:
+        lt = self.last_theft
+        if not lt or turn is None or lt.get("turn") is None or not 0 <= turn - lt["turn"] <= self.THEFT_TURNS:
+            return ""
+        big = re.search(r"Amulet of Yendor|Bell of Opening|Candelabrum|Book of the Dead|silver bell|"
+                        r"papyrus spellbook|candelabrum", lt["what"], re.I)
+        return (f"STOLEN at T:{lt['turn']} ({turn - lt['turn']} turns ago): {lt['msg']}"
+                + (" — you NEED it to win: kill the thief to get it back (the Wizard teleports off and "
+                   "comes back to harass you; nymphs/monkeys drop loot when killed)" if big else
+                   " — the thief teleported off with it; kill it to get it back"))
+
     def wield_note(self) -> str:
         """A warning when you are known to wield something that isn't a
         weapon (a lamp after #rub, nothing at all), else ''."""
@@ -592,17 +631,38 @@ class Game:
         the hero (hidden by the '@') is still known: sets snap.under."""
         if snap.hero is None or not snap.status.ok or _engulfed(snap.screen, snap.hero):
             return
-        feats = self.terrain_seen.setdefault(self.level_key(snap.status), {})
+        key = self.level_key(snap.status)
+        feats = self.terrain_seen.setdefault(key, {})
+        from .mapscan import _door_like
         for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
             row = snap.screen.row(y)
             for x, ch in enumerate(row):
                 if ch in self.FEATURE_CHARS and feature_at(snap.screen, x, y):
                     feats[(x, y)] = ch
+                elif snap.screen.color_at(x, y) == 3 and (ch in "|-" or (ch == "+" and _door_like(snap.screen, x, y))):
+                    feats[(x, y)] = "D"         # a door (open or closed): no diagonal moves in or out of it
+        self._remember_portals(snap, feats)
         for c in list(feats):
             if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
                 del feats[c]           # e.g. a fountain that dried up
         if any("dries up" in m or "fountain disappears" in m for m in messages):
             feats.pop(snap.hero, None)
+        for m in messages:
+            if m.startswith("You feel a strange vibration under your "):
+                feats[snap.hero] = "~"          # (only on the vibrating square itself)
+            elif m.startswith("You activated a magic portal!") and snap.status.ldesc not in self.ENDGAME:
+                feats[snap.hero] = "^"          # you arrive on the other end (not so on the Planes)
+            elif self._INVOKED.search(m):
+                # mkinvokearea(): the square becomes the down stairs, the area around is rebuilt (a ring
+                # of fire traps, a moat): old traps there are gone, the tracker re-reads #terrain
+                for c, v in list(feats.items()):
+                    if v == "~" or (abs(c[0] - snap.hero[0]) <= 6 and abs(c[1] - snap.hero[1]) <= 5):
+                        del feats[c]
+                feats[snap.hero] = ">"
+                tr = self.traps.get(key)
+                if tr:
+                    tr.difference_update({c for c in tr if abs(c[0] - snap.hero[0]) <= 6
+                                          and abs(c[1] - snap.hero[1]) <= 5})
         # "There is a staircase up here." etc. (':' look, or stepping onto a pile):
         # the feature under the hero even when an object/statue covers it
         for m in messages:
@@ -614,6 +674,23 @@ class Game:
                 self.feature_desc.setdefault(self.level_key(snap.status), {})[snap.hero] = \
                     f"{ma.group(2)} altar ({ma.group(1)})"
         snap.under = feats.get(snap.hero)
+
+    def _remember_portals(self, snap: Snap, feats: dict | None = None) -> None:
+        """Magic portals (bright magenta '^') and the vibrating square (magenta
+        '~') on the map, also inside a ^F / crystal-ball browse view (the
+        Planes of Air and Water keep no map of their own)."""
+        if not snap.status.ok or "Hallu" in snap.status.conditions or snap.state.kind not in ("command", "getpos") \
+                or getattr(snap, "engulfed", False):
+            return
+        if feats is None:
+            feats = self.terrain_seen.setdefault(self.level_key(snap.status), {})
+        for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
+            row = snap.screen.row(y)
+            for x, ch in enumerate(row):
+                if ch == "^" and snap.screen.color_at(x, y) == self.PORTAL_COLOR:
+                    feats[(x, y)] = "^"
+                elif ch == "~" and snap.screen.color_at(x, y) == self.VIBRATING_COLOR:
+                    feats[(x, y)] = "~"
 
     # ---- low level ---------------------------------------------------------
     def capture(self) -> Snap:
@@ -768,8 +845,9 @@ class Game:
                 if (tx, ty) in self.traps.get(self.level_key(snap.status), ()):
                     raise PermissionError(
                         f"refusing to step onto the known trap at {(tx, ty)} (NetHack doesn't ask). Go around "
-                        "(travel() avoids traps), or force=True if you mean it (jumping into a hole/trap "
-                        "door on purpose, entering a magic portal).")
+                        f"(travel() avoids traps), or do('{chr(step)}', force=True) / step('{chr(step)}', "
+                        "force=True) if you mean it (jumping into a hole/trap door on purpose, entering a magic "
+                        "portal, crossing the invocation's fire traps).")
             conds = set(snap.status.conditions) if snap.status.ok else set()
             if key in self._MOVE and snap.hero is not None:
                 dx, dy = self._MOVE[key]
@@ -817,7 +895,10 @@ class Game:
                         f"refusing to step into the water/lava at {(snap.hero[0] + dx, snap.hero[1] + dy)}: NetHack "
                         "doesn't stop a single step (only running/travel avoid it). Lava is death without fire "
                         "resistance; water soaks your scrolls/potions and can drown you. Go around; force=True only "
-                        "with levitation/water walking you're sure of.")
+                        "with levitation/water walking you're sure of"
+                        + (" (Plane of Water: levitation and water walking don't work here — only magical "
+                           "breathing makes water safe, and your things still get wet)."
+                           if snap.status.ldesc == "Water" else "."))
             if unit in (b"t", b"f") and snap.hero is not None and snap.status.ok \
                     and self.shop_at(snap.hero, snap.status):
                 raise PermissionError(
@@ -1148,6 +1229,7 @@ class Game:
                         self.engr_seen.get(self.level_key(snap.status), {}).pop(snap.hero, None)
                     self._note_wield(messages)
                     self._note_intrinsics(messages)
+                    self._note_theft(messages, snap.status.turn)
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
                     if arrive:
                         # only a real staircase: not a hole you dug ('>' answered the dig
@@ -1168,11 +1250,9 @@ class Game:
                         self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
-            snap.wield_note = self.wield_note()
-            snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
-            snap.last_pos = snap.hero or self.hero_pos
-            snap.feature_desc = self.feature_desc.setdefault(self.level_key(snap.status), {}) \
-                if snap.status.ok else {}
+            elif snap.state.kind == "getpos" and snap.status.ok:
+                self._remember_portals(snap)       # a ^F / crystal-ball view on the Planes of Air/Water
+            self._annotate(snap)
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -1412,6 +1492,16 @@ class Game:
                 s = self.send_bytes(b"\x1b")
         return s
 
+    def _annotate(self, snap: Snap) -> None:
+        """Harness memory the obs shows with a snapshot."""
+        snap.wield_note = self.wield_note()
+        snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
+        snap.last_pos = snap.hero or self.hero_pos
+        key = self.level_key(snap.status) if snap.status.ok else None
+        snap.feature_desc = self.feature_desc.setdefault(key, {}) if key is not None else {}
+        snap.feature_mem = dict(self.terrain_seen.get(key, {})) if key is not None else {}
+        snap.theft_note = self.theft_note(snap.status.turn if snap.status.ok else None)
+
     def look(self) -> Snap:
         """Capture without sending anything."""
         with self.lock:
@@ -1422,11 +1512,7 @@ class Game:
                 self.hero_pos = snap.hero
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
                 self._remember_terrain(snap, [])
-            snap.wield_note = self.wield_note()
-            snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
-            snap.last_pos = snap.hero or self.hero_pos
-            snap.feature_desc = self.feature_desc.setdefault(self.level_key(snap.status), {}) \
-                if snap.status.ok else {}
+            self._annotate(snap)
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)

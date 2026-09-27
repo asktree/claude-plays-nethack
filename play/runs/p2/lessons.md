@@ -70,3 +70,9 @@
 - A wall corner next to the stairs (D10 `>` (4,16): 4 open neighbours) is a good place to take on a Big-Room crowd; the stairs are the escape, and only adjacent monsters follow (the giant zombie did, and died alone below).
 - A door leading into apparent rock is often just a 1-square dead-end stub ("extra corridor" that stopped): after ~25 fruitless searches, give up.
 - Monster potion quaffs identify appearances for free: "looks better" = healing (magenta here).
+- WAND-OF-FIRE MONSTERS (Grey-elf D10, mountain centaur Soko 2): monsters zap offensive wands whenever lined up (even adjacent, instead of meleeing). 6d6 per hit, ~65% vs AC -4, and bolts BOUNCE: in a dead end with a wall behind you one zap can hit twice. Counter: stand where the only squares lined up with you are adjacent ones (e.g. beside, not in front of, a doorway), so the zapper must come into Excalibur range; or out-zap it at range (my 3 fire bolts killed the Grey-elf, but its 2 hits cost 43 HP and burnt boots + shield).
+- A monster that dies with a wand leaves it: three wands of fire collected in one shift (Grey-elf, centaur via the werejackal who picked it up).
+- YELLOW LIGHT, third time: one Excalibur blow does not reliably kill it (T:8074 at a doorway — it stepped adjacent during travel). Accept the ~100 turns of blindness only on explored levels; wait it out before Sokoban (the solver needs to see the board).
+- SOKOBAN: `sokoban.solve()` did two levels with no manual pushes; everything that went wrong was monsters. On a no-teleport level a floating eye on the solution path must be killed at range (find a clear straight line to it); unicorns stop avoiding your line; the Soko 2b stair-room door can be LOCKED (key: `unlock(x, y)`).
+- Emerald potion = SLEEPING (a centaur threw one: "You feel rather tired" — brief sleep from the vapour).
+- Food rations can be "Rotten" (Blecch!) — usually harmless, but eat in a safe spot.

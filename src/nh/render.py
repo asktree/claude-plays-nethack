@@ -94,6 +94,8 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append(f"!! NOT SENT: {snap.unsent!r} — {snap.stop_reason}")
     if getattr(snap, "wield_note", "") and snap.state.kind == "command":
         lines.append(f"!! {snap.wield_note}")
+    if getattr(snap, "theft_note", ""):
+        lines.append(f"!! {snap.theft_note}")
     k = snap.state.kind
     if k != "command":
         if snap.state.prompt:
@@ -162,6 +164,14 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
             bits.append(f"{nm} x{len(sq)} (nearest ({near['x']},{near['y']}))")
     if bits:
         lines.append("features: " + "; ".join(bits))
+    plane = snap.status.ldesc if snap.status.ok else ""
+    if plane == "Air":
+        lines.append("Plane of Air: blank = open air, '#' = cloud (both passable, clouds block sight; without "
+                     "levitation/flying most steps fail); no map is kept: the portal stays in features once seen")
+    elif plane == "Water":
+        lines.append("Plane of Water: blank = your air bubble (bubbles drift every turn), '}' = water (drowning "
+                     "without magical breathing; things get wet): step() inside the bubble; no map is kept: the "
+                     "portal stays in features once seen")
     return "\n".join(lines)
 
 

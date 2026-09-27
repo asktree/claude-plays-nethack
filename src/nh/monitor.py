@@ -79,6 +79,15 @@ def _friendly(desc: str) -> bool:
     return desc.startswith("peaceful ") or desc.startswith("tame ")
 
 
+def _richer(old: str, new: str) -> str:
+    """Keep the fuller of two labels of the same monster: an Astral high
+    priest shows its god only from next to it ("peaceful high priestess of
+    Tyr" vs "peaceful high priestess" from afar)."""
+    if old and new and old != new and old.startswith(new + " of "):
+        return old
+    return new
+
+
 def _kind(desc: str) -> tuple:
     """Identity for matching: species and tame/peaceful/hostile, ignoring how
     it was seen ('leprechaun [seen: telepathy]' is still a leprechaun) and
@@ -283,6 +292,7 @@ class MonsterTracker:
                 if same:
                     m = min(same, key=lambda e: _cheb(e, k))
                     m["id"] = k["id"]
+                    m["desc"] = _richer(k.get("desc", ""), m["desc"])
             for m in mc:
                 if id(m) not in looked:
                     # over the look budget: borrow the nearest previous description
@@ -300,7 +310,19 @@ class MonsterTracker:
             if m["desc"] and same:
                 r = min(same, key=lambda r: _cheb(m, r))
                 m["id"] = r["id"]
+                m["desc"] = _richer(r.get("desc", ""), m["desc"])
                 claimed.add(r["id"])
+                continue
+            from .danger import base_name
+            bn = base_name(m.get("desc") or "")
+            were = [(i, r) for i, r in self.recent.items() if bn.startswith("were") and i not in claimed
+                    and i not in {k["id"] for k in mons if k.get("id") is not None}
+                    and base_name(r.get("desc", "")) == bn and _cheb(m, r) <= 3] if bn else []
+            if were:
+                # "The werejackal changes into a jackal.": the same monster with a new glyph
+                i, r = min(were, key=lambda ir: _cheb(m, ir[1]))
+                m["id"] = i
+                claimed.add(i)
             else:
                 m["new"] = not m.get("statue")
 
@@ -409,6 +431,7 @@ class MonsterTracker:
             return None
         for m in self.known:
             if (m["x"], m["y"]) == (x, y):
+                d = _richer(m.get("desc", ""), d)
                 m["desc"] = d
                 rec = self.recent.get(m.get("id"))
                 if rec is not None:

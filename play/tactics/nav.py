@@ -206,7 +206,7 @@ def waypoint(s, target, cap):
 
 
 def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
-           fight_through=False, near_exploders=False):
+           fight_through=False, near_exploders=False, water_plane=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -229,9 +229,19 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     (all its checks apply) and go on, instead of raising NavError.
     It refuses (NavError) to take a leg that passes within 2 squares of a known
     exploder (yellow/black light, sphere, gas spore): kill it at range first;
-    near_exploders=True overrides."""
+    near_exploders=True overrides.
+    On the Plane of Water it refuses (the air bubbles drift and travel walks
+    you into the water: soaked scrolls/potions, rust, drowning without
+    magical breathing): step() inside your bubble; water_plane=True overrides."""
     import contextlib
     ctx.require_command("travel()")
+    s0 = ctx.last()
+    if s0.status.ok and s0.status.ldesc == "Water" and not water_plane:
+        raise NavError("travel() on the Plane of Water: the air bubbles drift every turn and travel walks you into "
+                       "the water (\"You plunge into the water\": scrolls blank, potions dilute, iron rusts; "
+                       "without magical breathing you may DROWN). Move with step(dir) inside your bubble toward "
+                       "the portal, waiting ('.') for bubbles to line up; travel(..., water_plane=True) only with "
+                       "magical breathing and your scrolls/potions in a bag")
     if auto_fight and ctx.monster_filter:
         from .combat import not_auto_fightable
         guard = ctx.monster_filter(not_auto_fightable)
@@ -311,6 +321,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
             return walk_path(detour)
     waits = sidesteps = backoffs = fallbacks = fights = 0
+    start = s.hero
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):
@@ -476,22 +487,58 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     return s
                 if s.hero != h0:
                     continue
-            over_traps = bfs_path(s, h0, (x, y), allow_monsters=True, allow_traps=True)
-            traps_on = [c for c in (over_traps or []) if s.screen.at(*c) == "^"]
-            if bfs_path(s, h0, (x, y), allow_monsters=True) is None and traps_on:
-                raise NavError(f"travel to {(x, y)}: the only known route crosses the known trap(s) at {traps_on} "
-                               "(travel never steps on a known trap) — farlook() them: step over one on purpose "
-                               "with do(dir, force=True) if it's harmless for you (e.g. levitating over a trap "
-                               "door), or find another way")
-            raise NavError(f"travel to {(x, y)} did not move (no known path?"
-                           + (" — the map you know doesn't connect to it: explore() to find the way, or "
-                              f"head_to({x}, {y}) across the unexplored part)"
-                              if bfs_path(s, h0, (x, y), allow_monsters=True) is None else ")")
-                           + (f"; messages: {s.messages}" if s.messages else ""))
+            raise NavError(_no_path_msg(s, h0, (x, y), start))
         if _notable(s.messages) and not s.paused:
             return s   # something happened en route; let the caller look (unless the exec
                        # already paused on it and the player chose to go on)
     return s
+
+
+def _no_path_msg(s, h0, target, start=None) -> str:
+    """Why travel can't get there, and what would: the traps/water the only
+    known route crosses (the invocation's ring of fire traps and moat), or
+    that the known map doesn't connect (and whether anything is left to
+    explore)."""
+    x, y = target
+    here = s.hero or h0
+    head = (f"travel to {target} stopped at {here}: NetHack's travel guessed its way from {start} and has no "
+            "known path on from here" if start is not None and here != start else
+            f"travel to {target} did not move: no known path")
+    msgs = f"; messages: {s.messages}" if s.messages else ""
+    if bfs_path(s, h0, target, allow_monsters=True) is not None:
+        return head + " (a route exists on the map you know — something on it stops travel: look at it)" + msgs
+    wide = None
+    for traps, water in ((True, False), (False, True), (True, True)):     # the fewest kinds of hazard
+        wide = bfs_path(s, h0, target, allow_monsters=True, allow_traps=traps, allow_water=water)
+        if wide is not None:
+            break
+    if wide is not None:
+        traps_on = [c for c in wide if s.screen.at(*c) == "^"]
+        water_on = [c for c in wide if s.screen.at(*c) == "}"]
+        bits = ([f"the known trap(s) at {traps_on[:4]}"] if traps_on else []) + \
+               ([f"water/lava at {water_on[:3]}" + (" ..." if len(water_on) > 3 else "")] if water_on else [])
+        how = []
+        if traps_on:
+            how.append("farlook() the trap(s) and step onto one on purpose with do(dir, force=True) / "
+                       "step(dir, force=True) if it's survivable for you (a fire trap with fire resistance only "
+                       "burns scrolls/potions/spellbooks; levitating floats over holes, trap doors and pits)")
+        if water_on:
+            how.append("cross the water by levitation (ring/boots/potion) or water walking — or freeze it "
+                       "(zap cold at it) — then remove the levitation before the stairs")
+        tip = (" — the invocation stairs are always ringed by fire traps and a 2-wide moat: levitate, force a "
+               "step onto one fire trap, cross the moat, then go_up()" if traps_on and water_on else "")
+        return f"{head}: the only known route crosses {' and '.join(bits)}: " + "; ".join(how) + tip + msgs
+    try:
+        from .explore import screen_frontiers
+        open_edges = bool(screen_frontiers(s))
+    except Exception:  # noqa: BLE001
+        open_edges = True
+    if open_edges:
+        return (f"{head} — the map you know doesn't connect to it: explore() to find the way, or head_to{target} "
+                "across the unexplored part" + msgs)
+    return (f"{head} — the known map doesn't connect to it and has no unexplored edge left: search() walls and "
+            "dead ends for hidden doors/passages, dig through (not on undiggable levels), or teleport/levitate"
+            + msgs)
 
 
 def _refuge(s, blk, target):
@@ -620,17 +667,19 @@ def travel_to(ch: str, index: int = 0, color_num: int | None = None):
     return travel(*cells[index])
 
 
-def step(direction: str, n: int = 1):
+def step(direction: str, n: int = 1, force: bool = False):
     """Move one square n times (direction: y k u h l b j n). Stops on messages
     (inside exec) like any do(). Never attacks: NavError if a monster (not
-    your pet) is on the next square — do('F' + direction) to attack."""
+    your pet) is on the next square — do('F' + direction) to attack.
+    force=True passes the harness's step guards (a known trap, water) — never
+    the never-attack check."""
     from .mapview import KEY_DIR
     s = ctx.last()
     for _ in range(n):
         if s.hero is not None and direction in KEY_DIR:
             dx, dy = KEY_DIR[direction]
             _check_free(s, (s.hero[0] + dx, s.hero[1] + dy), "step()")
-        s = ctx.do(direction)
+        s = ctx.do(direction, force=force)
     return s
 
 
@@ -680,7 +729,7 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
                        "stairs\") — remove the ring/boots of levitation or wait for it to wear off")
     cells = known_cells(ch, s, rescan=True)
     if not cells:
-        raise NavError(f"no {ch!r} known on this level")
+        raise NavError(f"no {ch!r} known on this level" + (_ways_down_hint(s) if ch == ">" else ""))
     if s.hero is not None and len(cells) > 1:
         # unreachable ones last (a ladder inside the sealed Wizard's Tower, stairs behind water)
         reach = [c for c in cells if c == s.hero or bfs_path(s, s.hero, c, allow_monsters=True) is not None]
@@ -726,6 +775,24 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         raise NavError(f"pressed {ch!r} at {target} but you are still on {ld0}"
                        + (f": {cur.messages}" if cur.messages else "") + " — look at why before going on")
     return s
+
+
+def _ways_down_hint(s) -> str:
+    """No '>' known: trap doors/holes you know of also lead down — on the
+    Castle (the drawbridge level) they are the only way into Gehennom."""
+    fd = getattr(s, "feature_desc", None) or {}
+    holes = sorted(c for c, d in fd.items() if "trap door" in d or d.strip() == "hole" or d.endswith(" hole"))
+    castle = any("drawbridge" in f["name"] for f in s.features)
+    if holes:
+        return (f" — but trap door(s)/hole(s) are known at {holes[:5]}: they lead down (step in on purpose with "
+                "step(dir, force=True)); " + ("this is the Castle: its trap doors are the ONLY way down, into the "
+                                              "Valley of the Dead (Gehennom) — ready for it?" if castle else
+                                              "you land somewhere random below"))
+    if castle:
+        return (" — this is the Castle (drawbridge): it has no down stairs and its floor can't be dug; the way "
+                "into Gehennom is the row of trap doors in the corridor behind the throne room's east wall (a "
+                "secret door), which runs to the fortress's east door. Find them (explore / magic mapping)")
+    return " — explore() to find one"
 
 
 def _wait_for_pet(s, turns: int):

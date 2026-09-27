@@ -30,7 +30,21 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^You can't see in here", r"^You are jolted with electricity", r"^You are suddenly very (?:hot|cold)",
            # a passive you resist (uhitm.c passive(): Fire_resistance "mildly warm", ...)
            r"^You feel mildly (?:warm|chilly)\.", r"^You feel a mild (?:chill|tingle)\.",
-           r"^You are (?:splashed|covered) by .* but it doesn't",]
+           r"^You are (?:splashed|covered) by .* but it doesn't",
+           # monster spellcasting (mcastu.c) whose damage the HP checks cover (curses, paralysis, lost
+           # armor, summoned monsters still pause: their own messages / the new-monster check)
+           r" casts a spell(?: at [\w' -]+)?!$", r"^Your skin itches", r"^You are hit by a shower of missiles",
+           r"^The missiles bounce off", r"^You stiffen briefly", r"^A bolt of lightning strikes down at you",
+           r"^It bounces off your ", r"^A pillar of fire strikes all around you", r"^You are uninjured\.",
+           r"^A sudden geyser slams into you", r"^Your body is covered with deadly wounds", r" looks better\.$",
+           r"^Your armor is covered with water", r"^You feel a malignant aura surround you\.$",
+           # a temple priest hit in its temple: its god's lightning (the Blind status still pauses)
+           r' roars in anger: +"Thou shalt suffer!"', r"^The bolt of lightning (?:hits you|whizzes by you)",
+           r"^But it reflects from your ", r"^Your arms? tingles?\.",
+           # missiles and potions flying at other monsters, monsters quaffing (the HP checks cover you)
+           r"^The (?:\d+(?:st|nd|rd|th) )?[\w' -]+ (?:hits|misses) (?!you\b)(?:the |an? |it[.!]|[A-Z])",
+           r" hurls (?:an? |the |\d+ )", r"^The [\w' -]+ crashes on your \w+ and breaks into shards\.",
+           r"^The [\w' -]+ evaporates?\.$", r"^Crash!$", r" drinks (?:an? |the )[\w' -]+!$",]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
@@ -41,6 +55,26 @@ ZAP_OK = ROUTINE + [rf"^The {_RAY} (?:hits|misses|whizzes by) (?!you)", rf"^The 
                     r"^The .+ resists", r"^The .+ is not affected"]
 
 _warned: set = set()
+_warned_expl: set = set()
+
+
+def _passive_refusal(desc: str, st) -> str:
+    """Why fight() won't melee this monster without allow_passive (its
+    passive paralyses/stones/slimes/disenchants, or can cost too much HP),
+    or ''."""
+    from nh.danger import STOP_PASSIVES, passive_attacks, passive_max
+    if not desc:
+        return ""
+    pas = passive_attacks(desc)
+    stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
+    if "AD_STON" in stops and getattr(ctx.game, "wielded", None):
+        stops.remove("AD_STON")
+    if stops:
+        return "; ".join(txt for _dt, txt in pas)
+    pdmg, _pw = passive_max(desc, resists=getattr(ctx.game, "intrinsics", ()))
+    if pdmg and st.ok and pdmg * 2 > st.hp:
+        return f"passive up to {pdmg} HP"
+    return ""
 
 
 def _key_toward(hero, m):
@@ -64,11 +98,15 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
       steps into the square after the kill, it stops and says so.
     - only=predicate: stop as soon as an adjacent hostile fails it (auto-fight
       uses auto_fightable, so a python joining a snake fight isn't meleed).
-    - Exec tip: run fights with `bin/nh exec --hp-pause 0.4` so ordinary
-      bites below 70% HP don't pause every round."""
+    - HP pauses inside it follow the fight rules (kernel hp_rules): below
+      stop_hp, a loss that would take you there in two more rounds, or a
+      quarter of max HP in one step — not every blow below 70%."""
+    import contextlib
     seen: list[str] = []
+    rules = getattr(ctx, "hp_rules", None)
     try:
-        return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only)
+        with (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
+            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only)
     finally:
         last = ctx.last()
         if seen and last is not None:
@@ -126,6 +164,9 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None):
                 seen.extend(s.messages)
                 continue
         if not targets:
+            if "Blind" in st.conditions and any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
+                print("fight: you are Blind — the monsters next to you show as 'I' (unseen, maybe peaceful): "
+                      "cure it (apply a unicorn horn) or fight(x, y) on an 'I' square you know is hostile")
             return s
         if only is not None:
             bad = [t for t in s.adjacent_hostiles() if not t.get("statue") and not only(t)]
@@ -147,8 +188,11 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None):
             ctx.pause(f"fight: HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} and the adjacent hostiles can "
                       f"deal ~{worst}/turn — disengage? (Elbereth, retreat, pray if HP <= 1/7 max)")
             return ctx.last()
-        # attack the most dangerous-looking adjacent target first (noted ones), else the first
-        targets.sort(key=lambda m: (0 if m.get("note") else 1))
+        # attack the most dangerous-looking adjacent target first (noted ones), else the first — but
+        # never pick one the passive checks below refuse while another is there (a coyote beside a
+        # floating eye gets the blow)
+        targets.sort(key=lambda m: (bool(allow_passive is False and _passive_refusal(m.get("desc") or "", st)),
+                                    0 if m.get("note") else 1))
         m = targets[0]
         desc = m.get("desc") or ""
         pas = passive_attacks(desc) if desc else []
@@ -158,12 +202,12 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None):
             print(f"fight: {desc} — passive: " + "; ".join(txt for _dt, txt in pas)
                   + (f" | worst case {pdmg} HP per hit ({pwhat})" if pdmg else ""))
         expl = explodes_at_you(desc) if desc else ""
-        if expl and not allow_passive and not (expl in ("AD_BLND", "AD_HALU") and "Blind" in st.conditions):
-            ctx.pause(f"fight: the {desc} EXPLODES on you when it attacks ({expl[3:].lower()}: a yellow light blinds "
-                      "you for ~100 turns, a black light makes you hallucinate, spheres burn/freeze/shock). Kill it at "
-                      "range (throw/zap) before it closes in, or melee it now if it's already next to you and you "
-                      "accept the risk: fight(..., allow_passive=True). Already blind: a light can't blind you more.")
-            return ctx.last()
+        if expl and desc not in _warned_expl:
+            # its explosion IS its attack (AT_EXPL): next to you it goes off on its own turn anyway, and a
+            # killing blow never sets it off — so strike first (kill it at range before it gets here)
+            _warned_expl.add(desc)
+            print(f"fight: the {desc} is next to you and EXPLODES as its attack ({expl[3:].lower()}) — striking "
+                  "first: a kill doesn't set it off; if it survives, it may go off on its turn")
         stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
         if "AD_STON" in stops and _wielding():
             stops.remove("AD_STON")     # uhitm.c: only a bare-handed (no weapon, no gloves) hit petrifies you
@@ -226,8 +270,8 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     worst-case HP rule), wait a turn while hostiles within `radius` aren't
     adjacent yet, and return when none is left within it.
     Newly seen monsters pause only when threat() rates them 'dangerous' (or
-    they can't be rated); HP loss, messages and status changes still pause
-    as usual — run it with `bin/nh exec --hp-pause 0.4`.
+    they can't be rated); messages and status changes still pause as usual,
+    HP loss by the fight rules (see fight()).
     Returns {"reason", "kills", "turns"}: reason "clear"; "HP ..." (below
     stop_hp: Elbereth / retreat / pray); "... not coming" (a hostile in range
     didn't approach for `patience` turns: trapped, slow or sessile — go to
@@ -256,7 +300,8 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
         return {"reason": reason, "kills": kills, "turns": (ctx.last().status.turn or t0) - t0}
 
     guard = ctx.monster_filter(dangerous) if ctx.monster_filter else contextlib.nullcontext()
-    with guard:
+    rules = getattr(ctx, "hp_rules", None)
+    with guard, (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
         for _ in range(max_turns):
             s = ctx.last()
             if s.state.kind != "command" or s.hero is None:

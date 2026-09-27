@@ -589,3 +589,126 @@ def test_engrave_message_identification():
                       ("You write in the dust with an uncursed wand of striking (0:4).", "striking")):
         hit = next((m.group(1) for pat, v in _ENGRAVE_ID if v is None for m in [re.search(pat, msg)] if m), None)
         assert hit == want, msg
+
+
+def test_remembered_features_and_invocation_stairs():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    rows = {5: "        ..........", 6: "        ....?.....", 7: "        .........."}
+    s = _snap(rows, (10, 6), [], colors={})
+    s.status.ldesc = "Dlvl:48"
+    # the stairs seen, then covered by a scroll; a vibrating square underfoot; a portal seen once
+    g.terrain_seen["Dlvl:48"] = {(12, 6): "<", (30, 3): "^"}
+    g._remember_terrain(s, ["You feel a strange vibration under your feet."])
+    g._annotate(s)
+    names = {f["name"] for f in s.features}
+    assert "vibrating square (under you)" in names
+    assert "up stairs (under an object)" in names and "magic portal (remembered)" in names
+    # the invocation: '>' under you, the vibrating square forgotten, old traps nearby dropped
+    g.traps["Dlvl:48"] = {(11, 7), (40, 7)}
+    g._remember_terrain(s, ["You are standing at the top of a stairwell leading down!"])
+    assert g.terrain_seen["Dlvl:48"][(10, 6)] == ">" and s.under == ">"
+    assert g.traps["Dlvl:48"] == {(40, 7)}
+
+
+def test_no_path_message_names_traps_and_moat(monkeypatch):
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {4: "        ...........",
+            5: "        .}}}}}}}}}.",
+            6: "        .}^^^..<.}.",
+            7: "        .}^>^....}.",
+            8: "        .}^^^....}.",
+            9: "        .}}}}}}}}}."}
+    s = _snap(rows, (11, 7), [])
+    msg = nav._no_path_msg(s, (14, 7), (15, 6))
+    assert "a route exists" in msg                # inside the moat, no trap in the way
+    msg = nav._no_path_msg(s, (11, 7), (15, 6))
+    assert "known trap(s)" in msg and "water" not in msg
+    msg = nav._no_path_msg(s, (11, 7), (18, 4))
+    assert "known trap(s)" in msg and "water" in msg and "ringed by fire traps" in msg
+    s2 = _snap({5: "   ....   ", 6: "   .@..   "}, (4, 6), [])
+    msg = nav._no_path_msg(s2, (4, 6), (40, 12), start=(3, 5))
+    assert msg.startswith("travel to (40, 12) stopped at (4, 6): NetHack's travel guessed")
+
+
+def test_travel_refuses_on_the_plane_of_water(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({5: "   }}}  }}}"}, (6, 5), [])
+    s.status.ldesc = "Water"
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    with pytest.raises(nav.NavError, match="Plane of Water"):
+        nav.travel(20, 5)
+
+
+def test_castle_hint_when_no_down_stairs(monkeypatch):
+    from tactics import nav
+    s = _snap({12: "   #.....^...^..."}, (5, 12), [], colors={(3, 12): 3})
+    s.feature_desc = {(9, 12): "trap door", (13, 12): "trap door"}
+    hint = nav._ways_down_hint(s)
+    assert "(9, 12)" in hint and "Castle" in hint and "ONLY way down" in hint
+
+
+def test_diagonal_rule_knows_the_door_under_you():
+    from tactics.mapview import bfs_path
+    rows = {4: "        --|---", 5: "        |....|", 6: "        |....|"}
+    s = _snap(rows, (10, 4), [], colors={})
+    s.screen.chars[4] = "        --@---".ljust(80)
+    s.under = "D"                      # standing in the doorway of an open door
+    path = bfs_path(s, (10, 4), (11, 5))
+    assert path and path[0] == (10, 5)           # straight out first, never diagonally
+    s.under = None                                 # a doorless doorway: the diagonal is fine
+    assert bfs_path(s, (10, 4), (11, 5)) == [(11, 5)]
+
+
+def test_fight_prefers_a_meleeable_target_and_strikes_an_adjacent_exploder(monkeypatch):
+    from tactics import combat, ctx
+    g = _G()
+    g.wielded = "a +2 long sword (weapon in hand)"
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    eye = {"x": 11, "y": 5, "ch": "e", "desc": "floating eye", "dist": 1, "note": "NEVER melee"}
+    coy = {"x": 9, "y": 5, "ch": "d", "desc": "coyote", "dist": 1}
+    s = _snap({5: "        .....", 6: "        ....."}, (10, 5), [eye, coy])
+    s.status.hp, s.status.hpmax = 50, 50
+    s_after = _snap({5: "        .....", 6: "        ....."}, (10, 5), [eye])
+    s_after.status.hp, s_after.status.hpmax = 50, 50
+    state = {"s": s}
+    sent = []
+    monkeypatch.setattr(ctx, "last", lambda: state["s"])
+
+    def do(keys, **kw):
+        sent.append(keys)
+        state["s"] = s_after
+        return s_after
+    monkeypatch.setattr(ctx, "do", do)
+    paused = []
+    monkeypatch.setattr(ctx, "pause", lambda r: paused.append(r))
+    combat.fight(max_blows=2)
+    assert sent[0] == "Fh"                          # the coyote, not the floating eye
+    assert paused and "floating eye" in paused[0]   # then it stops at the eye
+    # a yellow light next to you: strike first (no pause)
+    light = {"x": 11, "y": 5, "ch": "y", "desc": "yellow light", "dist": 1, "note": "explodes"}
+    s2 = _snap({5: "        .....", 6: "        ....."}, (10, 5), [light])
+    s2.status.hp, s2.status.hpmax = 50, 50
+    empty = _snap({5: "        .....", 6: "        ....."}, (10, 5), [])
+    state["s"] = s2
+    sent.clear()
+    paused.clear()
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or state.update(s=empty) or empty)
+    combat.fight()
+    assert sent == ["Fl"] and paused == []
+
+
+def test_routine_projectile_and_potion_messages():
+    import re
+    from tactics.combat import ROUTINE
+    ok = ["The 1st elven arrow hits the gold golem.", "The mountain centaur hurls an emerald potion!",
+          "The flagon crashes on your head and breaks into shards.", "The emerald potion evaporates.",
+          "The mountain centaur drinks a potion of healing!", "The high priestess casts a spell!"]
+    for m in ok:
+        assert any(re.search(p, m) for p in ROUTINE), m
+    for m in ["The arrow hits you!", "You feel a strange sense of loss.", "The nymph stole a +0 dagger."]:
+        assert not any(re.search(p, m) for p in ROUTINE), m

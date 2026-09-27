@@ -159,18 +159,42 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   attach 7 candles.
 - **Wizard's Tower**: entered through the magic portal on a **fake-tower level**; the Wizard has the **Book
   of the Dead**. He resurrects and harasses; keep remove-curse reserves; don't wear levitation near him.
-- **Invocation**: walk the bottom level until "You feel a strange vibration under your feet"; check the BUC
-  of Bell, Book, Candelabrum (cursed fails); light the candelabrum, ring the Bell, read the Book, within a
-  few turns. Sanctum: kill the high priest of Moloch, take the Amulet.
+- **Invocation** (checked in a wizard-mode run): walk the bottom level until "You feel a strange vibration
+  under your feet" (obs: `vibrating square` in features once seen, `(under you)` on it). All three items must
+  be UNCURSED. Attach the candles by applying the CANDLES ("Attach your candles to your candelabrum? y"; it
+  holds 7) — never light the candelabrum off the square (the candles are "rapidly consumed"). On the square:
+  apply the candelabrum ("...glows with a strange light!" = 7 candles, right square), apply the Bell ("issues
+  an unsettling shrill sound..."; each ring uses a charge — "But it makes no sound." = empty, needs charging),
+  then read the Book within 4 turns ("You are standing at the top of a stairwell leading down!").
+  "You have a feeling that something is amiss" = not primed (bell too long ago, candles not 7/lit) and it
+  raises the dead. **The way back**: the new `>` is ringed by 8 fire traps, 2 rows of floor, then a 2-wide
+  moat, and you come back up onto it with the Amulet: levitate (or water walking), `step(dir, force=True)` onto
+  one fire trap (fire resistance: no HP loss, but scrolls/potions/spellbooks can burn — bag them), cross the
+  moat, remove the levitation, `go_up()`.
+- **Sanctum** (no-teleport, no magic mapping): entering the temple turns the high priest(ess) of Moloch
+  hostile — clerical spells (insects, paralysis without MR, lightning, fire pillars, curses) and a 4d10
+  weapon. Each hit on it while YOU stand in its temple (door included) may bring Moloch's lightning:
+  reflection stops the damage, not the flash — you go BLIND (telepathy + a blindfold makes the flash
+  harmless; else keep the unicorn horn ready). It never leaves its temple: ranged attacks from outside
+  avoid the lightning. Take the Amulet with `pickup('Amulet of Yendor')` (spelled out).
 
 ## G. Ascension run
 - Climb to D1 with the Amulet ("mysterious force" setbacks — budget turns and food). Kill the Wizard each
   time he returns (death wand), keep the Amulet safe.
-- Planes: apply the Orb of Fate (crystal ball) + `^` to find each plane's portal; carry charging for it.
-  Fire: smoke blocks sight. Water: move only inside air bubbles.
+- The Wizard (often invisible: `I`) STEALS the Amulet ("It steals the Amulet of Yendor!": a `THEFT` pause
+  and a `!! STOLEN` obs line) and teleports off; he keeps coming back to harass — kill him to get it back.
+  He follows you through level teleports and onto the Planes.
+- Planes: apply the Orb of Fate (crystal ball) or read magic mapping to find each plane's portal; carry
+  charging for it. On Air and Water the game keeps no map — the harness remembers the portal (`magic portal
+  (remembered)` in features) so `travel(x, y)` can aim at it. Air: levitate or fly (otherwise 3 steps in 4
+  fail); clouds `#` block sight. Fire: smoke blocks sight. Water: levitation and water walking don't work;
+  move only inside air bubbles with `step()` (`travel()` refuses there: the bubbles drift and it walks you
+  into the water — soaked scrolls, diluted potions, rust, drowning without magical breathing).
 - **Astral**: arrive at full HP with life saving worn, a death wand with verified charges, full healing,
   a unicorn horn, conflict off, free action. Identify the Riders: **never death-ray Death, never teleport a
-  Rider**. Before `#offer`: confirm the priest's god by farlook ("high priest of Tyr"), take off levitation,
+  Rider**. Player-monsters there (`valkyrie called ...`) are level 15-30, often with artifacts. Before
+  `#offer`: confirm the priest's god by farlook ("high priest of Tyr" — shown only from next to it; the obs
+  keeps it once seen), take off levitation,
   step onto the altar, `:` should read "high altar to Tyr (lawful)". Then `#offer` the Amulet. (From afar
   every Astral altar reads "aligned high altar"; the alignment shows only from an adjacent square — obs
   updates it then.)

@@ -83,3 +83,12 @@
 - Floating eye corpse = guaranteed telepathy (level 2 > rn2(1)); kill it with a force bolt (wand of striking) from 2 squares, never melee.
 - Giant corpses (fire giant etc.) raise Strength ("You feel very strong!") and are ~750 nutrition: eat one fresh when not Satiated instead of a ration.
 - Monsters quaff unknown potions in view and the game names them (vampire: golden = speed; umber hulk: swirly = healing). Watch for "drinks a <colour> potion!".
+- Booby-trapped doors fire on OPENING too (lock.c doopen_indir: "The door opens. KABOOM!!"), not only when unlocking: an unlocked-but-closed unexplored door can still explode. The earlier lesson holds only in one direction (a quiet unlock means that door is now safe to open).
+- Identify before wearing: a marker-written scroll of identify (13 charges) showed the unknown spherical amulet was a CURSED AMULET OF STRANGULATION. Never wear-test amulets; identify (or at least altar-BUC) first.
+- Finding a missing `>`: mklev join() puts a room's door on the wall FACING the room it connects to — a locked door on a closet's west wall means a room further west (here the tiny `>` room at x=2-4). Use door positions to infer hidden rooms before searching walls.
+- Yellow light already adjacent: strike it at once — one Excalibur blow kills it and the explosion is only its own attack (killing it doesn't explode it). Waiting lets it explode.
+- Monsters CAN attack diagonally into a doorway (only movement is restricted): standing IN a doorway exposes you to all room squares next to it; the one-attacker spot is the corridor square OUTSIDE the door.
+- Energy vortex: its passive shock (up to 9d4) only fires while it survives, so hit hard; expect ~25 HP per jolt without shock resistance.
+- The Rogue level (DL15-18, "older, more primitive world"): stairs show as `%`, doors as `+`, gold `*`; the harness's explore() calls it done too early. Farlook every `%`.
+- Ravens blind you and re-blind after a horn cure: kill the raven first (telepathy shows it while blind), then apply the horn.
+- Hunger comes every ~300 turns on small corpses: prefer rations / big corpses when not in a hurry; royal jelly (200) is light food.

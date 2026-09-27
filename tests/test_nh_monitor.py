@@ -431,3 +431,95 @@ def test_explicit_farlook_relabels_a_lookalike():
     m = by_pos(t.update(snap({(46, 2): "S"}, 11)))
     assert m[(46, 2)]["desc"] == "pit viper"   # ...but the unambiguous re-sighting keeps the explicit label
     assert t.relabel(50, 5, "a doorway") is None
+
+
+def test_priest_label_keeps_its_god_from_afar():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(41, 9): "peaceful high priestess of Tyr"}
+    t.update(snap({(41, 9): "@", (47, 9): "A"}, 10, color=15))
+    # a step later another '@' shows up next to it (an ambiguous cluster: everyone is looked at again)
+    # and from 2+ squares away the game names no god
+    g.truth = {(42, 9): "peaceful high priestess", (43, 10): "wizard called Kevin the Sorcerer"}
+    g.looked.clear()
+    m = by_pos(t.update(snap({(42, 9): "@", (43, 10): "@"}, 11, color=15)))
+    assert m[(42, 9)]["desc"] == "peaceful high priestess of Tyr"
+    assert "player-monster" in m[(43, 10)]["note"]
+    assert t.relabel(42, 9, "@  a human (peaceful high priestess)") == "peaceful high priestess of Tyr"
+
+
+def test_kernel_theft_and_fight_hp_rules():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    a, b = snap({}, 225), snap({}, 226)
+    b.messages = ["It hits!", "It steals the Amulet of Yendor!"]
+    g._note_theft(b.messages, 226)
+    g._annotate(b)
+    k._check_events(a, b)
+    assert reasons and reasons[-1].startswith("THEFT — STOLEN at T:226") and "NEED it" in reasons[-1]
+    later = snap({}, 300)
+    g._annotate(later)
+    assert "Amulet of Yendor" in later.theft_note
+    g._note_theft(["u - the Amulet of Yendor."], 310)       # picked it back up
+    g._annotate(later)
+    assert later.theft_note == ""
+    g._note_theft(["The gnome lord stole a +0 dagger."], 320)
+    assert g.last_theft["what"] == "a +0 dagger"
+    g.last_theft = None
+    g._note_theft(["The nymph steals a gem from the gnome!", "You stole 30 zorkmids worth of merchandise."], 330)
+    assert g.last_theft is None                              # monster vs monster; your own shoplifting
+
+    def hp(h0, h1, mx=262):
+        s0, s1 = snap({}, 10), snap({}, 11)
+        s0.status.hp, s0.status.hpmax, s1.status.hp, s1.status.hpmax = h0, mx, h1, mx
+        reasons.clear()
+        k._check_events(s0, s1)
+        return reasons[-1] if reasons else ""
+    assert hp(180, 170) != ""                 # outside a fight: any loss below 70% pauses
+    with k.ns["hp_rules"](0.45):
+        assert hp(180, 170) == ""             # in a fight: a scratch well above the floor doesn't
+        assert "two more like that" in hp(190, 150)    # 150 - 2*40 < 118
+        assert hp(262, 220) == ""
+        assert hp(262, 190) != ""             # a quarter of max HP in one step
+        assert hp(120, 110) != ""             # below the floor
+    assert k.fight_floor is None
+
+
+def test_were_form_change_is_not_a_new_monster_and_howls_pause_once():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(44, 10): "werejackal"}
+    t.update(snap({(44, 10): "@"}, 10))
+    g.truth = {(45, 10): "werejackal"}
+    s = snap({(45, 10): "d"}, 11)
+    s.messages = ["The werejackal changes into a jackal."]
+    m = by_pos(t.update(s))
+    assert m[(45, 10)]["desc"] == "werejackal" and not m[(45, 10)]["new"]
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    for i in range(3):
+        b = snap({}, 20 + i)
+        b.messages = ["You hear a jackal howling at the moon."]
+        k._check_events(snap({}, 19 + i), b)
+    assert len(reasons) == 1
+
+
+def test_coyote_alias_kill_is_recorded():
+    from nh.monitor import killed_names
+    g = FakeGame()
+    kills = []
+    g.record_kill = lambda name, cell, turn: kills.append((name, cell, turn))
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "coyote - Eatius-Slobbius"}
+    t.update(snap({(41, 10): "d"}, 10))
+    s = snap({}, 11)
+    s.messages = ["You kill the coyote!"]
+    t.update(s)
+    assert killed_names(s.messages) == ["coyote"] and kills == [("coyote", (41, 10), 11)]

@@ -13,6 +13,7 @@ _ctx.note = note      # noqa: F821
 _ctx.game = game      # noqa: F821
 _ctx.monster_filter = globals().get("monster_filter")   # absent in daemons started before it existed
 _ctx._set_activity = globals().get("set_activity")
+_ctx.hp_rules = globals().get("hp_rules")
 try:   # pause traces quote the helper code as loaded now (not a file edited later)
     import nh.kernel as _nk
     _nk.snapshot_sources()
@@ -43,3 +44,4 @@ from tactics.items import dip_into, discoveries, read_identify, rub, unlock, wit
 from tactics.items import write_scroll  # noqa: E402,F401
 from tactics.survival import offer, prayer_verdict  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401
+from tactics.combat import auto_fightable  # noqa: E402,F401
