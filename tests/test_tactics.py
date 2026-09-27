@@ -268,3 +268,42 @@ def test_prayer_verdict_and_quiet_patterns():
     assert "HP restored" in v
     bad = ["You feel that Tyr is displeased.", "Thou durst call upon me?"]
     assert not any(any(re.search(p, m) for p in _PRAYER_OK) for m in bad)
+
+
+def test_screen_frontiers_and_head_to(monkeypatch):
+    from tactics import ctx, explore
+
+    class G:
+        visited = {"L": {(10, 5)}}
+        hero_pos = (10, 5)
+
+        def level_key(self, status=None):
+            return "L"
+    monkeypatch.setattr(ctx, "game", G())
+    # a maze corridor going east into the unknown; (9,5)'s blank west side was seen from (10,5)
+    rows = {4: "        ---------",
+            5: "         @......",
+            6: "        ---------"}
+    s = _snap(rows, (9, 5), [])
+    G.visited["L"] = {(9, 5)}
+    assert explore.screen_frontiers(s) == [(15, 5)]
+    # head_to: no known path to (30,5) -> travel to the frontier nearest to it, then (path known) to the target
+    trips = []
+    wall = "        " + "-" * 24
+    s2 = _snap({4: wall, 5: "         .............", 6: wall}, (15, 5), [])            # corridor seen to x=21
+    s3 = _snap({4: wall, 5: "         ......................", 6: wall}, (21, 5), [])   # ... and on to x=30
+    s4 = _snap({4: wall, 5: "         ......................", 6: wall}, (30, 5), [])
+    frames = iter([s2, s3, s4])
+    snaps = {"cur": s}
+
+    def fake_travel(x, y, **kw):
+        trips.append((x, y))
+        snaps["cur"] = next(frames)
+        G.visited["L"].add(snaps["cur"].hero)      # the harness records every square you stand on
+        return snaps["cur"]
+    monkeypatch.setattr(ctx, "last", lambda: snaps["cur"])
+    monkeypatch.setattr(ctx, "activity", lambda text="": None)
+    import tactics.nav as nav
+    monkeypatch.setattr(nav, "travel", fake_travel)
+    out = explore.head_to(30, 5)
+    assert trips == [(15, 5), (21, 5), (30, 5)] and out.hero == (30, 5)

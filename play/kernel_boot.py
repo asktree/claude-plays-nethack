@@ -33,6 +33,7 @@ from tactics.info import (corpse, last_seen, mon, obj, price_candidates, price_i
                           wiki, wiki_page)
 from tactics.nav import kick_door  # noqa: E402,F401
 from tactics.explore import object_frontiers, search_until_change  # noqa: E402,F401
+from tactics.explore import head_to, screen_frontiers  # noqa: E402,F401
 from tactics.nav import avoid, bad_squares, blockers, path_to, walk_path  # noqa: E402,F401
 from tactics.combat import fight, fight_until_clear, friendly_in_line, throw, zap  # noqa: E402,F401
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))

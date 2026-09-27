@@ -274,9 +274,23 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 return result(f"blocked: hostile {_mdesc(hostile)} adjacent — travel never starts next to "
                               "one; fight() it or step away, then explore() again")
             if blk:
-                ctx.do(".", ok=BENIGN)            # a peaceful in the way: give it a turn
+                # a peaceful next to you: NetHack's travel won't start, but plain steps along our
+                # own route (never into a monster) get you away from it
+                from .mapview import bfs_path as _bfs
+                from .nav import walk_path
+                own = _bfs(ctx.last(), hero, target, avoid=frozenset(bad_squares() - {target}),
+                           allow_monsters=False) if hero else None
+                if own and stuck < 3:
+                    try:
+                        s2 = walk_path(own[:3])
+                    except NavError:
+                        s2 = None
+                    if s2 is not None and s2.hero != hero:
+                        stuck += 1
+                        continue
+                ctx.do(".", ok=BENIGN)            # ...else give it a turn to move off
                 stuck += 1
-                if stuck > 3:
+                if stuck > 5:
                     return result(f"blocked: {_mdesc(blk)} stays next to you; step around it, then explore()")
                 continue
         if "blocks your path" in text and "boulder" not in text:
@@ -317,6 +331,68 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+def screen_frontiers(s=None) -> list:
+    """Walkable squares next to blank (never displayed) space, from the
+    screen: where unexplored ground may continue. Blank squares next to a
+    square you have stood on are seen rock and don't count."""
+    from nh.parse import MAP_BOTTOM, MAP_TOP
+    from .mapview import is_walkable
+    s = s or ctx.last()
+    near = set()
+    for (vx, vy) in ctx.game.visited.get(ctx.game.level_key(s.status), set()):
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                near.add((vx + dx, vy + dy))
+    out = []
+    for y in range(MAP_TOP + 1, MAP_BOTTOM + 1):
+        for x in range(1, 79):
+            if not is_walkable(s, x, y, allow_monsters=True):
+                continue
+            if any(s.screen.at(x + dx, y + dy) == " " and (x + dx, y + dy) not in near
+                   and MAP_TOP < y + dy <= MAP_BOTTOM
+                   for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))):
+                out.append((x, y))
+    return out
+
+
+def head_to(x: int, y: int, max_legs: int = 30):
+    """Make for (x, y) across unexplored space (mazes, the Mines, Gehennom):
+    while no known path leads there, travel to the frontier square (walkable,
+    beside never-seen space) nearest to (x, y) and look again; once a known
+    path exists, travel() the rest. Each leg is a travel() (pauses, auto-fight
+    and the never-attack rules as usual). Returns the final snap; NavError when
+    no reachable frontier is left or after max_legs."""
+    from .mapview import bfs_path, dist
+    from .nav import travel
+    target = (x, y)
+    tried: set = set()
+    s = ctx.last()
+    for _leg in range(max_legs):
+        s = ctx.last()
+        if s.state.kind != "command" or s.hero is None:
+            return s
+        if s.hero == target:
+            return s
+        if bfs_path(s, s.hero, target, allow_monsters=True) is not None:
+            return travel(x, y)
+        fr = [c for c in screen_frontiers(s) if c not in tried and c != s.hero
+              and bfs_path(s, s.hero, c, allow_monsters=True) is not None]
+        if not fr:
+            raise NavError(f"head_to{target}: no reachable frontier left (tried {len(tried)}) — search for "
+                           "hidden passages, dig, or pick another target")
+        best = min(fr, key=lambda c: (dist(c, target), dist(c, s.hero)))
+        tried.add(best)
+        ctx.activity(f"head_to{target}: leg {_leg + 1} to frontier {best}")
+        try:
+            s = travel(*best)
+        except NavError as e:
+            print(f"head_to: frontier {best} unreachable ({e}); trying another")
+            continue
+        if s.state.kind != "command":
+            return s
+    raise NavError(f"head_to{target}: not there after {max_legs} legs (at {ctx.last().hero})")
 
 
 def dead_ends(s=None, limit: int = 8) -> list:
