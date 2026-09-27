@@ -53,11 +53,20 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   Excalibur, no switching back to the long sword) and cursed armor can't be removed. Test first: drop it
   where your pet will walk (a pet steps "reluctantly" over cursed items), or drop it on an altar (black
   flash = cursed). Throwing unknown daggers is fine; wielding is not.
+  - The pet test only speaks when you SEE the pet's square (dogmove.c: cansee): drop the item in the doorway
+    of a LIT room and stand 2 squares inside; the answer comes in 1-3 turns. Silence in a dark corridor
+    proves nothing. A pet that PICKS an item up shows that it isn't cursed.
+  - Locked boxes: `force_box()` (a spare known-uncursed dagger, the sword wielded again after). Kicking
+    breaks the lock only 1 kick in 5, and each kick can shatter potions inside.
 - **Prayer only reliably fixes major trouble** (HP ≤ 1/7 max or ≤ 5, Weak/Fainting, stoning, sliming,
   strangling, lycanthropy, food poisoning/illness, stuck in rock/lava). Cursed items, a welded weapon with a
   free off-hand, blindness, etc. are *minor* trouble — at Luck 0 prayer usually won't fix them, and the
   prayer timeout resets anyway. Don't spend a prayer on minor trouble.
 - Acid blobs: don't melee with your good weapon (passive corrosion); kill with thrown daggers or ignore.
+- **Two `>` on one level of DL2-4**: one is the Gnomish Mines branch. After taking one, `where:` says which
+  (Dungeons Level N+1 or the Mines); `go_down(to='Mines')` / `to='Dungeons'` then picks by elimination. For a
+  DWARF, the Mines' gnomes, gnome lords, dwarves and hobbits are mostly peaceful: never attack a peaceful
+  (the harness refuses); hill orcs and a few others are still hostile.
 - **Were-creatures** (`@` human form, `d`/`r` animal form): their animal-form bite gives lycanthropy
   ("You feel feverish") — major trouble, cured by prayer, holy water or a sprig of wolfsbane. They
   summon packs ("summons help"). When you change form you drop armor and even a welded weapon, and
