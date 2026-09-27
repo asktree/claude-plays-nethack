@@ -2,12 +2,13 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:12158 / SOKOBAN top level (Soko4 = 'Sokoban / Level 6', Dlvl 6) at (31,14) / XL13 (Exp 43365; XL14 at 80000) / 132/142 / 22/22 / AC-7
+- Turn / Dlvl / XL / HP / Pw / AC: T:12493 / D10 Odin temple altar (38,5) / XL13 (Exp 45667; XL14 at 80000) / 142/142 / 22/22 / AC-6
 - Attributes: St18 Dx14 Co19 In9 Wi12 Ch10
-- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7) + VERY FAST from speed boots, TELEPATHY (floating eye corpse, T:11594: blindfold h ON = see all minded monsters; telepathy_scan()). NOT poison resistant. Excalibur: +2 to searching.
+- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7) + VERY FAST from speed boots, TELEPATHY (floating eye corpse, T:11594: blindfold h ON = see all minded monsters; telepathy_scan(); MINDLESS monsters (zombies, mummies, golems, vortices, spheres) never show), PERMANENT INVISIBILITY + SEE INVISIBLE (stalker corpse eaten while invisible, T:12233: 'You feel hidden!'). NOT poison resistant. Excalibur: +2 to searching.
+- INVISIBLE FOR GOOD: shopkeepers refuse invisible customers -> wear the MUMMY WRAPPING (in bag r) instead of cloak j to enter a shop (it blocks invisibility while worn).
 - Luck: back to ~0 (the T:8033/T:8074 sacrifice Luck timed out by ~T:11700). Prayer timeout surely 0 (never prayed). Alignment fine.
 - Skills: long sword EXPERT (T:5735), dagger Basic
-- Hunger: ate a food ration T:11650 -> next Hungry ~T:12400. Two worn rings add hunger (~1.1/turn total).
+- Hunger: ate an ice troll (T:12179, 300) and a stalker (T:12233, 400) corpse on top of the T:11650 ration -> next Hungry ~T:13000. Two worn rings add hunger (~1.1/turn total).
 
 ## Prayer log
 | turn | reason | result |
@@ -18,31 +19,23 @@
 - a: the blessed rustproof +3 Excalibur (wielded; enchant weapon read T:7764; safe to enchant up to +5)
 - b: uncursed +0 dagger (alternate; `x` swaps)
 - c: uncursed +4 small shield. At +4 another enchant armor on it EVAPORATES it 3 in 4: TAKE IT OFF before reading enchant armor
-- m: uncursed +0 orcish helm; M: uncursed +0 splint mail; P: uncursed -1 SPEED BOOTS
-- j: uncursed +0 CLOAK OF INVISIBILITY (WORN since T:5518). TAKE IT OFF before entering any shop (T j, W O). Invisible = monsters guess my square ("explodes at a spot in thin air", "strikes at thin air").
-- O: uncursed +0 elven cloak, carried for shop visits
+- O: uncursed +0 ELVEN MITHRIL-COAT (worn since T:12490; AC5, 150 wt, never rusts); X: uncursed +0 ELVEN LEATHER HELM (worn); P: uncursed -1 SPEED BOOTS. (Old splint mail + rusty orcish helm left on the D10 altar.)
+- j: uncursed +0 CLOAK OF INVISIBILITY (worn; now redundant: I am intrinsically invisible). For shops: T j, W the mummy wrapping (bag r). Invisible = monsters guess my square.
+- (elven cloak dropped in the Soko4 zoo (47,20))
 - J: uncursed ring of PROTECTION FROM SHAPE CHANGERS, WORN left hand (T:8137)
 - k: uncursed ring of TELEPORT CONTROL, WORN right hand (T:10712) (useless on no-teleport levels: Sokoban, Medusa, Castle — swap for Z there when needed)
 
 ## Key inventory (letters)
-- Food: D 2 uncursed food rations; F uncursed candy bar; E uncursed cram ration (never rots)
-- STONING CURE: u 3 uncursed LIZARD CORPSES (never rot)
-- Ranged: t 2 uncursed elven daggers + U uncursed elven dagger (quiver), b +0 dagger. (4 cursed -1 daggers dropped on Soko4 (32,12).)
-- Scrolls: o uncursed REMOVE CURSE; G 3 uncursed TELEPORTATION (normal levels only; while Confused + ring k = level teleport, but 80% 'Oops' random level at Luck 0); d uncursed unlabeled (blank); g uncursed VELOX NEB, K uncursed VE FORBRYDERNE, Q 2 uncursed NR 9 (all unknown; Q is not scare monster). Unknown pool: gold/food detection, confuse monster, destroy armor, fire, punishment, genocide, charging, taming (+scare monster for g/K).
-- Spellbooks: none (thin + light green dropped at D18 (43,7): Int 9, too heavy).
-- Potions: x CURSED potion of CONFUSION (smoky; a confusion source for a level teleport); H uncursed SPEED (milky); I 1 uncursed EXTRA HEALING (emergency); l uncursed emerald (unknown); r uncursed SEE INVISIBLE. COLD BREATH / fire ants destroy potions/scrolls.
-- Rings: J PROTECTION FROM SHAPE CHANGERS now WORN (left hand, T:8137: stops lycanthropy, forces weres to @ form and vampires out of bat/fog form); N uncursed FIRE RESISTANCE (identified T:8173, the engagement ring); B uncursed REGENERATION (silver; identified T:8456 — wear for healing, costs extra hunger); Z uncursed LEVITATION (topaz; identified T:8456 — Medusa/Castle/escape; uncursed = removable); k uncursed TELEPORT CONTROL; (see above)
-- W uncursed WAND OF TELEPORTATION (copper): 4 charges used (engrave, test, D23 minotaur T:10824, Soko4 mimic T:11859) of 4-8 -> 0-4 left, MAYBE EMPTY. Zapped at a monster it works even on no-teleport levels. brass wand = MAGIC MISSILE (seen an ice troll zap one).
-- Wands (all altar-tested uncursed): n WAND OF DIGGING (found D18 T:9062; used: 1 engrave + 3 zaps (2 vault, 1 Medusa hole T:10506) -> 0-4 charges left, maybe EMPTY); V WAND OF PROBING (0:4); R WAND OF SECRET DOOR DETECTION (spiked; formally identified T:6579: it UNMASKS MIMICS within 8 squares, even on traps); (undead turning + light wands dropped at D12)
-- Tools: f uncursed UNICORN HORN (apply for conf/stun/blind/sick); h blindfold (yellow light trick!); v skeleton key
-- Gems (all uncursed): S black, T AMETHYST (base 600), e yellow, q white (D23), w yellowish brown (D23), y 5 orange, z 4 violet, A 6 yellowish brown (unknown, maybe glass)
-- Gold: $772. Next protection costs 400*XL (5200 at XL13) at any temple priest. D8 VAULT still holds gold.
+- r BAG OF HOLDING (Soko4 prize, uncursed: bags of holding are generated uncursed). INSIDE: $3990, L mummy wrapping, food (D 2 food rations, E cram, F candy bar), scrolls (s 2 EARTH, Q 2x NR 9, K VE FORBRYDERNE, g VELOX NEB, d blank), potions (l emerald unknown, x CURSED confusion, H speed), rings (N fire res, Z LEVITATION, B regeneration), gems (S black, y 5 orange, z 4 violet, q white, e yellow, w + A yellowish brown, T amethyst). NEVER put an unidentified wand in it (cancellation = explosion). bag_take('r', 'pattern').
+- Carried outside the bag: u 3 LIZARD CORPSES (stoning cure), o REMOVE CURSE, G 3 TELEPORTATION, I EXTRA HEALING, h blindfold (telepathy), f UNICORN HORN, v skeleton key, daggers t 2 elven + U elven (quiver) + b +0 dagger.
+- Wands (outside the bag): W copper = TELEPORTATION (5 charges used of 4-8: 0-3 left, maybe EMPTY; the 5th teleported the Soko4 ogre king T:12401); n DIGGING (0-4, maybe empty); C MAGIC MISSILE (from the ice troll; charges unknown, >=4 used); V probing (0:4); R secret door detection (unmasks mimics); i tin (= slow monster per my notes, not formally IDed); p WAND OF LIGHTNING (glass; engrave-IDed T:12377, 1 charge used); w wand of light (junk).
+- Gold: $3990 IN THE BAG (protection costs 400*XL = 5200 at XL13; D8 VAULT still holds gold).
 
 ## Identified appearances
-- scrolls: ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
+- scrolls: VENZAR BORGAVVE = SCARE MONSTER (Soko4 prize closet); ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
 - potions: SMOKY = CONFUSION; puce = oil; orange = extra healing; white = object detection; golden = see invisible; swirly = blindness; YELLOW = INVISIBILITY; CLOUDY = FULL HEALING (seen quaffed by leprechauns); FIZZY = GAIN LEVEL, MILKY = SPEED (seen quaffed by D21 undead) -> H is a potion of SPEED
 - rings: ivory = teleport control; agate = invisibility; emerald = protection from shape changers
-- wands: steel = undead turning; tin = slow monster; spiked = secret door detection; runed = light; hexagonal = probing; forked = digging; COPPER = TELEPORTATION
+- wands: CURVED = SLEEP (an ogre king zapped one); GLASS = LIGHTNING; steel = undead turning; tin = slow monster; spiked = secret door detection; runed = light; hexagonal = probing; forked = digging; COPPER = TELEPORTATION
 - armor: opera cloak = invisibility; mud boots = speed; riding gloves = fumbling; faded pall = elven cloak. whistle = tin. wands: BRASS = MAGIC MISSILE.
 - Price rules: HUNGRY doubles food prices. Wonotobo (Minetown) lowballs unID'd items (3/8 base).
 
@@ -76,7 +69,7 @@
 | 9 | SOKOBAN 1 (soko4-1) | SOLVED. down (38,10) -> D10 (4,8); up (38,12). Junk pile (35,17): cursed blindness, amnesia, tripe. A crossbow + 3 crossbow bolts at (42,7) (left there). |
 | 8 | SOKOBAN 2 (soko3-1) | SOLVED. down (35,8), up (47,10). Wood nymph killed T:11808. |
 | 7 | SOKOBAN 3 (soko2-1 = Level 3b) | SOLVED T:6568. down (36,16), up (46,10); stair-room door (48,14) unlocked. |
-| 6 | SOKOBAN 4 (soko1-1 = Level 4a, PRIZE + ZOO) | **T:12158: ONE HOLE LEFT, (48,5).** The mimic and boulder L were teleported away by wand W (T:11859); M, N, R, P, J, D, B pushed by hand. LAST BOULDER A is at (31,12): `sokoban.push_wiki(31, 12, 'urrruuuluuurrrrrrrrrrrrrrr')` (spares E (37,9), (29,16), (35,16)). An ICE TROLL with a WAND OF MAGIC MISSILE roams the upper rooms (last (34,10), on A's route): kill it first (it revives: eat or leave the corpse far away). The solver can't resume (holes differ from its plan): use push_wiki. Then row 5 -> (50,5) -> east corridor (ZRUTY + bugbear awake there) -> zoo door (49,17). ZOO (44-48,14-20) ~23 asleep incl. Elvenking, 2 Grey-elves, SCORPION (poison-res corpse), water nymph, xan, wererat, rust monster; PEACEFUL dwarf king (47,14) and couatl (47,16). OLD NOTES: Row 5 holes (34..39) filled; boulder L sits at (39,5); a **GIANT MIMIC (L10, HP 50 max, AC 7, breathless, not fire-resistant)** sits on the HOLE (40,5) right behind it: the boulder can't be pushed and the mimic can't be reached in melee (walls around, holes east). It never moves (Sokoban monsters never step into known holes). Killing it needs ~50 ranged damage in one go (it regenerates 1 HP/20 turns): wand of fire/cold/lightning/magic missile (rays pass boulders; cold is safest for me: a bounce can't hurt me), or 4-5 LIT POTIONS OF OIL (a lit oil potion explodes 4d4 on the target square hit or miss), or ~20 daggers. NOT striking/digging/force bolt (they break the boulder first: Sokoban Luck -1). NOT stinking cloud (breathless). Everything thrown there lies on the hole square and gets BURIED when the boulder plugs it. The zoo room (44-48,14-20), entrance door (49,17) from the east corridor (50,5..17); closets (42,15/17/19). Down stairs (27,5). A second giant mimic was killed at (37,12); a VAMPIRE BAT flutters around (poisonous bite). |
+| 6 | SOKOBAN 4 (soko1-1 = Level 4a) | **SOLVED + ZOO CLEARED + PRIZE TAKEN (bag of holding) T:12368.** Down stairs (27,5). Zoo (44-48,14-20): all hostiles dead; PEACEFUL dwarf king + couatl remain (never attack). Left on the floor: ring of invisibility + potion of see invisible (42,19), elven cloak/darts/cookies/glass (47,20), elven boots + shields + weapons in the zoo, 4 cursed -1 daggers + 3 leather armors (33,8), potion of object detection (31,13) and (48,20). Spare boulders O (29,16), Q (35,16). **An OGRE KING with a WAND OF SLEEP roams Soko4 (teleported away T:12401): never go back up there without reflection/sleep resistance.** |
 | 5 | Mines 1 | up (28,3), down (60,13) |
 | 6 | Mines 2 | up (8,6), down (54,7) |
 | 7 | Mines 3 = MINETOWN | up (3,2); Temple of ODIN altar (33,4); Wonotobo's general store door (68,9); deli door (9,12); Stewe's tools door (58,15); Izchak's lighting door (26,19) (potions of oil? base 250 = too dear); fountains (52,10), (12,16) |
@@ -85,15 +78,14 @@
 - none
 
 ## Threats / known dangers
-- Soko4 (here): ICE TROLL with a WAND OF MAGIC MISSILE (revives), ZRUTY (up to ~42/turn, slow) + bugbear on the east corridor, the ZOO (asleep; 2 peacefuls inside: dwarf king, couatl — fight() looks before each blow).
 - D24: minotaur pair + purple worm + ants queue at the up stairs (28,8). D23: lurker above (25,18).
 - D22 MEDUSA: see the plan below (invisible = she stays frozen; blindfold + telepathy for any fight).
 - Poison: NOT resistant (soldier ants, bees, scorpions, snakes: 1/240 death per poisonous hit). Winter wolves / fire ants destroy potions and scrolls.
 - D14 morgue vampire (asleep), D17 spotted jelly, D18 anthole around its `>`, D20 giant beehive, D8 werewolf, D3 molds by the stairs.
 
 ## Objective and plan
-- NOW (next shift): finish SOKOBAN 4. (1) Kill the ice troll (magic missile wand; wait for it at a spot where it must come adjacent; drop nothing). (2) `sokoban.push_wiki(31, 12, 'urrruuuluuurrrrrrrrrrrrrrr')` to plug the last hole (48,5) (check the board first: A must still be at (31,12)). (3) Walk row 5 east to (50,5); kill the zruty (slow: 2-3 blows, full HP) and bugbear. (4) The ZOO via its east door (49,17): at full HP, from the doorway, one sleeper at a time (stealth keeps the rest asleep); never hit the peaceful dwarf king/couatl; kill the water nymph and xan early, wererat in @ form only (ring J). Eat the SCORPION corpse fresh (poison res chance). (5) PRIZE: 50% amulet of reflection / 50% bag of holding.
-- Then: Minetown (D4 -> Mines 3 = D7): buy a PICK-AXE at Stewe's tools shop if stocked (Perseus' statue needs it); protection costs 5200 at XL13 ($772 now). Consider the D8 vault gold.
+- DONE T:12368: Sokoban finished (bag of holding). NOW: (1) engrave-test p (glass wand). (2) Down Sokoban to D10: Odin temple altar (38,5) BUC-test O (elven mithril-coat) + X (elven leather helm); if not cursed, swap: splint mail M (400) -> O, rusty orcish helm m -> X; leave M and m. (3) Then Minetown for a PICK-AXE (Perseus' statue; D8 vault) — wear the MUMMY WRAPPING (bag) instead of cloak j to enter shops (I am permanently invisible).
+- Then: Minetown (D4 -> Mines 3 = D7): buy a PICK-AXE at Stewe's tools shop if stocked (Perseus' statue needs it); protection costs 5200 at XL13 ($3990 in the bag). Consider the D8 vault gold.
 - Then back down: stairs to D21, then D22 Medusa's east island via D21's `>`; or a level teleport (quaff x = cursed confusion, read G with ring k; 80% random level at Luck 0 — raise Luck first). Perseus: see the Medusa plan.
 - XP: XL14 at 80000 (43365 now) for the quest (portal D16 (46,5); also piety 20).
 - MR is still missing: no Castle (D25/26) without MR or reflection (PLAYBOOK A1).
