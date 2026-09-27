@@ -2,8 +2,8 @@
 
 ## Character
 - Name/role: P1 the Skirmisher — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
-- Turn / Dlvl / XL / HP / Pw / AC: T:3578 / Dlvl 6 / XL5 (Exp 241; XL6 at 320) / 62/62 / 9/9 / AC2
-- Position at shift end (shift 4): DL6, standing ON the up stairs `<` (9,7) in the lit NW room (7-17,4-7). No monsters in view.
+- Turn / Dlvl / XL / HP / Pw / AC: T:3899 / Dlvl 6 / **XL6** (Exp 322 at T:3899; XL7 at 640) / 65/72 / 11/11 / AC2
+- Position (shift 5, T:3922): DL7, just arrived on the `<` (5,7) (small room 3-6,6-8, doorway E (7,7)). DL6 above has a HOSTILE WATER DEMON loose near its `>` (65,10) and the Oracle chamber: do not go back up through it.
   Not hungry: prayer at T:3401 set nutrition to 900 -> Hungry ~T:4150, Weak ~T:4250 (Hungry->Weak takes only ~100 turns!).
 - Attributes: St18 Dx12 Co20 In10 Wi10 Ch7 (Ch7 => shop prices +50%)
 - Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf), speed at XL7. Long sword skill: SKILLED (enhanced T:3441).
@@ -27,7 +27,7 @@
 - h: magic marker (charges unknown).
 - Scrolls: i EIRIS SAZUN IDISI (base 200), x GARVEN DEH (unknown), A HACKEM MUCHE (base 100 class), B TEMOV (unknown). Identify scroll k USED.
 - Potions: q yellow, u brilliant blue (unknown), C cyan (base 250 class: acid or oil).
-- **Food: ONLY g: 3 candy bars, ALL FLAGGED ROTTEN** (a "Blecch! Rotten food!" knockout at T:3116 flagged the stack: every future bite re-rolls 25% confusion / ~19% blind / ~19% unconscious / 37% eaten for 50 nutrition). Eat them only on a safe square as a last resort. No lichen corpse left. Priority: eat FRESH safe kills (`corpse()` SAFE, age < 30) whenever Hungry; buy rations if ever safely at Annootok's (DL3).
+- **Food: F: 2 FOOD RATIONS (found DL6 T:3675 and T:3813)**; g: 2 candy bars, j: 1 candy bar (g/j differ in BUC, both unknown), D: partly eaten candy bar = the piece flagged rotten at T:3116 (eat.c touchfood() splits one item off BEFORE the rotten roll, so only D carries the orotten flag; g/j just have the normal 1/7 old-food roll). Priority: fresh SAFE corpses when Hungry, then rations.
 - $98. No escape items, no healing potions, no unicorn horn, no lizard corpse.
 - Left behind: DL3 `<` room: +0 dagger b (18,5), orcish dagger p (21,5), violet gems (werejackal territory). DL6 (8,5): scale mail (unknown BUC, 250 wt, only +1 AC — left).
 
@@ -45,7 +45,7 @@
 | 3 | main + Mines branch | `<` (19,9) room (18-20,4-9). ARROW TRAP (19,6). **WEREJACKAL (d form) + 4 jackals + fox frozen next to the `<` at (19,8)**. Annootok's general store NW (3-7,5-8) — food rations here. `>` (29,16) and `>` (46,18) — one is the Mines, the other leads to DL4 `<` (5,9). Unexplored east room via door (60,8). |
 | 4 | main | `>` (20,14) room (18-27,11-14); hidden door (17,14) W (now open) -> corridor -> W room (3-8,9-13) with **`<` (5,9)**. Hidden door (43,9) -> gold room (44-50,6-10), closed door (51,9) E, doorway (43,6) W with the row-6 corridor (boulder pushed to (27,6), STUCK there — dead end or hidden corridor). Food room (58-61,12-15): **SLEEPING GAS TRAP (58,15)** (known to the harness), old gnome corpse; boulder (63,14) outside its door (62,14) — enter via (62,12). NE room (73-76,3-5), E room (74-76,14-18). South half of the map (rows 16-21) unexplored. Level "explored" per explore(). |
 | 5 | main | Arrival room (59-65,4-8). **`<` (59,16)** room (56-60,13-16). **`>` (70,16)** room (67-75,14-17). **FOUNTAIN (26,8) DRIED UP (T:3228)**. **BURNED ELBERETH (45,18)** in the big S room (33-46,17-19); its E door (47,18) KICKED OPEN (broken) -> direct corridor to the `<`. Centipede corpse (40,17). Fully explored. |
-| 6 | main | **`<` (9,7)** lit room (7-17,4-7): scale mail (8,5) left; doors (18,5) closed, (18,7) open -> long corridor E along rows 5-6 to col ~44 (unexplored beyond). Corridor S from (7,8) down col 7 -> (9-12,15) (rock mole corpse (11,15)) -> room (11-17,16-19) doors (11,16),(13,16). Corridor (19-20,9-15) -> (18-21,19) -> E. Room fragment around (23-27,16-19): armor (24,18), spellbook (25,18), door (25,18)?. `>` NOT found, no fountain seen yet. Killed here: rock mole, monkey, dog, kobold zombie. |
+| 6 | main | **ORACLE LEVEL.** `<` (9,7) lit NW room (7-17,4-7): scale mail (8,5) left. `>` (65,10) in the E room (56-69,8-10), door (55,10). Delphi room (34-44,8-16), doors: (43,7) N (kicked open), (33,10) & (33,15) W doorways; 8 centaur STATUES (harmless). Oracle's chamber walls (37-41,10-14), doorway (37,11); **FOUNTAINS (38,12) (39,11) (39,13) (40,12)**, peaceful Oracle (39,12) — never attack. Corridors: row 5-6 E from the `<` room to col 48 -> (46,8)-(46,18) S -> row 18 E/W; tiny room (24-26,17-19) with armor (24,18)+spellbook (25,18), boulders (25,14),(26,15) NE of it (unexplored beyond). Rock mole corpse (35,11) T:3813. Killed here: rock mole x2, monkey, dog, kobold zombie, rock piercer, giant bat, floating eye (no corpse). |
 
 ## Threats / known dangers
 - DL3 werejackal pack at the `<` (19,8). Never melee it in d form (bite = lycanthropy 1/4; prayer spent until ~T:4400).
