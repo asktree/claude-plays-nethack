@@ -1360,3 +1360,119 @@ def test_life_saving_is_not_game_over():
     g.send_bytes = lambda data: next(pages)
     s = g.step("s")
     assert s.state.kind == "gameover"
+
+
+def test_arrival_prunes_memory_the_game_map_contradicts():
+    # p1 shift 35 #306: after a level teleport to DL2 the obs listed DL3's two '>' (and an up staircase on
+    # a blank square) from stale memory filed under DL2: the first settled map of a level drops remembered
+    # features where the game's own map shows nothing, plain floor, or a wall
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify, parse_status
+    g = Game(term=None, timing=Timing.local())
+    old = mk({5: "   @", 22: STATUS1, 23: "Dlvl:44 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}, cursor=(3, 5))
+    g.last = Snap(screen=old, state=classify(old), status=parse_status(old))
+    rows = {4: " " * 20 + "|...|", 7: " " * 44 + "|...>..|", 16: " " * 44 + "|.@....|",
+            18: " " * 44 + "|......|", 22: STATUS1, 23: "Dlvl:2 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:6"}
+
+    def fake_send(data):
+        s2 = mk(rows, cursor=(46, 16))
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send
+    g.terrain_seen["Dlvl:2"] = {(46, 18): ">", (29, 16): ">", (76, 4): "<", (20, 4): "\\", (48, 7): ">",
+                                (60, 12): "^"}
+    g.stair_links["Dlvl:2"] = {(76, 4): "Dlvl:1", (48, 7): "Dlvl:3"}
+    s = g.step("p")
+    assert g.terrain_seen["Dlvl:2"] == {(48, 7): ">", (60, 12): "^"}          # (a portal never goes)
+    assert g.stair_links["Dlvl:2"] == {(48, 7): "Dlvl:3"}
+    assert s.feature_mem == {(48, 7): ">", (60, 12): "^"}
+    # a level the game may have forgotten (amnesia): its blank squares keep the harness memory
+    g.last = Snap(screen=old, state=classify(old), status=parse_status(old))
+    g.terrain_seen["Dlvl:2"][(76, 4)] = "<"
+    g.level_flags["Dlvl:2"] = {"forgotten"}
+    g.step("p")
+    assert g.terrain_seen["Dlvl:2"][(76, 4)] == "<"
+    # amnesia marks every known level; a deja-vu arrival marks that one
+    g2 = Game(term=None, timing=Timing.local())
+    g2.terrain_seen = {"Dlvl:3": {(1, 2): ">"}, "Dlvl:4": {}}
+    g2._note_forgetting(Snap(screen=old, state=classify(old), status=parse_status(old)),
+                        ["Who was that Maud person anyway?"])
+    assert all("forgotten" in g2.level_flags[k] for k in ("Dlvl:3", "Dlvl:4", "Dlvl:44"))
+    g3 = Game(term=None, timing=Timing.local())
+    g3._note_forgetting(Snap(screen=old, state=classify(old), status=parse_status(old)),
+                        ["You have a sense of deja vu."])
+    assert g3.level_flags["Dlvl:44"] == {"forgotten"}
+
+
+def test_no_new_throne_from_engulf_corners_or_unsettled_frames():
+    # p1's Sokoban memory held throne pairs 2 apart diagonally: a fire vortex's (yellow) engulf-ring corners
+    # NE/SW of the hero, or a yellow acid ray left on screen by a --More--
+    from nh.game import Game, Snap, Timing
+    from nh.parse import State
+    g = Game(term=None, timing=Timing.local())
+    scr = mk({7: "     \\@   \\", 6: "       \\", 22: STATUS1, 23: "Dlvl:11 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"},
+             cursor=(6, 7))
+    for x, y in ((5, 7), (7, 6), (10, 7)):
+        scr.fg[y][x] = 11
+    s = Snap(screen=scr, state=State("more"), status=parse_status(scr))
+    g._remember_terrain(s, [])
+    assert not g.terrain_seen.get(g.level_key(s.status))             # nothing new from a --More-- frame
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+    g._remember_terrain(s, [])
+    assert g.terrain_seen[g.level_key(s.status)] == {(5, 7): "\\", (10, 7): "\\"}   # not the NE corner (7,6)
+    g.terrain_seen[g.level_key(s.status)][(7, 6)] = "\\"                               # a known one stays
+    g._remember_terrain(s, [])
+    assert (7, 6) in g.terrain_seen[g.level_key(s.status)]
+    # the ring captured with the cursor elsewhere (not on its '@'): its yellow corners still aren't thrones
+    ring = mk({13: " " * 49 + "/-\\", 14: " " * 49 + "|@|", 15: " " * 49 + "\\-/", 5: "          @",
+               22: STATUS1, 23: "Dlvl:12 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:6"}, cursor=(10, 5))
+    for y in (13, 14, 15):
+        for x in (49, 50, 51):
+            ring.fg[y][x] = 11
+    r = Snap(screen=ring, state=State("command"), status=parse_status(ring))
+    g._remember_terrain(r, [])
+    assert not g.terrain_seen.get(g.level_key(r.status))
+
+
+def test_quest_assignment_learned_from_speech_and_overview(tmp_path):
+    # p1 shift 35 #882/#896: after the Norn assigned the quest, travel()/step() still refused every square
+    # next to her ("one of 7 tries"): the assignment (quest.txt QT_ASSIGNQUEST) sets got_quest for good
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify
+    from nh.tracker import Tracker
+    g = Game(term=None, timing=Timing.local())
+    g._note_quest(['"Let me read your fate..."'])
+    assert not g.quest_given
+    g._note_quest(['"It is not clear, Brunhild, for my sight is limited without our relic.\n'
+                   'But it is now likely that you can defeat Lord Surtur, and recover\nthe Orb of Fate.'])
+    assert g.quest_given
+    g2 = Game(term=None, timing=Timing.local())
+    g2._note_quest(['"Domo Hiro-san, indeed you are ready.  I can now tell you what it is that I require of you.'])
+    assert g2.quest_given
+    # ^O: "Home. / Given quest by the Norn." (dungeon.c print_mapseen) — and the flag survives a restart
+    g3 = Game(term=None, timing=Timing.local())
+    t = Tracker(g3, tmp_path / "hs.json")
+    scr = mk({22: STATUS1, 23: "Home 1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:14/0 T:5"}, cursor=(10, 5))
+    snap = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    t._parse_overview("The Quest:\nLevel 1: <- You are here.\nA fountain.\nHome.\nGiven quest by the Norn.",
+                      snap, "Home 1")
+    assert g3.quest_given
+    t.save()
+    g4 = Game(term=None, timing=Timing.local())
+    Tracker(g4, tmp_path / "hs.json")
+    assert g4.quest_given
+
+
+def test_history_reloads_from_the_event_log(tmp_path):
+    # p3 shift 16 #1: `bin/nh history` printed "(no messages yet)" after a daemon restart
+    import json as _json
+    from nh.game import Game, Timing
+    log = tmp_path / "events.jsonl"
+    with open(log, "w") as f:
+        f.write(_json.dumps({"ev": "step", "n": 1, "keys": "h", "turn": 10, "messages": ["You hit the newt!"]}) + "\n")
+        f.write(_json.dumps({"ev": "describe", "cells": {}}) + "\n")
+        f.write(_json.dumps({"ev": "step", "n": 2, "keys": "<C-o>", "turn": 10, "messages": ["The Dungeons"]}) + "\n")
+        f.write(_json.dumps({"ev": "step", "n": 3, "keys": "h", "turn": 11, "messages": ["You kill the newt!"]}) + "\n")
+    g = Game(term=None, timing=Timing.local(), log_path=log)
+    assert g.load_history() == 2
+    assert g.history == [(10, "You hit the newt!"), (11, "You kill the newt!")]
+    assert g.load_history(max_bytes=60) <= 1                         # (a partial first line is skipped)

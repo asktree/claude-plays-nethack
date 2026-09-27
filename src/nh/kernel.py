@@ -126,6 +126,10 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"fireball|cone of cold) (?:whizzes by you|bounces)!$",
     r"^The .+ wields (?:an? |the |\d+ )(?!.*\b(?:cockatrice|chickatrice) corpse).*!$",
     r"^You stop searching\.$",          # a counted search cut short (its cause pauses by itself)
+    # monmove.c m_move(): a mind flayer more than 8 squares away blasted — no effect at that range ("goto
+    # toofar"); the obs keeps a MIND FLAYER line for the level instead of a pause (p2 shift 33: it stopped
+    # dig() and paused head_to() right after telepathy_scan() had shown it)
+    r"^You sense a faint wave of psychic energy\.$",
     # a monster stumbling into a trap (trap.c mintrap(): the trap is already on the map or now is)
     r"^(?!You )(?:The |An? |[A-Z][\w']*'s )?[\w' -]+ (?:falls into a pit|is caught in a bear trap|"
     r"is caught in a web|steps on a squeaky board|is hit by a (?:little dart|arrow))!$",
@@ -166,8 +170,6 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
     r"^You hear a crunching sound\.",                    # mon.c meatmetal(): a metal-eater (rust monster, xorn)
     r"^You feel that monsters are aware of your presence\.",   # mcastu.c aggravation: once per level is news
-    # monmove.c: a mind flayer more than 13 squares away blasted (no effect there): one is on this level
-    r"^You sense a faint wave of psychic energy\.$",
     # priest.c intemple(): each entry into a temple (p3 shift 15: every trip through Minetown's temple paused);
     # the Sanctum's own lines still pause every time
     r'^"?Pilgrim, you enter a (?:sacred|desecrated) place!"?$', r"^You have a(?: strange)? forbidding feeling\.\.\.$",
@@ -229,6 +231,21 @@ def peaceful_self_buff(m: str, *snaps) -> bool:
 # scrolls and Gehennom's fumaroles): with poison resistance only a 1-turn blindness and a cough each turn
 # you stand in it — news once per level; without it "Something is burning your lungs!" costs HP
 _CLOUD = re.compile(r"^Your eyes sting\.$|^You cough!$")
+
+# mhitu.c AD_FIRE/AD_COLD/AD_ELEC: a resisted elemental hit ("You're on fire! | The fire doesn't feel hot!"):
+# no damage (burnt/frozen/shocked items have their own messages, which still pause)
+_RESISTED_HIT = {
+    re.compile(r"^The fire doesn't feel hot!$"):
+        re.compile(r"^You're (?:on fire|already on fire|burning|boiling|melting|heating up|being roasted)!$"),
+    re.compile(r"^The frost doesn't seem cold!$"): re.compile(r"^You're covered in frost!$"),
+    re.compile(r"^The zap doesn't shock you!$"): re.compile(r"^You get zapped!$"),
+}
+
+# engrave.c read_engr_at(): the lead-in line and the text; the same text read again on the same square is no
+# news (p1 shift 35 #14: an old dust engraving paused on every step onto it)
+_ENGR_LINES = re.compile(r"^Something is (?:written here in the (?:dust|frost)|engraved here on the )|"
+                         r"^Some text has been (?:burned|melted) into the |^There's some graffiti on the |"
+                         r"^You see a message scrawled in blood here\.$|^You (?:read|feel the words): \"")
 
 
 class Abandon(BaseException):
@@ -424,7 +441,8 @@ class Kernel:
             for m in mons or []:
                 if m.get("id") is None or m.get("tame") or m.get("peaceful") or m.get("pet"):
                     continue
-                k._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near or k.DEFER_NEAR}
+                k._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near or k.DEFER_NEAR,
+                                        "watch": True}
                 n += 1
             return n
 
@@ -515,12 +533,17 @@ class Kernel:
         # a poisoned bite/sting you resisted ("The quasit's sting was poisoned! | The poison doesn't seem to
         # affect you.") is no news either
         resisted = any(m.startswith("The poison doesn't seem to affect you") for m in snap.messages)
+        elemental = [lead for tail, lead in _RESISTED_HIT.items() if any(tail.search(m) for m in snap.messages)]
+        engr_repeat = bool(getattr(snap, "engr_repeat", False))
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
                 and not any(p.search(m) for p in extra)
                 and not any(p.search(m) for p in DEFAULT_BENIGN)
                 and not (reflected and _REFLECTED.search(m))
                 and not (resisted and re.search(r" was poisoned!$", m))
+                and not any(t.search(m) for t in _RESISTED_HIT)
+                and not any(lead.search(m) for lead in elemental)
+                and not (engr_repeat and _ENGR_LINES.search(m))
                 and not peaceful_self_buff(m, before, snap)
                 and not self._heard_before(m, snap)]
         if msgs and not quiet:
@@ -759,7 +782,12 @@ class Kernel:
                                 or m.get("peaceful"):
                             continue
                         pos, v["pos"] = v["pos"], (m["x"], m["y"])
-                        if m["dist"] > v["near"] or (m["x"], m["y"]) == pos:
+                        # inside a defer_far(n) block a monster deferred before it (the telepathy/crowd default,
+                        # 6) waits until it is within n too (p3 shift 16 #528: pauses at d=5-6 under defer_far(3));
+                        # an explicit watch_monsters() keeps its own distance
+                        lim = v["near"] if self.defer_dist is None or v.get("watch") else min(v["near"],
+                                                                                              self.defer_dist)
+                        if m["dist"] > lim or (m["x"], m["y"]) == pos:
                             continue         # still far, or it didn't move: only you came closer (a sleeper)
                         del self._deferred[m["id"]]
                         if self.new_monster_filter is not None:

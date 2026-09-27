@@ -481,6 +481,22 @@ def _lev_drowner_zone(s) -> dict:
     return out
 
 
+_LEV_BLOCK = ("-", "|", " ", "T", "F", "S")      # desmap map chars: wall, stone, tree, iron bars, secret door
+
+
+def _fixed_layout(s) -> dict:
+    """{(x, y): map char} of this level's fixed map when desmap has placed it for sure, else {}."""
+    try:
+        key = ctx.game.level_key(s.status) if s.status.ok else None
+        ident = (getattr(ctx.game, "desmap_ids", None) or {}).get(key) if key else None
+        if not ident or ident.get("ambiguous"):
+            return {}
+        from .desmap import layout
+        return layout(s)
+    except Exception:  # noqa: BLE001  (no map: plan as before)
+        return {}
+
+
 def _lev_path(s, start, goal, unknown_cost: int = 3, avoid=frozenset()):
     """Cheapest 8-connected route for a LEVITATING/flying hero: floor, water and lava ('}') cost 1, never-seen
     squares `unknown_cost` (they may be rock: a failed step says "It's solid stone." and is remembered),
@@ -491,6 +507,7 @@ def _lev_path(s, start, goal, unknown_cost: int = 3, avoid=frozenset()):
     bad = (bad_squares(s) | set(avoid)) - {goal}
     solid = set(getattr(s, "solid_mem", ()) or ())
     mons = {(m["x"], m["y"]) for m in s.monsters or [] if not (m.get("tame") or m.get("pet") or m.get("statue"))}
+    lay = _fixed_layout(s)
 
     def cost(c):
         if c in solid or c in bad or (c in mons and c != goal) or not in_map(*c) or not 1 <= c[1] <= 21:
@@ -499,7 +516,14 @@ def _lev_path(s, start, goal, unknown_cost: int = 3, avoid=frozenset()):
         if ch == "}":
             return 1
         if ch == " ":
-            return 1 if s.screen.color_at(*c) == 6 else unknown_cost     # (cyan blank: open air)
+            if s.screen.color_at(*c) == 6:
+                return 1                                             # (cyan blank: open air)
+            fixed = lay.get(c)
+            if fixed is not None:
+                # the level's identified fixed map (desmap): its walls, rock, trees, iron bars and hidden doors
+                # are no way through (p3 shift 16 #582/#641: Medusa's palace walls and bars, walked into blind)
+                return None if fixed in _LEV_BLOCK else unknown_cost if fixed == "+" else 1
+            return unknown_cost
         if ch in "0`" or ch == "^":
             return None
         return 1 if is_walkable(s, *c, allow_monsters=True) or c == goal else None
@@ -507,7 +531,8 @@ def _lev_path(s, start, goal, unknown_cost: int = 3, avoid=frozenset()):
     def known_solid(c):
         ch = cell(s, *c)
         return c in solid or (ch in "|-" and s.screen.color_at(*c) not in (3, 15)) or (ch == "#" and
-                                                                                     s.screen.color_at(*c) == 2)
+                                                                                     s.screen.color_at(*c) == 2) \
+            or (ch == " " and lay.get(c) in _LEV_BLOCK)
     best = {start: 0}
     prev = {start: None}
     q = [(0, start)]
@@ -544,7 +569,9 @@ def levitate_to(x: int, y: int, max_steps: int = 300, near_water: bool = False, 
     remembered as solid). Keeps 1+ squares away from eels/krakens seen now or
     lately — their wrap drowns you even while levitating (near_water=True
     ignores them). Stops (NavError) when levitation ends: over water/lava
-    that is a fall into it, so mind the ring/boots/potion timeout. Returns
+    that is a fall into it, so mind the ring/boots/potion timeout. On a level
+    desmap has identified (Medusa's, the Castle...) never-seen squares follow
+    its fixed map: walls, rock, iron bars and hidden doors block. Returns
     the final Snap."""
     s = ctx.require_command("levitate_to()")
     goal = (x, y)
@@ -1079,8 +1106,9 @@ def _quest_leader(s):
 
 def _leader_check(s, target, who: str, ok: bool, route=None) -> None:
     """Walking next to the quest leader IS the visit: only when ready (XL14+ and piously aligned —
-    each visit with a lower alignment record counts, 7 and you're expelled for good)."""
-    if ok:
+    each visit with a lower alignment record counts, 7 and you're expelled for good). Once the quest is
+    assigned (game.quest_given: the leader's speech or ^O's "Given quest by") visits are harmless."""
+    if ok or getattr(ctx.game, "quest_given", False):
         return
     ld = _quest_leader(s)
     if ld is None or s.hero is None:

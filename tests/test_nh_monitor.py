@@ -569,6 +569,18 @@ def test_far_telepathic_and_deferred_newcomers_pause_when_they_approach():
         assert step(20, [ape]) == ""
         assert "approaching: ape" in step(21, [dict(ape, new=False, x=46, dist=6)])
     assert "ape" in step(30, [dict(ape, id=10)])                    # outside the block it pauses at once
+    # p3 shift 16 #528: sensed (telepathy) before a defer_far(3) block, deferred at the default 6: inside the
+    # block it waits until it is within 3; an explicit watch_monsters() keeps its own distance
+    snake = {"ch": "S", "x": 70, "y": 10, "desc": "snake [seen: telepathy]", "new": True, "dist": 25, "id": 11}
+    assert step(40, [snake]) == ""
+    with k.ns["defer_far"](3):
+        assert step(41, [dict(snake, new=False, x=45, dist=5)]) == ""
+        assert "approaching: snake" in step(42, [dict(snake, new=False, x=43, dist=3)])
+    troll = {"ch": "T", "x": 60, "y": 10, "desc": "troll", "new": False, "dist": 20, "id": 12}
+    k.game.last = snap({}, 42)                    # (watch_monsters files it under the current level)
+    k.ns["watch_monsters"]([troll], near=6)
+    with k.ns["defer_far"](3):
+        assert "approaching: troll" in step(43, [dict(troll, x=45, dist=5)])
 
 
 def _water_beside_hero(s):
@@ -1227,21 +1239,68 @@ def test_peaceful_self_buffs_are_routine():
     assert reasons                                        # a hostile turning invisible is news
 
 
-def test_temple_entry_and_far_psychic_wave_pause_once_per_level():
-    # p3 shift 15 #759/#1153: every entry into Minetown's temple paused travel; p2 shift 32: a far mind flayer
+def test_temple_entry_pauses_once_per_level_and_far_psychic_wave_never():
+    # p3 shift 15 #759/#1153: every entry into Minetown's temple paused travel; p2 shift 33 #97/#281: a far mind
+    # flayer's wave (no effect beyond 8 squares) paused head_to() and stopped dig(): now a level flag + obs line
     from nh.game import Game, Timing
     from nh.kernel import Kernel
-    k = Kernel(Game(term=None, timing=Timing.local()))
+    from nh.render import render
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
     reasons = []
     k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
-    for msgs in (['"Pilgrim, you enter a sacred place!"', "You have a strange forbidding feeling..."],
-                 ["You sense a faint wave of psychic energy."]):
+    for msgs, n in ((['"Pilgrim, you enter a sacred place!"', "You have a strange forbidding feeling..."], 1),
+                    (["You sense a faint wave of psychic energy."], 0)):
         for turn in (40, 90):
             b, a = snap({}, turn - 1), snap({}, turn)
             a.messages = list(msgs)
             k._check_events(b, a)
-        assert len(reasons) == 1, (msgs, reasons)
+        assert len(reasons) == n, (msgs, reasons)
         reasons.clear()
+    a = snap({}, 91)
+    g._remember_terrain(a, ["You sense a faint wave of psychic energy."])
+    g._annotate(a)
+    assert "mind_flayer" in a.flags and "MIND FLAYER on this level" in render(a)
+    g._remember_terrain(a, ["You kill the mind flayer!"])
+    g._annotate(a)
+    assert "mind_flayer" not in a.flags
+
+
+def test_resisted_elemental_hits_and_repeated_engraving_reads_do_not_pause():
+    # p1 shift 35 #959: "You're on fire! | The fire doesn't feel hot!" paused every fire-ant bite; #14: an old
+    # dust engraving paused on every step onto it
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def check(msgs, repeat=False):
+        reasons.clear()
+        b, a = snap({}, 40), snap({}, 41)
+        a.messages = list(msgs)
+        a.engr_repeat = repeat
+        k._check_events(b, a)
+        return reasons
+    assert not check(["You're on fire!", "The fire doesn't feel hot!"])
+    assert not check(["You're covered in frost!", "The frost doesn't seem cold!"])
+    assert not check(["You get zapped!", "The zap doesn't shock you!"])
+    assert check(["You're on fire!"])                                         # not resisted: news
+    assert check(["You're on fire!", "The fire doesn't feel hot!", "Your scroll of light catches fire and burns!"])
+    read = ["Something is written here in the dust.", 'You read: "ad aerarium".']
+    assert check(read)                                                        # the first read is news
+    assert not check(read, repeat=True)
+    # the game marks a re-read of the same text on the same square
+    from nh.parse import State
+    s1 = snap({}, 50)
+    s1.state = State("command")
+    g._remember_here(s1, read, prev_hero=None)
+    assert not s1.engr_repeat
+    s2 = snap({}, 51)
+    s2.state = State("command")
+    g._remember_here(s2, read, prev_hero=None)
+    assert s2.engr_repeat
 
 
 def test_wand_zaps_are_pinned_on_the_right_monster():

@@ -219,6 +219,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
                        "wakes her. travel()/explore()/kick_door() refuse here until then (medusa_ok=True overrides; "
                        "going back up is always allowed)")
     flags = getattr(snap, "flags", None) or set()
+    if "mind_flayer" in flags:
+        lines.append("MIND FLAYER on this level (a psychic wave was felt; harmless beyond 8 squares): its tentacles "
+                     "eat your brain (Int loss, amnesia) — keep a helmet on (blocks 7 in 8), kill it at range")
     if not getattr(snap, "medusa_risk", False) and flags & {"medusa", "medusa?"} and "medusa_dead" not in flags:
         lines.append(("MEDUSA'S LEVEL" if "medusa" in flags else "PROBABLY MEDUSA'S LEVEL")
                      + " (you are Blind or wear reflection): reflection turns her gaze back on her — it kills her "

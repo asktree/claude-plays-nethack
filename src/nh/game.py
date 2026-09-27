@@ -78,6 +78,7 @@ class Snap:
     room_note: str = ""        # set on the step that entered a special room (zoo, anthole, beehive...)
     room_mem: dict = field(default_factory=dict)    # {(x, y) entry: {"kind", "prev", "turn"}} special rooms here
     mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
+    engr_repeat: bool = False  # this step read the same engraving text as last time on this square
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -266,6 +267,22 @@ def _engulfed(scr: Screen, hero) -> bool:
     return sum(1 for dx, dy, ch in want if scr.at(x + dx, y + dy) == ch) >= 3
 
 
+def _lined_up(a, b, reach: int = 13) -> bool:
+    """Same row, column or diagonal, within `reach` squares (a monster's zap/breath line to you)."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    return (dx or dy) and (dx == 0 or dy == 0 or abs(dx) == abs(dy)) and max(abs(dx), abs(dy)) <= reach
+
+
+def _ring_corner(scr: Screen, x: int, y: int) -> bool:
+    """A '\\' at (x, y) that is the NE or SW corner of an engulf ring drawn in its colour ('-' beside it and
+    '|' below/above it, all one colour: a fire vortex's ring is yellow like a throne)."""
+    col = scr.color_at(x, y)
+
+    def is_(dx, dy, ch):
+        return scr.at(x + dx, y + dy) == ch and scr.color_at(x + dx, y + dy) == col
+    return (is_(-1, 0, "-") and is_(0, 1, "|")) or (is_(1, 0, "-") and is_(0, -1, "|"))
+
+
 def feature_at(scr: Screen, x: int, y: int) -> str | None:
     """The map feature ('<', '>', '{', '_', '\\') drawn at (x, y), or None.
     A '\\' counts as a throne only in its gold colour (drawing.c HI_GOLD):
@@ -427,6 +444,7 @@ class Game:
         # position prompt appears, cleared by a pick key or ESC.
         self.getpos_active = False
         self._arrival_check: dict | None = None   # a stairs arrival with a monster next to you (see step())
+        self._arrival_prune: str | None = None    # ldesc of a level just entered: prune its memory (step())
         self.tracker = None   # MonsterTracker, attached by the daemon
         self.visited: dict[str, set] = {}   # level (ldesc) -> hero positions seen in command state
         self.traps: dict[str, set] = {}     # level (ldesc) -> squares known to hold traps
@@ -461,6 +479,8 @@ class Game:
         self.kicked_stones: dict[str, set] = {}   # level -> squares where a gray stone kick_test() slid landed
         self.unknown_buc: list[str] = []          # inventory(): items whose B/U/C isn't known ("w (a ring ...)")
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
+        self.quest_given = False                  # the quest leader assigned the quest (its speech, or ^O's
+                                                  # "Given quest by ..."): visits to it are harmless from then on
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -550,6 +570,8 @@ class Game:
         for m in messages:
             mm = self._ENGR_READ.search(m)
             if mm:
+                if engr.get(snap.hero) == mm.group(1):
+                    snap.engr_repeat = True       # nothing new: the kernel doesn't pause on it again
                 engr[snap.hero] = mm.group(1)
                 read = True
                 if dust:
@@ -639,7 +661,10 @@ class Game:
                                f"use it on purpose, step_onto() it" + (" with no gold on you and a way to dig "
                                                                      "out within ~30 turns (the vault holds 4 "
                                                                      "piles of gold)" if kind == "teleport"
-                                                                     else ""))
+                                                                     else "")
+                               + " — while the door or the closet square is still hidden a step there says "
+                                 "\"It's solid stone.\": search from the door square first (\"You find a "
+                                 "hidden door/passage\", p3 shift 16)")
 
     def on_elbereth(self, snap: Snap, cell=None) -> bool:
         """The hero (or `cell`) stands on an engraving last read as exactly 'Elbereth'."""
@@ -699,7 +724,7 @@ class Game:
                 f"{''.join(burn[:12])}) — Gehennom's FIRE TRAPS burn scrolls and boil potions: "
                 f"bag_put('{bags[0]}', ...) them" if burn and bags and key0.startswith("Gehennom") else "")
 
-    _USE_UP = re.compile(r"^What do you want to (?:drink|read)\?")
+    _USE_UP = re.compile(r"^What do you want to (?:drink|read|drop)\?")
 
     def _note_used_up(self, cur: Snap, data: bytes) -> None:
         """q/r + letter: that potion/scroll may be gone — drop it from the burn warning's list (a stack that is
@@ -708,8 +733,8 @@ class Game:
         if not lb:
             return
         letter = None
-        if len(data) >= 2 and data[:1] in (b"q", b"r") and chr(data[1]).isalpha():
-            letter = chr(data[1])
+        if len(data) >= 2 and data[:1] in (b"q", b"r", b"d") and chr(data[1]).isalpha():
+            letter = chr(data[1])           # (d + letter drops the whole stack: p1 shift 35 #111)
         elif len(data) == 1 and chr(data[0]).isalpha() and cur.state.kind == "object" \
                 and self._USE_UP.search(cur.state.prompt or ""):
             letter = chr(data[0])
@@ -767,13 +792,22 @@ class Game:
         key = self.level_key(snap.status) if snap.status.ok else None
         store = self.wand_users.setdefault(key, {}) if key else {}
         from .danger import base_name
+        heroes = [h for h in (snap.hero, cur.hero if cur is not None else None) if h is not None]
+        prev = (cur.monsters if cur is not None else None) or []
         notes = []
         for name, wand, kind, _ray in events:
             if name:
                 name = base_name(name) or name
                 rec = store.get(name) or {}
+                # which one zapped: the monsters of that name lined up with you (muse.c: it zaps only in line,
+                # within BOLT_LIM) — the note stays on them, not on every monster of the name (p2 shift 33 #1103:
+                # a dead sergeant's wand note moved to another sergeant)
+                ids = set(rec.get("ids") or ())
+                ids.update(x["id"] for x in prev if x.get("id") is not None
+                           and (base_name(x.get("desc") or "") or "").lower() == name.lower()
+                           and any(_lined_up(h, (x["x"], x["y"])) for h in heroes))
                 store[name] = {"kind": kind or rec.get("kind"), "wand": wand or rec.get("wand"),
-                               "turn": snap.status.turn if snap.status.ok else None}
+                               "turn": snap.status.turn if snap.status.ok else None, "ids": ids}
                 kind = store[name]["kind"]
             notes.append((self._DANGER_ORDER.get(kind, 3), name, wand, kind))
         _o, name, wand, kind = min(notes, key=lambda n: n[0])      # the most dangerous one this step
@@ -860,6 +894,27 @@ class Game:
             for pat, name, gained in self._INTRINSIC_MSGS:
                 if re.search(pat, m):
                     (self.intrinsics.add if gained else self.intrinsics.discard)(name)
+
+    # quest.txt QT_ASSIGNQUEST (00021), one fragment per role (after quest.c's %-substitutions): the leader
+    # sets got_quest — from then on each visit only says an encouragement (quest.c chat_with_leader Rule 1)
+    _QUEST_ASSIGNED = re.compile(
+        r"Grave times have befallen the college|The world is in great need of your assistance|"
+        r"I shall tell you a tale of great suffering among your people|"
+        r"For the first time, you sense a smile on|Thou art truly ready, as no |"
+        r"During one of the Great Meditations a short time ago|At one of the Great Festivals a short time ago|"
+        r"why we so desperately need your help|Will everyone not going to retrieve |"
+        r"indeed you are ready\.  I can now tell you what it is that I require of you|"
+        r"You have indeed proven yourself a worthy |But it is now likely that you can defeat |"
+        r"you truly are ready for this dire task")
+
+    def _note_quest(self, messages: list[str]) -> None:
+        if self.quest_given:
+            return
+        if any(self._QUEST_ASSIGNED.search(" ".join(m.split()).replace(". ", ".  ")) for m in messages):
+            self.quest_given = True
+            mem = getattr(self, "memory", None)
+            if mem is not None and isinstance(getattr(mem, "state", None), dict):
+                mem.state["quest_given"] = True
 
     def _note_theft(self, messages: list[str], turn) -> None:
         for m in messages:
@@ -972,10 +1027,19 @@ class Game:
         key = self.level_key(snap.status)
         feats = self.terrain_seen.setdefault(key, {})
         from .mapscan import _door_like
+        hx, hy = snap.hero
         for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
             row = snap.screen.row(y)
             for x, ch in enumerate(row):
                 if ch in self.FEATURE_CHARS and feature_at(snap.screen, x, y):
+                    if ch == "\\" and feats.get((x, y)) != "\\" and (
+                            snap.state.kind != "command" or (x - hx, y - hy) in ((1, -1), (-1, 1))
+                            or _ring_corner(snap.screen, x, y)):
+                        # a NEW throne only from a settled map: a yellow '\' is also an acid ray left on
+                        # screen by a --More--, and the NE/SW corners of a fire vortex's engulf ring (p1's
+                        # memory held throne pairs 2 apart diagonally in Sokoban); a real one stays drawn
+                        # and is recorded once you step away
+                        continue
                     feats[(x, y)] = ch
                 elif snap.screen.color_at(x, y) == 3 and (ch in "|-" or (ch == "+" and _door_like(snap.screen, x, y))):
                     feats[(x, y)] = "D"         # a door (open or closed): no diagonal moves in or out of it
@@ -992,6 +1056,11 @@ class Game:
                          r"was hidden under the water|^You are being crushed", m) for m in messages):
             # (mhitu.c AD_WRAP: a sea monster's wrap attempt; "A kraken was hidden under the water!")
             self.level_flags.setdefault(key, set()).add("eels")
+        if any(m.startswith(("You sense a faint wave of psychic energy", "A wave of psychic energy pours over you"))
+               for m in messages):
+            self.level_flags.setdefault(key, set()).add("mind_flayer")      # (monmove.c: one is on this level)
+        elif any(re.match(r"^You (?:kill|destroy) the (?:master )?mind flayer\b", m) for m in messages):
+            self.level_flags.get(key, set()).discard("mind_flayer")
         if "rogue" in self.level_flags.get(key, ()):
             # the Rogue level turns dark-room floor you can't see back into blank stone (display.c): keep
             # it, or neither the frontier finder nor the route planner knows the room you walked through
@@ -1006,10 +1075,7 @@ class Game:
                         # diagonal moves into and out of them
                         feats[(x, y)] = "D"
             floor.add(snap.hero)
-        for c, v in list(feats.items()):
-            if v not in "^~" and c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
-                del feats[c]           # e.g. a fountain that dried up (portals never go away; on the Plane
-                                       # of Air unseen squares are drawn as '#' clouds)
+        self._prune_features(snap, key)
         if any("dries up" in m or "fountain disappears" in m or "throne vanishes" in m for m in messages):
             feats.pop(snap.hero, None)
         for m in messages:
@@ -1045,6 +1111,73 @@ class Game:
                 self.feature_desc.setdefault(self.level_key(snap.status), {})[snap.hero] = \
                     f"{ma.group(2)} altar ({ma.group(1)})"
         snap.under = feats.get(snap.hero)
+
+    def _prune_features(self, snap: Snap, key, arrival: bool = False) -> bool:
+        """Drop remembered features (stairs, fountains, altars, thrones, doors) the map now contradicts:
+        plain floor or a corridor there (a fountain dried up, a door broken; not a green gas cloud over it),
+        and on a settled map a wall. arrival=True — the first settled map after a level change, once the ^O
+        name merged this level's old memory in: also where the map shows NOTHING. The game redraws all it
+        remembers of a level you come back to, so a remembered '>' on a blank square is another level's
+        (p1 shift 35 #306: DL3's two '>' listed on DL2 after a level teleport). Not on a level the game may
+        have forgotten (amnesia, a mind flayer, "You have a sense of deja vu."), the Rogue level (dark floor
+        fades to blank) or the Planes. Returns True when something went."""
+        feats = self.terrain_seen.get(key) if key is not None else None
+        if not feats or snap.hero is None:
+            return False
+        scr = snap.screen
+        top = MAP_TOP + snap.state.msg_rows
+        settled = snap.state.kind == "command"
+        blank_ok = (arrival and settled and snap.status.ok and snap.status.ldesc not in self.ENDGAME
+                    and not ({"rogue", "forgotten"} & self.level_flags.get(key, set())))
+        hx, hy = snap.hero
+        gone = []
+        for c, v in feats.items():
+            if v in "^~" or c == snap.hero or not top <= c[1] <= MAP_BOTTOM:
+                continue      # (portals never go away; on the Plane of Air unseen squares are '#' clouds)
+            now, col = scr.at(*c), scr.color_at(*c)
+            if now == "." or (now == "#" and col != 10) \
+                    or (settled and now in "|-" and col != 3 and max(abs(c[0] - hx), abs(c[1] - hy)) > 1) \
+                    or (blank_ok and now == " "):
+                gone.append(c)
+        links = self.stair_links.get(key, {})
+        for c in gone:
+            if feats.pop(c) in "<>":
+                links.pop(c, None)
+        if gone and arrival:
+            self.log_event({"ev": "memory_pruned", "level": key, "cells": {f"{x},{y}": "" for x, y in gone}})
+            mem = getattr(self, "memory", None)
+            if mem is not None and hasattr(mem, "drop_cells"):
+                try:
+                    mem.drop_cells(key, gone)
+                except Exception as e:  # noqa: BLE001
+                    self.log_event({"ev": "drop_cells_error", "err": repr(e)})
+        return bool(gone)
+
+    # the game forgot levels' maps (read.c forget_levels(): a mind flayer's tentacles, a scroll of amnesia)
+    # or you come back to one it forgot (do.c goto_level() "familiar"; 1 in 4 of those arrivals says nothing)
+    _AMNESIA = re.compile(r"^(?:Your brain is eaten!|Who was that Maud person anyway\?|"
+                          r"Thinking of Maud you forget everything else\.|"
+                          r"As your mind turns inward on itself, you forget everything else\.|"
+                          r"Your mind releases itself from mundane concerns\.)")
+    _DEJA_VU = re.compile(r"^(?:You have a sense of deja vu\.|You feel like you've been here before\.|"
+                          r"This place (?:looks|seems) familiar\.\.\.|Whoa!  Everything (?:looks|seems) different\.|"
+                          r"You are surrounded by twisty little passages, all alike\.|"
+                          r"Gee, this (?:looks|seems) like uncle Conan's place\.\.\.)")
+
+    def _note_forgetting(self, snap: Snap, messages: list) -> None:
+        """Levels whose map the game may have lost: flagged "forgotten", their harness memory then knows
+        more than the map shows, and the arrival prune keeps it (see _prune_features)."""
+        if any(self._AMNESIA.search(m) for m in messages):
+            mem = getattr(self, "memory", None)
+            keys = set(self.terrain_seen) | set(((getattr(mem, "state", None) or {}).get("levels") or {}))
+            keys.add(self.level_key(snap.status))
+            for k in keys:
+                self.level_flags.setdefault(k, set()).add("forgotten")
+                lv = ((getattr(mem, "state", None) or {}).get("levels") or {}).get(k)
+                if lv is not None and "forgotten" not in lv.get("flags", []):
+                    lv["flags"] = sorted(set(lv.get("flags", [])) | {"forgotten"})
+        elif any(self._DEJA_VU.search(m) for m in messages):
+            self.level_flags.setdefault(self.level_key(snap.status), set()).add("forgotten")
 
     def _remember_portals(self, snap: Snap, feats: dict | None = None) -> None:
         """Magic portals (bright magenta '^') and the vibrating square (magenta
@@ -1635,6 +1768,7 @@ class Game:
                         # levels share "Dlvl:N", so a stale name would mix their memories)
                         self.level_name = None
                         self.level_name_ldesc = None
+                        self._arrival_prune = snap.status.ldesc
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
@@ -1681,6 +1815,8 @@ class Game:
                     self._note_used_up(cur, data)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
+                    self._note_forgetting(snap, messages)
+                    self._note_quest(messages)
                     self._note_arrival(cur, snap, data, messages, old_key, moved)
                     if moved:
                         self._note_fall(cur, messages, old_key)
@@ -1718,7 +1854,18 @@ class Game:
                     cb(snap)
                 except Exception:
                     pass
-            if key0 is not None and self.level_key(snap.status) != key0:
+            pruned = False
+            if self._arrival_prune is not None and snap.status.ok and snap.status.ldesc == self._arrival_prune \
+                    and snap.state.kind == "command" and snap.hero is not None \
+                    and (self.level_name_ldesc == snap.status.ldesc or getattr(self, "memory", None) is None):
+                # the first settled map of a level just entered, under its ^O name (the old memory merged
+                # in): drop what the game's own map contradicts (_prune_features)
+                self._arrival_prune = None
+                key1 = self.level_key(snap.status)
+                pruned = self._prune_features(snap, key1, arrival=True)
+                if snap.under is None and self.terrain_seen.get(key1, {}).get(snap.hero):
+                    snap.under = self.terrain_seen[key1][snap.hero]
+            if key0 is not None and (self.level_key(snap.status) != key0 or pruned):
                 self.reannotate(snap)
             if chk is not None and chk["n"] == snap.n and snap.state.kind == "command" and snap.hero == chk["hero"]:
                 self._verify_arrival(snap, chk)
@@ -2196,6 +2343,33 @@ class Game:
             "screen": snap.screen.text,
         }
         self.log_event(rec)
+
+    def load_history(self, max_bytes: int = 8_000_000) -> int:
+        """The recent messages from events.jsonl into self.history (a daemon restart left `bin/nh history` empty:
+        p3 shift 16). Not the tracker's own ^O overview steps. Returns how many were loaded."""
+        if not self.log_path or not Path(self.log_path).exists():
+            return 0
+        with open(self.log_path, "rb") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(0, size - max_bytes))
+            data = f.read()
+        lines = data.split(b"\n")
+        if size > max_bytes:
+            lines = lines[1:]                   # (a partial first line)
+        out = []
+        for ln in lines:
+            if not ln.startswith(b'{"ev": "step"'):
+                continue
+            try:
+                rec = json.loads(ln)
+            except ValueError:
+                continue
+            if rec.get("keys") == "<C-o>":
+                continue
+            out.extend((rec.get("turn"), m) for m in rec.get("messages") or [])
+        self.history = out[-self.max_history:]
+        return len(self.history)
 
     def log_event(self, rec: dict) -> None:
         if not self.log_path:

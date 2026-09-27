@@ -224,6 +224,9 @@ POISON_NOTE = ("poisonous: without poison resistance each poisoned hit costs Str
 LEADER_NOTE = ("QUEST LEADER: never attack. Walking NEXT to it is your visit — go only at XL14+ and piously "
                "aligned (alignment record 20+: check with a stethoscope on yourself, piety()): each visit with a "
                "lower record counts, and after 7 you're expelled for good (no Bell = no ascension)")
+LEADER_GIVEN_NOTE = ("QUEST LEADER: never attack. The quest is ASSIGNED already (its speech / ^O 'Given quest by'): "
+                     "visits are harmless now — it only encourages you; come back with the quest artifact after "
+                     "the nemesis if you want the quest completed")
 NEMESIS_NOTE = ("QUEST NEMESIS: strong, carries the Bell of Opening (needed to ascend); covetous ones steal your "
                 "quest artifact/Amulet and teleport away to heal")
 

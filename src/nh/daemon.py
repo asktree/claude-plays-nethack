@@ -38,6 +38,10 @@ class Daemon:
         self.term = TmuxTerminal(self.meta["tmux_session"], self.dir / "raw.log",
                                  width=self.meta.get("width", 80), height=self.meta.get("height", 24))
         self.game = Game(self.term, timing, log_path=self.dir / "events.jsonl")
+        try:
+            self.game.load_history()         # `bin/nh history` across daemon restarts
+        except Exception:  # noqa: BLE001
+            pass
         self.kernel = Kernel(self.game)
         self._core_loaded = self._tactics_loaded = time.time()   # (the stale-code note in obs)
         self.tracker = MonsterTracker(self.game)

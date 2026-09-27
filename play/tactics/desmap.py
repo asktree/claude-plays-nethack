@@ -244,6 +244,27 @@ def tower_interior(s=None):
     return ox + 1, oy + 1, ox + 26, oy + 11
 
 
+# *.des TELEPORT_REGION with an excluded area (map-relative): mkmaze.c fixup_special() makes it the level's
+# updest/dndest, and teleport.c tele_jump_ok() then keeps a monster teleported inside it (rloc) INSIDE it and
+# one outside it out (p2 shift 33 #240: a wand of teleportation only reshuffled a fake tower's monsters)
+TELE_BOXES = {"wizard1": (0, 0, 27, 12), "wizard2": (0, 0, 27, 12), "wizard3": (0, 0, 27, 12),
+              "fakewiz1": (2, 2, 6, 6), "fakewiz2": (2, 2, 6, 6), "castle": (1, 1, 61, 15)}
+
+
+def tele_box(s=None):
+    """The screen box (x1, y1, x2, y2) of this level's teleport-restricted area when desmap placed a level that
+    has one (the Wizard's Tower levels, the fake towers, the Castle), else None."""
+    s = s or ctx.last()
+    if s is None or not s.status.ok:
+        return None
+    ident = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) or {}
+    box = TELE_BOXES.get(ident.get("level"))
+    if box is None or ident.get("ambiguous") or ident.get("ox") is None or ident.get("oy") is None:
+        return None
+    ox, oy = ident["ox"], ident["oy"]
+    return (ox + box[0], oy + box[1], ox + box[2], oy + box[3])
+
+
 def in_box(box, c) -> bool:
     return box is not None and c is not None and box[0] <= c[0] <= box[2] and box[1] <= c[1] <= box[3]
 

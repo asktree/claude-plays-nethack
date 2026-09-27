@@ -597,6 +597,10 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
             if s.status.ok and "Blind" in s.status.conditions:
                 print(f"telepathy_scan: !! still Blind after taking {put_on} off ({s.messages}) — check inventory()")
     out.sort(key=lambda m: (m["dist"] if m["dist"] is not None else 999))
+    s = ctx.last()
+    if s.status.ok:
+        # hunt((x, y)) closes in on a monster sensed here although it isn't in view afterwards (the dark)
+        ctx.game.last_scan = {"turn": s.status.turn, "level": ctx.game.level_key(s.status), "mons": list(out)}
     hostile = [m for m in out if not m["desc"].startswith(("tame ", "peaceful "))]
     w = getattr(ctx, "watch_monsters", None)
     if w is not None and watched:

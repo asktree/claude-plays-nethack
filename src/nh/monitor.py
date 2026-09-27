@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re
 
-from .danger import base_name, note_for, risky_lookalike
+from .danger import LEADER_GIVEN_NOTE, base_name, note_for, quest_role, risky_lookalike
 from .mapscan import monsters_in_view
 
 MAX_LOOKS_PER_UPDATE = 12
@@ -404,11 +404,20 @@ class MonsterTracker:
             m["peaceful"] = d.startswith("peaceful ")
             if d and not m.get("statue"):
                 m["note"] = note_for(d, xl, getattr(self.game, "intrinsics", ()))
+                if m["peaceful"] and getattr(self.game, "quest_given", False) and quest_role(base_name(d)) == "leader":
+                    m["note"] = LEADER_GIVEN_NOTE
                 wz = (getattr(snap, "wand_users", None) or {}).get(base_name(d))
+                if wz and wz.get("ids") and m["id"] not in wz["ids"]:
+                    wz = None               # another monster of that name zapped (p2 shift 33 #1103)
                 if wz:
                     # (it zapped a wand at you on this level: that doesn't change with its next farlook)
                     kind = wz.get("kind")
                     m["note"] = (f"ZAPPED A WAND{' OF ' + kind.upper() if kind else ''} AT YOU (T:{wz.get('turn')})"
+                                 + (" — " + m["note"] if m["note"] else ""))
+                refl = ((getattr(self.game, "reflectors", None) or {}).get(lk) or {})
+                if m["id"] in refl:
+                    # (combat.zap(): your ray came straight back with no hit/miss message for it)
+                    m["note"] = (f"REFLECTS RAYS (your ray came back, T:{refl[m['id']]})"
                                  + (" — " + m["note"] if m["note"] else ""))
                 if (lk or "").startswith(("Gehennom", "Vlad's Tower")) and not _friendly(d) \
                         and base_name(d) == "wolf":

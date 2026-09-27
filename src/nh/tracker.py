@@ -79,6 +79,8 @@ class Tracker:
         self._found_trap = None            # (name, hero square) of the last "You find a <trap>." (a search)
         if self.state.get("intrinsics") is not None and hasattr(game, "intrinsics"):
             game.intrinsics = set(self.state["intrinsics"])
+        if self.state.get("quest_given"):
+            game.quest_given = True
         # restore level identity and per-level trap/avoid memory
         if self.state.get("current_level") and self.state.get("current_ldesc"):
             game.level_name = self.state["current_level"]
@@ -406,9 +408,32 @@ class Tracker:
                     self.game.terrain_seen.setdefault(key, {}).update(found["features"])
         self.save()
 
+    def drop_cells(self, key: str, cells) -> None:
+        """Game._prune_features() dropped remembered features on arrival: drop them from the saved level too,
+        or a daemon restart would load them back before the next step saves the level."""
+        lv = self.state["levels"].get(key)
+        cells = {tuple(c) for c in cells}
+        if not lv or not cells:
+            return
+        feats = lv.get("features") or {}
+        for name in list(feats):
+            feats[name] = [c for c in feats[name] if tuple(c) not in cells]
+            if not feats[name]:
+                del feats[name]
+        if "doors" in lv:
+            lv["doors"] = [c for c in lv["doors"] if tuple(c) not in cells]
+        if lv.get("stairs_to"):
+            lv["stairs_to"] = {k: v for k, v in lv["stairs_to"].items()
+                               if tuple(int(n) for n in k.split(",")) not in cells}
+        self.save()
+
     def _parse_overview(self, text: str, snap, ldesc: str):
         self.state["overview"] = text
         self.state["overview_turn"] = snap.status.turn
+        if re.search(r"^\s*(?:Given quest by|Completed quest for) ", text, re.M):
+            # dungeon.c print_mapseen(): the quest home level once the leader assigned the quest
+            self.state["quest_given"] = True
+            self.game.quest_given = True
         branch = None
         lines = [ln.strip() for ln in text.splitlines()]
         for i, line in enumerate(lines):

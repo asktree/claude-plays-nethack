@@ -1029,6 +1029,9 @@ def test_quest_leader_and_level_change_guards(monkeypatch):
     s.status.xl = 14
     with pytest.raises(nav.NavError, match="7 tries"):
         nav._leader_check(s, (19, 5), "travel()", False)
+    g.quest_given = True                                        # assigned already: visits are harmless
+    nav._leader_check(s, (19, 5), "travel()", False)
+    g.quest_given = False
     g.piety = "piously"
     nav._leader_check(s, (19, 5), "travel()", False)           # ready
     # the level changes under a travel: stop
@@ -2654,6 +2657,20 @@ def test_levitation_route_crosses_water_and_unseen_squares(monkeypatch):
     monkeypatch.setattr(ctx, "last", lambda: s)
     with pytest.raises(nav.NavError, match="not levitating"):
         nav.levitate_to(16, 6)
+    # p3 shift 16 #582/#641: blind on Medusa's identified level, the planner walked into the palace wall and
+    # its iron bars: never-seen squares follow the placed fixed map (walls/bars/hidden doors block)
+    s.monsters = []
+    s.status = Status(ok=True, ldesc="Dlvl:24", turn=100, conditions=["Lev"])
+    g = ctx.game
+    g.desmap_ids = {"L": {"level": "medusa-4", "ox": 0, "oy": 0}}
+    from tactics import desmap
+    fixed = {(c, 6): "}" for c in range(7, 15)}
+    fixed.update({(10, 6): "F", (11, 6): "|"})           # bars and a wall across the unseen middle of row 6
+    monkeypatch.setattr(desmap, "layout", lambda s=None, names=None: fixed)
+    path = nav._lev_path(s, (4, 6), (16, 6))
+    assert path and path[-1] == (16, 6) and not {(10, 6), (11, 6)} & set(path)
+    fixed.update({(10, c): "|" for c in range(5, 8)} | {(11, c): "|" for c in range(5, 8)})
+    assert nav._lev_path(s, (4, 6), (16, 6), avoid={(10, 5), (10, 7), (11, 5), (11, 7)}) is None
 
 
 def test_bag_of_holding_explosion_guard():
@@ -3722,3 +3739,120 @@ def test_bag_put_leaves_the_invocation_items_out(monkeypatch):
     monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
     assert items.bag_put("D", "wp") == [] and sent == []
     assert items._INVOCATION.search("a silver bell") and not items._INVOCATION.search("a bell")
+
+
+def test_zap_notes_a_reflected_ray_a_restricted_teleport_and_closes_probing(monkeypatch, capsys):
+    # p2 shift 33: #247-#256 four fire charges came straight back off a demilich wearing reflection with no
+    # hit/miss line; #240 a wand of teleportation only reshuffled the fake tower's monsters; #268 probing left
+    # the possessions menu open inside zap()
+    from nh.parse import State
+    from tactics import combat, ctx
+    g = _G()
+    g.inv_items = [{"letter": "I", "text": "a wand of teleportation (0:3)"},
+                   {"letter": "M", "text": "a wand of fire (0:4)"}, {"letter": "Q", "text": "a wand of probing"}]
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    lich = {"x": 12, "y": 5, "ch": "L", "desc": "demilich", "dist": 2, "id": 7}
+    base = _snap({5: "          @.L..."}, (10, 5), [lich])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to zap? [IMQ or ?*]")
+    dirp = _snap({}, (10, 5), [])
+    dirp.state = State("direction", prompt="In what direction?")
+    back = _snap({5: "          @.L..."}, (10, 5), [lich])
+    back.messages = ["The bolt of fire whizzes by you!", "The bolt of fire bounces!"]
+    frames = {"z": obj, "M": dirp, "I": dirp, "Q": dirp, "l": back}
+    cur = {"s": base}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    monkeypatch.setattr(combat, "friendly_in_line", lambda d, ray=False: [])
+    combat.zap("M", "l")
+    out = capsys.readouterr().out
+    assert "REFLECTS rays" in out and g.reflectors["L"] == {7: back.status.turn}
+    back.messages = ["The bolt of fire hits it.", "The bolt of fire bounces!", "The bolt of fire whizzes by you!"]
+    cur["s"] = base
+    combat.zap("M", "l")
+    assert "REFLECTS" not in capsys.readouterr().out                 # it was hit: no reflection
+    # teleportation at a monster inside the fake tower's chamber (desmap placed fakewiz1 at (30, 6))
+    g.desmap_ids = {"L": {"level": "fakewiz1", "ox": 8, "oy": 3}}
+    back.messages = []
+    cur["s"] = base
+    combat.zap("I", "l")
+    assert "teleport-restricted area (10, 5, 14, 9)" in capsys.readouterr().out
+    # probing: its possessions menu is printed and closed
+    menu = _snap({}, (10, 5), [])
+    menu.state = State("menu", prompt="")
+    menu.screen.chars[1] = "The demilich's possessions:".ljust(80)
+    menu.screen.chars[2] = "  an oval amulet".ljust(80)
+    frames["l"] = menu
+    frames["<Esc>"] = base
+    cur["s"] = base
+    s = combat.zap("Q", "l")
+    out = capsys.readouterr().out
+    assert s is base and sent[-1] == "<Esc>" and "possessions" in out and "oval amulet" in out
+
+
+def test_wand_note_stays_on_the_zapper_not_every_monster_of_its_name():
+    # p2 shift 33 #1103: after the sergeant that zapped cold at you died, another sergeant carried its note
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    zapper = {"x": 15, "y": 5, "ch": "@", "desc": "sergeant", "id": 3}
+    other = {"x": 12, "y": 8, "ch": "@", "desc": "sergeant", "id": 4}
+    cur = _snap({5: "          @....@"}, (10, 5), [zapper, other])
+    s = _snap({5: "          @....@"}, (10, 5), [])
+    s.status.ldesc = cur.status.ldesc = "Dlvl:40"
+    g._note_wand_zaps(s, ["The sergeant zaps a wand of cold!", "The bolt of cold hits you!"], cur)
+    rec = g.wand_users[g.level_key(s.status)]["sergeant"]
+    assert rec["kind"] == "cold" and rec["ids"] == {3}
+
+
+def test_hunt_closes_in_on_a_monster_a_telepathy_scan_sensed_in_the_dark(monkeypatch):
+    # p1 shift 35 #173: hunt((26, 9)) said "no hostile (26, 9) in view" right after telepathy_scan() had found the
+    # black dragon there in the dark
+    from tactics import combat, ctx
+    g = _G()
+    g.wielded = "Excalibur (weapon in hand)"
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    row = {5: "        ..        "}                      # dark: only the squares next to you show
+
+    def mk(hero, show_dragon=False, killed=False):
+        mons = [{"x": 13, "y": 5, "ch": "D", "desc": "black dragon", "dist": abs(13 - hero[0]), "id": 5}] \
+            if show_dragon and not killed else []
+        s = _snap(row, hero, mons)
+        s.status.hp, s.status.hpmax, s.status.turn = 150, 150, 200
+        s.status.ldesc = "Dlvl:30"
+        return s
+    g.last_scan = {"turn": 199, "level": "L", "mons": [{"desc": "black dragon", "ch": "D", "x": 13, "y": 5,
+                                                        "dist": 4, "note": ""}]}
+    frames = {"s": mk((9, 5))}
+    sent = []
+
+    def do(keys, **kw):
+        sent.append(keys)
+        s = frames["s"]
+        if keys == "l":
+            h = (s.hero[0] + 1, 5)
+            nxt = mk(h, show_dragon=h[0] >= 12)
+        elif keys == "Fl":
+            nxt = mk(s.hero, killed=True)
+            nxt.messages = ["You kill the black dragon!"]
+        else:
+            nxt = s
+        frames["s"] = nxt
+        return nxt
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: frames["s"])
+    monkeypatch.setattr(ctx, "pause", lambda r: None)
+    monkeypatch.setattr(combat, "_check_target", lambda m: (frames["s"], m))
+    r = combat.hunt((13, 5))
+    assert sent[:3] == ["l", "l", "l"] and "Fl" in sent and r["reason"] == "killed"
+    g.last_scan = None
+    frames["s"] = mk((9, 5))
+    assert combat.hunt((13, 5))["reason"].startswith("no hostile")           # no scan: as before

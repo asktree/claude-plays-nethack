@@ -237,8 +237,8 @@ def _wand_user_check(m, who: str) -> None:
     s = ctx.last()
     name = base_name(m.get("desc") or "")
     rec = (getattr(s, "wand_users", None) or {}).get(name)
-    if not rec:
-        return
+    if not rec or (rec.get("ids") and m.get("id") not in rec["ids"]):
+        return          # (another monster of that name zapped: p2 shift 33 #1103)
     from nh.kernel import wand_danger
     reason = wand_danger(f"the {name} zapped {rec.get('wand') or 'a wand'}", rec.get("kind"), ctx.game)
     key = (ctx.game.level_key(s.status) if s.status.ok else None, name)
@@ -767,6 +767,86 @@ def _objects_in_line(direction: str, maxlen: int = 13, s=None) -> list:
     return out
 
 
+# zap.c bhitm() WAN_PROBING: mstatusline() ("Status of the demilich (chaotic): Level 20 HP ...") and
+# display_minventory() — "<Monnam>'s possessions:" in a menu, or "... is not carrying anything."
+# (the status line splits at its double spaces: "Status of the hill orc (chaotic):", "Level 3", "HP 8(8)",
+# "AC 10, peaceful.")
+_PROBE_OK = [r"^Status of ", r"^Level \d+$", r"^HP \d+\(\d+\)$", r"^AC -?\d+(?:,.*)?\.$",
+             r"^.+ is not carrying anything\.$", r"'s? possessions:$", r"^You probe towards "]
+
+
+def _close_probe(s):
+    """Probing opens an info-only menu of the monster's possessions (p2 shift 33 #268: the exec paused inside
+    zap() with it open, and the next exec was refused): print it and close it (Esc, no game time)."""
+    for _ in range(4):
+        if s.state.kind not in ("menu", "text", "more"):
+            break
+        menu = getattr(s.state, "menu", None)
+        if menu is not None and getattr(menu, "items", None):
+            text = ([menu.title] if menu.title else []) + [
+                (f"{i.letter} - " if i.letter else "") + i.text for i in menu.items if i.text.strip()]
+        elif s.state.kind == "more" and s.state.more_text:
+            text = [s.state.more_text]
+        else:
+            x0 = getattr(menu, "x0", 0) if menu is not None else 0
+            text = [r for r in (s.screen.row(y)[x0:].strip() for y in range(0, 22)) if r]
+        print("zap: " + " | ".join(text[:30])[:1500])
+        s = ctx.do(s.state.dismiss if s.state.kind == "more" and getattr(s.state, "dismiss", None) else "<Esc>",
+                   quiet=True)
+    return s
+
+
+def _tele_region_note(wand: str, before: list, s0) -> None:
+    """A wand of teleportation at monsters inside a teleport-restricted area (desmap.TELE_BOXES: the Wizard's
+    Tower, the fake towers, the Castle): teleport.c tele_jump_ok() keeps them inside it — say so."""
+    item = next((i for i in getattr(ctx.game, "inv_items", None) or [] if i.get("letter") == wand), None)
+    if not before or item is None or not re.search(r"\bteleportation\b", item.get("text") or ""):
+        return
+    from .desmap import in_box, tele_box
+    box = tele_box(s0)
+    if box is None:
+        return
+    inside = [m for m in before if in_box(box, (m["x"], m["y"]))]
+    if inside:
+        print("zap: " + ", ".join(f"the {m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in inside[:3])
+              + f" is inside this level's teleport-restricted area {box} (teleport.c tele_jump_ok): a teleport "
+              "only moves it somewhere ELSE INSIDE that area — it can't be sent out of it")
+
+
+_RAY_AT_MON = re.compile(rf"^The {_RAY} (?:hits|misses) (?!you\b)")
+_RAY_BACK = re.compile(rf"^The {_RAY} (?:hits you|whizzes by you)|^But it reflects from your ")
+
+
+def _reflected_note(before: list, s, s0=None) -> None:
+    """zap.c dobuzz(): YOUR ray names every monster it passes ("The bolt of fire hits it.", "... misses the
+    demilich."), except one that REFLECTS it out of your sight (mon_reflects() prints only if cansee()) — the
+    ray just turns around. A monster in the line, no hit/miss line for any monster, and the ray coming back at
+    you: it reflected (p2 shift 33 #247-#256: 4 fire charges at a demilich wearing an amulet of reflection)."""
+    msgs = s.messages or []
+    if not before or not any(re.match(rf"^The {_RAY} ", m) for m in msgs):
+        return
+    if any(_RAY_AT_MON.search(m) for m in msgs) or not any(_RAY_BACK.search(m) for m in msgs):
+        return
+    m = before[0]
+    h = s0.hero if s0 is not None else None
+    if h is not None:
+        # a closed door between you and it bounces the ray back just the same (zap.c buzz(): closed_door())
+        sx, sy = (m["x"] > h[0]) - (m["x"] < h[0]), (m["y"] > h[1]) - (m["y"] < h[1])
+        c = (h[0] + sx, h[1] + sy)
+        while c != (m["x"], m["y"]) and max(abs(c[0] - h[0]), abs(c[1] - h[1])) < 14:
+            if s0.screen.at(*c) == "+" and s0.screen.color_at(*c) == 3:
+                return
+            c = (c[0] + sx, c[1] + sy)
+    print(f"!! zap: the ray came back with NO hit/miss message for the {m.get('desc') or m['ch']} at "
+          f"({m['x']},{m['y']}) — it probably REFLECTS rays (amulet of reflection / shield of reflection / silver "
+          "dragon scales): stop zapping rays at it (melee, or a non-ray wand)")
+    key = ctx.game.level_key(s.status) if s.status.ok else None
+    if key is not None and m.get("id") is not None:
+        if getattr(ctx.game, "reflectors", None) is None:
+            ctx.game.reflectors = {}
+        ctx.game.reflectors.setdefault(key, {})[m["id"]] = s.status.turn
+
+
 def _monsters_in_line(direction: str, maxlen: int = 13, s=None) -> list:
     """Monsters in view on the straight line from you (up to a wall or rock), nearest first."""
     from .mapview import KEY_DIR
@@ -962,11 +1042,14 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             ctx.pause("zap: the wand wants a direction but none was given")
             return ctx.last()
         before = _monsters_in_line(direction, s=s0)        # (the snap before 'z': the hero was on the map)
-        s = ctx.do(direction, ok=ZAP_OK, force=force)
+        _tele_region_note(wand, before, s0)
+        s = ctx.do(direction, ok=ZAP_OK + _PROBE_OK, force=force)
+        s = _close_probe(s)
         gone = _vanished(before, s) if s.state.kind == "command" else []
         if gone:
             print("zap: " + ", ".join(f"the {m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in gone[:3])
                   + " is gone from that square — no message (teleported, turned invisible, or changed shape?)")
+        _reflected_note(before, s, s0)
         return s
     if direction and not any(m.startswith("Nothing happens") for m in s.messages):
         # zap.c zapnodir(): no direction asked = a NODIR wand (light, secret door detection, create monster,
@@ -983,14 +1066,15 @@ HUNT_OK = ROUTINE + [r" attacks you with a fiery gaze!$", r" spits venom!$", r"^
                      r"^It's (?:solid stone|a wall)\.$"]
 
 
-def _greedy_step(s, goal, bad) -> tuple | None:
-    """A square next to you, closer to `goal`, that is known floor (or, while you are BLIND, a blank:
-    you don't see the squares next to you then; otherwise a blank next to you is rock) and not a known
-    trap, water, wall or monster; never diagonally into or out of a doorway."""
+def _greedy_step(s, goal, bad, blank_ok: bool = False) -> tuple | None:
+    """A square next to you, closer to `goal`, that is known floor (or, while you are BLIND or `blank_ok` —
+    walking into a dark room toward a sensed monster — a blank: you don't see the squares next to you then;
+    otherwise a blank next to you is rock) and not a known trap, water, wall or monster; never diagonally
+    into or out of a doorway."""
     from .mapview import is_door, is_walkable, neighbors
     h = s.hero
     occupied = {(m["x"], m["y"]) for m in s.monsters or []}
-    blind = s.status.ok and "Blind" in s.status.conditions
+    blind = blank_ok or (s.status.ok and "Blind" in s.status.conditions)
     best = None
     for c in neighbors(*h):
         if c in bad or c in occupied or c == goal:
@@ -1004,6 +1088,17 @@ def _greedy_step(s, goal, bad) -> tuple | None:
         if d[0] < max(abs(h[0] - goal[0]), abs(h[1] - goal[1])) and (best is None or d < best[0]):
             best = (d, c)
     return best[1] if best else None
+
+
+def _sensed_at(s, target) -> dict | None:
+    """A non-tame, non-peaceful monster that telepathy_scan() sensed at `target` on this level within the last
+    30 turns (game.last_scan), else None."""
+    scan = getattr(ctx.game, "last_scan", None)
+    if not scan or not s.status.ok or scan.get("level") != ctx.game.level_key(s.status) \
+            or (s.status.turn or 0) - (scan.get("turn") or 0) > 30:
+        return None
+    return next((m for m in scan.get("mons") or [] if (m["x"], m["y"]) == tuple(target)
+                 and not (m.get("desc") or "").startswith(("tame ", "peaceful "))), None)
 
 
 def _ignored(m, ignore) -> bool:
@@ -1122,12 +1217,39 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                     return out("still ENGULFED (fight() stopped: HP) — pray at 1/7 HP")
                 continue
             if want is None:
-                hs = [m for m in s.hostiles() if not m.get("statue")]
-                hs = [m for m in hs if (m["x"], m["y"]) == tuple(target)] if isinstance(target, tuple) else \
-                    [m for m in hs if str(target).lower() in (m.get("desc") or "").lower()]
+                hs0 = [m for m in s.hostiles() if not m.get("statue")]
+                hs = [m for m in hs0 if (m["x"], m["y"]) == tuple(target)] if isinstance(target, tuple) else \
+                    [m for m in hs0 if str(target).lower() in (m.get("desc") or "").lower()]
+                sensed = _sensed_at(s, tuple(target)) if isinstance(target, tuple) else None
+                if not hs and sensed is not None:
+                    # moved since the scan: the same kind shown near where it was sensed
+                    bn = base_name(sensed.get("desc") or "")
+                    hs = [m for m in hs0 if bn and base_name(m.get("desc") or "") == bn
+                          and max(abs(m["x"] - target[0]), abs(m["y"] - target[1])) <= 3]
                 if not hs and isinstance(target, tuple) and \
                         tuple(target) in (getattr(s, "mimic_mem", None) or {}):
                     return _hunt_hidden_mimic(tuple(target), stop_hp, out, kills)
+                if not hs and sensed is not None:
+                    # p1 shift 35 #173: sensed by telepathy_scan() in the dark, gone from view with the blindfold
+                    # off — walk toward that square until it shows (a monster next to you is seen, dark or not)
+                    what = f"the {sensed.get('desc') or 'monster'} telepathy_scan() sensed at {tuple(target)}"
+                    if max(abs(s.hero[0] - target[0]), abs(s.hero[1] - target[1])) <= 1 or chase >= 12:
+                        return out(f"no hostile {target!r} in view: {what} isn't there now (moved away, or "
+                                   "invisible: F-attack the square or search) — telepathy_scan() again")
+                    chase += 1
+                    bad = frozenset(bad_squares(s) - {tuple(target)})
+                    path = bfs_path(s, s.hero, tuple(target), avoid=bad, allow_monsters=False, allow_pets=True)
+                    nxt = path[0] if path and len(path) > 1 else _greedy_step(s, tuple(target), bad, blank_ok=True)
+                    if nxt is None:
+                        return out(f"no route toward {what}")
+                    try:
+                        _check_free(s, nxt, "hunt()")
+                    except NavError as e:
+                        return out(f"blocked on the way toward {what}: {e}")
+                    s = ctx.do(DIR_KEY[(nxt[0] - s.hero[0], nxt[1] - s.hero[1])],
+                               ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])
+                    kills += killed_names(s.messages, include_it=True)
+                    continue
                 if not hs:
                     return out(f"no hostile {target!r} in view")
                 m = min(hs, key=lambda e: e["dist"] if e["dist"] is not None else 99)

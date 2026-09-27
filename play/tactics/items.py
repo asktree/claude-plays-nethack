@@ -46,6 +46,7 @@ def inventory():
         s = ctx.do("i", quiet=True)
         items = _parse_menu_pages(s)[0] if s.state.kind == "menu" else None
     if items is not None:
+        ctx.game.inv_items = items          # (helpers that only need a name look here: zap() notes)
         ctx.game.wielded = next((it["text"] for it in items if _wielded(it["text"])), "")
         ctx.game.wielded_class = next((it["class"] for it in items if _wielded(it["text"])), "")
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
@@ -843,6 +844,48 @@ def with_looks(text: str, disco: list) -> str:
     return text + "".join(f" [{lk}]" for lk in looks)
 
 
+def bag_contents(bag: str) -> list:
+    """What the carried container `bag` holds, taking nothing out: apply it and "Look inside" (pickup.c: no game
+    time once its contents are known — the first look into a bag you never opened costs a turn). Returns the
+    item texts ([] for an empty bag) and prints them. p1 shift 35 #83: bag_take() with a pattern that matched
+    nothing was the only way to list a bag."""
+    ctx.require_command("bag_contents()")
+    s = ctx.do("a", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"bag_contents: expected the apply prompt, got {s.state.kind} {s.state.prompt!r}")
+    s = ctx.do(bag, quiet=True)
+    menu = s.state.menu
+    if s.state.kind != "menu" or "Do what with" not in (s.state.prompt or "") or menu is None:
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        if any(re.search(r" is empty\.", m) for m in s.messages):
+            print(f"bag_contents({bag!r}): empty")
+            return []
+        raise RuntimeError(f"bag_contents: {bag!r} didn't open as a container ({s.state.kind} "
+                           f"{s.state.prompt!r}; {s.messages})")
+    # (its selector is ':', which the menu parser keeps as a header line: ": - Look inside the bag")
+    if not any(re.match(r"^(?:: - )?Look inside", i.text) for i in menu.items):
+        ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"bag_contents: no 'Look inside' in {[i.text for i in menu.items]}")
+    s = ctx.do(":", quiet=True)
+    # (the step reads the "Contents of the bag:" window into the messages and closes it; the container menu
+    # comes back after a look)
+    text = "\n".join(s.messages)
+    mm = re.search(r"Contents of [^\n]*:\n(.*)", text, re.S)
+    items: list = [ln.strip() for ln in mm.group(1).split("\n") if ln.strip()] if mm else []
+    empty = bool(re.search(r" is empty\.", text))
+    for _ in range(4):
+        if s.state.kind == "command":
+            break
+        s = ctx.do("<Esc>", quiet=True)
+    items = [t for t in items if not re.search(r" is empty\.$", t)]
+    print(f"bag_contents({bag!r}): " + ("empty" if empty and not items else
+                                        f"{len(items)} item(s): " + "; ".join(items)))
+    return items
+
+
 def bag_take(bag: str, pattern: str | None = None) -> list:
     """Take items out of the carried container `bag`: those whose menu text
     matches `pattern` (regex, case-insensitive), or everything if None.
@@ -1069,7 +1112,8 @@ def pickup(pattern: str | None = None) -> list:
     return msgs
 
 
-_DIG_OK = [r"^You (?:are )?now wield", r"^You (?:start|continue) digging", r"^You dig a pit in the ",
+_DIG_OK = [r"^You (?:are )?now wield", r"^You (?:start|continue) (?:digging|chipping the statue)",
+           r"^You dig a pit in the ",
            r"^You dig a hole through", r"^You make an opening", r"^You succeed in cutting away",
            r"^You dig (?:upward|downward)", r"^There's a hole", r"^You fall through", r"^You hit the ",
            r"^The boulder falls apart\.$", r"^The statue shatters\.$"]
@@ -1156,9 +1200,114 @@ def _dig(direction, tool, max_applies, auto_fightable):
         s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
         msgs += s.messages
     if why:
+        done = next((m for m in msgs if re.search(r"^You dig a hole through|^You make an opening|^You succeed in "
+                                                  r"cutting away|^The boulder falls apart|^The statue shatters", m)),
+                    None)
         ctx.pause("dig(): " + why + (f" — your weapon ({weapon}) is wielded again" if weapon else "")
-                  + "; dig() again to go on digging")
+                  + (f"; the dig is DONE ({done})" if done else "; dig() again to go on digging"))
     return msgs
+
+
+def tunnel(x: int, y: int, max_steps: int = 80, tool: str | None = None) -> dict:
+    """Go to (x, y) in straight lines (across first, then up/down), digging through whatever rock, wall,
+    boulder or statue is in the way with your pick-axe/mattock — kept in hand between digs (dig() re-wields
+    your weapon after every wall: p2 shift 33 #120 crossed a maze 18-28 columns at a time with its own loop
+    of step-or-dig). Your weapon is wielded again at the end. Stops at: the goal; a hostile next to you that
+    auto_fightable() wouldn't fight; water, lava, a known trap or a monster on the next square; an undiggable
+    wall ("too hard to dig in"); a level change; `max_steps` moves/digs. Returns {"reason", "at", "digs",
+    "steps"}."""
+    from .combat import auto_fightable
+    from .mapview import DIR_KEY, is_walkable
+    s = ctx.require_command("tunnel()")
+    inv = inventory()
+    if tool is None:
+        t = next((i for i in inv if re.search(r"pick-axe|mattock", i["text"])), None)
+        if t is None:
+            raise RuntimeError("tunnel(): no pick-axe or mattock in the inventory")
+        tool = t["letter"]
+    weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
+    ldesc0 = s.status.ldesc
+    goal = (x, y)
+    digs = steps = 0
+    reason = "max_steps"
+    ok = _DIG_OK + [r"^You stop digging\.$", r"^You swap places with ", r"^The door opens\.$",
+                    r"^This (?:wall|drawbridge) is too hard to dig into\.$"]
+    try:
+        for _ in range(max_steps):
+            s = ctx.last()
+            if s.state.kind != "command" or s.hero is None:
+                reason = f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})"
+                break
+            if s.status.ok and s.status.ldesc != ldesc0:
+                reason = f"level changed: {ldesc0} -> {s.status.ldesc}"
+                break
+            if s.hero == goal:
+                reason = "arrived"
+                break
+            near = [m for m in s.adjacent_hostiles() if not auto_fightable(m, s)]
+            if near:
+                reason = "hostile next to you: " + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                                                             for m in near[:3])
+                break
+            hx, hy = s.hero
+            dx = (x > hx) - (x < hx)
+            dy = 0 if dx else (y > hy) - (y < hy)
+            nxt = (hx + dx, hy + dy)
+            ch = s.screen.at(*nxt)
+            mon = next((m for m in s.monsters or [] if (m["x"], m["y"]) == nxt and not m.get("statue")), None)
+            if mon is not None:
+                if not mon.get("tame") and auto_fightable(mon, s):
+                    from .combat import fight
+                    fight(*nxt)
+                    continue
+                reason = f"{mon.get('desc') or mon['ch']} on the next square {nxt}"
+                break
+            if ch in "}^" or (ch == "#" and s.screen.color_at(*nxt) == 10):
+                reason = f"{'water/lava' if ch == '}' else 'a trap' if ch == '^' else 'a gas cloud'} at {nxt}"
+                break
+            shops = (getattr(ctx.game, "shops", None) or {}).get(ctx.game.level_key(s.status), []) \
+                if s.status.ok else []
+            if getattr(s, "shop", "") or any(x1 - 1 <= nxt[0] <= x2 + 1 and y1 - 1 <= nxt[1] <= y2 + 1
+                                             for x1, y1, x2, y2, *_ in shops):
+                reason = f"a shop at {nxt}: digging its walls or floor angers the shopkeeper — go round it"
+                break
+            if is_walkable(s, *nxt, allow_monsters=False) or ch == "+":
+                s = ctx.do(DIR_KEY[(dx, dy)], ok=ok)
+                steps += 1
+                if s.hero != (hx, hy) or any(m.startswith("The door opens") for m in s.messages):
+                    continue
+                if any(re.search(r"This door is locked|door is closed", m) for m in s.messages):
+                    reason = f"a locked door at {nxt}: unlock(), kick it, or dig('{DIR_KEY[(dx, dy)]}') through it"
+                    break
+                if not any(m in ("It's solid stone.", "It's a wall.") for m in s.messages):
+                    reason = f"the step {DIR_KEY[(dx, dy)]!r} to {nxt} didn't move you ({s.messages or 'no message'})"
+                    break
+            # rock, a wall, a boulder or a statue: dig (the pick stays in hand between digs)
+            s = ctx.do("a", quiet=True)
+            if s.state.kind != "object":
+                if s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                reason = f"no apply prompt ({s.state.kind} {s.state.prompt!r})"
+                break
+            s = ctx.do(tool, ok=ok)
+            if s.state.kind != "direction":
+                if s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                reason = f"no dig direction prompt ({s.state.kind} {s.state.prompt!r}; {s.messages})"
+                break
+            s = ctx.do(DIR_KEY[(dx, dy)], ok=ok)
+            digs += 1
+            text = " ".join(s.messages)
+            if re.search(r"too hard to dig|cannot|can't", text):
+                reason = f"can't dig toward {nxt}: {text}"
+                break
+    finally:
+        if weapon and digs and ctx.last().state.kind == "command":
+            ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
+    s = ctx.last()
+    print(f"tunnel{goal}: {reason} at {s.hero} ({steps} step(s), {digs} dig(s))"
+          + (f"; weapon {weapon} wielded again" if weapon else ""))
+    return {"reason": reason, "at": s.hero, "digs": digs, "steps": steps}
 
 
 _KEYS = re.compile(r"skeleton key|\bkey\b|lock pick|credit card|Master Key of Thievery", re.I)
@@ -1172,8 +1321,10 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
     (found in the inventory unless `tool` is given): applies it, answers the
     direction ('.' = here), says y to "unlock it?" and never to "lock it?".
     It takes a few turns and a monster can interrupt it ("You stop
-    unlocking"): retried up to `tries` times. A trapped box can go off.
-    Never on a shop door. Returns the messages."""
+    unlocking"): retried up to `tries` times. A trapped box can go off, and
+    a BOOBY-TRAPPED DOOR EXPLODES the moment its lock gives (lock.c
+    picklock: stunned, some HP, everything near wakes; the door is gone) —
+    unlock doors at full HP. Never on a shop door. Returns the messages."""
     ctx.require_command("unlock()")
     if tool is None:
         t = next((i for i in inventory() if _KEYS.search(i["text"])), None)
@@ -1227,8 +1378,10 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
         print("!! unlock(): the door was booby-trapped — the explosion WOKE everything within ~15 squares "
               "(a zoo/throne room next door is now awake)")
     elif x is not None and any(re.search(r"You succeed in (?:unlocking|picking)", m) for m in msgs):
-        print("unlock(): note — a booby-trapped door can still explode when you OPEN it (stunned, woken "
-              "neighbours): open it at full HP")
+        # lock.c picklock(): a trapped door goes off the moment its lock gives (p3 shift 16 #930) — this one
+        # didn't, so it isn't trapped
+        print("unlock(): the door wasn't booby-trapped (a trapped door explodes as its lock gives) — opening it "
+              "is safe")
     return msgs
 
 
