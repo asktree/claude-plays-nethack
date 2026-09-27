@@ -178,14 +178,20 @@ def cmd_start_local(a) -> int:
         _tmux("kill-session", "-t", f"=nh-{name}", check=False)
         import shutil
         shutil.rmtree(d, ignore_errors=True)
-        # also drop the local NetHack save/lock files for this player name
+        # also drop the local NetHack save/lock files for this player name (wizard-mode games all
+        # save and lock as "wizard": that is the name to clear then)
         hackdir = Path(a.nethack).resolve().parent.parent / "lib" / "nethackdir"
-        pname = a.player or name.replace("-", "")[:10] or "agent"
+        pname = mine
         for f in list(hackdir.glob(f"save/*{pname}*")) + list(hackdir.glob(f"[0-9]*{pname}.*")):
             try:
                 f.unlink()
             except OSError:
                 pass
+    elif a.wizard:
+        hackdir = Path(a.nethack).resolve().parent.parent / "lib" / "nethackdir"
+        if list(hackdir.glob("save/*wizard*")):
+            print("note: a wizard-mode save exists (every wizard-mode game saves as \"wizard\"): NetHack will "
+                  "RESTORE it — pass --fresh for a new game")
     d.mkdir(parents=True, exist_ok=True)
     extra = [] if a.rc else [f"OPTIONS=role:{a.role},race:{a.race},gender:{a.gender},align:{a.align}"]
     rc = write_rc(name, extra, a.rc)

@@ -24,6 +24,10 @@ TRAP_BY_COLOR = {
     10: "polymorph trap",
 }
 VIBRATING_SQUARE_COLOR = 5     # a magenta '~' (a long worm's tail is brown)
+# the Rogue level (drawing.c init_r_symbols): no colours; stairs up AND down are '%', every door is a
+# doorless doorway '+', food ':', amulets ',', armor ']', gold and gems '*', boulders '`'
+ROGUE_OBJECTS = {")": "weapon", "]": "armor", ":": "food", "?": "scroll", "/": "wand", "=": "ring", "!": "potion",
+                 ",": "amulet", "(": "tool", "*": "gold/gem", "`": "boulder", "+": "spellbook"}
 # remembered features (Game.terrain_seen / Snap.feature_mem) by their glyph
 MEM_NAMES = {"<": "up stairs", ">": "down stairs", "{": "fountain", "_": "altar", "\\": "throne",
              "^": "magic portal", "~": "vibrating square"}
@@ -70,7 +74,7 @@ def monsters_in_view(snap, radius: int | None = None, hero=None) -> list[dict]:
     for y in _rows(snap):
         row = scr.row(y)
         for x, ch in enumerate(row):
-            if ch not in MONSTER_CHARS and ch != "]":
+            if ch not in MONSTER_CHARS and (ch != "]" or getattr(snap, "rogue", False)):
                 continue
             if hero and (x, y) == hero:
                 continue
@@ -95,9 +99,20 @@ def objects_in_view(snap, hero=None) -> list[dict]:
     scr = snap.screen
     hero = _hero(snap, hero)
     out = []
+    rogue = getattr(snap, "rogue", False)
     for y in _rows(snap):
         row = scr.row(y)
         for x, ch in enumerate(row):
+            if rogue:
+                if ch not in ROGUE_OBJECTS or (ch == "+" and _door_like(scr, x, y)) \
+                        or (hero and (x, y) == hero):
+                    continue
+                if ch == ":" and any((m["x"], m["y"]) == (x, y) for m in snap.monsters or []):
+                    continue          # a ':' the monster tracker kept is a lizard/newt, not food
+                d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
+                out.append({"ch": ch, "x": x, "y": y, "kind": ROGUE_OBJECTS[ch], "pile": False, "color": "",
+                            "dist": d})
+                continue
             if ch not in OBJECT_CLASSES:
                 continue
             col = scr.color_at(x, y)
@@ -127,11 +142,30 @@ def features_in_view(snap, hero=None) -> list[dict]:
     scr = snap.screen
     hero = _hero(snap, hero)
     out = []
+    rogue = getattr(snap, "rogue", False)
+    fmem = getattr(snap, "feature_mem", None) or {}
     for y in _rows(snap):
         row = scr.row(y)
         for x, ch in enumerate(row):
             name = FEATURES.get(ch)
             col = scr.color_at(x, y)
+            if rogue and ch in "%+^":
+                if ch == "+" and _door_like(scr, x, y):
+                    name = "doorway"
+                elif ch == "%":
+                    known = fmem.get((x, y))
+                    name = (MEM_NAMES[known] + " (shown as %)" if known in ("<", ">") else
+                            "stairs, up or down (Rogue level '%': not looked at yet)")
+                elif ch == "^":
+                    name = "trap (no colours on the Rogue level)"
+                else:
+                    continue
+                desc = (getattr(snap, "feature_desc", None) or {}).get((x, y))
+                if desc and ch == "^":
+                    name = desc
+                d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
+                out.append({"ch": ch, "x": x, "y": y, "name": name, "dist": d, "color": ""})
+                continue
             if name is None:
                 if ch == "+" and col == BROWN and _door_like(scr, x, y):
                     name = "closed door"
@@ -175,7 +209,7 @@ def features_in_view(snap, hero=None) -> list[dict]:
         if (x, y) in shown or (hero and (x, y) == hero) or ch not in MEM_NAMES or not top <= y <= MAP_BOTTOM:
             continue
         now = scr.at(x, y)
-        if now == ch:
+        if now == ch or (getattr(snap, "rogue", False) and now == "%" and ch in "<>"):
             continue                      # shown as itself (listed above, or not a feature by colour)
         why = ("under a monster" if now in MONSTER_CHARS or now in "I@" else
                "under an object" if now in OBJECT_CLASSES else "remembered")

@@ -55,7 +55,9 @@ def is_walkable(s, x, y, allow_monsters=True) -> bool:
         return False
     ch = cell(s, x, y)
     if ch == " ":
-        return False
+        # a cyan blank is open air (Planes of Air and Water); on the Rogue level a dark-room floor square
+        # seen before shows blank again (the harness remembers it); any other blank is unknown
+        return color(s, x, y) == 6 or (x, y) in getattr(s, "floor_mem", ())
     if ch == "#":
         return color(s, x, y) in (7, 8, 15)   # corridor (lit or not); not tree(green)/bars(cyan)
     if ch in FLOORISH:
@@ -129,7 +131,8 @@ def neighbors(x, y, diag=True):
             yield nx, ny
 
 
-def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False, allow_water=False):
+def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False, allow_water=False,
+             allow_boulders=False):
     """Shortest 8-connected path over known-walkable cells (doors: no diagonal
     moves into/out of doorways, per NetHack rules). Returns list of cells
     excluding start, or None. allow_traps=True also crosses '^' squares,
@@ -148,7 +151,8 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_trap
                 continue
             if nxt != goal and not is_walkable(s, nx, ny, allow_monsters=allow_monsters) \
                     and not (allow_traps and cell(s, nx, ny) == "^") \
-                    and not (allow_water and cell(s, nx, ny) == "}"):
+                    and not (allow_water and cell(s, nx, ny) == "}") \
+                    and not (allow_boulders and cell(s, nx, ny) in "0`"):
                 continue
             if nxt == goal and not (is_walkable(s, nx, ny, allow_monsters=True) or cell(s, nx, ny) == " "):
                 continue

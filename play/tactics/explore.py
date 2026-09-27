@@ -390,13 +390,14 @@ def screen_frontiers(s=None) -> list:
         for dx in (-1, 0, 1):
             for dy in (-1, 0, 1):
                 near.add((vx + dx, vy + dy))
+    mem = getattr(s, "floor_mem", ())      # Rogue level: dark-room floor seen before shows blank again
     out = []
     for y in range(MAP_TOP + 1, MAP_BOTTOM + 1):
         for x in range(1, 79):
             if not is_walkable(s, x, y, allow_monsters=True):
                 continue
             if any(s.screen.at(x + dx, y + dy) == " " and (x + dx, y + dy) not in near
-                   and MAP_TOP < y + dy <= MAP_BOTTOM
+                   and (x + dx, y + dy) not in mem and MAP_TOP < y + dy <= MAP_BOTTOM
                    for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))):
                 out.append((x, y))
     return out

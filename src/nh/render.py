@@ -165,6 +165,10 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     if bits:
         lines.append("features: " + "; ".join(bits))
     plane = snap.status.ldesc if snap.status.ok else ""
+    if getattr(snap, "rogue", False):
+        lines.append("ROGUE LEVEL (no colours): '%' = stairs (up or down: see features), '+' in a wall = doorway "
+                     "(diagonal moves OK), ':' = food or a lizard/newt, ']' armor, ',' amulet, '*' gold or gem, "
+                     "'`' boulder")
     if plane == "Air":
         lines.append("Plane of Air: blank = open air, '#' = cloud (both passable, clouds block sight; without "
                      "levitation/flying most steps fail); no map is kept: the portal stays in features once seen")

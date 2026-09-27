@@ -12,6 +12,7 @@ game = None    # nh.game.Game
 monster_filter = None   # with monster_filter(fn): only newcomers with fn(m) true pause
 _set_activity = None    # set_activity(text): shown with any pause while a helper works
 hp_rules = None         # with hp_rules(stop_hp): fight-style HP pauses (kernel)
+defer_far = None        # with defer_far(6): far newcomers pause only when they come near (kernel)
 
 
 def activity(text: str = "") -> None:

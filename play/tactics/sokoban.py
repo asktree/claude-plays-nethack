@@ -358,12 +358,22 @@ def progress(s=None) -> dict:
                          if partial else None))
 
 
-def solve(max_steps: int | None = None):
+def solve(max_steps: int | None = None, defer: int = 6):
     """Run this Sokoban level's verified solution from wherever the board is,
     one boulder at a time, checking the board after every step. Pauses (and
     stops) on anything unexpected. Returns progress() at the end.
+    New monsters farther than `defer` squares without a danger note (behind
+    the level's walls) don't pause until they come that close (defer=None:
+    every newcomer pauses).
     When it finishes: the up stairs are reachable (top level: the door to the
     treasure zoo — prepare for that fight before going in)."""
+    import contextlib
+    far = getattr(ctx, "defer_far", None)
+    with (far(defer) if far is not None and defer else contextlib.nullcontext()):
+        return _solve(max_steps)
+
+
+def _solve(max_steps):
     p = progress()
     if p["done"] < 0:
         lv = _levels()[p["level"]]

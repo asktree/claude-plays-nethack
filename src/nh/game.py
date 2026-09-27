@@ -61,6 +61,8 @@ class Snap:
     feature_desc: dict = field(default_factory=dict)   # {(x, y): "trap door"} looked up on this level
     feature_mem: dict = field(default_factory=dict)    # {(x, y): '<'/'>'/'{'/'_'/'\\'/'^' portal/'~' vib. square}
     theft_note: str = ""       # set for a while after a monster stole something from you
+    rogue: bool = False        # the Rogue level: no colours, '%' stairs, '+' doorways, ':' food, ']' armor...
+    floor_mem: set = field(default_factory=set)   # Rogue level: floor seen before (dark rooms forget it)
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -345,6 +347,8 @@ class Game:
         self.intrinsics: set = {"cold", "stealth"}   # Valkyrie start; more learned from messages (_note_intrinsics)
         self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
         self.last_theft: dict | None = None       # {"turn", "msg", "what"}: the latest theft from you
+        self.level_flags: dict[str, set] = {}     # level key -> {"rogue"}: levels drawn differently
+        self.floor_seen: dict[str, set] = {}      # Rogue level: squares once shown as floor/corridor/doorway
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -367,7 +371,7 @@ class Game:
         """Merge per-level memory recorded under a provisional key."""
         if old == new:
             return
-        for d in (self.traps, self.avoid, self.visited, self.locked_doors):
+        for d in (self.traps, self.avoid, self.visited, self.locked_doors, self.level_flags, self.floor_seen):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc):
@@ -642,12 +646,25 @@ class Game:
                 elif snap.screen.color_at(x, y) == 3 and (ch in "|-" or (ch == "+" and _door_like(snap.screen, x, y))):
                     feats[(x, y)] = "D"         # a door (open or closed): no diagonal moves in or out of it
         self._remember_portals(snap, feats)
-        for c in list(feats):
-            if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
-                del feats[c]           # e.g. a fountain that dried up
+        if "rogue" in self.level_flags.get(key, ()):
+            # the Rogue level turns dark-room floor you can't see back into blank stone (display.c): keep
+            # it, or neither the frontier finder nor the route planner knows the room you walked through
+            floor = self.floor_seen.setdefault(key, set())
+            for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
+                row = snap.screen.row(y)
+                for x, ch in enumerate(row):
+                    if ch in ".#%" or (ch == "+" and _door_like(snap.screen, x, y)):
+                        floor.add((x, y))
+            floor.add(snap.hero)
+        for c, v in list(feats.items()):
+            if v not in "^~" and c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
+                del feats[c]           # e.g. a fountain that dried up (portals never go away; on the Plane
+                                       # of Air unseen squares are drawn as '#' clouds)
         if any("dries up" in m or "fountain disappears" in m for m in messages):
             feats.pop(snap.hero, None)
         for m in messages:
+            if m.startswith("You enter what seems to be an older, more primitive world."):
+                self.level_flags.setdefault(key, set()).add("rogue")
             if m.startswith("You feel a strange vibration under your "):
                 feats[snap.hero] = "~"          # (only on the vibrating square itself)
             elif m.startswith("You activated a magic portal!") and snap.status.ldesc not in self.ENDGAME:
@@ -1501,6 +1518,8 @@ class Game:
         snap.feature_desc = self.feature_desc.setdefault(key, {}) if key is not None else {}
         snap.feature_mem = dict(self.terrain_seen.get(key, {})) if key is not None else {}
         snap.theft_note = self.theft_note(snap.status.turn if snap.status.ok else None)
+        snap.rogue = key is not None and "rogue" in self.level_flags.get(key, ())
+        snap.floor_mem = (self.floor_seen.get(key, set()) | self.visited.get(key, set())) if snap.rogue else set()
 
     def look(self) -> Snap:
         """Capture without sending anything."""

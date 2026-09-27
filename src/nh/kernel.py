@@ -170,6 +170,8 @@ class Kernel:
         self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
         self._announced: dict[str, dict] = {}   # species -> {turn, level, cells} of its last new-monster pause
         self._heard: set = set()     # (level, ONCE_PER_LEVEL index) already paused for
+        self.defer_dist: int | None = None   # defer_far(): newcomers farther than this wait until they come near
+        self._deferred: dict = {}    # monster id -> level: seen far off, pauses when it comes within DEFER_NEAR
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
         self._reply_sent: bytes | None = None   # the `cont --reply` keys just sent for the script
         self.parked = False        # True while an exec worker waits at a pause point
@@ -244,13 +246,26 @@ class Kernel:
             finally:
                 k.fight_floor = old
 
+        @contextlib.contextmanager
+        def defer_far(dist: int = 6):
+            """Inside this block a new hostile farther than `dist` squares
+            (and without a danger note) doesn't pause yet — it pauses once
+            as 'approaching' when it comes within DEFER_NEAR squares (a Sokoban
+            solve with monsters behind walls). Nested blocks keep the smaller."""
+            old = k.defer_dist
+            k.defer_dist = dist if old is None else min(old, dist)
+            try:
+                yield
+            finally:
+                k.defer_dist = old
+
         def set_activity(text: str = "") -> None:
             """What a long helper is doing right now (e.g. 'sokoban step 25/26, 12 pushes done'):
             shown after the reason of any pause until changed or cleared."""
             k.activity = text or ""
 
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
-                       set_activity=set_activity, hp_rules=hp_rules)
+                       set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -372,13 +387,36 @@ class Kernel:
                 new = self._not_yet_announced(new, snap)
                 crowd = [m for m in snap.monsters if not m.get("statue") and not m.get("tame")
                          and not m.get("peaceful")]
-                if len(crowd) > 8:
-                    # a big lit room reveals a crowd a few at a time: only the near or noted newcomers
-                    # are news (the rest are listed in the obs anyway)
-                    new = [m for m in new if (m.get("dist") is not None and m["dist"] <= 6) or m.get("note")]
+                level = snap.status.ldesc if snap.status.ok else ""
+
+                def far(m):
+                    d = m.get("dist")
+                    if d is None or m.get("note"):
+                        return False
+                    # a big lit room reveals a crowd a few at a time; telepathy senses a whole level
+                    # (a sleeping court 30 squares off): those are news only when they come near
+                    return (d > self.DEFER_NEAR and (len(crowd) > 8 or "[seen: telepathy" in (m.get("desc") or "")
+                                                     or "[seen: warned" in (m.get("desc") or ""))) \
+                        or (self.defer_dist is not None and d > self.defer_dist)
+                later = [m for m in new if far(m)]
+                for m in later:
+                    if m.get("id") is not None:
+                        self._deferred[m["id"]] = level
+                new = [m for m in new if m not in later]
                 if new:
                     reasons.append("new monster: " + ", ".join(
                         f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))
+                if self._deferred:
+                    for i in [i for i, lv in self._deferred.items() if lv != level]:
+                        del self._deferred[i]
+                    near = [m for m in snap.monsters if m.get("id") in self._deferred and not m.get("new")
+                            and m.get("dist") is not None and m["dist"] <= self.DEFER_NEAR
+                            and not m.get("tame") and not m.get("peaceful")]
+                    for m in near:
+                        del self._deferred[m["id"]]
+                    if near:
+                        reasons.append("approaching: " + ", ".join(
+                            f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m['dist']}" for m in near[:4]))
             elif before is not None and before.state.kind == "command" and self.game.tracker is None:
                 prev = monster_counts(before)
                 now = monster_counts(snap)
@@ -398,6 +436,8 @@ class Kernel:
                 self._heard.add(key)
                 return False
         return False
+
+    DEFER_NEAR = 6       # a deferred far newcomer pauses when it comes this close
 
     SWARM_TURNS = 5      # another member of a species announced this recently...
     SWARM_DIST = 4       # ...and this close to its group doesn't pause again (bee swarms, orc packs)

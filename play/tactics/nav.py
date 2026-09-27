@@ -494,26 +494,34 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     return s
 
 
-def _no_path_msg(s, h0, target, start=None) -> str:
+def _no_path_msg(s, h0, target, start=None, bad=None) -> str:
     """Why travel can't get there, and what would: the traps/water the only
     known route crosses (the invocation's ring of fire traps and moat), or
     that the known map doesn't connect (and whether anything is left to
-    explore)."""
+    explore). bad: known trap/avoid squares (default bad_squares(); a trap
+    hidden under an object is one too)."""
     x, y = target
     here = s.hero or h0
+    if bad is None:
+        try:
+            bad = bad_squares(s)
+        except Exception:  # noqa: BLE001
+            bad = set()
+    bad = frozenset(c for c in bad if c != tuple(target))
     head = (f"travel to {target} stopped at {here}: NetHack's travel guessed its way from {start} and has no "
             "known path on from here" if start is not None and here != start else
             f"travel to {target} did not move: no known path")
     msgs = f"; messages: {s.messages}" if s.messages else ""
-    if bfs_path(s, h0, target, allow_monsters=True) is not None:
+    if bfs_path(s, h0, target, allow_monsters=True, avoid=bad) is not None:
         return head + " (a route exists on the map you know — something on it stops travel: look at it)" + msgs
     wide = None
     for traps, water in ((True, False), (False, True), (True, True)):     # the fewest kinds of hazard
-        wide = bfs_path(s, h0, target, allow_monsters=True, allow_traps=traps, allow_water=water)
+        wide = bfs_path(s, h0, target, allow_monsters=True, allow_traps=traps, allow_water=water,
+                        avoid=frozenset() if traps else bad)
         if wide is not None:
             break
     if wide is not None:
-        traps_on = [c for c in wide if s.screen.at(*c) == "^"]
+        traps_on = [c for c in wide if s.screen.at(*c) == "^" or c in bad]
         water_on = [c for c in wide if s.screen.at(*c) == "}"]
         bits = ([f"the known trap(s) at {traps_on[:4]}"] if traps_on else []) + \
                ([f"water/lava at {water_on[:3]}" + (" ..." if len(water_on) > 3 else "")] if water_on else [])
@@ -523,11 +531,21 @@ def _no_path_msg(s, h0, target, start=None) -> str:
                        "step(dir, force=True) if it's survivable for you (a fire trap with fire resistance only "
                        "burns scrolls/potions/spellbooks; levitating floats over holes, trap doors and pits)")
         if water_on:
-            how.append("cross the water by levitation (ring/boots/potion) or water walking — or freeze it "
-                       "(zap cold at it) — then remove the levitation before the stairs")
-        tip = (" — the invocation stairs are always ringed by fire traps and a 2-wide moat: levitate, force a "
-               "step onto one fire trap, cross the moat, then go_up()" if traps_on and water_on else "")
+            how.append("cross the water: FREEZE it (zap a wand of cold / frost horn across it: \"The moat is "
+                       "bridged with ice!\" — nothing to take off afterwards), or levitate (a ring on your LEFT "
+                       "hand: a cursed weapon locks a right-hand ring on) / water walking, and take the "
+                       "levitation off before the stairs")
+        tip = (" — the invocation stairs are always ringed by fire traps and a 2-wide moat: step onto one fire "
+               "trap on purpose, freeze the moat (or levitate, ring on the left hand), then go_up()"
+               if traps_on and water_on else "")
         return f"{head}: the only known route crosses {' and '.join(bits)}: " + "; ".join(how) + tip + msgs
+    rolled = bfs_path(s, h0, target, allow_monsters=True, allow_traps=True, allow_water=True, allow_boulders=True)
+    if rolled is not None:
+        rocks = [c for c in rolled if s.screen.at(*c) in "0`"]
+        if rocks:
+            return (f"{head}: the only known route passes the boulder(s) at {rocks[:4]}: push one by stepping into "
+                    "it (a boulder with another boulder or a wall behind it won't move), smash it (force bolt, "
+                    "wand of striking), or dig around it" + msgs)
     try:
         from .explore import screen_frontiers
         open_edges = bool(screen_frontiers(s))

@@ -90,6 +90,8 @@ class Tracker:
             if lv.get("feature_desc") and hasattr(game, "feature_desc"):
                 game.feature_desc[key] = {tuple(int(v) for v in c.split(",")): d
                                           for c, d in lv["feature_desc"].items()}
+            if lv.get("flags") and hasattr(game, "level_flags"):
+                game.level_flags.setdefault(key, set()).update(lv["flags"])
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
                 game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
                                          for c, dest in lv["stairs_to"].items()}
@@ -195,6 +197,9 @@ class Tracker:
             fd = getattr(self.game, "feature_desc", {}).get(key)
             if fd:
                 lv["feature_desc"] = {f"{c[0]},{c[1]}": d for c, d in fd.items()}
+            fl = getattr(self.game, "level_flags", {}).get(key)
+            if fl:
+                lv["flags"] = sorted(fl)
             for lk, links in getattr(self.game, "stair_links", {}).items():
                 if links:
                     self.state["levels"].setdefault(lk, {})["stairs_to"] = {f"{c[0]},{c[1]}": d
@@ -235,6 +240,8 @@ class Tracker:
                     todo.append((x, y))
                 elif ch == "_" and feature_at(snap.screen, x, y):
                     todo.append((x, y))
+                elif ch == "%" and getattr(snap, "rogue", False):
+                    todo.append((x, y))        # the Rogue level's stairs (up and down both '%')
         if not todo:
             return
         h = snap.hero
@@ -249,11 +256,18 @@ class Tracker:
             self.game.last = saved
             self._refreshing = False
         from .monitor import _clean
+        feats = self.game.terrain_seen.setdefault(key, {}) if hasattr(self.game, "terrain_seen") else {}
         for c, d in raw.items():
             d = _clean(d or "")
             if d and (("trap" in d or "pit" in d or "hole" in d or "board" in d or "portal" in d
                        or "web" in d or "field" in d or "mine" in d) or "altar" in d):
                 known[c] = d
+            elif d and getattr(snap, "rogue", False) and snap.screen.at(*c) == "%":
+                known[c] = d                  # "staircase down" / "food ration" (asked once)
+                if "staircase down" in d or "ladder down" in d:
+                    feats[c] = ">"
+                elif "staircase up" in d or "ladder up" in d:
+                    feats[c] = "<"
 
     def refresh_overview(self):
         """Run ^O (no game time) and record branch/level; on a level not yet
@@ -295,13 +309,21 @@ class Tracker:
         self.state["overview"] = text
         self.state["overview_turn"] = snap.status.turn
         branch = None
-        for line in text.splitlines():
-            line = line.strip()
+        lines = [ln.strip() for ln in text.splitlines()]
+        for i, line in enumerate(lines):
             m = _DUNGEON_HDR.match(line)
             if m:
                 branch = m.group("name")
                 continue
             if "<- You are here" in line:
+                # the notes under the level line: "A primitive area." is the Rogue level (drawn with other
+                # symbols and no colours; its arrival message comes only on the first visit)
+                notes = []
+                for nxt in lines[i + 1:]:
+                    if nxt.startswith("Level ") or _DUNGEON_HDR.match(nxt) or _LEVEL_LINE.match(nxt):
+                        break
+                    notes.append(nxt)
+                rogue = "[rogue]" in line or any("A primitive area" in n for n in notes)
                 lm = re.match(r"^(Level (\d+)|[A-Z][\w ]+?)(?::| \[| \")", line)
                 lvl = lm.group(1) if lm else line.split(":")[0]
                 self.state["current_branch"] = branch
@@ -312,6 +334,8 @@ class Tracker:
                 # merge anything filed under the provisional key (the ldesc)
                 name = self.state["current_level"]
                 self.game.rekey_level(ldesc, name)
+                if rogue and hasattr(self.game, "level_flags"):
+                    self.game.level_flags.setdefault(name, set()).add("rogue")
                 levels = self.state["levels"]
                 if ldesc in levels and ldesc != name:
                     prov = levels.pop(ldesc)

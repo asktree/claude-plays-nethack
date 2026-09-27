@@ -424,3 +424,82 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             return ctx.last()
         return ctx.do(direction, ok=ZAP_OK, force=force)
     return s
+
+
+# closing in on a monster: its ranged attacks' flavour (the HP/status checks cover the effects; a
+# confusing or sleep gaze still pauses — "gaze confuses you", "gaze makes you very sleepy")
+HUNT_OK = ROUTINE + [r" attacks you with a fiery gaze!$", r" spits venom!$", r"^The venom (?:hits|misses) you",
+                     r"^You are hit by ", r"^The .+ (?:whizzes by|misses) you[.!]$"]
+
+
+def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
+    """Close in on one hostile and fight it: target = part of its label
+    ('pyrolisk') or its square (x, y). Each turn: adjacent -> fight() it
+    (all of fight()'s checks); otherwise ONE checked step along a known-map
+    route toward it (never onto another monster; its fiery gaze, spit or
+    missiles don't pause — HP pauses follow the fight rules, new monsters and
+    statuses still pause). Trivial hostiles in the way are fought.
+    Returns {"reason", "turns", "kills"}: reason "killed", "lost: ..." (out
+    of view), "HP ...", "blocked: ..." (another non-trivial hostile next to
+    you), "no route ..." or "max_turns"."""
+    import contextlib
+    from nh.danger import base_name
+    from nh.monitor import killed_names
+    from .benign import BENIGN
+    from .mapview import DIR_KEY, bfs_path
+    from .nav import _check_free, bad_squares
+    s = ctx.require_command("hunt()")
+    t0 = s.status.turn or 0
+    kills: list = []
+    want = species = None
+
+    def out(reason):
+        return {"reason": reason, "turns": (ctx.last().status.turn or t0) - t0, "kills": kills}
+
+    rules = getattr(ctx, "hp_rules", None)
+    with (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
+        for _ in range(max_turns):
+            s = ctx.last()
+            if s.state.kind != "command" or s.hero is None:
+                return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
+            st = s.status
+            if st.ok and st.hp < stop_hp * max(1, st.hpmax):
+                return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%}")
+            if want is None:
+                hs = [m for m in s.hostiles() if not m.get("statue")]
+                hs = [m for m in hs if (m["x"], m["y"]) == tuple(target)] if isinstance(target, tuple) else \
+                    [m for m in hs if str(target).lower() in (m.get("desc") or "").lower()]
+                if not hs:
+                    return out(f"no hostile {target!r} in view")
+                m = min(hs, key=lambda e: e["dist"] if e["dist"] is not None else 99)
+                want, species = m.get("id"), base_name(m.get("desc") or "")
+            else:
+                m = next((e for e in s.monsters or [] if e.get("id") == want), None)
+                if m is None:
+                    return out("killed" if species and species in kills else
+                               f"lost: the {species or target} is out of view")
+            others = [e for e in s.adjacent_hostiles() if e is not m and not auto_fightable(e, s)]
+            if others:
+                return out("blocked: " + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})"
+                                                   for e in others) + " is next to you — your call")
+            if m["dist"] == 1:
+                s = fight(m["x"], m["y"], stop_hp=stop_hp)
+                kills += killed_names(s.messages)
+                if s.state.kind == "command" and any(e.get("id") == want for e in s.adjacent_hostiles()) \
+                        and not killed_names(s.messages):
+                    return out("fight() stopped with it still next to you (see its message)")
+                continue
+            if s.adjacent_hostiles():
+                fs = fight_trivial(s)
+                if fs is not None:
+                    kills += killed_names(fs.messages)
+                    continue
+            goal = (m["x"], m["y"])
+            path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=False)
+            if not path or len(path) < 2:
+                return out(f"no route to the {species or target} at {goal} on the map you know (across water, "
+                           "behind a wall or other monsters): travel near it, or wait for it")
+            _check_free(s, path[0], "hunt()")
+            s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])], ok=HUNT_OK + BENIGN)
+            kills += killed_names(s.messages)
+    return out("max_turns")

@@ -88,6 +88,13 @@ def _richer(old: str, new: str) -> str:
     return new
 
 
+def _monster_desc(desc: str) -> bool:
+    """Does a look's text name a monster (not an object lying there)?"""
+    from .danger import base_name, monster_record
+    d = desc or ""
+    return bool(monster_record(base_name(d))) or d.startswith(("peaceful ", "tame ")) or " called " in d
+
+
 def _kind(desc: str) -> tuple:
     """Identity for matching: species and tame/peaceful/hostile, ignoring how
     it was seen ('leprechaun [seen: telepathy]' is still a leprechaun) and
@@ -111,6 +118,7 @@ class MonsterTracker:
         self._engulfer: str | None = None
         self.mimics_seen: set = set()      # (level, x, y) of ']' already reported
         self._relook_all = False           # set for one update after a were-creature shape change
+        self.rogue_objects: set = set()    # (level, x, y) of ':' found to be food on the Rogue level
 
     def reset(self):
         self.known, self.recent = [], {}
@@ -189,6 +197,11 @@ class MonsterTracker:
         dt = 1 if self.last_turn is None else max(1, turn - self.last_turn)
         radius = min(10, max(3, 2 * dt + 1))
         allm = monsters_in_view(snap)
+        rogue = getattr(snap, "rogue", False)
+        if rogue:
+            # the Rogue level draws food as ':' like a lizard: squares already looked at and found to
+            # hold an object are skipped while the ':' stays there
+            allm = [m for m in allm if not (m["ch"] == ":" and (self.level, m["x"], m["y"]) in self.rogue_objects)]
         special = [m for m in allm if m["ch"] in "I]"]
         mons = [m for m in allm if m["ch"] not in "I]"]
         for m in mons:
@@ -282,6 +295,16 @@ class MonsterTracker:
                     m["desc"] = d
                     m["statue"] = "statue of" in d
                     looked.add(id(m))
+
+        if rogue:
+            for m in [m for m in mons if m["ch"] == ":" and m.get("desc") and not _monster_desc(m["desc"])]:
+                self.rogue_objects.add((self.level, m["x"], m["y"]))
+                mons.remove(m)
+                if m in loners:
+                    loners.remove(m)
+                for mc, _kc in undecided:
+                    if m in mc:
+                        mc.remove(m)
 
         # resolve ambiguous clusters: previous identities go to the nearest
         # member with the same description; members left over are new

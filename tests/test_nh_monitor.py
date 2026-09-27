@@ -523,3 +523,49 @@ def test_coyote_alias_kill_is_recorded():
     s.messages = ["You kill the coyote!"]
     t.update(s)
     assert killed_names(s.messages) == ["coyote"] and kills == [("coyote", (41, 10), 11)]
+
+
+def test_rogue_overview_marks_the_level():
+    from nh.game import Game, Timing
+    from nh.tracker import Tracker
+    import tempfile
+    from pathlib import Path
+    g = Game(term=None, timing=Timing.local())
+    t = Tracker(g, Path(tempfile.mkdtemp()) / "h.json")
+    text = ("The Dungeons of Doom: levels 1 to 18\nLevel 17:\nA fountain.\nLevel 18: <- You are here.\n"
+            "A primitive area.\n")
+    t._parse_overview(text, snap({}, 5), "Dlvl:18")
+    assert "rogue" in g.level_flags["The Dungeons of Doom / Level 18"]
+    t2 = Tracker(Game(term=None, timing=Timing.local()), Path(tempfile.mkdtemp()) / "h.json")
+    t2._parse_overview("The Dungeons of Doom: levels 1 to 5\nLevel 5: <- You are here.\nA fountain.\n",
+                       snap({}, 5), "Dlvl:5")
+    assert not t2.game.level_flags
+
+
+def test_far_telepathic_and_deferred_newcomers_pause_when_they_approach():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def step(turn, mons):
+        s = snap({}, turn)
+        s.monsters = mons
+        reasons.clear()
+        k._check_events(snap({}, turn - 1), s)
+        return reasons[-1] if reasons else ""
+    ogre = {"ch": "O", "x": 70, "y": 10, "desc": "ogre king [seen: telepathy]", "new": True, "dist": 30, "id": 7}
+    dragon = {"ch": "D", "x": 72, "y": 10, "desc": "yellow dragon [seen: telepathy]", "new": True, "dist": 32,
+              "id": 8, "note": "acid breath"}
+    r = step(10, [ogre, dragon])
+    assert "yellow dragon" in r and "ogre king" not in r        # a noted one still pauses
+    assert step(11, [dict(ogre, new=False, x=60, dist=20)]) == ""
+    assert "approaching: ogre king" in step(12, [dict(ogre, new=False, x=45, dist=5)])
+    assert step(13, [dict(ogre, new=False, x=44, dist=4)]) == ""     # once
+    # inside defer_far(6): an ordinary far newcomer (seen normally) waits too
+    ape = {"ch": "Y", "x": 60, "y": 10, "desc": "ape", "new": True, "dist": 20, "id": 9}
+    with k.ns["defer_far"](6):
+        assert step(20, [ape]) == ""
+        assert "approaching: ape" in step(21, [dict(ape, new=False, x=46, dist=6)])
+    assert "ape" in step(30, [dict(ape, id=10)])                    # outside the block it pauses at once

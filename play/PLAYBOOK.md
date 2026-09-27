@@ -167,10 +167,14 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   an unsettling shrill sound..."; each ring uses a charge — "But it makes no sound." = empty, needs charging),
   then read the Book within 4 turns ("You are standing at the top of a stairwell leading down!").
   "You have a feeling that something is amiss" = not primed (bell too long ago, candles not 7/lit) and it
-  raises the dead. **The way back**: the new `>` is ringed by 8 fire traps, 2 rows of floor, then a 2-wide
-  moat, and you come back up onto it with the Amulet: levitate (or water walking), `step(dir, force=True)` onto
-  one fire trap (fire resistance: no HP loss, but scrolls/potions/spellbooks can burn — bag them), cross the
-  moat, remove the levitation, `go_up()`.
+  raises the dead. `invoke()` does all of this with every check (refuses off the square, with a cursed or
+  BUC-unknown item — force=True for unknown — or fewer than 7 candles). **The way back**: the new `>` is
+  ringed by 8 fire traps, 2 rows of floor, then a 2-wide moat, and you come back up onto it with the Amulet:
+  `step(dir, force=True)` onto one fire trap (fire resistance: no HP loss, but scrolls/potions/spellbooks can
+  burn — bag them), then FREEZE the moat with a wand of cold / frost horn ("The moat is bridged with ice!")
+  and walk across — or levitate, but put the ring on your LEFT hand: in the wizard-mode test the Wizard's
+  harassment cursed the wielded sword, and a cursed weapon locks the right-hand ring on ("You cannot free a
+  weapon hand to remove the ring.") — stuck floating above the up stairs. Keep remove curse / holy water.
 - **Sanctum** (no-teleport, no magic mapping): entering the temple turns the high priest(ess) of Moloch
   hostile — clerical spells (insects, paralysis without MR, lightning, fire pillars, curses) and a 4d10
   weapon. Each hit on it while YOU stand in its temple (door included) may bring Moloch's lightning:

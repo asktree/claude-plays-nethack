@@ -712,3 +712,83 @@ def test_routine_projectile_and_potion_messages():
         assert any(re.search(p, m) for p in ROUTINE), m
     for m in ["The arrow hits you!", "You feel a strange sense of loss.", "The nymph stole a +0 dagger."]:
         assert not any(re.search(p, m) for p in ROUTINE), m
+
+
+def test_rogue_level_glyphs_and_floor_memory():
+    from nh.game import Game, Timing
+    from tactics.explore import screen_frontiers
+    from tactics.mapview import is_walkable
+    g = Game(term=None, timing=Timing.local())
+    rows = {8: "    -----+-----", 9: "    |....%..:|", 10: "    |..@.....|", 11: "    ------+---"}
+    s = _snap(rows, (7, 10), [])
+    s.status.ldesc = "Dlvl:18"
+    g._remember_terrain(s, ["You enter what seems to be an older, more primitive world."])
+    g._remember_terrain(s, [])          # (the flag is set by the first call's message)
+    g.feature_desc["Dlvl:18"] = {(9, 9): "staircase down"}
+    g.terrain_seen["Dlvl:18"][(9, 9)] = ">"
+    g._annotate(s)
+    assert s.rogue and (6, 10) in s.floor_mem
+    names = {f["name"] for f in s.features}
+    assert "doorway" in names and "down stairs (shown as %)" in names
+    assert not any(o["ch"] in "+%" for o in s.objects)      # no spellbooks/food from doors and stairs
+    assert [o["kind"] for o in s.objects] == ["food"]        # the ':' nobody claimed as a monster
+    # a dark-room floor square seen before shows blank again: still walkable, not a frontier
+    s.screen.chars[10] = "    |  @     |".ljust(80)
+    s.screen.chars[9] = "    |    %   |".ljust(80)
+    assert is_walkable(s, 6, 10) and is_walkable(s, 5, 9)
+    import tactics.ctx as ctx
+    ctx.game = g
+    assert (6, 10) not in screen_frontiers(s)
+
+
+def test_air_is_walkable_and_portal_memory_survives_clouds():
+    from nh.game import Game, Timing
+    from tactics.mapview import is_walkable
+    g = Game(term=None, timing=Timing.local())
+    s = _snap({5: "####   ####^###"}, (5, 5), [], colors={(4, 5): 6, (6, 5): 6, (11, 5): 13})
+    s.status.ldesc = "Air"
+    s.screen.chars[5] = "####  @####^###".ljust(80)
+    g._remember_terrain(s, [])
+    assert g.terrain_seen["Air"][(11, 5)] == "^"
+    assert is_walkable(s, 4, 5) and not is_walkable(s, 20, 5)
+    s2 = _snap({5: "####  @########"}, (6, 5), [], colors={(4, 5): 6})
+    s2.status.ldesc = "Air"
+    g._remember_terrain(s2, [])           # unseen air is drawn as '#' clouds: the portal is not "gone"
+    g._annotate(s2)
+    assert "magic portal (remembered)" in {f["name"] for f in s2.features}
+
+
+def test_hunt_closes_in_then_fights(monkeypatch):
+    from tactics import combat, ctx
+    g = _G()
+    g.wielded = "a +2 long sword (weapon in hand)"
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    row = {5: "        .........."}
+
+    def mk(hero, mx, killed=False):
+        mons = [] if killed else [{"x": mx, "y": 5, "ch": "c", "desc": "pyrolisk", "dist": abs(mx - hero[0]),
+                                   "id": 3}]
+        s = _snap(row, hero, mons)
+        s.status.hp, s.status.hpmax, s.status.turn = 40, 40, 100
+        return s
+    frames = {"s": mk((9, 5), 13)}
+    sent = []
+
+    def do(keys, **kw):
+        sent.append(keys)
+        s = frames["s"]
+        if keys == "l":
+            nxt = mk((s.hero[0] + 1, 5), 13)
+        elif keys == "Fl":
+            nxt = mk(s.hero, 13, killed=True)
+            nxt.messages = ["You kill the pyrolisk!"]
+        else:
+            nxt = s
+        frames["s"] = nxt
+        return nxt
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: frames["s"])
+    monkeypatch.setattr(ctx, "pause", lambda r: None)
+    r = combat.hunt("pyrolisk")
+    assert sent == ["l", "l", "l", "Fl"] and r["reason"] == "killed" and r["kills"] == ["pyrolisk"]
