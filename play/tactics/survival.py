@@ -230,3 +230,35 @@ def pray(force: bool = False):
         else:
             break
     return s
+
+
+def rest_on_elbereth(turns: int = 100, until_hp: int | None = None, burst: int = 10):
+    """Rest on a verified dust Elbereth to heal: engraves one if missing or
+    broken, rests in bursts of `burst` turns, re-checks the engraving between
+    bursts (scared monsters smudge it; it decays), and stops at full HP (or
+    until_hp), after `turns` turns, or when something Elbereth doesn't scare
+    comes within 3 squares (@ humans/elves, minotaurs, shopkeepers, guards,
+    blind monsters — it pauses). Returns the last snap."""
+    s = ctx.require_command("rest_on_elbereth()")
+    if "Blind" in s.status.conditions:
+        ctx.pause("rest_on_elbereth(): you are Blind — a dust Elbereth can't be verified; rest elsewhere or cure it")
+        return ctx.last()
+    target = until_hp if until_hp is not None else s.status.hpmax
+    done = 0
+    while done < turns:
+        s = ctx.last()
+        if s.status.ok and s.status.hp >= target:
+            break
+        threats = [m for m in s.hostiles(3) if m["ch"] == "@" or "minotaur" in (m.get("desc") or "")]
+        if threats:
+            ctx.pause("rest_on_elbereth(): " + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                                                          for m in threats) + " ignores Elbereth")
+            return ctx.last()
+        if not _elbereth_ok(engraving_here()):
+            elbereth()
+            if not _elbereth_ok(engraving_here()):
+                ctx.pause("rest_on_elbereth(): couldn't get a clean Elbereth here")
+                return ctx.last()
+        s = rest(burst)
+        done += burst
+    return ctx.last()

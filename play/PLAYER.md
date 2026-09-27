@@ -93,7 +93,9 @@ Available in the kernel:
 | `inventory()` / `inventory_text()` | parsed inventory: list of dicts with keys `letter`, `text`, `class`, `buc` |
 | `here()` | what's on the floor here (`:`) |
 | `search(n)`, `rest(n)` | count-prefixed search / rest (interrupted by events) |
-| `elbereth()` | engrave Elbereth in the dust; `engraving_here()` reads it back |
+| `elbereth()` | engrave Elbereth in the dust where you stand, read it back, re-engrave once if garbled; `engraving_here()` reads what's here (flags a BROKEN Elbereth) |
+| `rest_on_elbereth(turns=100)` | heal on a verified Elbereth: re-engraves when broken, rests in bursts, stops at full HP or when something that ignores Elbereth comes near |
+| `path_to(x, y)` | our known-map path to (x,y) avoiding known traps/avoid() squares (None = no known path); walk it one checked step at a time with `walk_path(path)` |
 | `fight(x=None, y=None, stop_hp=0.45)` | melee adjacent hostiles one checked blow at a time until dead/gone; below stop_hp it pauses unless the adjacent hostiles' worst-case damage is under a third of your HP (a newt can't hurt you at 21 HP). Prints the target's passive attacks (acid, rust...) before the first blow and refuses paralysing/stoning/sliming/disenchanting ones (`allow_passive=True` overrides). Never touches peacefuls/pets. **Run fights with `bin/nh exec --hp-pause 0.4`** so ordinary hits below 70% HP don't pause every round |
 | `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move); the thrown item's own hit/miss message doesn't pause |
 | `dip('a')` | one `#dip` into the fountain/pool you stand on, prompts answered, outcome classified (EXCALIBUR, WISH, WATER DEMON, fountain dried up, sword rusted...). Excalibur odds: 1/6 per dip at XL5+; a fountain dries up ~1 dip in 3, so expect 2–3 fountains |

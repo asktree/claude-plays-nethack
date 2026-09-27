@@ -352,3 +352,15 @@ def kick_door(x, y, tries: int = 8):
         if "crashes open" in text or "shatters" in text or "breaks" in text or ctx.last().screen.at(x, y) != "+":
             return s
     return s
+
+
+def path_to(x, y, avoid_bad: bool = True) -> list:
+    """Our known-map path from you to (x, y) (list of cells, excluding your
+    square; [] if you're there; None if no known path). Honours known traps
+    and avoid() squares unless avoid_bad=False. Walk it with walk_path(path)
+    (one checked step at a time) or path_to(...)[:n] for the first n steps."""
+    s = ctx.last()
+    if s.hero is None:
+        return None
+    bad = frozenset(c for c in bad_squares(s) if c != (x, y)) if avoid_bad else frozenset()
+    return bfs_path(s, s.hero, (x, y), avoid=bad, allow_monsters=False)
