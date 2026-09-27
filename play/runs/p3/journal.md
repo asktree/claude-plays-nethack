@@ -74,3 +74,18 @@ T:5174-5240 DL9 — ORACLE level (centaur statues, 4 fountains). Killed a bugbea
 T:5265-5272 DL9 — killed a quivering blob (no corpse). n: steel wand (engrave: no effect). Down stairs (19,3).
 T:5282 DL10 — arrived (74,12). Boxes: q scroll ANDOVA BEGARIN, r golden potion; 2nd box: X+1 identify (59,11 floor), y identify, z AGATE RING, A red gem, u tripe, Z cookie. Killed a lynx. Found a hidden passage at (63,13) (search); corridor west to (22,15) dead end. Sokoban stairs not found yet. Hungry T:5432: ate a food ration (fine).
 T:5447 DL10 — end of shift 5: HP 88/88, XL7, AC-3, safe in the (22,15) corridor dead end.
+
+## Shift 6
+T:5455-5492 DL10 — searched (22,15) to ~23 total and the (62,8) stub x15: nothing. Zapped the steel wand at myself: "You shudder in dread" = UNDEAD TURNING.
+T:5502 DL10 — searching the down-stairs room's west wall from (51,10): HIDDEN DOOR at (50,11).
+T:5506 DL10 — a sleeping water nymph beyond it: stepped next to her and hit (not killed); she woke and stole my elven cloak, teleported. Met her again at (44,4) T:5510, killed her: got the cloak back + a white potion + mirror (left).
+T:5514 DL10 — TEMPLE OF ODIN (neutral, peaceful priestess), altar (38,5). Altar test: identify x2 BLESSED, swirly potion CURSED, everything else uncursed incl. the opera cloak.
+T:5518 DL10 — wore the opera cloak = CLOAK OF INVISIBILITY. Read 2 blessed identify: ring = invisibility, DAIYEN = create monster; the 2nd identified the WHOLE PACK: magic mapping (q), 2 extra healing (I), object detection (F), see invisible (r), amnesia (f), blindness (U cursed), amethyst (T).
+T:5534-5624 DL10 — killed a horse (HP 79/88) and an elf mummy. Explore found the SOKOBAN up stairs at (4,8) (far west room, west of the room at (19-27,10-14)).
+T:5631 SOKOBAN 1 (Dlvl 9, soko4-1 = wiki Level 1b) — arrived at (38,10). Starting sokoban.solve().
+T:5642-5785 SOKO1 — killed a plains centaur, a GARGOYLE (no damage; XL8 T:5660), cave spiders (long sword -> EXPERT T:5735), a wumpus, a quantum mechanic. Invisibility: several "strikes at thin air".
+T:5800 SOKO1 — SOLVED by sokoban.solve() (14 pushes, no mistakes). Loot: G tin wand = slow monster (engrave), J emerald ring = protection from shape changers (last identify), K 2 KIRJE (earth), 4 food rations. Wumpus corpse: "Rotten food!" (no effect). Dropped junk (Burdened).
+T:5895 SOKO2 — killed a cobra (poisonous; 1 blow each, no bite landed). A wood nymph asleep at (31,10): left her asleep (stealth).
+T:6183 SOKO2 — SOLVED (20 pushes, no mistakes). Loot: N engagement ring, Q scroll NR 9 (both unknown).
+T:6216 SOKO2 — the stair room's door (51,15) was locked: unlock() with the key. Killed a crocodile (doorway fight) and a rabid rat (no bites). Wand in the stair room: R spiked = engrave "no effect".
+T:6226 SOKO2 — end of shift 6: HP 102/102, XL8, AC-3, on a dust Elbereth at (45,10) next to the up stairs (47,10). Not Hungry yet (due ~T:6300).

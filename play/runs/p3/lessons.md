@@ -34,3 +34,11 @@
 - #terrain (no time) shows stairs hidden under objects ("known map without monsters, objects, and traps").
 - Monkeys (Y) steal one item and run at speed 12: kill them at range or at first contact; keep scrolls you can't lose in a bag.
 - Excalibur (+2) adds its enchantment to searching: 12-15 searches next to a hidden spot find it ~95% of the time.
+- Hidden connections (D10, shift 6): 70 searches at 3 corridor dead ends found nothing (they were random extra corridors); 4 searches from INSIDE the lit down-stairs room at its west wall found the secret door. mklev: a room's real join corridor ends at a door in its wall, 1 in 8 doors is secret, and a corridor behind a secret door is invisible from inside the room. When dead ends fail, search the room walls that face the unexplored side (stand inside, 1 square from the wall; each spot covers 3 wall squares).
+- A SLEEPING nymph: a hit wakes it and, if it survives, it steals at once (it did: elven cloak, D10). With stealth it never wakes by itself: leave it asleep unless one blow surely kills (or kill it at range). Worn armor is 5x as likely to be stolen as a pack item.
+- ANY altar (even a cross-aligned temple's) is a free BUC test: `D`, pick `X - Items of unknown Bless/Curse status`, select all, then pickup(). Amber flash = blessed, black = cursed.
+- Read a BLESSED identify when you have many unknowns: 1 in 5 it identifies the whole pack (it did at T:5519: 12 items).
+- An uncursed unknown cloak is safe to wear-test: "Suddenly you cannot see yourself" = invisibility (the opera cloak), "Your outline shimmers" = displacement, +2 AC more = protection, nothing = magic resistance.
+- Zapping a "no effect" wand at yourself ('.') is harmless (no boxes/trap/punishment); "You shudder in dread" = undead turning. In 3.6.7 probing yourself does NOT reveal BUC (only dknown). No direction prompt at all = secret door detection.
+- monster_filter takes a PREDICATE (True = pause): `with monster_filter(lambda m: 'cave spider' not in (m.get('desc') or '')):` — a string raises TypeError inside the pause logic.
+- Sokoban: cave spiders hide under objects ("It strikes at thin air!" while invisible); F toward the object square next to you kills them. The stair room of a Sokoban level can be locked: unlock() with the key.
