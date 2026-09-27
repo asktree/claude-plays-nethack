@@ -169,15 +169,17 @@ class Kernel:
         k = self
 
         def do(keys: str, *, force: bool = False, quiet: bool = False, ok=None, multi: bool = False,
-               secret: bool = False) -> Snap:
+               secret: bool = False, expect=()) -> Snap:
             """Send keys (see nh.keys notation); returns the settled snapshot.
 
             quiet=True: messages from this step don't pause an exec (HP loss,
             new monsters, status changes and game over still do). For
             information-only keystrokes like farlook or inventory display.
             ok=[regex,...]: messages matching any of these don't pause (this
-            step only), on top of the exec's autocontinue list."""
-            return k._do(keys, force=force, quiet=quiet, ok=ok, multi=multi, secret=secret)
+            step only), on top of the exec's autocontinue list.
+            expect=("level",): this step is meant to change level (no
+            level-change pause; everything else still pauses)."""
+            return k._do(keys, force=force, quiet=quiet, ok=ok, multi=multi, secret=secret, expect=expect)
 
         def look() -> Snap:
             """Re-capture the screen without sending anything."""
@@ -218,7 +220,7 @@ class Kernel:
         return self.worker is not None and threading.current_thread() is self.worker
 
     def _do(self, keys: str, force: bool = False, quiet: bool = False, ok=None, multi: bool = False,
-            secret: bool = False) -> Snap:
+            secret: bool = False, expect=()) -> Snap:
         data = parse_keys(keys) if isinstance(keys, str) else keys
         if self.in_worker() and self._reply_sent is not None:
             sent, self._reply_sent = self._reply_sent, None
@@ -249,7 +251,7 @@ class Kernel:
         snap = self.game.step(data, multi=multi, secret=secret, force=force)
         self.ns["obs"] = snap
         if self.in_worker():
-            self._check_events(before, snap, quiet=quiet, ok=ok)
+            self._check_events(before, snap, quiet=quiet, ok=ok, expect=expect)
             if snap.state.kind == "command" and (self._steps >= self.budget_steps or
                                                  time.monotonic() - self._t0 >= self.budget_seconds):
                 # (only at the command prompt: never park a script inside a menu/cursor prompt)
@@ -258,7 +260,9 @@ class Kernel:
                     f"— cont() to keep going", snap, force=True)
         return snap
 
-    def _check_events(self, before: Snap | None, snap: Snap, quiet: bool = False, ok=None) -> None:
+    def _check_events(self, before: Snap | None, snap: Snap, quiet: bool = False, ok=None, expect=()) -> None:
+        """expect: pause reasons the calling helper handles itself ("level": it meant to change
+        level, e.g. dig() falling through its hole — it re-wields first; new monsters still pause)."""
         reasons = []
         if snap.state.kind in ("gameover", "dead"):
             reasons.append("GAME OVER" if snap.state.kind == "gameover" else "TERMINAL DEAD")
@@ -299,7 +303,7 @@ class Kernel:
                 reasons.append(f"hunger: {a.hunger}")
             if a.encumbrance != b.encumbrance:
                 reasons.append(f"encumbrance: {a.encumbrance or 'unencumbered'}")
-            if a.ldesc != b.ldesc:
+            if a.ldesc != b.ldesc and "level" not in expect:
                 reasons.append(f"level: {b.ldesc} -> {a.ldesc}")
             if a.xl != b.xl:
                 reasons.append(f"XL {b.xl}->{a.xl}")

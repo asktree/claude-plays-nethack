@@ -250,20 +250,31 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         text = " ".join(s.messages)
         if ("You stop in front of the door" in text or "That door is closed" in text) and s.hero is not None:
             door = _adjacent_closed_door(s, target)
+            known = ctx.game.locked_doors.setdefault(ctx.game.level_key(s.status), set()) \
+                if hasattr(ctx.game, "locked_doors") else set()
+            opened = False
             for _try in range(6):
-                if door is None:
+                if door is None or door in known:
                     break
                 s = ctx.do(_dir_key(s.hero, door), ok=BENIGN)
                 text = " ".join(s.messages)
                 if "This door is locked" in text:
-                    locked.append(door)
-                    skip.add(door)
+                    known.add(door)
                     break
                 if "The door opens" in text or s.state.kind != "command":
+                    opened = "The door opens" in text
                     break
+            if not opened:
+                # locked (or won't open): leave this frontier — it lies beyond that door
+                if door is not None and door not in locked and door in known:
+                    locked.append(door)
+                if door is not None:
+                    skip.add(door)
+                skip.add(target)
             continue
         if "This door is locked" in text:
-            locked.append(target)
+            if target not in locked:
+                locked.append(target)
             skip.add(target)
             continue
         if "outside?" in text and ("leave your" in text.lower() or "leave the" in text.lower()):

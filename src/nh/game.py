@@ -57,6 +57,7 @@ class Snap:
     gone: list = field(default_factory=list)   # dangerous monsters that left view in the last ~20 turns
     wield_note: str = ""       # set when you are known to wield a non-weapon / nothing (Game.wield_note)
     shop: str = ""             # the shop you stand in ("Carignan's antique weapons outlet"), if known
+    last_pos: tuple | None = None   # the hero's last known square (set while a prompt hides the cursor)
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -110,6 +111,12 @@ class Snap:
             if MAP_TOP <= cy <= MAP_BOTTOM:
                 return (cx, cy)
         return None
+
+    @property
+    def pos(self) -> tuple[int, int] | None:
+        """Where you are: .hero at the command prompt, else your last known
+        square (.hero is None while a prompt/menu hides the cursor)."""
+        return self.hero or self.last_pos
 
     @property
     def message(self) -> str:
@@ -1127,6 +1134,7 @@ class Game:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             snap.wield_note = self.wield_note()
             snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
+            snap.last_pos = snap.hero or self.hero_pos
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -1378,6 +1386,7 @@ class Game:
                 self._remember_terrain(snap, [])
             snap.wield_note = self.wield_note()
             snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
+            snap.last_pos = snap.hero or self.hero_pos
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)

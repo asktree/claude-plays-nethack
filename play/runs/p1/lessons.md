@@ -64,3 +64,10 @@
 - A hezrou is SLOW (speed 6): with a fast character it can always be avoided or fought on your terms; it died in 2 Excalibur hits. Each melee round has ~2% to gate another demon, so kill fast or walk away.
 - `fight_until_clear()` will happily melee an adjacent blue jelly/mold (passive-only, sessile): step out of its reach first, or use a manual loop that targets the real threat.
 - Sell-to-buy in the general store works well for food: 2 potions of oil = 250 zm = 3.7 food rations. Take items out of the bag OUTSIDE the shop, drop them one square past the shopkeeper's door square, answer "Sell them?" y.
+- Fire gazes (pyrolisk) and fire breath destroy carried scrolls and potions even when you are fire resistant: two gazes cost the blessed teleport scroll, 2 unknown scrolls and 2 potions. Kill a pyrolisk the moment it is in view (close in at once) and keep scrolls/potions that matter in the bag of holding (contents are safe).
+- A cursed magic marker is worth a holy water: uncursed, its 82 charges became 3 uncursed enchant weapons (+3 to Excalibur) and an identify. Writing only works for identified scroll types; blank scrolls come from fountain dips (a dipped scroll that fades has a 50% chance of no further fountain effect).
+- Enchant weapon: "Your <weapon> suddenly vibrates unexpectedly" means it is now above +5 — the next scroll evaporates it with 2/3 chance. Stop there (+6 here).
+- "You feel sluggish." with magic resistance = an anti-magic field trap (1d4 damage), not a lost intrinsic; grep the source when a message is unfamiliar.
+- explore()/travel stuck repeating "That door is closed." = a LOCKED door that travel keeps bumping: open it by hand (`o` + dir), read "This door is locked.", then unlock(x, y).
+- Monsters use the items they carry: a leprechaun read THARR (= create monster, identified), a nymph zapped her own wand of teleportation (identified my short wands). Watch their messages for free identifications.
+- At AC -10 a nymph's seduction mostly misses ("pretends to be friendly" = a missed theft); step in and hit her at once.

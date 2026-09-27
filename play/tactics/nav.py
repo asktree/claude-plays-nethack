@@ -270,7 +270,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if detour is None:
                 raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
             return walk_path(detour)
-    waits = sidesteps = backoffs = 0
+    waits = sidesteps = backoffs = fallbacks = 0
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):
@@ -396,6 +396,18 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     continue
                 raise NavError(f"travel to {(x, y)} did not move: your pet stays in the way ({s.messages}); "
                                "step around it by hand")
+            own = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False)
+            if own and fallbacks < 3:
+                # NetHack's travel planned through something it then can't pass ("A boulder blocks
+                # your path." — TEST_TRAV lets boulders through): walk our own route a stretch
+                fallbacks += 1
+                print(f"travel: NetHack's travel didn't move ({s.messages or 'no message'}) — walking our own "
+                      f"route ({len(own)} steps)")
+                s = walk_path(own[:8])
+                if s.hero == (x, y) or s.state.kind != "command":
+                    return s
+                if s.hero != h0:
+                    continue
             raise NavError(f"travel to {(x, y)} did not move (no known path?"
                            + (" — the map you know doesn't connect to it: explore() to find the way, or "
                               f"head_to({x}, {y}) across the unexplored part)"

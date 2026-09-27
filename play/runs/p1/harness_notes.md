@@ -368,3 +368,19 @@ Format: step `#N` — command — expected — what happened.
 3. `threat()` over-labels pack monsters as 'dangerous' (hill orc, killer bee at XL10/AC-10).
 4. `go_up()` with a disconnected known map (`#138`): accurate error, but a hint to explore would save a call.
 5. Key-on-box prompt sequence not covered by `loot_all()` (`#748`).
+
+## Shift 12 (T:11283 -> 11997; DL8 -> DL13; daemon restarted before the shift, step numbers from #1)
+- `#26` onward, EVERY obs of the shift — FALSE ALARM: `!! you WIELD the blessed rustproof +6 Excalibur (weapon in hand) — not a weapon (w + letter to wield your weapon again)`. The wielded-item check does not recognise the artifact's name (the text has no "long sword"). It made the one real case unreadable: after `dig('>')` (`#648`) I could not tell from the obs whether the pick-axe or Excalibur was in hand and needed an `inventory()` call. Suggest: treat `(weapon in hand)` on a WEAPON_CLASS inventory line / known artifact names as a weapon.
+- `#648` — `dig('>')`: the level-change pause (Dlvl 10 -> 11) fired inside dig() BEFORE its re-wield step; only `cont` made it wield Excalibur again ("a - ... (weapon in hand)"). Arriving on a new level holding the pick-axe is exactly when a fight is likely. Suggest: re-wield before yielding the level-change pause, or make that pause non-interrupting inside dig().
+- `#740`-`#1139` and `#1162`-`#1564` — **explore() looped ~400 steps twice** (stopped only by the exec budget "401 steps / 49s") bumping LOCKED doors (64,14) and (58,8) on DL11: every step printed "That door is closed." (travel/run mode never auto-opens; the lock is only revealed by `o`: "This door is locked."). On DL9 the same situation was reported correctly as `locked: [(71,12)]`. Suggest: on "That door is closed." try `o`+dir once; "This door is locked." -> add to `locked` and return. Cost: 2 wasted calls + 2 manual open/unlock calls; game time was small (~50 turns).
+- `#359` — `travel(21, 9)` on DL10: NetHack's travel planned THROUGH a boulder (TEST_TRAV allows boulders) and stopped at once with "A boulder blocks your path."; travel() raised "did not move (no known path?)" although `path_to(21, 9)` had a boulder-free route (walk_path worked, `#428`). Suggest: on that message fall back to walk_path(path_to(...)). explore() then also listed frontiers "travel couldn't reach" for the same reason.
+- `#2126`-`#2128` — pyrolisk gazes opened TWO "Call a ... potion:" naming prompts mid-step (boiled potions). The pause ('naming prompt open') was right, but while the getlin was open `obs.hero` was None, and my script crashed with a TypeError on `obs.hero[0]`. Keeping the last known hero position (or a documented None) would help scripts.
+- Missing helper: writing scrolls with a marker. I wrote a kernel `write_scroll(paper, name)` (apply -> marker -> paper -> getlin name) with prompt checks; it worked 4/4. Worth a tactics helper `write(paper, 'enchant weapon')` that also reports the charge cost.
+- Worked well: `dip_into('T','i')` (cursed marker -> "now UNCURSED"), fountain `dip()` reporting "item changed ... -> unlabeled", `unlock(x, y)` x3 first try, `loot_all()` unlocking a box by itself, the budget pause catching the explore loop, `out of view: mountain nymph last at ...`, `head_to()`'s frontier legs, `go_down()` x4, the "no known path ... explore() or head_to()" hint.
+
+### Shift 12 — ranked summary
+1. explore() loops on locked doors ("That door is closed." x400) — `#740`, `#1162`.
+2. False "not a weapon" alarm for Excalibur on every obs — `#26`+ (and it hid the real dig() case `#648`).
+3. dig('>') yields the level-change pause before re-wielding the weapon — `#648`.
+4. travel() through-boulder plans ("A boulder blocks your path.") not falling back to path_to — `#359`.
+5. obs.hero None during a getlin prompt — `#2128`.

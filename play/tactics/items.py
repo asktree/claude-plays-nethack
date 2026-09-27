@@ -409,6 +409,73 @@ def read_identify(letter: str, priority=ID_PRIORITY) -> list:
     return msgs
 
 
+_CHARGES = re.compile(r"\((?:\d+|-\d+):(-?\d+)\)")
+
+
+def write_scroll(name: str, paper: str | None = None, marker: str | None = None, force: bool = False) -> dict:
+    """Write a scroll (or spellbook, on blank spellbook paper) of `name`
+    ('enchant armor', 'identify', 'remove curse'...) with your magic marker
+    on a blank one (found in the inventory unless given). Refuses a type you
+    haven't identified (NetHack then usually fails — "You don't know how to
+    write that!" — and the blank is lost) unless force=True. Ink cost is
+    random between half and all of the type's base cost (identify 14,
+    enchant armor 16, remove curse 16, enchant weapon 16, charging 16,
+    genocide 30); a marker "too dry" keeps the blank. Returns {"messages",
+    "charges_before", "charges_after", "written"}."""
+    ctx.require_command("write_scroll()")
+    inv = inventory()
+    if marker is None:
+        m = next((i for i in inv if "magic marker" in i["text"]), None)
+        if m is None:
+            raise RuntimeError("write_scroll(): no magic marker in the inventory")
+        marker = m["letter"]
+    if paper is None:
+        p = next((i for i in inv if re.search(r"unlabeled scroll|scrolls? of blank paper|plain spellbook|"
+                                               r"spellbooks? of blank paper|unlabeled", i["text"])), None)
+        if p is None:
+            raise RuntimeError("write_scroll(): no blank scroll (unlabeled) in the inventory — blank some by "
+                               "dipping scrolls into a fountain/water")
+        paper = p["letter"]
+    book = "spellbook" in next((i["text"] for i in inv if i["letter"] == paper), "")
+    if not force:
+        full = f"{'spellbook' if book else 'scroll'} of {name}"
+        known = {n for n, _look in discoveries()}
+        if full not in known:
+            raise PermissionError(f"write_scroll(): {full!r} isn't identified yet — writing an unknown type usually "
+                                  "fails and uses up the blank. force=True to gamble.")
+    mtext = next((i["text"] for i in inv if i["letter"] == marker), "")
+    cm = _CHARGES.search(mtext)
+    before = int(cm.group(1)) if cm else None
+    s = ctx.do("a", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"write_scroll(): expected the apply prompt, got {s.state.kind}")
+    s = ctx.do(marker, quiet=True)
+    if s.state.kind != "object" or "write on" not in (s.state.prompt or ""):
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"write_scroll(): expected 'What do you want to write on?', got {s.state.kind} "
+                           f"{s.state.prompt!r} ({s.messages})")
+    s = ctx.do(paper, quiet=True)
+    msgs = list(s.messages)
+    if s.state.kind != "getlin":
+        raise RuntimeError(f"write_scroll(): no 'What type of scroll' prompt ({s.state.kind} {s.state.prompt!r}; "
+                           f"{msgs})")
+    s = ctx.do(f"{name}<CR>", quiet=True)
+    msgs += s.messages
+    after = None
+    written = None
+    if s.state.kind == "command":
+        inv2 = inventory()
+        cm = _CHARGES.search(next((i["text"] for i in inv2 if i["letter"] == marker), ""))
+        after = int(cm.group(1)) if cm else None
+        written = next((m for m in msgs if re.match(r"^[a-zA-Z] - ", m)), None)
+    print(f"write_scroll({name!r}): " + (written or " | ".join(msgs[-2:]))
+          + (f"; marker {before} -> {after} charges" if before is not None else ""))
+    return {"messages": msgs, "charges_before": before, "charges_after": after, "written": written}
+
+
 def _menu_pick(s, pattern: str):
     """Select (by text, on any page) the first item of the open menu matching
     `pattern`; returns the snap after the key, or None if there is none."""
@@ -669,7 +736,9 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
             ctx.pause(f"dig(): no dig-direction prompt after applying {tool!r} ({s.state.kind} {s.state.prompt!r}; "
                       f"messages {s.messages})")
             break
-        s = ctx.do(direction, ok=_DIG_OK)
+        # falling through the hole is the point: no level-change pause before the re-wield below
+        # (new monsters there still pause)
+        s = ctx.do(direction, ok=_DIG_OK, expect=("level",) if direction == ">" else ())
         msgs += s.messages
         text = " ".join(s.messages)
         if s.status.ok and s.status.ldesc != ldesc0:

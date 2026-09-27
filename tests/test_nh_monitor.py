@@ -403,3 +403,18 @@ def test_monster_back_on_its_square_much_later_is_not_new():
     g.looked.clear()
     m = t.update(snap({(33, 16): "k"}, 900, color=12))     # 800 turns later, same closet square
     assert g.looked == [] and not m[0]["new"] and m[0]["desc"] == "kobold shaman"
+
+
+def test_kernel_expected_level_change_does_not_pause():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    a, b = snap({}, 10), snap({}, 11)
+    a.status.ldesc, b.status.ldesc = "Dlvl:10", "Dlvl:11"
+    k._check_events(a, b, expect=("level",))
+    assert reasons == []
+    k._check_events(a, b)
+    assert reasons and "level: Dlvl:10 -> Dlvl:11" in reasons[-1]

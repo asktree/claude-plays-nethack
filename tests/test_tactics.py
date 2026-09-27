@@ -406,3 +406,41 @@ def test_read_identify_picks_by_priority_across_pages(monkeypatch):
     assert seq == ["r", "k", ">", "J", "<CR>", "F", "<CR>"], seq
     assert "J - a ring of teleportation." in msgs and "F - a potion of see invisible." in msgs
     nxt.messages = nxt_msgs
+
+
+def test_write_scroll_flow_and_unknown_type(monkeypatch):
+    import pytest
+    from nh.parse import State
+    from tactics import ctx, items
+    base = _snap({}, (10, 5), [])
+    inv = [{"letter": "h", "text": "a magic marker (0:50)", "class": "Tools", "buc": ""},
+           {"letter": "p", "text": "an unlabeled scroll", "class": "Scrolls", "buc": ""}]
+    inv_after = [{"letter": "h", "text": "a magic marker (0:39)", "class": "Tools", "buc": ""},
+                 {"letter": "q", "text": "an uncursed scroll of identify", "class": "Scrolls", "buc": "uncursed"}]
+    calls = {"inv": 0}
+
+    def fake_inv():
+        calls["inv"] += 1
+        return inv if calls["inv"] == 1 else inv_after
+    monkeypatch.setattr(items, "inventory", fake_inv)
+    monkeypatch.setattr(items, "discoveries", lambda: [("scroll of identify", "scroll labeled KIRJE")])
+    monkeypatch.setattr(ctx, "last", lambda: base)
+    apply_p = _snap({}, (10, 5), [])
+    apply_p.state = State("object", prompt="What do you want to use or apply? [h or ?*]")
+    write_on = _snap({}, (10, 5), [])
+    write_on.state = State("object", prompt="What do you want to write on? [p or ?*]")
+    what = _snap({}, (10, 5), [])
+    what.state = State("getlin", prompt="What type of scroll do you want to write?")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["q - an uncursed scroll of identify."]
+    frames = {"a": apply_p, "h": write_on, "p": what, "identify<CR>": done}
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or frames[keys])
+    r = items.write_scroll("identify")
+    assert sent == ["a", "h", "p", "identify<CR>"]
+    assert r["written"] == "q - an uncursed scroll of identify." and (r["charges_before"], r["charges_after"]) == (50, 39)
+    calls["inv"] = 0
+    sent.clear()
+    with pytest.raises(PermissionError, match="isn't identified"):
+        items.write_scroll("genocide")
+    assert sent == []
