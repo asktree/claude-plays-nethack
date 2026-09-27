@@ -618,6 +618,16 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             if not near:
                 if hold:
                     return out("held")
+                t_now = s.status.turn or t0
+                hist = [m for t, m in list(getattr(ctx.game, "history", []))[-30:]
+                        if t is not None and t >= t_now - 2]
+                ranged = [m for m in hist if re.search(
+                    r"\bbreathes\b|^The (?:blast|bolt|ray|stream|cone|spray|sleep ray|death ray) .*hits you|"
+                    r"^You are hit by |^It (?:breathes|spits|throws|shoots|zaps|casts)|^Something (?:breathes|hits)", m)]
+                if ranged and not s.hostiles(radius):
+                    # (p1 shift 30: winter wolf cubs breathing frost down a dark corridor — nothing in view)
+                    return out(f"attacked from OUT OF VIEW ({ranged[-1]!r}) — nothing hostile shows within {radius}: "
+                               "telepathy_scan() / step out of that line; not 'clear'")
                 beyond = [m for m in s.hostiles() if not _stationary(m.get("desc") or "")]
                 recent = [g for g in getattr(s, "gone", None) or [] if (g.get("ago") or 0) <= 2]
                 return out("clear" + (" (beyond the radius: " + ", ".join(

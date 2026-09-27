@@ -2636,3 +2636,35 @@ def test_levitation_drowner_zone_stays_in_its_own_pool(monkeypatch):
     assert "kraken" in zone[(10, 7)] and (10, 5) not in zone and (6, 7) not in zone
     path = nav._lev_path(s, (4, 7), (18, 7), avoid=set(zone))
     assert path and path[-1] == (18, 7) and not set(path) & set(zone)
+
+
+def test_covetous_ring_and_box_trap_check(monkeypatch):
+    # p1 shift 30: fight a wounded covetous monster 6-8 squares from its heal stairs (wizard.c STRAT_HEAL:
+    # it heals while you are more than 8 away; muse.c: it leaves by the stairs if you are within 5)
+    from tactics import ctx, items, nav
+    g = _G()
+    g.terrain_seen = {}
+    monkeypatch.setattr(ctx, "game", g)
+    rows = {y: "  |" + "." * 30 + "|" for y in range(3, 20)}
+    rows[10] = "  |" + "." * 10 + "<" + "." * 19 + "|"
+    s = _snap(rows, (20, 10), [])
+    ring = nav.covetous_ring(s)
+    assert ring and all(25 < (x - 13) ** 2 + (y - 10) ** 2 <= 64 for x, y in ring)
+    assert (19, 10) in ring and (20, 10) in ring and (17, 10) not in ring and (22, 10) not in ring
+    # check_box: never disarms; a found trap -> 'trapped'
+    from nh.parse import State
+    script = [("direction", "", []), ("yn", "There is a large box here.  Check it for traps?", []),
+              ("yn", "Disarm it?", ["You find a trap on the large box!"]), ("command", "", [])]
+    sent, frames = [], iter(script)
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        k, p, msgs = next(frames)
+        f = _snap({}, (5, 5), [])
+        f.state = State(k, prompt=p)
+        f.messages = msgs
+        return f
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "require_command", lambda what: s)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert items.check_box(3) == "trapped" and sent == ["#untrap<CR>", ".", "y", "n"]

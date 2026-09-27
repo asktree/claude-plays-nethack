@@ -52,6 +52,8 @@ COND_HINTS = {
 # noises). They're still shown in the output; they just don't pause an exec.
 DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You feel full of energy\.$",            # allmain.c: Pw back to max (interrupts a rest)
+    # invent.c look_here() while blind: stepping on objects (p1 shift 30: hunt() paused on every pile)
+    r"^You feel here ", r"^You feel no objects here\.", r"^Things that you feel here:",
     r"^Suddenly, .+ disappears out of sight\.$",   # teleport.c: a monster took a level teleporter/trap door away
     # (not when a monster picks up a wand — it may zap you with it — or something you need to win)
     r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) (?!.*\b(?:wand|Amulet of Yendor|"

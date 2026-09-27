@@ -707,6 +707,32 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
     return ctx.last()
 
 
+def covetous_ring(s=None) -> list:
+    """Where to fight a wounded covetous monster (Vlad, the Wizard, a quest nemesis, an arch-lich...): the
+    walkable squares 6-8 squares from the stairs it heals on (wizard.c choose_stairs(): the UP stairs; the
+    DOWN ladder in Vlad's Tower, which is built upward). There it can't heal (it does while you are more
+    than 8 squares off: distu > BOLT_LIM^2) and can't leave by those stairs (muse.c: only if it thinks you
+    are within 5). Nearest to you first; [] when those stairs aren't known (or in the Wizard's own tower,
+    where he teleports at random instead)."""
+    from .mapview import in_map, is_walkable
+    s = s or ctx.last()
+    key = ctx.game.level_key(s.status) if s.status.ok else ""
+    ch = ">" if key.startswith("Vlad's Tower") else "<"
+    stairs = known_cells(ch, s)
+    if not stairs:
+        print(f"covetous_ring: no '{ch}' known on this level")
+        return []
+    sx, sy = stairs[0]
+    out = [(x, y) for x in range(sx - 8, sx + 9) for y in range(sy - 8, sy + 9)
+           if 25 < (x - sx) ** 2 + (y - sy) ** 2 <= 64 and in_map(x, y) and 1 <= y <= 21
+           and is_walkable(s, x, y, allow_monsters=False)]
+    h = s.hero or stairs[0]
+    out.sort(key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
+    print(f"covetous_ring: {len(out)} square(s) 6-8 from the heal stairs {stairs[0]}"
+          + (f", nearest {out[:3]}" if out else ""))
+    return out
+
+
 def blockers(s=None) -> list:
     """Non-tame monsters next to the hero. NetHack's travel/run never starts
     beside one (lookaround() stops before the first step, silently)."""
@@ -827,9 +853,40 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
         print(f"travel: {(x, y)} is a known trap square — going next to it, {tr}; step onto it yourself with "
               f"step('{DIR_KEY[(x - tr[0], y - tr[1])]}', force=True) if you mean to (portal, trap door)")
         x, y = tr
+    short = None if (with_pet or max_dist is not None) else _desmap_shortcut(s0, (x, y))
+    if short is not None:
+        # an identified special level: its fixed map knows the dark squares between (p1 shift 30, tower1:
+        # 4 unexplored squares west vs a 20-step detour over what was seen)
+        from . import desmap
+        print(f"travel: the identified special-level map has a {short[0]}-step way to {(x, y)} (the seen map: "
+              f"{short[1] if short[1] is not None else 'none'}) — walking it with desmap.walk()")
+        with guard:
+            return desmap.walk(x, y, fight=auto_fight)
     with guard:
         return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget,
                        fight_through, near_exploders, near_water, pass_hostile)
+
+
+def _desmap_shortcut(s, goal):
+    """(fixed-map steps, seen-map steps or None) when this level's special map was identified and its route
+    to goal is at least 6 steps shorter than any over the squares you have seen — no secret door or trap on
+    it; else None."""
+    ids = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) if s.status.ok else None
+    if not ids or ids.get("ambiguous") or s.hero is None:
+        return None
+    try:
+        from . import desmap
+        r = desmap.route(goal[0], goal[1], s=s)
+    except Exception:  # noqa: BLE001 — no fixed-map route: plain travel
+        return None
+    path = r.get("path") or []
+    if not path or r.get("secret") or r.get("traps"):
+        return None
+    seen = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=True,
+                    allow_pets=True)
+    if seen is not None and len(seen) <= len(path) + 5:
+        return None
+    return len(path), (len(seen) if seen is not None else None)
 
 
 def _medusa_check(s, target, who: str, ok: bool) -> None:

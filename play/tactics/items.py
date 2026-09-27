@@ -1152,7 +1152,45 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
     return msgs
 
 
-def loot_all(unlock_with_key: bool = True, take_gray_stones: bool = False) -> list:
+def check_box(times: int = 3) -> str:
+    """Check the container on your square for traps with #untrap (1 turn per check; trap.c untrap(): each
+    check finds a real trap with rn2(31 - XL) < 10 — 62% at XL15, so 3 checks ~95%). NEVER disarms (a
+    failed disarm sets it off: explosion, poison needle, gas, shock, paralysis): answers no. Returns
+    'trapped' (leave it shut — or #force/kick it open from a safe spot, knowing the risk), 'clear' (no trap
+    found in `times` checks), or 'no box' (no container here)."""
+    ctx.require_command("check_box()")
+    ok = [r"^You find no traps on ", r"^You find a trap on ", r"^You know of no traps here",
+          r"^You find no other traps here", r"^You cannot disable"]
+    for i in range(times):
+        s = ctx.do("#untrap<CR>", quiet=True)
+        if s.state.kind == "direction":
+            s = ctx.do(".", quiet=True, ok=ok)
+        seen = list(s.messages)
+        for _ in range(4):
+            p = s.state.prompt or ""
+            if s.state.kind in ("yn", "ynq") and "Check it for traps" in p:
+                s = ctx.do("y", quiet=True, ok=ok)
+            elif s.state.kind in ("yn", "ynq") and "Disarm it" in p:
+                s = ctx.do("n", quiet=True, ok=ok)
+            elif s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+                s = ctx.last()
+                break
+            else:
+                break
+            seen += s.messages
+        text = " ".join(seen)
+        if "You find a trap on" in text:
+            print(f"check_box: TRAPPED ({text.strip()}) — left shut (a disarm attempt fails often and sets it off)")
+            return "trapped"
+        if "You find no traps on" not in text:
+            print(f"check_box: no container here? ({text.strip() or s.state.kind})")
+            return "no box"
+    print(f"check_box: no trap found in {times} check(s)")
+    return "clear"
+
+
+def loot_all(unlock_with_key: bool = True, take_gray_stones: bool = False, check_traps: int = 0) -> list:
     """Take everything out of the (single) container on your square with
     #loot: confirms, picks "take something out" in the pick-one "Do what?"
     menu, then every item — EXCEPT unknown gray stones (a chest's loadstone
@@ -1166,6 +1204,8 @@ def loot_all(unlock_with_key: bool = True, take_gray_stones: bool = False) -> li
     if s.status.ok and "Lev" in s.status.conditions:
         raise RuntimeError("loot_all(): you are levitating — you can't reach the floor; remove the levitation "
                            "first (and mind water/traps where you land)")
+    if check_traps and check_box(check_traps) == "trapped":
+        return ["loot_all: the container here is TRAPPED — not opened (check_box)"]
     msgs = _loot_all_once(take_gray_stones)
     if unlock_with_key and any(re.search(r"turns out to be locked|^It is locked", m) for m in msgs) \
             and any(_KEYS.search(i["text"]) for i in inventory()):

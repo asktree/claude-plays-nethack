@@ -334,8 +334,10 @@ def risky_lookalike(ch: str, color: str, desc: str) -> bool:
 # you (mnexto(): even where teleporting is blocked); badly hurt it teleports to the up stairs to heal
 COVETOUS_FLAGS = ("M3_WANTSAMUL", "M3_WANTSBELL", "M3_WANTSBOOK", "M3_WANTSCAND", "M3_WANTSARTI")
 COVETOUS_NOTE = ("COVETOUS: once it has noticed you it keeps teleporting next to you (about 1 turn in 5, even on "
-                 "no-teleport levels) and heals on the up stairs when badly hurt — distance and resting on the "
-                 "stairs are no refuge: be ready to fight it anywhere")
+                 "no-teleport levels). Wounded, it jumps onto the level's UP stairs (the DOWN ladder in Vlad's "
+                 "Tower; in the Wizard's Tower he teleports at random instead) and heals 1d8 a turn while you are "
+                 "more than 8 squares away; low on HP it leaves by those stairs if you are within 5 of them. "
+                 "Fight it from 6-8 squares away from those stairs: covetous_ring() lists the squares")
 
 
 def covetous(name: str) -> bool:
