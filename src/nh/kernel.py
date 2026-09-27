@@ -42,6 +42,8 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You stop\. .* is in your way",
     r"^You stop\.$",                                   # "You stop.  Your kitten is in your way." is split
     r"^(Your|The) .* is in your way\.$",
+    r"^(Your|The) .* is in the way!$",                 # uhitm.c: 1/7 of pet swaps fail (or in a shop)
+    r"^(Your|The) .* doesn't seem to move!$",          # a frozen pet you tried to swap with
     r"^You move .* out of your way",
     r"^You see here ",
     r"^Things that are here:",

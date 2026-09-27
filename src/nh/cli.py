@@ -170,8 +170,9 @@ def cmd_start_local(a) -> int:
             continue
         alive = _tmux("has-session", "-t", f"={om['tmux_session']}", check=False).returncode == 0
         if alive and _lock_name(om.get("player", ""), bool(om.get("wizard"))) == mine:
+            why = 'wizard-mode games all lock as "wizard"' if a.wizard else "same player"
             raise SystemExit(f"refusing: running game {other.parent.name!r} uses the same NetHack lock name "
-                             f"{mine!r} ({'wizard-mode games all lock as "wizard"' if a.wizard else 'same player'}); "
+                             f"{mine!r} ({why}); "
                              "starting would ask 'Destroy old game?' and answering y would wipe that game")
     if a.fresh:
         _tmux("kill-session", "-t", f"=nh-{name}", check=False)
@@ -315,9 +316,13 @@ def cmd_kill(a) -> int:
 def _read_code(arg: str | None) -> str:
     if arg is None or arg == "-":
         return sys.stdin.read()
-    p = Path(arg)
-    if p.exists():
-        return p.read_text()
+    try:
+        # a script file; long or multi-line inline code isn't a path (and a
+        # too-long "file name" would raise OSError)
+        if "\n" not in arg and len(arg) < 1024 and Path(arg).is_file():
+            return Path(arg).read_text()
+    except OSError:
+        pass
     return arg  # inline code
 
 

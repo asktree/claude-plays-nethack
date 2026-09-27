@@ -207,9 +207,18 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
         if (tx, ty) == (x, y) and h0 is not None and max(abs(x - h0[0]), abs(y - h0[1])) == 1:
             # last square by a plain step: NetHack's travel never picks anything up
             # (it sets 'nopick'), a plain move autopicks gold and thrown weapons
-            s = ctx.do(DIR_KEY[(x - h0[0], y - h0[1])], ok=BENIGN)
+            s = _final_step(s, (x, y))
             if s.hero == (x, y) or s.state.kind != "command":
                 return s
+            if s.hero == h0:
+                if _pet_in_way(s.messages) and waits < wait_peaceful + 2:
+                    waits += 1
+                    s = ctx.do("s", ok=BENIGN)
+                    continue
+                hostile = [m for m in blockers(s) if not m.get("peaceful")]
+                raise NavError(f"travel to {(x, y)}: the last step from {h0} failed"
+                               + (f" (hostile {_mdesc(hostile)} adjacent)" if hostile else "")
+                               + (f"; messages: {s.messages}" if s.messages else ""))
             continue
         if (tx, ty) == (x, y) and h0 is not None:
             path = bfs_path(s, h0, (x, y), allow_monsters=True)
@@ -241,14 +250,44 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
             if any("door is closed" in m for m in s.messages):
                 s = _open_door_toward(s, (x, y))    # travel never opens doors (autoopen is for plain steps)
                 continue
-            if any("in your way" in m for m in s.messages) and waits < wait_peaceful + 2:
-                waits += 1
-                s = ctx.do("s", ok=BENIGN)          # your pet is in the way (no swapping in shops): wait
-                continue
+            if _pet_in_way(s.messages):
+                if waits < wait_peaceful + 2:
+                    waits += 1
+                    s = ctx.do("s", ok=BENIGN)      # your pet is in the way (1/7 of swaps fail; never in shops)
+                    continue
+                raise NavError(f"travel to {(x, y)} did not move: your pet stays in the way ({s.messages}); "
+                               "step around it by hand")
             raise NavError(f"travel to {(x, y)} did not move (no known path?)"
                            + (f"; messages: {s.messages}" if s.messages else ""))
         if _notable(s.messages):
             return s   # something happened en route; let the caller look
+    return s
+
+
+_PET_IN_WAY = ("is in your way", "is in the way!", "doesn't seem to move!")
+_DIAG_DOOR = r"^You can't move diagonally (?:out of|into) an intact doorway\."
+
+
+def _pet_in_way(messages) -> bool:
+    return any(p in m for m in messages or [] for p in _PET_IN_WAY)
+
+
+def _final_step(s, target):
+    """One plain step onto the adjacent target (picks up gold/thrown weapons,
+    unlike travel). A diagonal into or out of a door square is illegal: then
+    go round by the orthogonal square that isn't wall."""
+    from .mapview import is_door, is_walkable
+    h0 = s.hero
+    dx, dy = target[0] - h0[0], target[1] - h0[1]
+    s = ctx.do(DIR_KEY[(dx, dy)], ok=BENIGN + [_DIAG_DOOR])
+    if s.hero == h0 and dx and dy and any("move diagonally" in m for m in s.messages):
+        pets = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("tame") or m.get("pet")}
+        for mid in ((h0[0] + dx, h0[1]), (h0[0], h0[1] + dy)):
+            if (is_walkable(s, *mid, allow_monsters=False) or mid in pets) and not is_door(s, *mid):
+                s = ctx.do(DIR_KEY[(mid[0] - h0[0], mid[1] - h0[1])], ok=BENIGN)
+                if s.hero == mid and s.state.kind == "command":
+                    s = ctx.do(DIR_KEY[(target[0] - mid[0], target[1] - mid[1])], ok=BENIGN)
+                return s
     return s
 
 
@@ -284,13 +323,22 @@ def _notable(messages) -> list:
             and not any(p.search(m) for p in DEFAULT_BENIGN)]
 
 
-def known_cells(ch: str, s=None) -> list:
+def known_cells(ch: str, s=None, rescan: bool = False) -> list:
     """Cells showing `ch` now, plus (for stairs/fountains/altars/thrones)
-    remembered ones hidden under objects, monsters or you. Nearest first."""
+    remembered ones hidden under objects, monsters or you. Nearest first.
+    rescan=True: if none is known, read the game's own terrain memory first
+    (#terrain, no game time) — it knows stairs under objects you've seen."""
     s = s or ctx.last()
-    cells = set(find(s, ch))
-    mem = getattr(ctx.game, "terrain_seen", {}).get(ctx.game.level_key(s.status), {})
-    cells |= {c for c, v in mem.items() if v == ch}
+
+    def cells_now():
+        cells = set(find(s, ch))
+        mem = getattr(ctx.game, "terrain_seen", {}).get(ctx.game.level_key(s.status), {})
+        cells |= {c for c, v in mem.items() if v == ch}
+        return cells
+    cells = cells_now()
+    if not cells and rescan and ch in "<>{_\\" and hasattr(ctx.game, "rescan_terrain"):
+        ctx.game.rescan_terrain()
+        cells = cells_now()
     h = s.hero or ctx.game.hero_pos
     return sorted(cells, key=lambda c: dist(c, h) if h else 0)
 
@@ -299,7 +347,7 @@ def travel_to(ch: str, index: int = 0, color_num: int | None = None):
     """Travel to the index-th nearest cell showing `ch` (e.g. '>', '<', '{');
     stairs/fountains/altars hidden under objects or monsters count too."""
     s = ctx.last()
-    cells = find(s, ch, color_num) if color_num is not None else known_cells(ch, s)
+    cells = find(s, ch, color_num) if color_num is not None else known_cells(ch, s, rescan=True)
     h = s.hero
     if not cells or h is None:
         raise NavError(f"no {ch!r} on the map")
@@ -320,7 +368,7 @@ def step(direction: str, n: int = 1):
 
 def _use_stairs(ch: str, tries: int = 4):
     s = ctx.last()
-    cells = known_cells(ch, s)
+    cells = known_cells(ch, s, rescan=True)
     if not cells:
         raise NavError(f"no {ch!r} known on this level")
     target = cells[0]

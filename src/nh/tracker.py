@@ -176,11 +176,12 @@ class Tracker:
         key = self.game.level_key()
         if key and key not in self.scanned and saved is not None and saved.status.ok \
                 and not {"Hallu", "Conf", "Stun"} & set(saved.status.conditions):
-            found = self.game.terrain_traps()
+            found = self.game.terrain_scan()
             self.game.last = saved
             if found is not None:
                 self.scanned.add(key)
-                self.game.traps.setdefault(key, set()).update(found)
+                self.game.traps.setdefault(key, set()).update(found["traps"])
+                self.game.terrain_seen.setdefault(key, {}).update(found["features"])
         self.save()
 
     def _parse_overview(self, text: str, snap, ldesc: str):

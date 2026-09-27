@@ -741,11 +741,33 @@ class Game:
                 self.last = saved
 
     def terrain_traps(self) -> set | None:
-        """Every trap the hero knows on this level, from NetHack's own memory:
-        #terrain -> "known map without monsters and objects" shows remembered
-        traps even under objects (and webs as '"'). No game time. Returns
-        the set of trap squares, or None if the view couldn't be read (e.g.
-        hallucinating/confused: "You are too disoriented for this.")."""
+        """The trap squares of terrain_scan() (or None)."""
+        r = self.terrain_scan()
+        return None if r is None else r["traps"]
+
+    def rescan_terrain(self) -> dict | None:
+        """terrain_scan() now, merged into this level's trap and feature
+        memory (no game time). Returns the scan or None."""
+        cur = self.last if self.last is not None else self.look()
+        if not cur.status.ok or cur.state.kind != "command" \
+                or {"Hallu", "Conf", "Stun"} & set(cur.status.conditions):
+            return None
+        r = self.terrain_scan()
+        if r is not None:
+            key = self.level_key(cur.status)
+            self.traps.setdefault(key, set()).update(r["traps"])
+            self.terrain_seen.setdefault(key, {}).update(r["features"])
+        return r
+
+    def terrain_scan(self) -> dict | None:
+        """What the hero knows of this level's terrain, from NetHack's own
+        memory: #terrain -> "known map without monsters and objects" shows
+        remembered traps even under objects (webs as '"'), and the stairs,
+        altars, fountains and thrones under objects too (the game keeps the
+        last seen terrain type of every mapped square). No game time.
+        Returns {"traps": set of squares, "features": {(x, y): glyph}}, or
+        None if the view couldn't be read (e.g. hallucinating/confused:
+        "You are too disoriented for this.")."""
         with self.lock:
             saved = self.last
             try:
@@ -768,15 +790,19 @@ class Game:
                 found = None
                 browsing = "Showing known terrain" in s.screen.row(0) or s.state.kind == "getpos"
                 if browsing:
-                    found = set()
+                    found = {"traps": set(), "features": {}}
                     for y in range(MAP_TOP + 1, MAP_BOTTOM + 1):
                         row = s.screen.row(y)
                         for x, ch in enumerate(row):
                             if ch == "^" or ch == '"':
-                                found.add((x, y))
+                                found["traps"].add((x, y))
+                            elif ch in self.FEATURE_CHARS:
+                                found["features"][(x, y)] = ch
                 self._leave_getpos(s, in_getpos=browsing)
                 self.log_event({"ev": "terrain_traps", "ts": round(time.time(), 3),
-                                "traps": sorted(found) if found is not None else None})
+                                "traps": sorted(found["traps"]) if found is not None else None,
+                                "features": sorted((x, y, c) for (x, y), c in found["features"].items())
+                                if found is not None else None})
                 return found
             finally:
                 self.last = saved

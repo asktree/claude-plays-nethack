@@ -150,7 +150,7 @@ def _explore(max_legs: int, skip: set):
     from .nav import _mdesc, bad_squares, blockers, travel
     legs = 0
     unreachable, locked = [], []
-    why = {"avoided": []}
+    why = {"avoided": [], "squeeze": []}
     boulders_hit: list = []
     stuck = 0
 
@@ -168,6 +168,10 @@ def _explore(max_legs: int, skip: set):
             left.append(f"frontiers {why['avoided']} only reachable across avoided squares {sorted(bad_squares())}")
         if unreachable:
             left.append(f"frontiers {unreachable} travel couldn't reach")
+        if why["squeeze"]:
+            left.append(f"the known routes squeeze diagonally between rock at {sorted(set(why['squeeze']))[:6]}: "
+                        "NetHack refuses that while your inventory weighs more than 600 — drop heavy things "
+                        "(or dig / find another way)")
         bl = boulders_hit + [b for b in _boulder_leads() if b not in boulders_hit]
         if bl:
             left.append(f"boulders {bl} in the way / next to unexplored space (travel never pushes: step into "
@@ -273,6 +277,10 @@ def _explore(max_legs: int, skip: set):
                             boulders_hit.append((hx + dx, hy + dy))
             unreachable.append(target)
             skip.add(target)
+            if s.hero is not None:
+                from .mapview import squeeze_steps
+                own = bfs_path(ctx.last(), s.hero, target, allow_monsters=True)
+                why["squeeze"].extend(squeeze_steps(ctx.last(), own, s.hero))
             continue
         stuck = 0
     return result("max_legs reached")

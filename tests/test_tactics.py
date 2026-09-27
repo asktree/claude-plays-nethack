@@ -71,3 +71,15 @@ def test_dead_ends():
     s = _snap(rows, (10, 5), [])
     # (18,5) is the end of the corridor going NE, (15,8) the end of the branch S
     assert sorted(dead_ends(s)) == [(15, 8), (18, 5)]
+
+
+def test_squeeze_steps():
+    from tactics.mapview import bfs_path, squeeze_steps
+    rows = {5: "   ##   ",
+            6: "  #  ## ",
+            7: "  #    #"}
+    # (3,5)->(4,5) orthogonal; (2,6)->(3,5): between (3,6) rock and (2,5) rock = squeeze
+    s = _snap(rows, (2, 7), [])
+    path = bfs_path(s, (2, 7), (7, 7))
+    assert path is not None
+    assert squeeze_steps(s, path, (2, 7)) == [(2, 6), (4, 5), (6, 6)]

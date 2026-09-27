@@ -69,6 +69,29 @@ def is_walkable(s, x, y, allow_monsters=True) -> bool:
     return False
 
 
+def is_solid(s, x, y) -> bool:
+    """What NetHack's diagonal-squeeze rule counts (bad_rock): rock or
+    unknown, walls (not doors), trees, boulders."""
+    ch = cell(s, x, y)
+    if ch in "|-":
+        return color(s, x, y) != BROWN
+    return ch in " 0" or (ch == "#" and color(s, x, y) == 2)
+
+
+def squeeze_steps(s, path, start) -> list:
+    """The diagonal steps of `path` (from `start`) that pass between two solid
+    squares. NetHack refuses them while your inventory weighs more than 600
+    ("You are carrying too much to get through"), and its travel then finds
+    no route at all. Returns the squares the squeezes start from."""
+    out, prev = [], start
+    for c in path or []:
+        dx, dy = c[0] - prev[0], c[1] - prev[1]
+        if dx and dy and is_solid(s, prev[0] + dx, prev[1]) and is_solid(s, prev[0], prev[1] + dy):
+            out.append(prev)
+        prev = c
+    return out
+
+
 def find(s, ch: str, color_num: int | None = None) -> list[tuple[int, int]]:
     out = []
     for y in range(MAP_TOP, MAP_BOTTOM + 1):

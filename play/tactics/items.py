@@ -176,8 +176,8 @@ _DIP_OUTCOMES = [
     (r"You attract", "WATER NYMPH (steals: kill it fast or keep away)"),
     (r"stream of snakes|Snakes!", "WATER MOCCASINS (poisonous: retreat, fight one at a time)"),
     (r"dries up|reduces to a trickle", "fountain dried up"),
-    (r"freezing mist", "CURSED sword (you are not lawful?!)"),
-    (r"(rusts|rusty|corrode)", "sword rusted"),
+    (r"freezing mist", "CURSED item (you are not lawful?!)"),
+    (r"(rusts|rusty|corrode)", "item rusted"),
     (r"spot a gem", "gem"),
     (r"gushes forth", "water gushes"),
     (r"coins", "coins"),
@@ -190,8 +190,11 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
     For Excalibur: lawful, XL5+, long sword, full HP, a planned escape, never
     in Minetown (the Watch). Each dip: 1/6 Excalibur; otherwise the sword may
     rust and the fountain dries up about 1 time in 3 — so expect to need 2-3
-    fountains. Returns {"outcome", "messages"}; prints the outcome."""
+    fountains. Returns {"outcome", "messages", "before", "after"} (the item's
+    inventory line before and after: a fountain can curse it silently, which
+    shows only there when you know its BUC); prints the outcome."""
     ctx.require_command("dip()")
+    before = next((it["text"] for it in inventory() if it["letter"] == letter), None)
     s = ctx.do("#dip<CR>", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -215,8 +218,15 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
         outcome = "WISH"
         ctx.pause("dip: WISH prompt open — follow PLAYBOOK §E (first wish: blessed +2 gray dragon scale mail); "
                   "answer with cont(reply='...<CR>') promptly.")
+    after = None
+    if s.state.kind == "command":
+        after = next((it["text"] for it in inventory() if it["letter"] == letter), None)
+        if before and after != before:
+            outcome += f"; the item changed: {before!r} -> {after!r}"
+            if after and re.search(r"\bcursed\b", after) and not re.search(r"\bcursed\b", before):
+                outcome += " (CURSED by the fountain: holy water / remove curse / pray when in trouble)"
     print(f"dip({letter!r}): {outcome}")
-    return {"outcome": outcome, "messages": msgs}
+    return {"outcome": outcome, "messages": msgs, "before": before, "after": after}
 
 
 def loot_all() -> list:
