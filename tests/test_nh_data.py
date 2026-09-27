@@ -269,3 +269,16 @@ def test_generator_reproduces_data(tmp_path):
     for name in ("monsters.json", "objects.json", "glyph_index.json",
                  "features.json"):
         assert (tmp_path / name).read_bytes() == (DATA / name).read_bytes(), name
+
+
+def test_price_id_rules():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "play"))
+    from tactics import info
+    # Cha 7: x3/2; unidentified surcharge x4/3 on 1 in 4 items
+    assert info._buy_prices(100, 7) == {150, 200}
+    assert info._buy_prices(300, 18) == {200, 267}
+    assert info._sell_offers(80) == {40, 30}
+    names = [n for n, _ in info.price_id("SCROLL_CLASS", sell=40, cha=7)]
+    assert names == ["enchant armor", "remove curse"]
