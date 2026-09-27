@@ -34,3 +34,6 @@ render.py, tracker.py). What changes for the live game:
   auto-fight trivial ones; `hunt()` the rest), and XP matters for HP. XL5+ is the Excalibur gate (lawful, dip a long
   sword in a fountain; DL1-2 fountains are fine, not Minetown's). Don't dawdle, but don't avoid fights either.
 - Budget: the armor shop is a good pet-theft or price-identify spot later, but $25 buys nothing now. Move on.
+
+ack T1777 (orchestrator): pulled and restarted the live daemon before shift 3. Shift 2 already pet-tested the DL2 boots
+(both pairs cursed, not worn); XL2 at T:1777 — shift 3 told to fight more for XP.
