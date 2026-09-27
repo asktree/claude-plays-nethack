@@ -495,6 +495,15 @@ class Kernel:
             # a ghost/shade drawn as a blank, a hider) — the movement helpers never attack on purpose
             reasons.insert(0, "YOUR MOVE ATTACKED something you didn't see there (invisible? a hider? a ghost?) "
                               "— look before the next step (it may be peaceful)")
+        if before is not None and before.hero is not None and snap.hero is not None and before.hero != snap.hero \
+                and not keys.startswith(b","):
+            # a step that auto-picked up something CURSED (pickup_thrown takes back what you threw, cursed or
+            # not: p3 shift 12's 4 cursed daggers put the pack over the 600 squeeze limit)
+            cursed = [m for m in snap.messages if re.match(r"^[a-zA-Z] - .*\bcursed\b", m)
+                      and not re.search(r"\buncursed\b", m)]
+            if cursed:
+                reasons.insert(0, f"AUTOPICKUP took a CURSED item: {cursed[0]!r} — dead weight? drop it "
+                                  f"(`d{cursed[0][0]}`) unless you want it")
         if any("position suddenly seems very uncertain" in m for m in snap.messages) \
                 and not any("prevents you from teleporting" in m for m in snap.messages):
             reasons.insert(0, f"TELEPORTED by a monster's hit (quantum mechanic) — you are now at {snap.hero}")

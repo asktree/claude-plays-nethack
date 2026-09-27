@@ -1082,3 +1082,29 @@ def test_telepathy_only_sightings_raise_no_left_view_alarm():
     t2.update(snap({}, 12, color=1))
     game.tracker = t2
     assert [r["desc"] for r in game._recently_gone(snap({}, 12))] == ["vampire lord"]
+
+
+def test_autopickup_of_a_cursed_item_pauses():
+    # p3 shift 12 #1560: pickup_thrown took 4 cursed daggers during a Sokoban push, unnoticed
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    before = snap({}, 20)
+    after = snap({}, 21)
+    after.screen.cursor = (41, 10)
+    after.messages = ["i - 4 cursed -1 daggers."]
+    k._last_keys = b"l"
+    k._check_events(before, after)
+    assert reasons and reasons[-1].startswith("AUTOPICKUP took a CURSED item: 'i - 4 cursed -1 daggers.'")
+    reasons.clear()
+    after.messages = ["i - 4 uncursed daggers."]
+    k._check_events(before, after)
+    assert not any("AUTOPICKUP" in r for r in reasons)
+    reasons.clear()
+    same = snap({}, 21)                                 # wielded in place: no move
+    same.messages = ["a - a cursed long sword (weapon in hand)."]
+    k._last_keys = b"wa"
+    k._check_events(before, same)
+    assert not any("AUTOPICKUP" in r for r in reasons)
