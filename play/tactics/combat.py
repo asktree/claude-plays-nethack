@@ -94,6 +94,16 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
                       "with do('F'+dir, force=True) only a monster that is attacking you, or retreat.")
             return ctx.last()
         targets = s.adjacent_hostiles()
+        if x is None:
+            from nh.monitor import _stationary
+            sessile = [m for m in targets if _stationary(m.get("desc") or "")]
+            if sessile and len(sessile) < len(targets):
+                targets = [m for m in targets if m not in sessile]   # never waste blows on a mold/jelly
+            elif sessile:
+                print("fight: only sessile monsters next to you (" + ", ".join(m.get("desc") or m["ch"]
+                                                                       for m in sessile)
+                      + ") — they never move: step away instead (fight(x, y) to hit one on purpose)")
+                return s
         if x is not None:
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]
             if not targets and s.screen.at(x, y) == "I" and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
@@ -217,16 +227,21 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             st = s.status
             if st.ok and st.hp < stop_hp * max(1, st.hpmax):
                 return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%} — Elbereth / retreat / pray if HP <= 1/7")
-            if s.adjacent_hostiles():
+            from nh.monitor import _stationary
+            mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")]
+            if mobile_adj:
                 s = fight(stop_hp=stop_hp)
                 kills += killed_names(s.messages)
                 best, idle = None, 0
                 if s.adjacent_hostiles() and s.status.ok and s.status.hp < stop_hp * max(1, s.status.hpmax):
                     return out(f"HP {s.status.hp}/{s.status.hpmax} below {stop_hp:.0%} with hostiles adjacent")
                 continue
-            near = s.hostiles(radius)
+            near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")]
             if not near:
-                return out("clear")
+                beyond = [m for m in s.hostiles() if not _stationary(m.get("desc") or "")]
+                return out("clear" + (" (beyond the radius: " + ", ".join(
+                    f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m['dist']}" for m in beyond[:3]) + ")"
+                                      if beyond else ""))
             d = min(m["dist"] for m in near)
             if best is None or d < best:
                 best, idle = d, 0

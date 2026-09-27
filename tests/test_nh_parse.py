@@ -758,3 +758,11 @@ def test_fullwidth_text_window_keeps_first_column():
     s = mk(rows, cursor=(9, 3))
     st = classify(s)
     assert st.kind == "text" and st.more_text.startswith("The Dungeons of Doom")
+
+
+def test_travel_cursor_over_blank_square_is_getpos():
+    top = "Where do you want to travel to?  (For instructions type a '?')"
+    s = mk({0: top, 1: "  ----          ---------", 2: "  |<..--   ------.......--", 3: "  |.....---|......",
+            4: "  --..|....|.-----    |..|    ", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"},
+           cursor=(52, 4))
+    assert classify(s).kind == "getpos"

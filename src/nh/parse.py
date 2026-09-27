@@ -303,6 +303,10 @@ def classify(scr: Screen) -> State:
     # is near the top of the map means we're looking at such a wrapped prompt.
     prompt_text = None
     msg_rows = 0
+    if MAP_TOP <= cy <= MAP_BOTTOM and any(h in top for h in GETPOS_HINTS):
+        # a cursor prompt (travel, ';'): the cursor roams the map, over blank squares
+        # too — never mistake its long hint line for a prompt wrapped onto the map
+        return State("getpos", prompt=top)
     if cy == 0:
         prompt_text = top
     elif cy >= 1 and cx <= 1 and not scr.row(cy)[:cx].strip() and _PROMPT_END.search(scr.row(cy - 1).rstrip() + " ") \
