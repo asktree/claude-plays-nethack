@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ROOT / "play"))
+sys.path.insert(0, str(ROOT / "src"))
 
 from gen_sokoban import DIRS, Board  # noqa: E402
 from tactics.sokoban_data import LEVELS  # noqa: E402
@@ -35,7 +36,6 @@ def test_solutions_replay():
 
 
 def _screen_for(name, ox, oy, step=None, pet=None):
-    sys.path.insert(0, str(ROOT / "src"))
     from nh.game import Snap
     from nh.parse import State, Status
     from nh.screen import Screen
