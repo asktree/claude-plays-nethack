@@ -46,3 +46,13 @@
 - travel()'s LAST STEP is a plain move: if a monster steps onto the target square first, you attack it (T:5952 cockatrice). With a weapon wielded that is fine; never travel onto a square next to a cockatrice while bare-handed, and re-check the target square before the last step in scripts.
 - Container menus show IDENTIFIED names ("potion of paralysis"), not appearances ("white potion"): pattern bag_take() by the identified name when the type is known.
 - A monster that quaffs a potion identifies it: "looks better" = healing, "looks much better" = extra healing, "looks completely healed" = full healing (effervescent, T:5915).
+- THROWING INSIDE A SHOP SELLS THE PROJECTILE (3.6 dothrow check_shop_obj -> sellobj, no prompt): "You relinquish a dagger and receive N gold pieces in compensation." Things thrown INTO a shop from outside become shop stock too. To kill a floating eye in a shop, accept buying the daggers back (base-4 daggers: sold 2–7, rebought 5–19), or lure/avoid.
+- Items dropped by a monster that dies inside a shop are shop stock ("for sale") — the large dog's twisted ring cost 267 zm and was a CURSED ring of teleportation: price-ID first (base 150/200 group here), never put on unknown rings.
+- A floating eye corpse in a shop costs ~7 zm ("You bite that, you pay for it!") — cheapest intrinsic telepathy there is; `pay()` afterwards.
+- SPHERES (shocking/flaming/freezing) and gas spores are MINDLESS: neither telepathy kind shows them. In dark corridors assume one can appear adjacent and explode (shocking: 4d6, may destroy wands/rings).
+- A monster that MOVES next to you cannot attack in the same action (monmove.c: after m_move it only attacks if it did not move). Against slow dangerous monsters (chickatrice speed 4) wait for them to step adjacent, then strike: you get ~4 actions before their next one. Throwing daggers down the line first softens them.
+- Inside a pit you only see adjacent squares and monsters lose track of you; climbing out takes turns. Unknown traps hide in dark rooms: autosearch does not find them in time when travelling.
+- Unlocking a box with a key in 3.6: apply key, answer the direction prompt with `.` (self), then "unlock it? y".
+- Booby-trapped doors explode when opened (damage + stun): wait out Stun with `search` before moving.
+- A co-aligned altar: drop ALL unknown-BUC items with `D` → `X` → `.` (select all pages) → `<CR>`, then `,` → `.` → `<CR>`. Keep the pack under 52 items or bag_take() silently stops ("Your knapsack cannot accommodate any more items").
+- Energy vortex engulf: harmless for a non-caster (1d6 + Pw drain); 2–3 blows from inside with F+dir.

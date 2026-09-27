@@ -80,6 +80,8 @@ class Tracker:
                     getattr(game, attr).setdefault(key, set()).update(cells)
             if lv.get("kills") and hasattr(game, "kills"):
                 game.kills[key] = [(n, (x, y), t) for n, x, y, t in lv["kills"]]
+            if lv.get("shops") and hasattr(game, "shops"):
+                game.shops[key] = [list(e) for e in lv["shops"]]
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
                 game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
                                          for c, dest in lv["stairs_to"].items()}
@@ -153,6 +155,9 @@ class Tracker:
             kills = getattr(self.game, "kills", {}).get(key)
             if kills:
                 lv["kills"] = [[n, c[0], c[1], t] for n, c, t in kills]
+            shops = getattr(self.game, "shops", {}).get(key)
+            if shops:
+                lv["shops"] = [list(e) for e in shops]
             for lk, links in getattr(self.game, "stair_links", {}).items():
                 if links:
                     self.state["levels"].setdefault(lk, {})["stairs_to"] = {f"{c[0]},{c[1]}": d

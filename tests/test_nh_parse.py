@@ -821,7 +821,8 @@ def test_wielded_labels_and_weapon_names():
     for t in ("b - a blessed +0 dagger (alternate weapon; not wielded)", "b - a dagger (wielded in other hand)",
               "c - an uncursed +3 small shield (being worn)"):
         assert not WIELDED_RE.search(t), t
-    for t in ("a blessed rustproof +6 long sword named Excalibur", "a +0 pick-axe", "2 daggers",
+    for t in ("a blessed rustproof +6 long sword named Excalibur", "the blessed rustproof +6 Excalibur",
+              "the uncursed +2 Sting (weapon in hand, glowing light blue)", "a +0 pick-axe", "2 daggers",
               "an uncursed unicorn horn", "a broad pick", "a runed dagger"):
         assert is_weapon_text(t), t
     for t in ("a blessed lamp", "a blessed magic lamp", "an oil lamp (lit)", "a cockatrice corpse", "a sack",
@@ -836,6 +837,10 @@ def test_wield_tracking_from_messages():
     assert g.wielded == "a blessed lamp" and "not a weapon" in g.wield_note()
     g._note_wield(["a - a blessed rustproof +6 long sword named Excalibur (weapon in hand)."])
     assert g.wielded.startswith("a blessed rustproof +6 long sword") and g.wield_note() == ""
+    g._note_wield(["a - the blessed rustproof +6 Excalibur (weapon in hand)."])    # fully identified artifact
+    assert g.wield_note() == ""
+    g.wielded, g.wielded_class = "a strange thing (weapon in hand)", "Weapons"   # inventory() says Weapons
+    assert g.wield_note() == ""
     g._note_wield(["You are empty handed."])
     assert g.wielded == "" and "EMPTY-HANDED" in g.wield_note()
     g._note_wield(["Your long sword slips from your hands."])
@@ -863,3 +868,37 @@ def test_guard_cockatrice_bare_handed():
     g._guard(s, b"Fl", force=False)
     g.gloves = ""
     g._guard(s, b"Fl", force=True)
+
+
+def test_shop_tracking_and_guards():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State
+    g = _guard_game()
+    rows = {3: "  ------------",
+            4: "  |.)).[[....|",
+            5: "  |@.........|",
+            6: "  |..........|",
+            7: "  -----|------",
+            22: STATUS1, 23: "Dlvl:12 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    # the welcome comes on the door square (7,7): the shop is the room above it
+    door = mk({**rows, 7: "  -----@------"}, cursor=(7, 7))
+    s = Snap(screen=door, state=State("command"), status=parse_status(door))
+    g._note_shop(s, ["Velkommen, p2!  Welcome to Carignan's antique weapons outlet!"])
+    assert g.shops[g.level_key(s.status)] == [[3, 4, 12, 6, "Carignan's antique weapons outlet"]]
+    assert g.shop_at((5, 5), s.status) and g.shop_at((7, 7), s.status) and not g.shop_at((7, 9), s.status)
+    inside = Snap(screen=mk(rows, cursor=(3, 5)), state=State("command"), status=s.status, monsters=[])
+    for keys in (b"t", b"f"):
+        with pytest.raises(PermissionError, match="SOLD"):
+            g._guard(inside, keys, force=False)
+    g._guard(inside, b"t", force=True)
+    g.hero_pos = (3, 5)
+    dig = Snap(screen=inside.screen, state=State("direction", prompt="In what direction do you want to dig? [yu>]"),
+               status=s.status)
+    with pytest.raises(PermissionError, match="backpack"):
+        g._guard(dig, b">", force=False)
+    g._guard(dig, b"l", force=False)                   # sideways is the shopkeeper's wall... not our guard
+    # outside the shop: no refusal
+    g.hero_pos = (7, 9)
+    out = Snap(screen=mk(rows, cursor=(7, 9)), state=State("command"), status=s.status, monsters=[])
+    g._guard(out, b"t", force=False)

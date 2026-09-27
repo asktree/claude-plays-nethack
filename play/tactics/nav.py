@@ -375,7 +375,19 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                                f"(the only known route passes {sorted((m['x'], m['y']) for m in blk)}); "
                                "wait, go around, or dig past it.")
             if any("door is closed" in m for m in s.messages):
-                s = _open_door_toward(s, (x, y))    # travel never opens doors (autoopen is for plain steps)
+                try:
+                    s = _open_door_toward(s, (x, y))    # travel never opens doors (autoopen is for plain steps)
+                except NavError as e:
+                    # NetHack's travel plans through closed doors, ours doesn't: walk around a locked one
+                    cur = ctx.last()
+                    own = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad_squares(cur) - {(x, y)}),
+                                   allow_monsters=False) if "locked" in str(e) and cur.hero else None
+                    if not own:
+                        raise
+                    print(f"{e} — walking around it by our own route ({len(own)} steps)")
+                    s = walk_path(own)
+                    if s.hero == (x, y) or s.state.kind != "command":
+                        return s
                 continue
             if _pet_in_way(s.messages):
                 if waits < wait_peaceful + 2:
@@ -459,13 +471,19 @@ def _open_door_toward(s, target):
     if not doors:
         raise NavError(f"travel: 'That door is closed' but no closed door next to {h}")
     door = min(doors, key=lambda d: dist(d, target))
+    known = getattr(ctx.game, "locked_doors", {}).setdefault(ctx.game.level_key(s.status), set()) \
+        if hasattr(ctx.game, "locked_doors") else set()
+    if door in known:
+        raise NavError(f"travel: the door at {door} is locked (known) — unlock{door} with a key, "
+                       f"kick_door{door} (never a shop door or in Minetown), or go another way")
     key = DIR_KEY[(door[0] - h[0], door[1] - h[1])]
     for _ in range(6):
         s = ctx.do(key, ok=BENIGN + [r"^The door opens\.", r"^The door resists", r"^This door is locked"])
         text = " ".join(s.messages)
         if "locked" in text:
-            raise NavError(f"travel: the door at {door} is locked — kick_door{door} (never a shop door or "
-                           "in Minetown), or go another way")
+            known.add(door)
+            raise NavError(f"travel: the door at {door} is locked — unlock{door} with a key, kick_door{door} "
+                           "(never a shop door or in Minetown), or go another way")
         if "door opens" in text or not is_closed_door(s, *door):
             return s
     raise NavError(f"travel: the door at {door} won't open (stuck?)")

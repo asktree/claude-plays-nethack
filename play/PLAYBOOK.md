@@ -123,6 +123,8 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   D10; ≤ −5 before D20.
 - Intrinsics to collect: poison resistance (killer bees, soldier ants, scorpions... check `corpse()`
   benefits), telepathy (floating eye corpse — kill it at range, never melee), fire/sleep/shock resistance.
+  Telepathy shows only minded monsters: spheres, gas spores, zombies, mummies, golems and vortices are
+  invisible to it — a dark corridor can still hold an exploding sphere.
 
 ## E. Midgame: D10–D25 (XL14+, MR and reflection, then the Castle)
 - **Quest portal** level (D11–16) gives a telepathic message. The quest needs **XL14**. Nemesis Lord Surtur

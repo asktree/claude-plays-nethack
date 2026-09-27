@@ -116,7 +116,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         y0, y1 = max(MAP_TOP, hy - radius), min(MAP_BOTTOM, hy + radius)
         lines.append(map_block(snap, x0, x1, y0, y1))
     if h is not None:
-        lines.append(f"you @ ({h[0]},{h[1]})  [coords are (x=col, y=row)]")
+        lines.append(f"you @ ({h[0]},{h[1]})  [coords are (x=col, y=row)]"
+                     + (f"  — in {snap.shop} (no throwing/firing/digging down here)" if getattr(snap, "shop", "")
+                        else ""))
     if mons is None or (not mons and snap.state.kind != "command"):
         mons = monsters_in_view(snap, None, hero=h)
     ml = monsters_line(snap, radius=None if mode == "full" else 2 * radius, mons=mons)

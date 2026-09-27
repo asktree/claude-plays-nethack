@@ -56,6 +56,7 @@ class Snap:
     paused: str = ""           # set when the exec paused on this step and the player resumed it
     gone: list = field(default_factory=list)   # dangerous monsters that left view in the last ~20 turns
     wield_note: str = ""       # set when you are known to wield a non-weapon / nothing (Game.wield_note)
+    shop: str = ""             # the shop you stand in ("Carignan's antique weapons outlet"), if known
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -249,6 +250,11 @@ def feature_at(scr: Screen, x: int, y: int) -> str | None:
 
 
 _WEAPON_NAMES: list | None = None
+# artilist.h (3.6.7): the artifacts whose base object is a weapon (or weapon-tool)
+_ARTIFACT_WEAPONS = re.compile(
+    r"\b(?:Excalibur|Stormbringer|Mjollnir|Cleaver|Grimtooth|Orcrist|Sting|Magicbane|Frost Brand|Fire Brand|"
+    r"Dragonbane|Demonbane|Werebane|Grayswandir|Giantslayer|Ogresmasher|Trollsbane|Vorpal Blade|Snickersnee|"
+    r"Sunsword|Sceptre of Might|Staff of Aesculapius|Longbow of Diana|Tsurugi of Muramasa)\b")
 
 
 def is_weapon_text(text: str) -> bool:
@@ -257,6 +263,8 @@ def is_weapon_text(text: str) -> bool:
     'a blessed lamp' -> False. Names and unidentified appearances come from
     the object data."""
     global _WEAPON_NAMES
+    if _ARTIFACT_WEAPONS.search(text or ""):
+        return True                    # an identified artifact shows by its own name: "the +6 Excalibur"
     if _WEAPON_NAMES is None:
         import json
         from pathlib import Path
@@ -320,6 +328,9 @@ class Game:
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
+        self.wielded_class: str | None = None     # inventory() class header of the wielded item ("Weapons")
+        self.shops: dict[str, list] = {}          # level key -> [[x1, y1, x2, y2, "Name's shop type"]] interiors
+        self.locked_doors: dict[str, set] = {}    # level key -> doors found locked (travel walks around them)
         self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -343,7 +354,7 @@ class Game:
         """Merge per-level memory recorded under a provisional key."""
         if old == new:
             return
-        for d in (self.traps, self.avoid, self.visited):
+        for d in (self.traps, self.avoid, self.visited, self.locked_doors):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links):
@@ -355,6 +366,9 @@ class Game:
                     links[c] = new
         if old in self.kills:
             self.kills.setdefault(new, []).extend(self.kills.pop(old))
+        if old in self.shops:
+            lst = self.shops.setdefault(new, [])
+            lst.extend(e for e in self.shops.pop(old) if e not in lst)
 
     FEATURE_CHARS = "<>{_\\"
     # look_here(): "There is %s here." with dfeature_at() (invent.c) — "an opulent throne",
@@ -450,16 +464,16 @@ class Game:
         for m in messages:
             mm = self._WIELD_NOW.search(m)
             if mm:
-                self.wielded = mm.group(1)
+                self.wielded, self.wielded_class = mm.group(1), None
                 continue
             mm = self._WIELD_INV.search(m)
             if mm and WIELDED_RE.search(m):
-                self.wielded = mm.group(1)
+                self.wielded, self.wielded_class = mm.group(1), None
                 continue
             if re.search(r"^You are (?:now |already )?empty.handed", m):
-                self.wielded = ""
+                self.wielded, self.wielded_class = "", None
             elif re.search(r"wield|slips from your|welded|disarm|wrested|snatches|You are now empty", m):
-                self.wielded = None     # re-check the weapon next time it matters
+                self.wielded, self.wielded_class = None, None     # re-check the weapon next time it matters
             if re.search(r"\b(?:gloves|gauntlets)\b", m):
                 self.gloves = None      # put on / taken off / stolen / destroyed: re-check
 
@@ -471,8 +485,66 @@ class Game:
             return ""
         if w == "":
             return "you are EMPTY-HANDED (w + letter to wield your weapon)"
+        if (self.wielded_class or "").startswith("Weapons"):
+            return ""
         if not is_weapon_text(w):
             return f"you WIELD {w} — not a weapon (w + letter to wield your weapon again)"
+        return ""
+
+    # shk.c u_entered_shop(): "Velkommen, p2!  Welcome to Carignan's antique weapons outlet!"
+    # ("Welcome again to ..." on later visits); printed on the first square inside the door
+    _SHOP_WELCOME = re.compile(r"Welcome(?: again)? to (?P<name>[^!]+?(?:'s|s') [^!]+)!")
+    _ROOM_EDGE = set("|-+# ")
+
+    def _room_rect(self, snap: Snap, start) -> tuple | None:
+        """The interior (x1, y1, x2, y2) of the lit room around `start`,
+        scanning to the walls along its row and column."""
+        x, y = start
+        scr = snap.screen
+        # on the shop door (in_rooms() counts it, so the welcome can come there): start one step inside
+        if scr.at(x, y - 1) in "|-" and scr.at(x, y + 1) in "|-":       # a door in a left/right wall
+            x += next((d for d in (1, -1) if scr.at(x + d, y) not in self._ROOM_EDGE), 0)
+        elif scr.at(x - 1, y) in "|-" and scr.at(x + 1, y) in "|-":     # a door in a top/bottom wall
+            y += next((d for d in (1, -1) if scr.at(x, y + d) not in self._ROOM_EDGE), 0)
+        door = start if (x, y) != tuple(start) else None               # (the '@' there is part of the wall)
+
+        def run(dx, dy):
+            cx, cy = x, y
+            for _ in range(80):
+                nx, ny = cx + dx, cy + dy
+                if not (0 <= nx < 80 and MAP_TOP < ny <= MAP_BOTTOM) or scr.at(nx, ny) in self._ROOM_EDGE \
+                        or (nx, ny) == door:
+                    return cx if dx else cy
+                cx, cy = nx, ny
+            return None
+        x1, x2, y1, y2 = run(-1, 0), run(1, 0), run(0, -1), run(0, 1)
+        if None in (x1, x2, y1, y2) or x2 - x1 > 40 or y2 - y1 > 15:
+            return None
+        return (x1, y1, x2, y2)
+
+    def _note_shop(self, snap: Snap, messages: list[str]) -> None:
+        if snap.hero is None or not snap.status.ok:
+            return
+        for m in messages:
+            mm = self._SHOP_WELCOME.search(m)
+            if not mm:
+                continue
+            rect = self._room_rect(snap, snap.hero)
+            if rect is None:
+                continue
+            lst = self.shops.setdefault(self.level_key(snap.status), [])
+            x1, y1, x2, y2 = rect
+            lst[:] = [e for e in lst if e[2] < x1 or e[0] > x2 or e[3] < y1 or e[1] > y2]
+            lst.append([x1, y1, x2, y2, mm.group("name")])
+
+    def shop_at(self, cell, status: Status | None = None) -> str:
+        """The name of the known shop that `cell` is in — its interior or its
+        door (NetHack's in_rooms() counts the door as the shop) — or ''."""
+        if cell is None:
+            return ""
+        for x1, y1, x2, y2, name in self.shops.get(self.level_key(status), []):
+            if x1 - 1 <= cell[0] <= x2 + 1 and y1 - 1 <= cell[1] <= y2 + 1:
+                return name
         return ""
 
     def _here_text(self, snap: Snap, cell=None) -> str:
@@ -704,6 +776,13 @@ class Game:
                         "doesn't stop a single step (only running/travel avoid it). Lava is death without fire "
                         "resistance; water soaks your scrolls/potions and can drown you. Go around; force=True only "
                         "with levitation/water walking you're sure of.")
+            if unit in (b"t", b"f") and snap.hero is not None and snap.status.ok \
+                    and self.shop_at(snap.hero, snap.status):
+                raise PermissionError(
+                    f"refusing to {'throw' if unit == b't' else 'fire'} inside {self.shop_at(snap.hero, snap.status)}: "
+                    "whatever you throw that lands on the shop floor is SOLD to the shopkeeper (you'd buy it back "
+                    "dearer), and an unpaid item thrown out of the shop is THEFT (an angry shopkeeper). Fight "
+                    "in melee or step outside first; force=True overrides.")
             if unit == b"e" and snap.status.ok and snap.status.hunger == "Satiated" and "Stone" not in conds:
                 raise PermissionError(
                     "refusing to eat while Satiated: eating past 2000 nutrition chokes you to death (19 times in "
@@ -790,6 +869,11 @@ class Game:
                 ch = snap.screen.at(*c)
                 if ch == " " or (ch in "|-" and snap.screen.color_at(*c) != 3):
                     break
+        elif k == "direction" and unit == b">" and "dig" in (snap.state.prompt or "") and snap.status.ok \
+                and self.shop_at(self.hero_pos, snap.status):
+            raise PermissionError(
+                f"refusing to dig down inside {self.shop_at(self.hero_pos, snap.status)}: the shopkeeper grabs your "
+                "backpack as you fall through the hole. Dig outside the shop. force=True overrides.")
         elif k in ("yn", "getlin") and unit[:1] in (b"y", b"Y") and "Continue eating?" in (snap.state.prompt or ""):
             raise PermissionError(
                 "refusing to continue eating: you started while Satiated and are nearly full — going on chokes you "
@@ -1015,6 +1099,7 @@ class Game:
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
+                    self._note_shop(snap, messages)
                     if (cur.state.kind == "direction" or b"z" in data[:2]) and data[-1:] == b">":
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
                         # moves or erases the engraving here without a word (zap.c)
@@ -1041,6 +1126,7 @@ class Game:
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             snap.wield_note = self.wield_note()
+            snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -1291,6 +1377,7 @@ class Game:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
                 self._remember_terrain(snap, [])
             snap.wield_note = self.wield_note()
+            snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)

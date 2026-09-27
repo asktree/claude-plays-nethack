@@ -271,7 +271,8 @@ class Kernel:
             reasons.append("message")
         trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)
                    and not m.startswith("There is")]
-        if trapmsg and snap.hero is not None and not quiet:
+        if trapmsg and snap.hero is not None and not quiet and not getattr(snap, "engulfed", False):
+            # (inside an energy vortex "your magical energy drain away" is its attack, not a magic trap)
             reasons.append(f"trap at {snap.hero}")
         if snap.state.kind == "getlin" and (snap.state.prompt or "").startswith("Call ") \
                 and not (before is not None and before.state.kind == "getlin") \

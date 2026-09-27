@@ -361,3 +361,48 @@ def test_unlock_box_prompt_flow(monkeypatch):
     msgs = items.unlock(tool="k")
     # the unlocked large box is left alone ('n' to "lock it?"), the locked chest gets 'y'
     assert sent == ["a", "k", ".", "n", "y"] and msgs[-1] == "You succeed in unlocking the chest."
+
+
+def test_read_identify_picks_by_priority_across_pages(monkeypatch):
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+
+    def menu(page, pages, entries, title="What would you like to identify first?"):
+        s = _snap({}, (10, 5), [])
+        its = []
+        for cls, lst in entries:
+            its.append(MenuItem("", cls, header=True))
+            its += [MenuItem(l, t) for l, t in lst]
+        s.state = State("menu", prompt=title, menu=Menu(title=title, items=its, page=page, pages=pages))
+        return s
+    base = _snap({}, (10, 5), [])
+    objp = _snap({}, (10, 5), [])
+    objp.state = State("object", prompt="What do you want to read? [kz or ?*]")
+    p1 = menu(1, 2, [("Potions", [("F", "a dark green potion")]), ("Scrolls", [("z", "a scroll labeled ZLORFIK")])])
+    p2 = menu(2, 2, [("Rings", [("J", "a twisted ring")])])
+    p2b = menu(2, 2, [("Rings", [("J", "a twisted ring")])])
+    nxt = menu(1, 1, [("Potions", [("F", "a dark green potion")])], title="What would you like to identify next?")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["F - a potion of see invisible."]
+    after_j = _snap({}, (10, 5), [])
+    frames = {"r": objp, "k": p1, ">": p2, "J": p2b, "F": nxt}
+    seq = []
+
+    def fake_do(keys, **kw):
+        seq.append(keys)
+        if keys == "<CR>":
+            return nxt if seq.count("<CR>") == 1 else done
+        return frames[keys]
+    state = {"cur": base}
+
+    def fake_last():
+        return {"r": objp, "k": p1, ">": p2, "J": p2b, "F": nxt}.get(seq[-1], base) if seq else base
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", fake_last)
+    nxt_msgs = nxt.messages
+    nxt.messages = ["J - a ring of teleportation."]
+    msgs = items.read_identify("k")
+    # round 1: the ring on page 2 first (priority), round 2: the only thing left
+    assert seq == ["r", "k", ">", "J", "<CR>", "F", "<CR>"], seq
+    assert "J - a ring of teleportation." in msgs and "F - a potion of see invisible." in msgs
+    nxt.messages = nxt_msgs

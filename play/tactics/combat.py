@@ -21,7 +21,13 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            # ranged/weapon flavour (the damage, if any, is caught by the HP checks); thefts still pause
            r"^The .+ wields (?:an? |the |\d+ )", r"^The .+ (?:throws|shoots|fires) ", r"^The .+ breathes ",
            r"^You are hit by ", r"^The .+ misses you[.!]$",
-           r"^The .+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$"]
+           r"^The .+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$",
+           # an engulfer's routine attack from inside (mhitu.c gulpmu()); the damage is the HP check's job
+           r"^You feel your magical energy drain away", r"^You are pummeled with debris",
+           r"^You are laden with moisture", r"^The air around you crackles with electricity",
+           r"^You seem unhurt\.", r"^You feel mildly (?:chilly|hot)\.", r"^You are freezing to death",
+           r"^You are burning to a crisp", r"^You are covered (?:with a seemingly harmless goo|in slime)",
+           r"^You can't see in here", r"^You are jolted with electricity", r"^You are suddenly very (?:hot|cold)"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause

@@ -46,6 +46,7 @@ def inventory():
     if s.state.kind == "menu":
         items, _ = _parse_menu_pages(s)
         ctx.game.wielded = next((it["text"] for it in items if _wielded(it["text"])), "")
+        ctx.game.wielded_class = next((it["class"] for it in items if _wielded(it["text"])), "")
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         return items
@@ -347,6 +348,67 @@ def rub(letter: str, max_rubs: int = 1, rewield: bool = True) -> dict:
     return {"outcome": outcome, "messages": msgs, "rubs": n}
 
 
+ID_PRIORITY = (r"^Rings", r"^Amulets", r"^Wands", r"^Potions", r"^Scrolls", r"^Spellbooks", r"^Armor",
+               r"^Tools", r".")
+
+
+def _menu_entries(s):
+    """All selectable entries of the open menu, every page: [(page, letter,
+    'Class header: item text')]; leaves the menu on its last page."""
+    out = []
+    for _page in range(10):
+        m = s.state.menu
+        if m is None:
+            break
+        cls = ""
+        for it in m.items:
+            if it.header:
+                cls = it.text
+            elif it.letter:
+                out.append((m.page, it.letter, f"{cls}: {it.text}"))
+        if m.page < m.pages:
+            s = ctx.do(">", quiet=True)
+        else:
+            break
+    return out
+
+
+def read_identify(letter: str, priority=ID_PRIORITY) -> list:
+    """Read the scroll of identify `letter` and answer its menus: each round
+    picks the ONE item ranked first by `priority` (regexes tried in order on
+    'Class: item text' — default rings, amulets, wands, potions, scrolls,
+    spellbooks, armor, tools, anything), so a scroll that identifies several
+    items takes them in your order (NetHack would otherwise take them in
+    inventory order). Returns the messages (the identified items' lines)."""
+    ctx.require_command("read_identify()")
+    s = ctx.do("r", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"read_identify(): expected 'What do you want to read?', got {s.state.kind}")
+    s = ctx.do(letter, quiet=True)
+    msgs = list(s.messages)
+    rxs = [re.compile(p, re.I) for p in priority]
+    for _round in range(20):
+        title = (s.state.prompt or "") + " " + (s.state.menu.title if s.state.menu is not None else "")
+        if s.state.kind != "menu" or "identify" not in title:
+            break
+        entries = _menu_entries(s)
+        pick = next((e for rx in rxs for e in entries if rx.search(e[2])), None)
+        if pick is None:
+            s = ctx.do("<Esc>", quiet=True)
+            break
+        s = ctx.last()
+        while s.state.menu is not None and s.state.menu.page > pick[0]:
+            s = ctx.do("<", quiet=True)
+        s = ctx.do(pick[1], quiet=True)
+        s = ctx.do("<CR>", quiet=True)
+        msgs += s.messages
+    print("read_identify(): " + (" | ".join(m for m in msgs if re.match(r"^[a-zA-Z$] - ", m)) or
+                                 " | ".join(msgs[-3:])))
+    return msgs
+
+
 def _menu_pick(s, pattern: str):
     """Select (by text, on any page) the first item of the open menu matching
     `pattern`; returns the snap after the key, or None if there is none."""
@@ -382,6 +444,13 @@ def _apply_container(bag: str, action: str):
         ctx.do("<Esc>", quiet=True)
         raise RuntimeError(f"bag: no {action!r} choice (empty bag?) in {[i.text for i in s.state.menu.selectable()]}")
     return nxt
+
+
+def _warn_full(msgs, who: str) -> None:
+    """pickup.c lift_object(): a full pack (52 letters) silently stops a pickup."""
+    if any("cannot accommodate any more items" in m for m in msgs):
+        print(f"!! {who}: your pack is FULL (52 inventory letters) — the rest stayed where it was. Drop or bag "
+              "something (bag_put) and try again.")
 
 
 def bag_put(bag: str, letters: str) -> list:
@@ -500,6 +569,7 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
             ctx.pause(f"bag_take(): unexpected {k} {p!r}")
             s = ctx.last()
         msgs += s.messages
+    _warn_full(msgs, "bag_take")
     return msgs
 
 
@@ -558,6 +628,7 @@ def pickup(pattern: str | None = None) -> list:
         msgs += s.messages
     if s.state.kind != "command":
         ctx.pause(f"pickup(): unexpected {s.state.kind} {s.state.prompt!r}")
+    _warn_full(msgs, "pickup")
     return msgs
 
 
@@ -671,6 +742,8 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
                 raise RuntimeError(f"unlock(): unexpected question {p!r}")
             msgs += s.messages
         text = " ".join(msgs)
+        if re.search(r"You succeed in (?:unlocking|picking)", text) and x is not None:
+            ctx.game.locked_doors.get(ctx.game.level_key(ctx.last().status), set()).discard((x, y))
         if re.search(r"You succeed in (?:unlocking|picking)", text) or not answered:
             break
     print("unlock(): " + (" | ".join(msgs[-3:]) or "nothing to unlock here"))
@@ -731,4 +804,5 @@ def _loot_all_once() -> list:
             s = ctx.last()
         msgs += s.messages
     print("loot_all(): " + " | ".join(msgs[-6:]))
+    _warn_full(msgs, "loot_all")
     return msgs
