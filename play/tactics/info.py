@@ -188,7 +188,7 @@ def shk_rates() -> dict:
 
 
 def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: int | None = None,
-             dunce: bool = False, exclude_known: bool = True, shk: str | None = None) -> list:
+             dunce: bool = False, exclude_known: bool = True, shk: str | None = None, qty: int = 1) -> list:
     """Which unidentified items of a class match a shop price? klass like
     'SCROLL_CLASS', 'POTION_CLASS', 'RING_CLASS', 'WAND_CLASS',
     'AMULET_CLASS', 'SPBOOK_CLASS'. buy = the unit price quoted to you
@@ -200,7 +200,8 @@ def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: i
     harness whether this shopkeeper lowballs unidentified items (3/8 instead
     of 1/2 of the base: fixed per shopkeeper) when only one rate fits; later
     offers from the same one then give one answer (shk= names the
-    shopkeeper when you aren't standing in the shop)."""
+    shopkeeper when you aren't standing in the shop). qty=N: `sell` is the offer for a stack of N (shk.c prices
+    the whole stack, then halves and lowballs it: 75 for 2 scrolls = base 100)."""
     from . import ctx
     if cha is None:
         st = ctx.last().status
@@ -225,10 +226,10 @@ def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: i
         if buy is not None and buy not in _buy_prices(base, cha, dunce):
             continue
         if sell is not None:
-            if sell not in _sell_offers(base, dunce, rate):
+            if sell not in _sell_offers(base * max(1, qty), dunce, rate):
                 continue
             for r in ("normal", "low"):
-                fits[r] += sell in _sell_offers(base, dunce, r)
+                fits[r] += sell in _sell_offers(base * max(1, qty), dunce, r)
         out.append((o["name"], base))
     if who and sell is not None and rate is None and out and (fits["normal"] == 0) != (fits["low"] == 0):
         learned = "low" if fits["low"] else "normal"

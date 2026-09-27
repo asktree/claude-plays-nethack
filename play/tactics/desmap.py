@@ -445,7 +445,10 @@ def _current(s=None, names=None) -> tuple:
     if found.get("ambiguous"):
         raise RuntimeError(f"desmap: the view fits {found['level']} at ({found['ox']},{found['oy']}) but another "
                            "placement fits almost as well — see more of the level first")
-    m = next(mm for mm in maps() if mm["level"] == found["level"] and mm["index"] == found["index"])
+    m = next((mm for mm in maps() if mm["level"] == found["level"] and mm["index"] == found.get("index", mm["index"])),
+             None)
+    if m is None:
+        raise RuntimeError(f"desmap: no map {found['level']} #{found.get('index')} in the data")
     return m, found
 
 
@@ -554,8 +557,9 @@ def show(s=None, names=None) -> str:
     m, f = _current(s, names)
     lay = layout(s, names)
     secret = sorted(c for c, ch in lay.items() if ch == "S")
-    lines = [f"{m['level']} (map {m['index']}, from {m['file']}) at offset ({f['ox']},{f['oy']}), "
-             f"match {f['good']} good / {f['bad']} bad"]
+    # (a placement remembered from a certain level / an older harness has no match counts: p3 shift 15 #1076)
+    lines = [f"{m['level']} (map {m['index']}, from {m['file']}) at offset ({f['ox']},{f['oy']})"
+             + (f", match {f['good']} good / {f['bad']} bad" if "good" in f and "bad" in f else "")]
     for ft in features(s, names):
         detail = ft["detail"] or ("a staircase or portal to another dungeon branch (overview() names it)"
                                   if ft["kind"] == "branch" else "")

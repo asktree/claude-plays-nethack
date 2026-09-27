@@ -868,7 +868,8 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
     ctx.require_command("throw()")
     if _refuse_friendly_fire("throw", direction, ray=False, force=force):
         return ctx.last()
-    target = _first_in_line(direction) if not force else None
+    first = _first_in_line(direction)
+    target = first if not force else None
     if target is not None and not (target.get("tame") or target.get("pet")):
         from .items import inventory
         it = next((i for i in inventory() if i["letter"] == item), None)
@@ -890,7 +891,22 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
             ctx.do("<Esc>", quiet=True)
         ctx.pause(f"throw: expected 'In what direction?', got {s.state.kind}: {s.state.prompt!r}")
         return ctx.last()
-    return ctx.do(direction, ok=THROW_OK, force=force)
+    s = ctx.do(direction, ok=THROW_OK, force=force)
+    if first is not None and first.get("peaceful") and not first.get("tame") and s.state.kind == "command":
+        # a treat thrown at a peaceful domestic animal can tame it without a word (p3 shift 15 #1163: a candy bar
+        # in the dark; the label stayed "peaceful"): look at it again, wherever it moved
+        now = next((m for m in s.monsters or [] if first.get("id") is not None and m.get("id") == first["id"]),
+                   None) or next((m for m in s.monsters or [] if (m["x"], m["y"]) == (first["x"], first["y"])), None)
+        if now is not None:
+            from .nav import farlook
+            try:
+                d = farlook(now["x"], now["y"])
+            except Exception:  # noqa: BLE001  (a look is a courtesy)
+                d = ""
+            if d:
+                print(f"throw: the monster at ({now['x']},{now['y']}) now looks like: {d}")
+            s = ctx.last()
+    return s
 
 
 class WandEmpty(RuntimeError):

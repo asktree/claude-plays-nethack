@@ -1472,6 +1472,9 @@ def test_price_id_learns_a_lowballing_shopkeeper(monkeypatch):
     assert both == {60, 80}                                   # an unknown shopkeeper: either rate
     low = {b for _n, b in info.price_id("SCROLL_CLASS", sell=30, exclude_known=False)}
     assert low == {80}                                        # Wonotobo lowballs: base 80 only
+    # p3 shift 15 #998: 75 for a STACK of 2 — the whole stack is priced (200/2, less a quarter): base 100
+    stack = {b for _n, b in info.price_id("SCROLL_CLASS", sell=75, exclude_known=False, qty=2)}
+    assert stack == {100}
 
 
 
@@ -3537,3 +3540,108 @@ def test_kick_test_tells_a_loadstone_from_a_stone_that_slides(monkeypatch):
         g._guard(s2, b",", False)
     g.kicked_stones[key].add((11, 5))
     g._guard(s2, b",", False)                   # no refusal now
+
+
+def test_head_to_weighs_the_walk_to_a_frontier_too(monkeypatch):
+    # p2 shift 32 #1883/#1920: in a maze, the frontier nearest the target in a straight line was a dead end the
+    # long way round; head_to() hopped between such frontiers for 46 legs
+    import pytest
+    from tactics import ctx, explore
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {5: " " * 10 + "......|"}
+    for y in range(6, 12):
+        rows[y] = " " * 10 + "." + " " * 17 + "."
+    rows[12] = " " * 10 + "." * 19
+    s = _snap(rows, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(explore, "screen_frontiers", lambda s=None: [(28, 6), (15, 5)])
+    went = []
+
+    def fake_travel(x, y, **kw):
+        went.append((x, y))
+        return s
+    monkeypatch.setattr("tactics.nav.travel", fake_travel)
+    with pytest.raises(explore.NavError):
+        explore.head_to(30, 5, max_legs=1)
+    assert went == [(15, 5)]                # 5 steps + 15 to go, not 29 steps + 2
+
+
+def test_a_hole_a_monster_digs_is_remembered():
+    # p2 shift 32 #1080: "The elf-lord has made a hole in the floor." — under a food pile its '^' never showed
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    elf = {"x": 39, "y": 7, "ch": "@", "desc": "Woodland-elf lord"}
+    elf = dict(elf, desc="elf-lord")
+    before = _snap({7: " " * 38 + ".%."}, (30, 7), [elf])
+    after = _snap({7: " " * 38 + ".%."}, (30, 7), [])
+    for s in (before, after):
+        s.status = Status(ok=True, ldesc="Dlvl:47", turn=900)
+    g._note_monster_hole(before, after, ["The elf-lord zaps a wand of digging!",
+                                         "The elf-lord has made a hole in the floor.", "The elf-lord falls through..."])
+    key = g.level_key(after.status)
+    assert (39, 7) in g.traps[key] and g.feature_desc[key][(39, 7)] == "hole"
+
+
+def test_walk_path_replans_once_when_a_squeeze_is_refused(monkeypatch):
+    # p3 shift 15 #601-#608: go_up()'s 40-step own route died on one diagonal squeeze between rock ("You are
+    # carrying too much to get through.") — the pack is over 600: re-plan without squeezes and go on
+    from tactics import ctx, nav
+    from tactics.mapview import KEY_DIR
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {3: " " * 9 + "###", 4: " " * 9 + "# #", 5: " " * 9 + "#"}
+    cur = {"s": _snap(rows, (10, 5), []), "refused": False}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    keys = []
+
+    def fake_do(k, **kw):
+        keys.append(k)
+        h = cur["s"].hero
+        if k == "u" and h == (10, 5):
+            s = _snap(rows, h, [])
+            s.messages = ["You are carrying too much to get through."]
+        else:
+            dx, dy = KEY_DIR[k]
+            s = _snap(rows, (h[0] + dx, h[1] + dy), [])
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(ctx, "do", fake_do)
+    s = nav.walk_path([(11, 4)])
+    assert s.hero == (11, 4) and keys[0] == "u" and len(keys) > 2
+
+
+def test_desmap_show_without_match_counts(monkeypatch):
+    # p3 shift 15 #1076: show() raised KeyError 'good' on a remembered Minetown placement
+    from tactics import ctx, desmap
+    g = _G()
+    g.desmap_ids = {"L": {"level": "minetn-5", "index": 0, "ox": 2, "oy": 1}}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "   ....@"}, (7, 5), [])
+    out = desmap.show(s)
+    assert out.startswith("minetn-5 (map 0") and "offset (2,1)" in out
+
+
+def test_throw_looks_again_at_a_peaceful_target(monkeypatch):
+    # p3 shift 15 #1163: a candy bar thrown at a peaceful little dog in the dark tamed it without a message; the
+    # monster list said "peaceful" until an explicit farlook
+    from nh.parse import State
+    from tactics import combat, ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    dog = {"x": 13, "y": 5, "ch": "d", "desc": "peaceful little dog", "peaceful": True, "id": 7, "dist": 3}
+    base = _snap({5: "          @.....d"}, (10, 5), [dog])
+    obj, dirn = _snap({}, (10, 5), [dog]), _snap({}, (10, 5), [dog])
+    obj.state, dirn.state = State("object", prompt="What do you want to throw? [$ab or ?*]"), \
+        State("direction", prompt="In what direction?")
+    moved = _snap({5: "          @......d"}, (10, 5), [dict(dog, x=14)])
+    frames = {"t": obj, "d": dirn, "l": moved}
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    looked = []
+    monkeypatch.setattr(nav, "farlook", lambda x, y: looked.append((x, y)) or "d  dog (tame little dog)")
+    combat.throw("d", "l", force=True)
+    assert looked == [(14, 5)]                  # where the same monster (id 7) is now

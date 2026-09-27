@@ -519,6 +519,13 @@ def test_monster_trap_messages():
     for m in ["You fall into a pit!", "A gush of water hits you!", "There is a pit here.",
               "The kitten misses the rock mole."]:
         assert not MON_TRAP_RE.search(m), m
+    # p3 shift 14 #551: a search found a land mine under a scroll — its square is re-read from #terrain
+    from nh.tracker import FOUND_TRAP_RE
+    for m in ["You find a land mine.", "You find a sleeping gas trap.", "You find an anti-magic field.",
+              "You find a trap door."]:
+        assert FOUND_TRAP_RE.search(m), m
+    for m in ["You find a hidden door.", "You find a hidden passage.", "You find a lamp."]:
+        assert not FOUND_TRAP_RE.search(m), m
 
 
 def test_guard_still_climb():
@@ -1274,3 +1281,44 @@ def test_remembered_door_under_a_gas_cloud_stays_a_feature():
     assert any((f["x"], f["y"]) == (14, 5) and f["name"].startswith("door (remembered") for f in feats)
     s.feature_mem = {}
     assert not any(f["name"].startswith("door (remembered") for f in features_in_view(s))
+
+
+def test_bare_y_or_n_at_a_paranoid_prompt_types_the_word():
+    # p2 shift 32 #118-#129: "Continue eating? (yes) [no]" is a text prompt (paranoid_confirmation:eat); a bare
+    # 'n' was typed into it ("nnnnnnnnn") and the prompt stayed open
+    import pytest
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify, parse_status
+    g = Game(term=None, timing=Timing.local())
+    base = {5: " " * 10 + "@", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    q = "Continue eating? (yes) [no] "
+
+    def at_prompt(typed=""):
+        rows = dict(base)
+        rows[0] = q + typed
+        scr = mk(rows, cursor=(len(q + typed), 0))
+        return Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    g.last = at_prompt()
+    assert g.last.state.kind == "yn" and g.last.state.choices == "yes/no"
+    sent, typed = [], {"t": ""}
+
+    def fake_send(data):
+        sent.append(data)
+        if data.endswith(b"\r") or typed.get("done"):
+            typed["done"] = True
+            rows = dict(base)
+            rows[0] = "You stop eating."
+            scr = mk(rows, cursor=(10, 5))
+            return Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+        typed["t"] += data.decode()
+        return at_prompt(typed["t"])
+    g.send_bytes = fake_send
+    s = g.step("n")
+    assert b"".join(sent).startswith(b"no\r") and s.state.kind == "command"
+    # 'y' at "Continue eating?" is still refused by the choking guard (the word's first letter is checked)
+    g.last = at_prompt()
+    sent.clear()
+    typed.update(t="", done=False)
+    with pytest.raises(PermissionError, match="continue eating"):
+        g.step("y")
+    assert sent == []

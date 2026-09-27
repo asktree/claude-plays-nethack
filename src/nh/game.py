@@ -386,6 +386,9 @@ def _detect_browse(lines, top: str = "") -> bool:
     return not any(n in top for n in _NOT_BROWSE) and any(_DETECT_BROWSE.search(ln) for ln in lines)
 
 
+_PARANOID = re.compile(r"\(yes\) \[no\]|\[yes/no\]")     # a paranoid_confirmation prompt (typed answer)
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
@@ -450,6 +453,7 @@ class Game:
         self.wand_users: dict[str, dict] = {}    # level -> {monster name: {"kind", "wand", "turn"}} (_note_wand_zaps)
         self.held_trap = ""                       # "bear trap" while it holds you (_note_held)
         self.kicked_stones: dict[str, set] = {}   # level -> squares where a gray stone kick_test() slid landed
+        self.unknown_buc: list[str] = []          # inventory(): items whose B/U/C isn't known ("w (a ring ...)")
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -747,6 +751,29 @@ class Game:
                           "a wand ray came at you") + (f" — a WAND OF {kind.upper()}" if kind else
                                                        " (what it does isn't known yet)")
         snap.wand_kind = kind
+
+    # muse.c MUSE_WAN_DIGGING: a fleeing monster digs a hole under itself and falls through
+    _MON_HOLE = re.compile(r"^(?:The |An? )?(?P<n>[\w' -]+?) has made a hole in the [\w ]+\.$")
+
+    def _note_monster_hole(self, cur: Snap, snap: Snap, messages: list[str]) -> None:
+        """Remember the hole a monster just dug where it stood (p2 shift 32 #1080: a food pile hid its '^'):
+        a known trap (a way down, a square to avoid) on this level."""
+        if cur is None or not snap.status.ok:
+            return
+        from .danger import base_name
+        for m in messages:
+            mm = self._MON_HOLE.search(m)
+            if not mm:
+                continue
+            name = mm.group("n").strip().lower()
+            was = [x for x in cur.monsters or [] if base_name(x.get("desc") or "").lower() == name]
+            gone = [x for x in was if not any((y["x"], y["y"]) == (x["x"], x["y"]) for y in snap.monsters or [])]
+            pick = gone if len(gone) == 1 else was if len(was) == 1 else []
+            if pick:
+                key = self.level_key(snap.status)
+                c = (pick[0]["x"], pick[0]["y"])
+                self.traps.setdefault(key, set()).add(c)
+                self.feature_desc.setdefault(key, {})[c] = "hole"
 
     _HELD_RE = re.compile(r"^(?:A|Your) bear trap closes on your |^You are caught in a bear trap")
 
@@ -1458,6 +1485,11 @@ class Game:
             if cur is None or (self.term is not None and self.term.raw_size() != self._settled_raw):
                 cur = self.capture()      # output arrived since we last looked: decide on the real screen
             kind = cur.state.kind
+            if data in (b"y", b"Y", b"n", b"N") and kind in ("yn", "getlin") and _PARANOID.search(cur.state.prompt or ""):
+                # paranoid_confirmation (our rc: quit attack wand-break eat pray Remove Were-change) makes these a
+                # TEXT prompt "... (yes) [no]": a bare y/n is typed into it and leaves it open (p2 shift 32 #118-#129:
+                # "Continue eating?" collected "nnnnnnnnn"). Type the word; the guards still see its 'y'.
+                data = b"yes\r" if data in (b"y", b"Y") else b"no\r"
             if not force and data:
                 if kind == "dead":
                     raise PermissionError("the game process has exited (terminal dead): nothing to send. "
@@ -1612,6 +1644,7 @@ class Game:
                     self._note_wield(messages)
                     self._note_wand_zaps(snap, messages)
                     self._note_held(cur, snap, messages)
+                    self._note_monster_hole(cur, snap, messages)
                     self._note_used_up(cur, data)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)

@@ -714,7 +714,7 @@ def head_to(x: int, y: int, max_legs: int = 30):
     path exists, travel() the rest. Each leg is a travel() (pauses, auto-fight
     and the never-attack rules as usual). Returns the final snap; NavError when
     no reachable frontier is left or after max_legs."""
-    from .mapview import bfs_path, dist
+    from .mapview import _bfs_dist, bfs_path, dist, is_walkable
     from .nav import engulfed_check, travel
     target = (x, y)
     tried: set = set()
@@ -728,12 +728,16 @@ def head_to(x: int, y: int, max_legs: int = 30):
             return s
         if bfs_path(s, s.hero, target, allow_monsters=True) is not None:
             return travel(x, y)
-        fr = [c for c in screen_frontiers(s) if c not in tried and c != s.hero
-              and bfs_path(s, s.hero, c, allow_monsters=True) is not None]
+        cur = s
+        steps = _bfs_dist(s, s.hero, lambda c: is_walkable(cur, *c, allow_monsters=True))
+        fr = [c for c in screen_frontiers(s) if c not in tried and c != s.hero and c in steps]
         if not fr:
             raise NavError(f"head_to{target}: no reachable frontier left (tried {len(tried)}) — search for "
                            "hidden passages, dig, or pick another target")
-        best = min(fr, key=lambda c: (dist(c, target), dist(c, s.hero)))
+        # A*-like: the walk there plus the straight line on. The frontier nearest the target alone is, in a maze,
+        # often a dead end reached the long way, and hopping between such frontiers walked p2 (shift 32
+        # #1883/#1920) 46 legs round in circles
+        best = min(fr, key=lambda c: (steps[c] + dist(c, target), dist(c, target)))
         tried.add(best)
         ctx.activity(f"head_to{target}: leg {_leg + 1} to frontier {best}")
         try:

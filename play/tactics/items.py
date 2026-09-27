@@ -75,6 +75,9 @@ def inventory():
                                     and not re.search(r"\bBook of the Dead\b", it["text"])]
         ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
         ctx.game.punished = any("(chained to you)" in it["text"] for it in items)   # objnam.c: ball and chain
+        # (our rc: !implicit_uncursed — a known B/U/C always shows): a curse spell can only have hit these
+        ctx.game.unknown_buc = [f"{it['letter']} ({it['text'][:40]})" for it in items if it["class"] != "Coins"
+                                and not re.search(r"\b(?:un)?cursed\b|\bblessed\b", it["text"])]
         _refresh_burn_note()
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line

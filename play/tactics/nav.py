@@ -393,9 +393,11 @@ def _check_free(s, cell, who: str):
                                         "fight() it if it's hostile and safe to melee, wait, or go around."))
 
 
-def walk_path(path, ok=None):
+def walk_path(path, ok=None, _replanned: bool = False):
     """Walk a list of cells one step at a time, verifying each arrival.
-    Never steps onto a monster (NavError instead; pets swap places)."""
+    Never steps onto a monster (NavError instead; pets swap places). A diagonal
+    squeeze between rock refused for a pack over 600 re-plans to the last cell
+    once without squeezes (the planners avoid them from then on)."""
     s = ctx.last()
     for cell in path:
         h = s.hero
@@ -426,7 +428,16 @@ def walk_path(path, ok=None):
             if s.state.kind == "command" and s.hero == h and any(
                     m.startswith(("You are carrying too much to get through", "You try to squeeze")) for m in
                     s.messages or []):
-                # hack.c test_move(): no diagonal squeeze between rock/boulders over 600 weight
+                # hack.c test_move(): no diagonal squeeze between rock/boulders over 600 weight (p3 shift 15
+                # #601: go_up()'s 40-step route died on one): the game has set no_squeeze — re-plan once
+                s.no_squeeze = True
+                goal = tuple(path[-1])
+                alt = None if _replanned else bfs_path(s, h, goal, avoid=frozenset(bad_squares(s) - {goal}),
+                                                       allow_monsters=False, allow_pets=True)
+                if alt:
+                    print(f"walk_path: no diagonal squeeze between rock with this pack (over 600) — re-planned "
+                          f"{len(alt)} steps to {goal}")
+                    return walk_path(alt, ok, _replanned=True)
                 raise NavError(f"walk_path: can't squeeze diagonally from {h} to {cell} ({s.messages[-1]!r}) — "
                                "drop heavy things (the pack is over 600) or take another way")
             return s

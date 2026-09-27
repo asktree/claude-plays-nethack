@@ -166,6 +166,13 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
     r"^You hear a crunching sound\.",                    # mon.c meatmetal(): a metal-eater (rust monster, xorn)
     r"^You feel that monsters are aware of your presence\.",   # mcastu.c aggravation: once per level is news
+    # monmove.c: a mind flayer more than 13 squares away blasted (no effect there): one is on this level
+    r"^You sense a faint wave of psychic energy\.$",
+    # priest.c intemple(): each entry into a temple (p3 shift 15: every trip through Minetown's temple paused);
+    # the Sanctum's own lines still pause every time
+    r'^"?Pilgrim, you enter a (?:sacred|desecrated) place!"?$', r"^You have a(?: strange)? forbidding feeling\.\.\.$",
+    r"^You experience (?:a|an unusual) sense of peace\.$", r"^You have an eerie feeling\.\.\.$",
+    r"^You feel like you are being watched\.$", r"^A shiver runs down your [\w ]+\.$", r"^[\w' -]+ intones:$",
     # hack.c check_special_room(): said once per room (it turns into an ordinary room); the game records the
     # room (special_rooms) and the step's SPECIAL ROOM reason pauses for each new one
     r"^You enter an opulent throne room!", r"^You enter a leprechaun hall!", r"^You enter a giant beehive!",
@@ -624,10 +631,14 @@ class Kernel:
                              "You feel a malignant aura surround you")) for m in snap.messages):
             # sit.c rndcurse() (mcastu.c MGC_CURSE_ITEMS; wizard.c intervene() after the Wizard's death): some
             # items are cursed now (fewer with MR: "malignant aura")
+            sus = list(getattr(self.game, "unknown_buc", None) or [])
             reasons.insert(0, "CURSED ITEMS — a curse hit you: inventory() marks 'cursed' only on items whose "
                               "B/U/C you knew; the others may be cursed too (test on an altar, or watch for a "
                               "welded weapon / armor that won't come off; a cursed bag of holding loses items "
-                              "when opened)")
+                              "when opened)" + (
+                                  ". Suspects (B/U/C unknown at the last inventory()): " + ", ".join(sus[:14])
+                                  + (f" (+{len(sus) - 14} more)" if len(sus) > 14 else "") if sus else
+                                  ". Run inventory(): only the items without a B/U/C shown can have been hit"))
         bash = next((m for m in snap.messages if m.startswith("You begin bashing monsters with ")), None)
         if bash:
             # uhitm.c: the first blow with something that isn't a proper weapon (a pick-axe applied to dig,

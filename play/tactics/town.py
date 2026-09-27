@@ -132,9 +132,11 @@ def sell_offer(letter: str) -> dict:
     msgs = pickup()                           # the square was empty: everything here is yours
     qty = re.match(r"^(\d+) ", re.sub(r"^[a-zA-Z$] - ", "", it["text"]))
     n = int(qty.group(1)) if qty else 1
-    per = offer // n if offer is not None and offer % n == 0 else (offer if n == 1 else None)
+    per = (offer // n if offer % n == 0 else round(offer / n, 1)) if offer is not None else None
     klass = next((k for w, k in _CLASS_OF if re.search(rf"\b{w}s?\b", it["text"])), None)
-    cands = price_id(klass, sell=per, shk=shk) if (klass and per and not re.search(r"\bof\b", it["text"])) else []
+    # (the shopkeeper prices the whole stack: p3 shift 15 #998 got "75 for 2 ... (None each)")
+    cands = price_id(klass, sell=offer, shk=shk, qty=n) if (klass and offer and not re.search(r"\bof\b", it["text"])) \
+        else []
     print(f"sell_offer({letter}): " + (f"{shk} offers {offer} for {it['text']}" + (f" ({per} each)" if n > 1 else "")
                                        + (f" — base price candidates: {cands}" if cands else "")
                                        if offer is not None else f"no offer ({' | '.join(texts)[:120]})")

@@ -497,7 +497,10 @@ def rest_on_elbereth(turns: int = 100, until_hp: int | None = None, burst: int =
 
 # do_wear.c Blindf_on()/Blindf_off(), on_msg()/off_msg()
 _BLINDF_OK = [r"^You are now wearing ", r"^You can't see any more\.", r"^You were wearing ",
-              r"^You can see again\.", r"^You still cannot see\.", r"^You can see!"]
+              r"^You can see again\.", r"^You still cannot see\.", r"^You can see!",
+              # monmove.c: a mind flayer's blast from more than 13 squares off does nothing (p2 shift 32: the
+              # scan stopped at its put-on step); the census lists the flayer anyway
+              r"^You sense a faint wave of psychic energy\.$"]
 
 
 def _scan_watch_list(mons: list, s) -> list:

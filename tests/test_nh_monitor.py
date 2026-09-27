@@ -817,7 +817,12 @@ def test_kernel_wrap_attempt_curse_and_filter_validation():
     s = snap({}, 11)
     s.messages = ["The Wizard of Yendor casts a spell!", "You feel as if you need some help."]
     k._check_events(snap({}, 10), s)
-    assert reasons and reasons[-1].startswith("CURSED ITEMS")
+    assert reasons and reasons[-1].startswith("CURSED ITEMS") and "Run inventory()" in reasons[-1]
+    # p2 shift 32 #1127: name the suspects — only items whose B/U/C wasn't known can have been hit
+    reasons.clear()
+    g.unknown_buc = ["w (a ring of levitation)", "t (a candelabrum (no candles attached))"]
+    k._check_events(snap({}, 10), s)
+    assert "Suspects" in reasons[-1] and "w (a ring of levitation)" in reasons[-1]
     with pytest.raises(TypeError, match="predicate"):
         with k.ns["monster_filter"]("killer bee"):
             pass
@@ -1220,3 +1225,20 @@ def test_peaceful_self_buffs_are_routine():
     b.monsters = [dict(gnome, desc="gnome", peaceful=False)]
     k._check_events(b, a)
     assert reasons                                        # a hostile turning invisible is news
+
+
+def test_temple_entry_and_far_psychic_wave_pause_once_per_level():
+    # p3 shift 15 #759/#1153: every entry into Minetown's temple paused travel; p2 shift 32: a far mind flayer
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    for msgs in (['"Pilgrim, you enter a sacred place!"', "You have a strange forbidding feeling..."],
+                 ["You sense a faint wave of psychic energy."]):
+        for turn in (40, 90):
+            b, a = snap({}, turn - 1), snap({}, turn)
+            a.messages = list(msgs)
+            k._check_events(b, a)
+        assert len(reasons) == 1, (msgs, reasons)
+        reasons.clear()

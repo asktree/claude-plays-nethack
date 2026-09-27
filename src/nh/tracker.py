@@ -44,6 +44,13 @@ NOTABLE_TRAPS = ("trap door", "hole", "level teleporter", "magic portal")
 
 # a monster in view set off / got caught in a trap (trap.c mintrap): the game now
 # knows that trap, but the monster (or what it drops) may hide the '^' — re-read #terrain
+# detect.c find_trap(): a search found a trap next to you — which square isn't said, and an object lying on it
+# hides its '^' (p3 shift 14 #551: a scroll on a land mine; travel's last step walked onto it): re-read #terrain
+FOUND_TRAP_RE = re.compile(
+    r"^You find an? (?:arrow trap|dart trap|falling rock trap|squeaky board|bear trap|land mine|rolling boulder "
+    r"trap|sleeping gas trap|rust trap|fire trap|pit|spiked pit|hole|trap door|teleportation trap|level "
+    r"teleporter|magic portal|web|statue trap|magic trap|anti-magic field|polymorph trap)\.")
+
 MON_TRAP_RE = re.compile(
     r"(?:falls|tumbles) into (?:a|an|your) pit|is caught in (?:a|an|your) (?:bear trap|spider web)|"
     r"evades (?:a|an|your) bear trap|tears through (?:a|an|your) spider web|avoids (?:a|an|your) spider web|"
@@ -69,6 +76,7 @@ class Tracker:
         self._refreshing = False
         self.scanned: set[str] = set()     # level keys whose traps were read via #terrain this session
         self._refit: set = set()           # (level, cell, old name) trap names dropped for a misfitting colour
+        self._found_trap = None            # (name, hero square) of the last "You find a <trap>." (a search)
         if self.state.get("intrinsics") is not None and hasattr(game, "intrinsics"):
             game.intrinsics = set(self.state["intrinsics"])
         # restore level identity and per-level trap/avoid memory
@@ -167,7 +175,11 @@ class Tracker:
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
             self.need_overview = True
-        if st.ok and any(MON_TRAP_RE.search(m) or Game._INVOKED.search(m) for m in snap.messages):
+        found = next((mm for mm in (FOUND_TRAP_RE.search(m) for m in snap.messages) if mm), None)
+        if found and snap.hero is not None:
+            self._found_trap = (found.group(0)[len("You find "):].rstrip(".").split(" ", 1)[1], snap.hero)
+        if st.ok and any(MON_TRAP_RE.search(m) or FOUND_TRAP_RE.search(m) or Game._INVOKED.search(m)
+                         for m in snap.messages):
             # (the invocation rebuilds the area around the new stairs: a ring of fire traps, a moat)
             self.scanned.discard(self.game.level_key(st))
             self.need_overview = True        # the refresh re-reads this level's traps
@@ -380,7 +392,14 @@ class Tracker:
             self.game.last = saved
             if found is not None:
                 self.scanned.add(key)
+                old = set(self.game.traps.get(key, ()))
                 self.game.traps.setdefault(key, set()).update(found["traps"])
+                name, at = getattr(self, "_found_trap", None) or (None, None)
+                self._found_trap = None
+                new = [c for c in set(found["traps"]) - old
+                       if at is not None and max(abs(c[0] - at[0]), abs(c[1] - at[1])) <= 1]
+                if name and len(new) == 1 and hasattr(self.game, "feature_desc"):
+                    self.game.feature_desc.setdefault(key, {})[new[0]] = name     # "You find a land mine."
                 if hasattr(self.game, "merge_terrain"):
                     self.game.merge_terrain(key, found, getattr(snap, "hero", None))
                 else:

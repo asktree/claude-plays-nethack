@@ -7,6 +7,7 @@ helpers so they're available directly inside `nh exec`.
 import re  # noqa: F401,E402  (for the player's own loops: p1 shift 31 hit a NameError)
 
 import tactics.ctx as _ctx
+ctx = _ctx            # (the helpers' own handle: ctx.do / ctx.last() work in scripts too — p2 shift 32 #13)
 
 _ctx.do = do          # noqa: F821  (provided by the kernel namespace)
 _ctx.look = look      # noqa: F821
