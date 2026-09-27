@@ -266,3 +266,11 @@ T:15890-15924 DL21 GRAVEYARD — telepathy_scan: 2 mariliths (64,4), (70,8), 5 g
 T:15924 DL21 — read A (identify): E = WAND OF MAKE INVISIBLE (0:8) (useless to me).
 T:15925-15926 DL21 — read both ENCHANT WEAPON (BUC unknown, merged): "glows blue for a moment" twice -> EXCALIBUR +6; the 2nd read at +5 is safe (wield.c: evaporation only when spe > 5 BEFORE the read); "Excalibur suddenly vibrates unexpectedly" = now above +5: NEVER enchant it again.
 T:15944 DL21 — END OF SHIFT 16 on the up stairs (39,18): HP 142/142, XL13 (Exp 49340), AC-7, Excalibur +6, not hungry, Luck ~+3, never prayed. Nothing awake in view.
+
+## Shift 17
+T:15944-15998 — D21 -> D20 -> D19; picked up a potion of object detection at the level-teleporter door (32,20).
+T:15998 DL19 — stepped on the LEVEL TELEPORTER (32,21) with ring k: "To what level?" 16 -> D16 portal room (50,6). The teleporter is used up.
+T:16019 DL16 — lawful altar (58,18) BUC test: B CLEAR POTION = BLESSED = HOLY WATER; y light = blessed; x charging = UNCURSED; D (VE FORBRYDERNE, merged into K), C sky blue, I brilliant blue, 2 KIRJE, wand of light, all food = uncursed; one potion of object detection CURSED (Y), the other uncursed (L); candles: 2 cursed (d), 1 blessed, 3 uncursed.
+T:16021 DL16 — quaffed L (object detection): the VAULT is the 2x2 at (2-3,18-19) (SW corner); nothing else of value on the level (no armor/amulets/rings/wands). Minetown's lighting shop had NO magic lamp (checked T:4003: oil lamps only), so plan item 2 is out.
+T:16058-16090 DL16 — tunnel(3,18) from the start room (3,8) straight south (dwarf: ~3 turns per rock square). A LONG WORM was inside the vault: killed (I was still wielding the pick-axe after a dropped tunnel exec: 1 bash). Took the 4 piles: $3048 -> bag total $4845 (protection at XL13 costs 5200: 355 short).
+T:16116-16134 DL16 — killed 2 rothes, a MONKEY (next to the Odin priestess), a lizard (4th lizard corpse, w). Dug into the iron-barred niche (18,5) above the temple: a scroll of teleportation (uncursed on the Odin altar -> G, now 4).
