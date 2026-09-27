@@ -57,6 +57,28 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 - Don't let a far-away travel target burn dozens of turns (use `travel(x, y, max_dist=N)`), and check that
   a target square isn't shop stock before "fetching" it.
 
+## A3. Poison, unknown items, genocide (checked in the 3.6.7 source)
+- **Poison can kill outright until you have poison resistance.** Every poisonous hit (soldier ant and
+  killer bee stings, centipede and giant spider bites...) poisons 1 time in 8, and a poisoning is instantly
+  fatal 1 time in 30 ("The poison was deadly..."); every poisoned dart/arrow that hits: 1 in 30. So avoid
+  long melees with killer bee swarms and soldier ants before you're resistant; fight them in a corridor,
+  kill fast, use Elbereth. Get poison resistance early: eat killer bee / soldier ant / scorpion corpses
+  (check `corpse(...)`; each gives it only with some chance), or a ring of poison resistance.
+- **Unknown scrolls**: price-identify first. Read-test only at full HP, no monsters in view, not in a shop,
+  not Confused, with nothing on the floor you care about. Blessed/uncursed genocide is the jackpot; an
+  unknown scroll can also be amnesia (you forget the map and identities — note them in state.md first),
+  fire, punishment, teleportation, create monster.
+- **Genocide answers** (as a *dwarf*): **never `h`, never "dwarf", never `@` / "human"** (h includes
+  dwarves = you → you die; @ includes the quest leader and every shopkeeper and priest → quest impossible).
+  Uncursed (one species): "master mind flayer", then "mind flayer". Blessed (a whole class): `L` (liches),
+  then `;` (sea monsters: eels drown you). A *cursed* scroll creates the monsters instead: answer with
+  something harmless ("lichen").
+- **Unknown potions**: don't drink-test while monsters are near (sleeping, blindness, hallucination) or
+  while Burdened on dangerous levels. Dip-test and price-ID instead where possible; never quaff from a
+  fountain for fun (water moccasins, nymphs, demons).
+- **Unknown rings/amulets**: never put on (teleportitis, hunger, levitation you can't remove if cursed;
+  amulet of strangulation kills in 6 turns — remove it at once, prayer fixes it).
+
 ## B. Character facts
 - Valkyrie: +1 long sword (a), +0 dagger (b), +3 small shield (c), food ration; intrinsic **cold
   resistance** and **stealth**; **speed at XL7**. Strong melee. `#enhance` when told you're more confident.
