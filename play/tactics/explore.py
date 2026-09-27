@@ -193,7 +193,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
     stuck = 0
 
     def result(reason):
-        return {"reason": reason, "legs": legs, "unreachable": unreachable, "locked": locked,
+        now = ctx.last()
+        # (a door that has opened since — unlocked, kicked, or opened by a monster — isn't locked any more)
+        still = [d for d in locked if now is None or now.screen.at(*d) == "+"]
+        return {"reason": reason, "legs": legs, "unreachable": unreachable, "locked": still,
                 "avoided": why["avoided"], "boulders": boulders_hit + [b for b in _boulder_leads()
                                                                         if b not in boulders_hit]}
 
@@ -218,14 +221,24 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             # a trapped closet is one square with nothing behind it: not a frontier worth reporting
             why["avoided"] = [c for c in why["avoided"] if c not in niches]
         if why["avoided"]:
-            bad = sorted(bad_squares())
+            from .nav import special_room_zone
+            zone = special_room_zone()
+            in_room = [c for c in why["avoided"] if c in zone]
+            others = [c for c in why["avoided"] if c not in zone]
+            bad = sorted(c for c in bad_squares() if c not in zone)
             fd = getattr(ctx.last(), "feature_desc", None) or {}
             minor = [c for c in bad if re.search(r"\b(?:dart|arrow|squeaky board|rust|falling rock|bear) trap\b|"
                                                  r"squeaky board", fd.get(c, ""))]
-            left.append(f"frontiers {why['avoided']} only reachable across avoided squares {bad}"
-                        + (f" — {', '.join(f'{c} {fd[c]}' for c in minor[:3])} is a minor trap: cross it on "
-                           "purpose with travel next to it, then step_onto(x, y) (a bear trap holds you a few "
-                           "turns; a falling rock hurts without a helmet)" if minor else ""))
+            kinds = sorted(set(zone.values()))
+            if others:
+                left.append(f"frontiers {others} only reachable across avoided squares {bad}"
+                            + (f" or the {'/'.join(kinds)} kept out" if kinds else "")
+                            + (f" — {', '.join(f'{c} {fd[c]}' for c in minor[:3])} is a minor trap: cross it on "
+                               "purpose with travel next to it, then step_onto(x, y) (a bear trap holds you a few "
+                               "turns; a falling rock hurts without a helmet)" if minor else ""))
+            if in_room:
+                left.append(f"{len(in_room)} frontier(s) inside the {'/'.join(sorted({zone[c] for c in in_room}))} "
+                            f"(e.g. {in_room[:3]}): kept out while its monsters live — forget_room() to go in")
         if unreachable:
             left.append(f"frontiers {unreachable} travel couldn't reach")
         if why["squeeze"]:
@@ -423,7 +436,19 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             own = bfs_path(ctx.last(), hero, target, avoid=frozenset(bad_squares() - {target}),
                            allow_monsters=False, allow_pets=True)
             if own:
-                s = walk_path(own[:8])
+                try:
+                    s = walk_path(own[:8])
+                except NavError as e:
+                    # (p3 shift 10: "can't squeeze diagonally" with a pack over 600 escaped explore() —
+                    # skip that frontier and name the squeeze in the verdict)
+                    from .mapview import squeeze_steps
+                    sq = squeeze_steps(ctx.last(), own, hero)
+                    why["squeeze"].extend(sq)
+                    if not sq:
+                        print(f"explore: our own route to {target} failed ({e}) — skipping it")
+                    unreachable.append(target)
+                    skip.add(target)
+                    continue
                 if s.hero != hero:
                     stuck = 0
                     continue

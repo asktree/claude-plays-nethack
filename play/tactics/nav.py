@@ -100,15 +100,132 @@ def bad_squares(s=None) -> set:
     """Known trap squares (incl. ones hidden under objects; read from the
     game's own memory via #terrain on each level) + the player's avoid set
     for the current level + mimics (in view, or remembered hiding as an
-    object: obs 'mimics remembered here') and sessile hostiles. All but the
-    ones in view persist across daemon restarts."""
+    object: obs 'mimics remembered here') and sessile hostiles + the special
+    rooms announced here (zoo, anthole, beehive...: special_room_zone(),
+    while you are outside them). All but the ones in view persist across
+    daemon restarts."""
     s = s or ctx.last()
     lv = ctx.game.level_key(s.status)
     from nh.monitor import _stationary
     mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")
               or (not m.get("tame") and not m.get("peaceful") and _stationary(m.get("desc") or ""))}
     mimics |= set(known_mimics(s))
-    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics
+    sessile = getattr(getattr(ctx.game, "tracker", None), "sessile", None) or {}
+    for c, rec in (sessile.get(s.status.ldesc if s.status.ok else "") or {}).items():
+        if not (rec.get("statue") or c == s.hero):
+            mimics.add(c)                # a mold/jelly remembered out of view (p3 shift 10: travel beside one)
+    zone = set(special_room_zone(s))
+    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics | zone
+
+
+# mklev.c create_room(): a random room is at most 14 squares wide and 6 high inside
+_ROOM_W, _ROOM_H = 15, 7
+
+
+def special_room_zone(s=None, outside_only: bool = True) -> dict:
+    """{(x, y): kind} the squares of the special rooms announced on this
+    level (treasure zoo, anthole, beehive, barracks, cockatrice nest, throne
+    room, leprechaun hall, graveyard — NetHack says it only once per room):
+    what's known of its floor, plus blank squares on its side of the entry
+    wall within a room's size, and its doorways. Empty while you stand in it
+    (outside_only), so you can walk out."""
+    s = s or ctx.last()
+    mem = getattr(s, "room_mem", None)
+    if mem is None:
+        store = getattr(ctx.game, "special_rooms", None) or {}
+        mem = store.get(ctx.game.level_key(s.status), {}) if s.status.ok else {}
+    out: dict = {}
+    for entry, info in (mem or {}).items():
+        cells = _room_cells(s, tuple(entry), info.get("prev"))
+        if outside_only and s.hero in cells:
+            continue
+        for c in cells:
+            out.setdefault(c, info.get("kind") or "special room")
+    return out
+
+
+def _room_cells(s, entry, prev) -> set:
+    from .mapview import DIRS4, in_map, is_door, is_wall
+    ex, ey = entry
+
+    def ch(c):
+        return s.screen.at(*c)
+
+    def blocked(c):
+        return is_wall(s, *c) or (ch(c) == "#" and s.screen.color_at(*c) in (7, 8, 15))
+
+    def doorish(c):
+        return is_door(s, *c) or (ch(c) == "." and (
+            (is_wall(s, c[0] - 1, c[1]) and is_wall(s, c[0] + 1, c[1]))
+            or (is_wall(s, c[0], c[1] - 1) and is_wall(s, c[0], c[1] + 1))))
+    # the side of the entry the room lies on: away from where you came from (a doorway in a wall line)
+    axis = sign = None
+    if prev is not None:
+        dx, dy = ex - prev[0], ey - prev[1]
+        vert_wall = is_wall(s, ex, ey - 1) or is_wall(s, ex, ey + 1)
+        horiz_wall = is_wall(s, ex - 1, ey) or is_wall(s, ex + 1, ey)
+        if dx and (vert_wall or not horiz_wall):
+            axis, sign = 0, (1 if dx > 0 else -1)
+        elif dy:
+            axis, sign = 1, (1 if dy > 0 else -1)
+
+    def inside(c):
+        if abs(c[0] - ex) > _ROOM_W or abs(c[1] - ey) > _ROOM_H or not in_map(*c):
+            return False
+        if axis is not None and doorish(entry):
+            d = (c[axis] - entry[axis]) * sign
+            return d > 0 or (d == 0 and doorish(c))       # (on the entry's wall line: only its doorways)
+        return True
+    cells = {entry}
+    if doorish(entry) and axis is not None:
+        seeds = [(ex + (sign if axis == 0 else 0), ey + (sign if axis == 1 else 0))]
+    else:
+        seeds = [c for c in ((ex + dx, ey + dy) for dx, dy in DIRS4) if c != prev]
+    q = [c for c in seeds if inside(c) and not blocked(c)]
+    seen = set(q) | {entry}
+    while q:
+        c = q.pop()
+        if doorish(c) and c not in (entry,):
+            cells.add(c)             # another doorway of the room: part of it, not a way through
+            continue
+        cells.add(c)
+        for dx, dy in DIRS4:
+            n = (c[0] + dx, c[1] + dy)
+            if n in seen or n == prev or not inside(n) or blocked(n):
+                continue
+            seen.add(n)
+            q.append(n)
+    return cells
+
+
+def special_rooms(s=None) -> list:
+    """The special rooms announced on this level: [{'kind', 'entry', 'turn', 'squares'}]."""
+    s = s or ctx.last()
+    mem = getattr(s, "room_mem", None) or (getattr(ctx.game, "special_rooms", {}) or {}).get(
+        ctx.game.level_key(s.status), {})
+    return [{"kind": r.get("kind"), "entry": c, "turn": r.get("turn"),
+             "squares": len(_room_cells(s, tuple(c), r.get("prev")))} for c, r in mem.items()]
+
+
+def forget_room(x: int | None = None, y: int | None = None) -> list:
+    """Stop avoiding a special room (its monsters are dead, or you go in on purpose): the one entered at
+    (x, y), else the one nearest to you. Returns special_rooms()."""
+    s = ctx.last()
+    store = getattr(ctx.game, "special_rooms", None)
+    key = ctx.game.level_key(s.status)
+    rooms = (store or {}).get(key) or {}
+    if not rooms:
+        return []
+    if x is None or y is None:
+        h = s.hero or (0, 0)
+        c = min(rooms, key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
+    else:
+        c = min(rooms, key=lambda c: max(abs(c[0] - x), abs(c[1] - y)))
+    info = rooms.pop(c)
+    print(f"forget_room: no longer avoiding the {info.get('kind')} entered at {c}")
+    if getattr(s, "room_mem", None) is not None:
+        s.room_mem.pop(c, None)
+    return special_rooms()
 
 
 def known_mimics(s=None) -> dict:
@@ -245,6 +362,133 @@ def walk_path(path, ok=None):
                                "drop heavy things (the pack is over 600) or take another way")
             return s
     return s
+
+
+def _lev_drowner_zone(s) -> set:
+    """Squares (water or not) within reach of a drowner seen now or lately: while levitating over water an
+    eel/kraken next to you can still wrap and drown you (mhitu.c AD_WRAP checks only ITS square)."""
+    from nh.danger import base_name
+    turn = s.status.turn if s.status.ok else None
+    seen = [(m["x"], m["y"], 0) for m in s.monsters or [] if not (m.get("tame") or m.get("peaceful"))
+            and base_name(m.get("desc") or "") in DROWNERS]
+    tr = getattr(ctx.game, "tracker", None)
+    if tr is not None and hasattr(tr, "gone") and turn is not None:
+        for r in tr.gone(turn):
+            d = r.get("desc") or ""
+            ago = turn - r.get("turn", turn)
+            if base_name(d) in DROWNERS and 0 <= ago <= EEL_MEMORY and not d.startswith(("tame ", "peaceful ")):
+                seen.append((r["x"], r["y"], ago))
+    out = set()
+    for ex, ey, ago in seen:
+        reach = 1 + (0 if ago == 0 else min(6, 1 + ago // 2))
+        out |= {(ex + dx, ey + dy) for dx in range(-reach, reach + 1) for dy in range(-reach, reach + 1)}
+    return out
+
+
+def _lev_path(s, start, goal, unknown_cost: int = 3, avoid=frozenset()):
+    """Cheapest 8-connected route for a LEVITATING/flying hero: floor, water and lava ('}') cost 1, never-seen
+    squares `unknown_cost` (they may be rock: a failed step says "It's solid stone." and is remembered),
+    walls/closed doors/boulders/trees/bars/traps/monsters/avoided squares blocked; no diagonal steps into or
+    out of doorways or between two known solid squares. Returns the cells after start, or None."""
+    import heapq
+    from .mapview import DIRS8, cell, in_map, is_door, is_walkable
+    bad = (bad_squares(s) | set(avoid)) - {goal}
+    solid = set(getattr(s, "solid_mem", ()) or ())
+    mons = {(m["x"], m["y"]) for m in s.monsters or [] if not (m.get("tame") or m.get("pet") or m.get("statue"))}
+
+    def cost(c):
+        if c in solid or c in bad or (c in mons and c != goal) or not in_map(*c) or not 1 <= c[1] <= 21:
+            return None
+        ch = cell(s, *c)
+        if ch == "}":
+            return 1
+        if ch == " ":
+            return 1 if s.screen.color_at(*c) == 6 else unknown_cost     # (cyan blank: open air)
+        if ch in "0`" or ch == "^":
+            return None
+        return 1 if is_walkable(s, *c, allow_monsters=True) or c == goal else None
+
+    def known_solid(c):
+        ch = cell(s, *c)
+        return c in solid or (ch in "|-" and s.screen.color_at(*c) not in (3, 15)) or (ch == "#" and
+                                                                                     s.screen.color_at(*c) == 2)
+    best = {start: 0}
+    prev = {start: None}
+    q = [(0, start)]
+    while q:
+        d, cur = heapq.heappop(q)
+        if cur == goal:
+            path = [cur]
+            while prev[path[-1]] != start:
+                path.append(prev[path[-1]])
+            return list(reversed(path))
+        if d > best.get(cur, 1 << 30):
+            continue
+        for dx, dy in DIRS8:
+            nxt = (cur[0] + dx, cur[1] + dy)
+            w = cost(nxt)
+            if w is None:
+                continue
+            if dx and dy and (is_door(s, *cur) or is_door(s, *nxt)
+                              or (known_solid((cur[0] + dx, cur[1])) and known_solid((cur[0], cur[1] + dy)))):
+                continue
+            nd = d + w
+            if nd < best.get(nxt, 1 << 30):
+                best[nxt] = nd
+                prev[nxt] = cur
+                heapq.heappush(q, (nd, nxt))
+    return None
+
+
+def levitate_to(x: int, y: int, max_steps: int = 300, near_water: bool = False, unknown_cost: int = 3):
+    """While LEVITATING (or flying): go to (x, y) straight over water/lava and
+    never-seen squares — NetHack's travel plans only over squares you have
+    seen (p2 shift 26: travel on Medusa's level led back to a locked door).
+    Walks 4 checked steps at a time and re-plans (a step into unseen rock is
+    remembered as solid). Keeps 1+ squares away from eels/krakens seen now or
+    lately — their wrap drowns you even while levitating (near_water=True
+    ignores them). Stops (NavError) when levitation ends: over water/lava
+    that is a fall into it, so mind the ring/boots/potion timeout. Returns
+    the final Snap."""
+    s = ctx.require_command("levitate_to()")
+    goal = (x, y)
+    fails = 0
+    for _ in range(max_steps):
+        s = ctx.last()
+        if s.state.kind != "command" or s.hero is None or s.hero == goal:
+            return s
+        conds = set(s.status.conditions) if s.status.ok else set()
+        if not conds & {"Lev", "Fly"}:
+            raise NavError(f"levitate_to{goal}: you are not levitating or flying now (at {s.hero}) — put the "
+                           "ring/boots on or quaff first; on water that means you just fell in")
+        zone = set() if near_water else (_lev_drowner_zone(s) - {s.hero, goal})
+        path = _lev_path(s, s.hero, goal, unknown_cost, avoid=zone)
+        if path is None and zone:
+            wet = _lev_path(s, s.hero, goal, unknown_cost)
+            if wet is not None:
+                raise NavError(f"levitate_to{goal}: the only way passes next to a drowning monster "
+                               f"({sorted(zone & set(wet))[:3]}): its wrap drowns you even while levitating. Kill "
+                               "it, wait for it to move off, or levitate_to(..., near_water=True)")
+        if path is None:
+            raise NavError(f"levitate_to{goal}: no way from {s.hero} over the known map (walls, closed doors, "
+                           "boulders, traps and monsters block; unseen squares count as open)")
+        h0 = s.hero
+        try:
+            s = walk_path(path[:4])
+        except NavError as e:
+            fails += 1
+            if fails >= 4:
+                raise NavError(f"levitate_to{goal}: stuck at {h0}: {e}") from None
+            continue
+        if s.hero == h0:
+            if any(m in ("It's solid stone.", "It's a wall.") for m in s.messages or []):
+                continue            # an unseen square was rock: remembered (solid_mem), the next plan avoids it
+            fails += 1
+            if fails >= 4:
+                raise NavError(f"levitate_to{goal}: no progress from {h0} ({s.messages or 'no message'})")
+        else:
+            fails = 0
+    return ctx.last()
 
 
 def blockers(s=None) -> list:

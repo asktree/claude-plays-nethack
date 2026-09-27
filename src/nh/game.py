@@ -70,6 +70,8 @@ class Snap:
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
+    room_note: str = ""        # set on the step that entered a special room (zoo, anthole, beehive...)
+    room_mem: dict = field(default_factory=dict)    # {(x, y) entry: {"kind", "prev", "turn"}} special rooms here
     mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
 
     def __repr__(self) -> str:
@@ -401,6 +403,7 @@ class Game:
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
         self.niches: dict[str, dict] = {}         # level key -> {(x, y) of a trapped closet: 'teleport'/'trapdoor'}
+        self.special_rooms: dict[str, dict] = {}  # level key -> {(x, y) where you entered: {"kind", "prev", "turn"}}
         self.mimics: dict[str, dict] = {}         # level key -> {(x, y): 'giant mimic'}: mimics seen unmasked,
                                                   # hiding again as objects there (MonsterTracker._note_mimics)
         self.desmap_ids: dict[str, dict] = {}     # level key -> the fixed special-level map placed there (desmap)
@@ -448,7 +451,7 @@ class Game:
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
-                  self.niches, self.mimics, self.desmap_ids):
+                  self.niches, self.mimics, self.desmap_ids, self.special_rooms):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -520,6 +523,42 @@ class Game:
                 and "Blind" not in snap.status.conditions:
             # arriving on a square shows its engraving; none shown = none left (smudged away)
             engr.pop(snap.hero, None)
+
+    # hack.c check_special_room(): said ONCE per room (it becomes an ordinary room right after), so the
+    # harness must remember the room itself — another doorway of it says nothing (p3 shift 10: explore walked
+    # into an anthole through its second doorway)
+    SPECIAL_ROOMS = ((re.compile(r"^Welcome to David's treasure zoo!"), "treasure zoo"),
+                     (re.compile(r"^You enter an opulent throne room!"), "throne room"),
+                     (re.compile(r"^You enter a leprechaun hall!"), "leprechaun hall"),
+                     (re.compile(r"^You have an uncanny feeling\.\.\.|^(?:Run|Fly|Slither|Crawl|Swim|Float|Walk)"
+                                 r" away!  (?:Run|Fly|Slither|Crawl|Swim|Float|Walk) away!"), "graveyard"),
+                     (re.compile(r"^You enter a giant beehive!"), "beehive"),
+                     (re.compile(r"^You enter a disgusting nest!"), "cockatrice nest"),
+                     (re.compile(r"^You enter an anthole!"), "anthole"),
+                     (re.compile(r"^You enter a military barracks!"), "barracks"))
+
+    def _note_special_room(self, snap: Snap, messages: list[str], prev_hero=None) -> None:
+        kind = next((k for p, k in self.SPECIAL_ROOMS for m in messages if p.search(m)), None)
+        if kind is None or snap.hero is None or not snap.status.ok:
+            return
+        key = self.level_key(snap.status)
+        rooms = self.special_rooms.setdefault(key, {})
+        if any(max(abs(c[0] - snap.hero[0]), abs(c[1] - snap.hero[1])) <= 1 and r.get("kind") == kind
+               for c, r in rooms.items()):
+            return
+        rooms[snap.hero] = {"kind": kind, "prev": prev_hero if prev_hero != snap.hero else None,
+                            "turn": snap.status.turn}
+        what = {"treasure zoo": "a room full of SLEEPING monsters on gold",
+                "throne room": "a throne room: a sleeping court (often a ruler) and a throne",
+                "leprechaun hall": "sleeping leprechauns (they steal gold and teleport)",
+                "graveyard": "a graveyard: undead (wraiths, ghosts, zombies, mummies, vampires at depth)",
+                "beehive": "killer bees (poison: Str loss, rarely instadeath) and a queen bee; royal jelly",
+                "cockatrice nest": "COCKATRICES (touch/hiss = stoning) among statues",
+                "anthole": "sleeping ants (soldier ants are deadly early; poison)",
+                "barracks": "sleeping soldiers (armed, many)"}.get(kind, kind)
+        snap.room_note = (f"you entered a {kind} at {snap.hero} ({what}). NetHack says so only ONCE per room: "
+                          "travel/explore now keep out of it (all its known squares and doorways count as avoided "
+                          "while you are outside; special_rooms() lists them, forget_room() lets you in again)")
 
     # mklev.c makeniche(): a closet (one hidden corridor square) behind a SECRET door in a room's top or
     # bottom wall that holds a ONE-TIME trap is marked by a dust engraving on the room square just inside
@@ -1409,6 +1448,7 @@ class Game:
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
+                    self._note_special_room(snap, messages, prev_hero=cur.hero if cur is not None else None)
                     self._note_shop(snap, messages)
                     if (cur.state.kind == "direction" or b"z" in data[:2]) and data[-1:] == b">":
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
@@ -1743,6 +1783,7 @@ class Game:
                 solid.discard(c)            # dug out since (or you stand there)
         snap.solid_mem = set(solid or ())
         snap.niche_mem = dict(self.niches.get(key, {})) if key is not None else {}
+        snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,
     # a fall, or the Amulet's mysterious force (1 in 4 climbs in Gehennom: you land somewhere on a DEEPER level)

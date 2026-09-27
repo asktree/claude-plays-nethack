@@ -159,7 +159,8 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
     r"^You hear a crunching sound\.",                    # mon.c meatmetal(): a metal-eater (rust monster, xorn)
-    # hack.c check_special_room(): every entry says it again while the room keeps its monsters
+    # hack.c check_special_room(): said once per room (it turns into an ordinary room); the game records the
+    # room (special_rooms) and the step's SPECIAL ROOM reason pauses for each new one
     r"^You enter an opulent throne room!", r"^You enter a leprechaun hall!", r"^You enter a giant beehive!",
     r"^You enter a disgusting nest!", r"^You enter an anthole!", r"^You enter a military barracks!",
     r"^Welcome to David's treasure zoo!", r"^You have an uncanny feeling\.\.\.", r"^Run away!  Run away!",
@@ -477,6 +478,8 @@ class Kernel:
             reasons.insert(0, "THEFT — " + snap.theft_note)
         if getattr(snap, "niche_note", ""):
             reasons.insert(0, "TRAPPED CLOSET — " + snap.niche_note)
+        if getattr(snap, "room_note", ""):
+            reasons.insert(0, "SPECIAL ROOM — " + snap.room_note)
         keys = getattr(self, "_last_keys", b"") or b""
         if len(keys) == 1 and chr(keys[0]) in "hjklyubn" and before is not None and before.state.kind == "command" \
                 and any(re.match(r"^You (?:hit|miss|smite|kill|destroy) ", m) for m in snap.messages):

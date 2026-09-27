@@ -534,9 +534,12 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
                     got = ctx.game.describe_cells(need[:150])
                 except Exception:  # noqa: BLE001
                     got = {}
+                tr = getattr(ctx.game, "tracker", None)
                 for m in mons:
                     if not m.get("desc") and (m["x"], m["y"]) in got:
                         m["desc"] = got[(m["x"], m["y"])]
+                        if tr is not None and hasattr(tr, "note_label"):
+                            tr.note_label(m)      # (a peaceful among look-alikes: labels need a look)
         h = s.hero
         from nh.danger import note_for
         xl = s.status.xl if s.status.ok else None

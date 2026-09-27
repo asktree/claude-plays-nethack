@@ -49,6 +49,7 @@ from tactics.items import dip_into, discoveries, read_identify, rub, unlock, wit
 from tactics.items import ID_PRIORITY, piety, write_scroll  # noqa: E402,F401
 from tactics.nav import drowners_adjacent, eel_level, eel_zone, squeaky_boards  # noqa: E402,F401
 from tactics.nav import forget_mimic, known_mimics, remember_mimic  # noqa: E402,F401
+from tactics.nav import forget_room, levitate_to, special_room_zone, special_rooms  # noqa: E402,F401
 from tactics.combat import throw_can_hit  # noqa: E402,F401
 from tactics import desmap  # noqa: E402,F401
 from tactics.survival import burn_elbereth, offer, prayer_verdict, telepathy_scan  # noqa: E402,F401

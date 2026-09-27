@@ -592,6 +592,13 @@ class MonsterTracker:
         if not mem:
             store.pop(key, None)
 
+    def note_label(self, m: dict) -> None:
+        """A monster described outside update() (telepathy_scan's census): record that its glyph comes in
+        this kind on this level, so a peaceful one's look-alikes never inherit labels without a look."""
+        d = _clean(m.get("desc") or "")
+        if d and not m.get("statue") and "statue of" not in d and m.get("ch") is not None:
+            self.mixed.setdefault((m["ch"], m.get("color")), set()).add("friendly" if _friendly(d) else "hostile")
+
     def relabel(self, x: int, y: int, raw: str) -> str | None:
         """An explicit farlook at (x, y) said `raw`: the monster tracked there
         now carries that label (a resurfaced snake, a look-alike). Returns the

@@ -2464,3 +2464,68 @@ def test_explore_verdict_names_a_trap_with_unseen_ground_beyond(monkeypatch):
     assert explore._trap_frontiers(s, {(12, 5)}) == []          # nothing unseen next to it
     g.visited = {g.level_key(s.status): {(16, 4)}}               # stood next to that blank: seen rock
     assert explore._trap_frontiers(s, {(15, 5)}) == []
+
+
+def test_special_room_is_remembered_and_kept_out(monkeypatch):
+    # p3 shift 10 #587: "You enter an anthole!" comes ONCE per room (hack.c makes it an ordinary room);
+    # explore then walked in through its second doorway
+    from nh.game import Game, Timing
+    from tactics import ctx, nav
+    rows = {10: "  ---------",
+            11: "  |.......|",
+            12: "  |.......|",
+            13: "  |........##",
+            14: "  |.......|",
+            15: "  |........##",
+            16: "  ---------"}
+    g = Game(term=None, timing=Timing.local())
+    s = _snap(rows, (10, 13), [])
+    s.status = Status(ok=True, ldesc="Dlvl:18", dlvl=18, turn=500)
+    g._note_special_room(s, ["You enter an anthole!"], prev_hero=(11, 13))
+    assert "anthole" in s.room_note and "ONCE" in s.room_note
+    key = g.level_key(s.status)
+    assert g.special_rooms[key][(10, 13)]["kind"] == "anthole"
+    s2 = _snap(rows, (11, 13), [])
+    s2.status = s.status
+    g._note_special_room(s2, ["You enter an anthole!"], prev_hero=(12, 13))   # the same doorway again
+    assert list(g.special_rooms[key]) == [(10, 13)]
+    cells = nav._room_cells(s, (10, 13), (11, 13))
+    assert (5, 12) in cells and (9, 15) in cells and (10, 15) in cells        # the floor and the 2nd doorway
+    assert (11, 15) not in cells and (12, 13) not in cells                    # the corridors outside
+    g2 = _G()
+    g2.special_rooms = {"L": {(10, 13): {"kind": "anthole", "prev": (11, 13), "turn": 500}}}
+    monkeypatch.setattr(ctx, "game", g2)
+    out = _snap(rows, (12, 15), [])
+    out.room_mem = dict(g2.special_rooms["L"])
+    zone = nav.special_room_zone(out)
+    assert zone.get((10, 15)) == "anthole" and (5, 12) in nav.bad_squares(out)
+    inside = _snap(rows, (5, 12), [])
+    inside.room_mem = dict(g2.special_rooms["L"])
+    assert nav.special_room_zone(inside) == {}                               # in it: free to walk out
+    monkeypatch.setattr(ctx, "last", lambda: out)
+    assert nav.forget_room() == [] and nav.special_room_zone(out) == {}
+
+
+def test_levitation_route_crosses_water_and_unseen_squares(monkeypatch):
+    # p2 shift 26 #366: NetHack's travel plans only over seen squares; levitating, water is a road
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {4: "  ------------------",
+            5: "  |....}}}}}}}}....|",
+            6: "  |....}}}  }}}....|",
+            7: "  |....}}}}}}}}....|",
+            8: "  ------------------"}
+    s = _snap(rows, (4, 6), [])
+    s.status = Status(ok=True, ldesc="Dlvl:24", turn=100, conditions=["Lev"])
+    path = nav._lev_path(s, (4, 6), (16, 6))
+    assert path and path[-1] == (16, 6) and len(path) == 12
+    assert nav._lev_path(s, (4, 6), (16, 6), avoid={(c, y) for c in range(7, 15) for y in (5, 6, 7)}) is None
+    kraken = {"x": 11, "y": 5, "ch": ";", "desc": "kraken", "dist": 7}
+    s.monsters = [kraken]
+    zone = nav._lev_drowner_zone(s)
+    assert (10, 6) in zone and (12, 4) in zone and (4, 6) not in zone
+    s.status = Status(ok=True, ldesc="Dlvl:24", turn=100, conditions=[])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    with pytest.raises(nav.NavError, match="not levitating"):
+        nav.levitate_to(16, 6)

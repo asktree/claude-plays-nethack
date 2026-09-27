@@ -94,6 +94,16 @@ class Tracker:
                 game.terrain_seen.setdefault(key, {}).setdefault(tuple(c), "D")
             if lv.get("niches") and hasattr(game, "niches"):
                 game.niches[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["niches"].items()}
+            ses = lv.get("sessile")
+            if ses and ses.get("ldesc") and getattr(game, "tracker", None) is not None \
+                    and isinstance(getattr(game.tracker, "sessile", None), dict):
+                mem = game.tracker.sessile.setdefault(ses["ldesc"], {})
+                for x, y, ch, color, desc in ses.get("cells", []):
+                    mem.setdefault((x, y), {"ch": ch, "color": color, "x": x, "y": y, "desc": desc,
+                                            "statue": False})
+            if lv.get("rooms") and isinstance(getattr(game, "special_rooms", None), dict):
+                game.special_rooms[key] = {tuple(int(v) for v in c.split(",")): {
+                    "kind": r[0], "prev": tuple(r[1]) if r[1] else None, "turn": r[2]} for c, r in lv["rooms"].items()}
             if lv.get("mimics") and isinstance(getattr(game, "mimics", None), dict):
                 game.mimics[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["mimics"].items()}
             if lv.get("desmap"):
@@ -222,6 +232,17 @@ class Tracker:
             ni = getattr(self.game, "niches", {}).get(key)
             if ni:
                 lv["niches"] = {f"{c[0]},{c[1]}": k for c, k in ni.items()}
+            mon = getattr(self.game, "tracker", None)
+            ses = (getattr(mon, "sessile", None) or {}).get(snap.status.ldesc) if mon is not None else None
+            if ses is not None and (ses or lv.get("sessile")):
+                # molds/jellies seen here (the monster tracker's memory; a daemon restart would lose it)
+                lv["sessile"] = {"ldesc": snap.status.ldesc,
+                                 "cells": [[c[0], c[1], r.get("ch"), r.get("color"), r.get("desc")]
+                                           for c, r in sorted(ses.items())]}
+            sr = getattr(self.game, "special_rooms", {}).get(key)
+            if sr or lv.get("rooms"):
+                lv["rooms"] = {f"{c[0]},{c[1]}": [r.get("kind"), list(r["prev"]) if r.get("prev") else None,
+                                                  r.get("turn")] for c, r in (sr or {}).items()}
             mi = getattr(self.game, "mimics", {}).get(key)
             if mi or lv.get("mimics"):
                 lv["mimics"] = {f"{c[0]},{c[1]}": k for c, k in (mi or {}).items()}

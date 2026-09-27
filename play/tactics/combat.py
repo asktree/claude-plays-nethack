@@ -921,7 +921,7 @@ def _hunt_hidden_mimic(target, stop_hp, out, kills) -> dict:
     return out("killed" if gone else f"fought the {name} at {target} (not dead yet: fight({tx}, {ty}) again)")
 
 
-def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None) -> dict:
+def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_water: bool = False) -> dict:
     """Close in on one hostile and fight it: target = part of its label
     ('pyrolisk') or its square (x, y). Each turn: adjacent -> fight() it
     (all of fight()'s checks); otherwise ONE checked step along a known-map
@@ -933,7 +933,10 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None) -> dic
     and hunts on if it shows up again), "HP ...", "blocked: ..." (another
     non-trivial hostile next to you), "no route ..." or "max_turns".
     ignore: monsters next to you that don't block the hunt — species names
-    (ignore=('ghost',) in a morgue of sleepers) or a predicate on the monster."""
+    (ignore=('ghost',) in a morgue of sleepers) or a predicate on the monster.
+    near_water=True: walk beside water with a drowner in it anyway (like
+    travel(..., near_water=True)): you levitate/wear a greased or oilskin
+    cloak, or accept the wrap risk."""
     import contextlib
     from nh.danger import base_name
     from nh.monitor import killed_names
@@ -1042,7 +1045,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None) -> dic
             boards = squeaky_boards(s)      # (they only squeak: a hunt crosses them)
             # squares next to water where a drowning monster may be (p2 shift 25: hunt walked beside the
             # Castle moat with a giant eel adjacent — travel() avoided it, hunt() didn't)
-            zone = {c: w for c, w in _eel_zone(s).items() if c not in (s.hero, goal)}
+            zone = {} if near_water else {c: w for c, w in _eel_zone(s).items() if c not in (s.hero, goal)}
             path = bfs_path(s, s.hero, goal, avoid=frozenset((bad_squares(s) | set(zone)) - {goal} - boards),
                             allow_monsters=False, allow_pets=True)
             if not path and zone:
@@ -1052,7 +1055,8 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None) -> dic
                 if hit:
                     return out(f"blocked: the only way to the {species or target} at {goal} passes {hit[0]}, next "
                                f"to water — {zone[hit[0]][0]} (its wrap drowns you). Wait for it to come to you "
-                               "away from the water, fight it at range, or walk there yourself if you accept that")
+                               "away from the water, fight it at range, or hunt(..., near_water=True) if you "
+                               "levitate / wear a greased or oilskin cloak / accept that")
             if not path or len(path) < 2:
                 nxt = _greedy_step(s, goal, bad_squares(s) | set(zone)) if m["dist"] is not None and m["dist"] <= 6 \
                     else None

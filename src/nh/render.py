@@ -197,6 +197,10 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append("trapped closet(s), avoided: " + "; ".join(
             f"({x},{y}) {'one-time teleporter (gold vault / level teleporter)' if k == 'teleport' else 'one-time trap door'}"
             for (x, y), k in sorted(niches.items())))
+    rooms = getattr(snap, "room_mem", None) or {}
+    if rooms:
+        lines.append("special rooms (travel/explore keep out; forget_room() to go in): " + "; ".join(
+            f"{r.get('kind')} entered at ({x},{y})" for (x, y), r in sorted(rooms.items())))
     plane = snap.status.ldesc if snap.status.ok else ""
     if getattr(snap, "medusa_risk", False):
         lines.append("!! " + ("MEDUSA IS ON THIS LEVEL" if "medusa" in getattr(snap, "flags", ()) else
