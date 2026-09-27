@@ -375,6 +375,11 @@ class Kernel:
                 n += 1
             return n
 
+        def unwatch_monsters(ids) -> None:
+            """No more 'approaching' pause for these monster ids (the one hunt()/fight() goes after)."""
+            for i in ids or ():
+                k._deferred.pop(i, None)
+
         def quiet_messages(messages) -> list:
             """Which of these messages would NOT pause an exec now: the exec's autocontinue (-a) patterns,
             the default benign list, level sounds already paused for on this level. No side effects."""
@@ -386,7 +391,8 @@ class Kernel:
 
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
                        set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task,
-                       watch_monsters=watch_monsters, quiet_messages=quiet_messages)
+                       watch_monsters=watch_monsters, quiet_messages=quiet_messages,
+                       unwatch_monsters=unwatch_monsters)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping

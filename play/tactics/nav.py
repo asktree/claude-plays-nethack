@@ -6,7 +6,7 @@ import re
 
 from . import ctx
 from .benign import BENIGN
-from .mapview import DIR_KEY, bfs_path, dist, find, nearest
+from .mapview import DIR_KEY, KEY_DIR, bfs_path, dist, find, nearest
 
 
 class NavError(Exception):
@@ -521,6 +521,52 @@ def levitate_to(x: int, y: int, max_steps: int = 300, near_water: bool = False, 
                 raise NavError(f"levitate_to{goal}: no progress from {h0} ({s.messages or 'no message'})")
         else:
             fails = 0
+    return ctx.last()
+
+
+# hack.c moverock(): what a push can say
+_PUSH_OK = [r"^With (?:great )?effort you move the boulder", r"^You try to move the boulder, but in vain",
+            r"^You hear a monster behind the boulder", r"^Perhaps that's why you cannot move",
+            r"boulder (?:falls into|fills|plugs|sinks)", r"^There is a large splash", r"^Kerplunk",
+            r"^The boulder triggers", r"^You push the boulder", r"^However, you can squeeze yourself",
+            r"^You don't have enough leverage", r"^You're too small to push"]
+
+
+def push_boulder(direction: str, n: int = 1):
+    """Push the boulder next to you `n` times toward `direction` (hjklyubn;
+    outside Sokoban diagonals work too — in Sokoban use sokoban.push()).
+    Before each push it checks the boulder's square and the one beyond: a
+    monster standing there (a giant can stand on a boulder square) would be
+    ATTACKED by a plain step (p2 shift 27: a stone giant) — it stops and
+    says so instead. Stops when the boulder doesn't move (something behind
+    it, "in vain", it fell into water/a hole/a trap). Returns the final Snap."""
+    if direction not in KEY_DIR:
+        raise ValueError(f"push_boulder: direction must be one of hjklyubn, not {direction!r}")
+    dx, dy = KEY_DIR[direction]
+    s = ctx.require_command("push_boulder()")
+    for i in range(n):
+        s = ctx.last()
+        if s.state.kind != "command" or s.hero is None:
+            return s
+        hx, hy = s.hero
+        b, beyond = (hx + dx, hy + dy), (hx + 2 * dx, hy + 2 * dy)
+        occ = [m for m in s.monsters or [] if (m["x"], m["y"]) in (b, beyond) and not m.get("statue")]
+        if occ:
+            ctx.pause(f"push_boulder: {_mdesc(occ)} — a step {direction!r} would "
+                      + ("attack it" if any((m["x"], m["y"]) == b for m in occ) else "shove the boulder into it")
+                      + " (peaceful or not); deal with it first")
+            return ctx.last()
+        if s.screen.at(*b) not in "0`":
+            print(f"push_boulder: no boulder at {b} (it shows {s.screen.at(*b)!r}) — {i} push(es) done")
+            return s
+        s = ctx.do(direction, ok=_PUSH_OK)
+        text = " ".join(s.messages)
+        if s.hero != b:
+            print(f"push_boulder: the boulder at {b} didn't move ({text or 'no message'}) — {i} push(es) done")
+            return s
+        if s.screen.at(*beyond) not in "0`":
+            print(f"push_boulder: the boulder is gone from view after push {i + 1} ({text or 'no message'})")
+            return s
     return ctx.last()
 
 

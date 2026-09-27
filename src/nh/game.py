@@ -846,6 +846,10 @@ class Game:
         for m in messages:
             if m.startswith("You enter what seems to be an older, more primitive world."):
                 self.level_flags.setdefault(key, set()).add("rogue")
+            if re.match(r"You receive a faint telepathic message from |You again sense .+ (?:pleading for help|"
+                        r"demanding your attendance)", m):
+                # quest.txt (%Cp 00002-00004): said on arriving at the level that holds the quest portal
+                self.level_flags.setdefault(key, set()).add("quest_portal")
             if m.startswith("You feel a strange vibration under your "):
                 feats[snap.hero] = "~"          # (only on the vibrating square itself)
             elif m.startswith("You activated a magic portal!") and snap.status.ldesc not in self.ENDGAME:

@@ -636,21 +636,102 @@ def _enc_note(who: str, enc0: str) -> None:
                                               " — !! slow and clumsy in a fight: drop or bag something heavy"))
 
 
-def bag_put(bag: str, letters: str) -> list:
+def _boh_risk(bag_text: str, item_text: str) -> str:
+    """Why putting the item into this container could blow up a bag of holding ('' when it can't):
+    pickup.c mbag_explodes() — a bag of holding or of tricks, or a charged wand of cancellation (also
+    inside another container), destroys the bag of holding and everything in it."""
+    b, it = (bag_text or "").lower(), (item_text or "").lower()
+    if re.search(r"\b(?:oilskin )?sacks?\b", b) or "bag of tricks" in b or not re.search(r"\bbag\b", b):
+        return ""                      # an identified sack/oilskin sack, or not a bag at all
+    what = "this bag of holding" if "bag of holding" in b else "this bag (unidentified: maybe a bag of holding)"
+    if re.search(r"\bbags? of (?:holding|tricks)\b", it):
+        return f"a bag of holding/tricks put into {what} makes it EXPLODE (everything inside is lost)"
+    if re.search(r"\bwands? of cancellation\b", it) and not re.search(r"\(\d+:0\)", it):
+        return f"a wand of cancellation put into {what} makes it EXPLODE (everything inside is lost)"
+    if re.search(r"\bbags?\b", it) and not re.search(r"\bsacks?\b", it):
+        return f"an unidentified bag may be a bag of holding or tricks: into {what} it may EXPLODE"
+    if re.search(r"\bwands?\b", it) and not re.search(r"\bwands? of\b", it) \
+            and (not re.search(r"\bcalled\b", it) or re.search(r"cancel|vanish", it)):
+        return (f"an unidentified wand may be CANCELLATION: into {what} it may EXPLODE (engrave-test it: "
+                "'vanishes' = cancellation/teleport/make invisible)")
+    return ""
+
+
+def bag_put(bag: str, letters: str, one_move: bool = True, force: bool = False) -> list:
     """Put the inventory items `letters` (e.g. 'mq') into the carried
-    container `bag`, one "stash one item" at a time. Returns the messages."""
-    msgs = []
-    for letter in letters:
-        s = _apply_container(bag, r"stash one item")
-        msgs += s.messages
-        if s.state.kind != "object":
+    container `bag`. one_move=True (default): the container's "put something
+    in" menu takes them all in ONE move (an ambush leaves no time for one
+    move per item); one_move=False: one "stash one item" per item. Refuses
+    anything that can make a bag of holding explode (a bag of holding/tricks,
+    a wand of cancellation, or an unidentified bag/wand while the bag may be
+    one) unless force=True. Returns the messages."""
+    ctx.require_command("bag_put()")
+    letters = "".join(dict.fromkeys(letters))
+    if bag in letters:
+        raise ValueError(f"bag_put: {bag!r} is the bag itself")
+    inv = {it["letter"]: it["text"] for it in inventory()}
+    if bag not in inv:
+        raise LookupError(f"bag_put: no item {bag!r} in your inventory")
+    missing = [c for c in letters if c not in inv]
+    if missing:
+        raise LookupError(f"bag_put: no inventory item(s) {missing}")
+    risky = [(c, _boh_risk(inv[bag], inv[c])) for c in letters]
+    risky = [(c, why) for c, why in risky if why]
+    if risky and not force:
+        raise PermissionError("bag_put: refusing — " + "; ".join(f"{c} ({inv[c]}): {why}" for c, why in risky)
+                              + ". force=True if you know it is safe.")
+    enc0 = ctx.last().status.encumbrance or ""
+    if not one_move or len(letters) == 1:
+        msgs = []
+        for letter in letters:
+            s = _apply_container(bag, r"stash one item")
+            msgs += s.messages
+            if s.state.kind != "object":
+                if s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                raise RuntimeError(f"bag_put: expected the stash prompt, got {s.state.kind} {s.state.prompt!r}")
+            s = ctx.do(letter, quiet=True)
+            msgs += s.messages
             if s.state.kind != "command":
+                ctx.pause(f"bag_put({letter!r}): unexpected {s.state.kind} {s.state.prompt!r}")
+        return msgs
+    # pickup.c menu_loot(put_in): a class menu ("Put in what type of objects?": never 'A', which puts in
+    # EVERYTHING), then "Put in what?" listing your items under their own inventory letters (invlet_constant)
+    s = _apply_container(bag, r"^put .* in$")
+    msgs = list(s.messages)
+    chosen: set = set()
+    for _ in range(6):
+        k, p = s.state.kind, s.state.prompt or ""
+        if k == "command":
+            break
+        if k == "menu" and "what type of objects" in p:
+            nxt = _menu_pick(s, r"^All types")
+            if nxt is None:
                 ctx.do("<Esc>", quiet=True)
-            raise RuntimeError(f"bag_put: expected the stash prompt, got {s.state.kind} {s.state.prompt!r}")
-        s = ctx.do(letter, quiet=True)
+                raise RuntimeError(f"bag_put: no 'All types' in {[i.text for i in s.state.menu.selectable()]}")
+            s = ctx.do("<CR>", quiet=True)
+        elif k == "menu" and "Put in what" in p:
+            for _page in range(8):
+                for it in s.state.menu.selectable():
+                    if it.letter in letters and it.letter not in chosen and not it.selected:
+                        s = ctx.do(it.letter, quiet=True)
+                        chosen.add(it.letter)
+                if s.state.menu and s.state.menu.page < s.state.menu.pages:
+                    s = ctx.do(">", quiet=True)
+                else:
+                    break
+            if not chosen:
+                ctx.do("<Esc>", quiet=True)
+                raise RuntimeError(f"bag_put: none of {letters!r} is offered in the 'Put in what?' menu")
+            s = ctx.do("<CR>", quiet=True, expect=_TAKE)
+        else:
+            ctx.pause(f"bag_put(): unexpected {k} {p!r}")
+            s = ctx.last()
         msgs += s.messages
-        if s.state.kind != "command":
-            ctx.pause(f"bag_put({letter!r}): unexpected {s.state.kind} {s.state.prompt!r}")
+    left = [c for c in letters if c not in chosen]
+    if left:
+        print(f"bag_put: {left} not offered by the menu (worn/wielded items can't go in) — still in your pack")
+    _enc_note("bag_put", enc0)
     return msgs
 
 

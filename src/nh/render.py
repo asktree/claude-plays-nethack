@@ -197,6 +197,11 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append("trapped closet(s), avoided: " + "; ".join(
             f"({x},{y}) {'one-time teleporter (gold vault / level teleporter)' if k == 'teleport' else 'one-time trap door'}"
             for (x, y), k in sorted(niches.items())))
+    if "quest_portal" in (getattr(snap, "flags", None) or ()) \
+            and not any(v == "^" for v in (getattr(snap, "feature_mem", None) or {}).values()):
+        lines.append("!! the QUEST PORTAL is hidden somewhere on this level (the leader's telepathic message): "
+                     "travel/explore may step onto it and take you to the quest home level (hostiles at the "
+                     "arrival) — bag scrolls/potions first; secret door detection shows it (search each room)")
     rooms = getattr(snap, "room_mem", None) or {}
     if rooms:
         lines.append("special rooms (travel/explore keep out; forget_room() to go in): " + "; ".join(

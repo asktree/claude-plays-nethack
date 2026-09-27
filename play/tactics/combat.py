@@ -478,6 +478,8 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         key = _key_toward(s.hero, m)
         if key is None:
             return s
+        if ctx.unwatch_monsters is not None and m.get("id") is not None:
+            ctx.unwatch_monsters([m["id"]])           # (you are fighting it: its moves aren't news)
         s = ctx.do("F" + key, ok=ROUTINE, force=force or (attack_peaceful and bool(m.get("peaceful"))))
         seen.extend(s.messages)
     return s
@@ -980,6 +982,8 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                     return out(f"no hostile {target!r} in view")
                 m = min(hs, key=lambda e: e["dist"] if e["dist"] is not None else 99)
                 want, species = m.get("id"), base_name(m.get("desc") or "")
+                if ctx.unwatch_monsters is not None and want is not None:
+                    ctx.unwatch_monsters([want])      # (p2 shift 27: 'approaching:' for the very target)
             else:
                 m = next((e for e in s.monsters or [] if e.get("id") == want), None)
                 if m is None:

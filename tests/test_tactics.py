@@ -2529,3 +2529,20 @@ def test_levitation_route_crosses_water_and_unseen_squares(monkeypatch):
     monkeypatch.setattr(ctx, "last", lambda: s)
     with pytest.raises(nav.NavError, match="not levitating"):
         nav.levitate_to(16, 6)
+
+
+def test_bag_of_holding_explosion_guard():
+    # pickup.c mbag_explodes(): a bag of holding/tricks or a charged wand of cancellation destroys a bag of holding
+    from tactics.items import _boh_risk
+    assert "EXPLODE" in _boh_risk("a bag of holding", "a wand of cancellation (0:5)")
+    assert _boh_risk("a bag of holding", "a wand of cancellation (0:0)") == ""       # an empty one is harmless
+    assert "EXPLODE" in _boh_risk("a bag of holding", "a bag of tricks (0:10)")
+    assert "EXPLODE" in _boh_risk("an uncursed bag", "a bag of holding")
+    assert "unidentified bag" in _boh_risk("a bag of holding", "an uncursed bag")
+    assert "CANCELLATION" in _boh_risk("a bag of holding", "an oak wand")
+    assert _boh_risk("a bag of holding", "an oak wand called teleport") == ""
+    assert "CANCELLATION" in _boh_risk("a bag of holding", "an oak wand called vanish")
+    assert _boh_risk("a bag of holding", "a wand of digging (0:4)") == ""
+    assert _boh_risk("an oilskin sack", "an oak wand") == ""                          # not a bag of holding
+    assert _boh_risk("a sack", "a bag of holding") == ""
+    assert _boh_risk("a bag of holding", "3 uncursed potions of healing") == ""

@@ -16,6 +16,7 @@ defer_far = None        # with defer_far(6): far newcomers pause only when they 
 _long_task = None       # with long_task(): a later exec-budget pause (kernel)
 watch_monsters = None   # watch_monsters(mons, near=6): 'approaching' pause for monsters already seen (kernel)
 quiet_messages = None   # quiet_messages(msgs): those the kernel wouldn't pause on (exec -a patterns...) (kernel)
+unwatch_monsters = None  # unwatch_monsters(ids): no 'approaching' pause for a helper's own target (kernel)
 
 
 def long_task(steps: int = 1200, seconds: float = 330.0):
