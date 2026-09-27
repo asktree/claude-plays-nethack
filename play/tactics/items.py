@@ -321,6 +321,64 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
     return msgs
 
 
+def eat(letter: str | None = None) -> list:
+    """Eat inventory item `letter`, or (letter=None) the food on the floor
+    here. NetHack first offers each floor corpse ("There is a jackal corpse
+    here; eat it?"): with a letter those are declined. The harness guards
+    still apply (deadly/old corpses, tins, Satiated). Returns the messages."""
+    ctx.require_command("eat()")
+    s = ctx.do("e", quiet=True)
+    msgs = list(s.messages)
+    for _ in range(8):
+        k, p = s.state.kind, s.state.prompt or ""
+        if k == "command":
+            break
+        if k == "yn" and "here; eat" in p:
+            s = ctx.do("y" if letter is None else "n", quiet=True)
+        elif k == "object":
+            if letter is None:
+                ctx.do("<Esc>", quiet=True)
+                raise RuntimeError("eat(): no food on the floor here — pass an inventory letter")
+            s = ctx.do(letter, quiet=True)
+        elif k in ("yn", "getlin") and "Continue eating" in p:
+            s = ctx.do("n", quiet=True)          # starting Satiated: stop before choking
+        else:
+            ctx.pause(f"eat(): unexpected {k} {p!r}")
+            s = ctx.last()
+        msgs += s.messages
+    return msgs
+
+
+def pickup(pattern: str | None = None) -> list:
+    """Pick up the objects here whose text matches `pattern` (regex,
+    case-insensitive), or everything if None. Looks first (no game time), so
+    a lone object that doesn't match is left alone. Returns the messages."""
+    ctx.require_command("pickup()")
+    look = here()
+    if "You see no objects here" in look or not look:
+        return []
+    rx = re.compile(pattern, re.I) if pattern else None
+    single = re.search(r"You (?:see|feel) here (.+?)\.(?: \||$)", look)
+    if single and "Things that" not in look and rx is not None and not rx.search(single.group(1)):
+        return []
+    s = ctx.do(",", quiet=True)
+    msgs = list(s.messages)
+    if s.state.kind == "menu":
+        for _page in range(8):
+            for it in s.state.menu.selectable():
+                if not it.selected and (rx is None or rx.search(it.text)):
+                    s = ctx.do(it.letter, quiet=True)
+            if s.state.menu and s.state.menu.page < s.state.menu.pages:
+                s = ctx.do(">", quiet=True)
+            else:
+                break
+        s = ctx.do("<CR>", quiet=True)
+        msgs += s.messages
+    if s.state.kind != "command":
+        ctx.pause(f"pickup(): unexpected {s.state.kind} {s.state.prompt!r}")
+    return msgs
+
+
 def loot_all() -> list:
     """Take everything out of the (single) container on your square with
     #loot: confirms, picks "take something out" in the pick-one "Do what?"

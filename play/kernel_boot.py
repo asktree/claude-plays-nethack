@@ -37,4 +37,4 @@ from tactics.nav import avoid, bad_squares, blockers, path_to, walk_path  # noqa
 from tactics.combat import fight, fight_until_clear, friendly_in_line, throw, zap  # noqa: E402,F401
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))
 from tactics.town import buy_protection, pay  # noqa: E402,F401
-from tactics.items import bag_put, bag_take  # noqa: E402,F401
+from tactics.items import bag_put, bag_take, eat, pickup  # noqa: E402,F401

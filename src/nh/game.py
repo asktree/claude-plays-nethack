@@ -54,6 +54,7 @@ class Snap:
     under: str | None = None   # remembered map feature under the hero ('<', '>', '{', '_', '\\')
     engulfed: bool = False     # the hero is inside a monster (the /-\\ ring is drawn around '@')
     paused: str = ""           # set when the exec paused on this step and the player resumed it
+    gone: list = field(default_factory=list)   # dangerous monsters that left view in the last ~20 turns
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -371,6 +372,21 @@ class Game:
             return None
         ages = [turn - t for n, c, t in self.kills.get(self.level_key(), []) if n == name and c == tuple(cell)]
         return max(ages) if ages else None
+
+    def _recently_gone(self, snap: Snap) -> list:
+        """Monsters with a danger note that left view within ~20 turns (a gas
+        spore in a dark corridor is invisible to telepathy: mind where it was)."""
+        from .danger import note_for
+        turn = snap.status.turn if snap.status.ok else None
+        if turn is None or self.tracker is None or not hasattr(self.tracker, "gone"):
+            return []
+        out = []
+        for r in self.tracker.gone(turn):
+            d = r.get("desc") or ""
+            if turn - r.get("turn", 0) <= 20 and d and not d.startswith(("tame ", "peaceful ")) \
+                    and not r.get("statue") and note_for(d):
+                out.append({"desc": d, "x": r["x"], "y": r["y"], "ago": turn - r.get("turn", 0)})
+        return out[:4]
 
     def _here_text(self, snap: Snap, cell=None) -> str:
         cell = cell or snap.hero
@@ -881,6 +897,7 @@ class Game:
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
+                    snap.gone = self._recently_gone(snap)
                 except Exception as e:  # noqa: BLE001
                     self.log_event({"ev": "tracker_error", "err": repr(e)})
             elif snap.state.kind in ("yn", "direction", "object", "getlin", "count", "getpos"):

@@ -120,6 +120,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     ml = monsters_line(snap, radius=None if mode == "full" else 2 * radius, mons=mons)
     if ml:
         lines.append(ml)
+    if getattr(snap, "gone", None):
+        lines.append("out of view: " + "; ".join(f"{g['desc']} last at ({g['x']},{g['y']}) {g['ago']} turn(s) ago"
+                                                  for g in snap.gone))
     lim = None if mode == "full" else 2 * radius
     objs = [o for o in snap.objects if lim is None or (o["dist"] is not None and o["dist"] <= lim)]
     if objs:
