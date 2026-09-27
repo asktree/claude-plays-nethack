@@ -92,7 +92,7 @@ Verify: `curl -s https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/Cla
 (must be identical, apart from possibly a trailing newline). Fix and repeat until it is.
 
 **Start the game**: from the lobby press `1` (NetHack, various versions), read the submenu, and pick
-**NetHack 3.6.7** (Astra used `V`; confirm on screen). Never pick a variant, 5.0.0, or TNNT. With our rc the
+**NetHack 3.6.7** (`V) NetHack 3.6.7-hdf`, confirmed 2026-09-27; `j) Manage settings` -> `c` picks the editor (virus), `V` opens the 3.6.7 rc; the editor screen parses as extcmd, so run vi_replace_buffer with `exec --at-prompt`). Never pick a variant, 5.0.0, or TNNT. With our rc the
 game starts with no questions: expect "welcome to NetHack! You are a lawful female dwarven Valkyrie."
 If it asks "Shall I pick character's race, role...", the rc didn't load — quit that screen with `q`/Esc if
 possible and fix the rc first. On later sessions use `p) Play last game [nh367-hdf]` (`server.play_last_game()`)

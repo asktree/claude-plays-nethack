@@ -509,6 +509,10 @@ def _looks_dgl(full: str) -> bool:
     low = full.lower()
     if "dgamelaunch" in low:
         return True
+    # Hardfought's dgl banner heads every lobby screen, including the username/password/email
+    # prompts (otherwise 'unknown', which makes settle wait its full recheck budget per key)
+    if "## hardfought - public nethack server" in low:
+        return True
     markers = ("l) login", "r) register", "w) watch", "q) quit", "logged in as")
     return sum(1 for m in markers if m in low) >= 2
 

@@ -118,7 +118,7 @@ def register() -> str:
     if "email" not in t.lower():
         raise LobbyError(f"password step failed:\n{t}")
     ctx.do(c["email"] + "<CR>", quiet=True, force=True)
-    return wait_for(r"Logged in as:|problem|abort", timeout=30)
+    return wait_for(r"Logged in as:|problem|abort", timeout=120)
 
 
 def play_last_game() -> str:
