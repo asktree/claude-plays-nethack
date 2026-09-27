@@ -19,5 +19,12 @@ BENIGN = [
     r"^You are carrying too much to get through\.",
     r"^There is a (staircase|ladder) (up|down) here",
     r"^There is an? (fountain|altar|sink|throne|grave|tree) here",
+    # engravings read when stepping on them (travel stops there; the text is still shown)
+    r"^Something is written here in the (dust|frost)\.",
+    r"^Something is engraved here on the ",
+    r"^Some text has been (burned|melted) into the ",
+    r"^There's some graffiti on the ",
+    r"^You see a message scrawled in blood here\.",
+    r"^You (read|feel the words): ",
 ]
 

@@ -34,6 +34,28 @@ RESEEN_TURNS = 40
 RESEEN_DIST = 8
 
 
+_KILL_RES = [
+    re.compile(r"^You (?:kill|destroy) (?:the |an? |poor )?(?P<n>.+?)!$"),
+    re.compile(r"^(?:The |An? )?(?P<n>.+?) (?:is|are) (?:killed|destroyed)!"),
+    re.compile(r"^(?:The |An? )?(?P<n>.+?) dies!"),
+    re.compile(r"^(?:The |Your |An? )?.+? (?:kills|destroys) (?:the |an? )?(?P<n>.+?)[.!]$"),
+]
+
+
+def killed_names(messages) -> list[str]:
+    """Monster names reported killed in these messages ("You kill the
+    jackal!", "The kitten kills the newt.", "The gnome is killed!")."""
+    from .danger import base_name
+    out = []
+    for msg in messages or []:
+        for rx in _KILL_RES:
+            m = rx.search(msg)
+            if m and m.group("n") not in ("it", "them"):
+                out.append(base_name(m.group("n")))
+                break
+    return out
+
+
 def _cheb(a, b) -> int:
     return max(abs(a["x"] - b["x"]), abs(a["y"] - b["y"]))
 
@@ -230,7 +252,10 @@ class MonsterTracker:
                 self.recent[m["id"]] = {"id": m["id"], "ch": m["ch"], "color": m["color"], "x": m["x"],
                                         "y": m["y"], "desc": m["desc"], "statue": m.get("statue", False),
                                         "turn": turn}
-        self.visible_ids = {m["id"] for m in mons}
+        new_visible = {m["id"] for m in mons}
+        self._forget_killed(killed_names(getattr(snap, "messages", None)), self.visible_ids - new_visible,
+                            snap.hero)
+        self.visible_ids = new_visible
         stale = [i for i, r in self.recent.items()
                  if i not in self.visible_ids and turn - r.get("turn", 0) > RESEEN_TURNS]
         for i in stale:
@@ -241,6 +266,21 @@ class MonsterTracker:
         self.known = [m for m in mons if m.get("desc")]
         self.last_turn = turn
         return mons
+
+    def _forget_killed(self, names: list[str], vanished: set, hero) -> None:
+        """A killed monster must not be 're-seen' later: drop its record
+        (prefer one that vanished this step, nearest the hero), so the next
+        monster of that species counts as new."""
+        from .danger import base_name
+        for name in names:
+            cands = [(i, r) for i, r in self.recent.items() if base_name(r.get("desc", "")) == name
+                     and i not in self.visible_ids - vanished]
+            if not cands:
+                continue
+            hx, hy = hero if hero else (0, 0)
+            cands.sort(key=lambda ir: (ir[0] not in vanished, max(abs(ir[1]["x"] - hx), abs(ir[1]["y"] - hy)),
+                                       -ir[1].get("turn", 0)))
+            del self.recent[cands[0][0]]
 
     def _describe(self, cells: list[tuple[int, int]]) -> dict:
         fn = getattr(self.game, "describe_cells", None)

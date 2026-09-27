@@ -47,6 +47,7 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^The door opens\.",
     r"^You stop in front of the door\.",
     r"^You are in full health\.",                      # a counted search/rest stops at full HP
+    r"^You drop (?!.*\b(?:loadstone)\b).*\.$",          # result of your own drop command
     r"^Your (?!wielded ).*\b(corpse|corpses|egg|eggs)\b.* rots? away\.$",   # carried food rotting
 )]
 
@@ -208,6 +209,9 @@ class Kernel:
                 and not any(p.search(m) for p in DEFAULT_BENIGN)]
         if msgs and not quiet:
             reasons.append("message")
+        trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)]
+        if trapmsg and snap.hero is not None:
+            reasons.append(f"trap at {snap.hero}")
         if before is not None and before.status.ok and snap.status.ok:
             b, a = before.status, snap.status
             if a.hp < b.hp:

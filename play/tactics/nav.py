@@ -135,6 +135,11 @@ def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
     adjacent; a peaceful that stays in the way after `wait_peaceful` waits;
     no known path) instead of returning silently."""
     s = ctx.last()
+    occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
+           and not m.get("pet") and not m.get("statue")]
+    if occ and s.hero != (x, y):
+        raise NavError(f"travel target {(x, y)} is occupied by {_mdesc(occ)} (travelling there would bump "
+                       "into it and waste a turn)")
     if max_dist is not None and s.hero is not None:
         path = bfs_path(s, s.hero, (x, y), allow_monsters=True)
         if path is None or len(path) > max_dist:
@@ -180,15 +185,37 @@ def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
                                "step around it by hand.")
             raise NavError(f"travel to {(x, y)} did not move (no known path?)"
                            + (f"; messages: {s.messages}" if s.messages else ""))
-        if s.messages:
+        if _notable(s.messages):
             return s   # something happened en route; let the caller look
     return s
 
 
+def _notable(messages) -> list:
+    """Messages that aren't routine for walking around (BENIGN + the kernel's
+    DEFAULT_BENIGN): anything left deserves the caller's attention."""
+    import re
+    from nh.kernel import DEFAULT_BENIGN
+    pats = [re.compile(p) for p in BENIGN]
+    return [m for m in messages or [] if not any(p.search(m) for p in pats)
+            and not any(p.search(m) for p in DEFAULT_BENIGN)]
+
+
+def known_cells(ch: str, s=None) -> list:
+    """Cells showing `ch` now, plus (for stairs/fountains/altars/thrones)
+    remembered ones hidden under objects, monsters or you. Nearest first."""
+    s = s or ctx.last()
+    cells = set(find(s, ch))
+    mem = getattr(ctx.game, "terrain_seen", {}).get(ctx.game.level_key(s.status), {})
+    cells |= {c for c, v in mem.items() if v == ch}
+    h = s.hero or ctx.game.hero_pos
+    return sorted(cells, key=lambda c: dist(c, h) if h else 0)
+
+
 def travel_to(ch: str, index: int = 0, color_num: int | None = None):
-    """Travel to the index-th nearest cell showing `ch` (e.g. '>', '<', '{')."""
+    """Travel to the index-th nearest cell showing `ch` (e.g. '>', '<', '{');
+    stairs/fountains/altars hidden under objects or monsters count too."""
     s = ctx.last()
-    cells = find(s, ch, color_num)
+    cells = find(s, ch, color_num) if color_num is not None else known_cells(ch, s)
     h = s.hero
     if not cells or h is None:
         raise NavError(f"no {ch!r} on the map")
@@ -207,17 +234,36 @@ def step(direction: str, n: int = 1):
     return s
 
 
+def _use_stairs(ch: str, tries: int = 4):
+    s = ctx.last()
+    cells = known_cells(ch, s)
+    if not cells:
+        raise NavError(f"no {ch!r} known on this level")
+    target = cells[0]
+    for _ in range(tries):
+        if s.hero == target:
+            break
+        s = travel(*target)
+        if s.state.kind != "command":
+            return s                     # a prompt interrupted: let the caller look
+        s = ctx.last()
+        if _notable(s.messages) and s.hero != target:
+            return s                     # something happened on the way
+    if s.hero != target:
+        raise NavError(f"did not reach the {ch} at {target} (you are at {s.hero}); nothing pressed")
+    return ctx.do(ch)
+
+
 def go_down():
-    """Travel to the nearest '>' and descend."""
-    s = travel_to(">")
-    if s.hero is not None and ctx.last().screen.at(*s.hero) in "@":
-        pass
-    return ctx.do(">")
+    """Travel to the nearest '>' (re-travelling after routine stops), check
+    you are on it, then descend. Raises NavError instead of pressing '>'
+    anywhere else."""
+    return _use_stairs(">")
 
 
 def go_up():
-    s = travel_to("<")
-    return ctx.do("<")
+    """Like go_down() for '<'."""
+    return _use_stairs("<")
 
 
 def kick_door(x, y, tries: int = 8):

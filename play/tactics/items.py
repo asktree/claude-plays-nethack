@@ -163,3 +163,54 @@ def engrave_test(letter: str, text: str = "Elbereth", prep: bool = True, force: 
         verdict = _NO_EFFECT
     print(f"engrave_test({letter!r}): {verdict}" + (" (auto-identified)" if auto else ""))
     return {"verdict": verdict, "messages": msgs, "autoidentified": auto}
+
+
+# ---- dipping (Excalibur) ------------------------------------------------------
+
+_DIP_OUTCOMES = [
+    (r"a hand reaches up to bless the sword", "EXCALIBUR"),
+    (r"grants you a wish", "WISH"),
+    (r"You unleash", "WATER DEMON (dangerous: flee or Elbereth; it may have granted a wish)"),
+    (r"You attract", "WATER NYMPH (steals: kill it fast or keep away)"),
+    (r"stream of snakes|Snakes!", "WATER MOCCASINS (poisonous: retreat, fight one at a time)"),
+    (r"dries up|reduces to a trickle", "fountain dried up"),
+    (r"freezing mist", "CURSED sword (you are not lawful?!)"),
+    (r"(rusts|rusty|corrode)", "sword rusted"),
+    (r"spot a gem", "gem"),
+    (r"gushes forth", "water gushes"),
+    (r"coins", "coins"),
+]
+
+
+def dip(letter: str, into_fountain: bool = True) -> dict:
+    """Dip inventory item `letter` into the fountain/pool you stand on, one
+    dip per call: answers the prompts and classifies the outcome.
+    For Excalibur: lawful, XL5+, long sword, full HP, a planned escape, never
+    in Minetown (the Watch). Each dip: 1/6 Excalibur; otherwise the sword may
+    rust and the fountain dries up about 1 time in 3 — so expect to need 2-3
+    fountains. Returns {"outcome", "messages"}; prints the outcome."""
+    s = ctx.do("#dip<CR>", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"dip: expected 'What do you want to dip?', got {s.state.kind} {s.state.prompt!r}")
+    s = ctx.do(letter, quiet=True)
+    msgs = list(s.messages)
+    p = s.state.prompt or ""
+    if s.state.kind == "yn" and ("fountain" in p or "pool" in p or "moat" in p or "water" in p):
+        if not into_fountain:
+            ctx.do("n", quiet=True)
+        else:
+            s = ctx.do("y", quiet=True)
+            msgs += s.messages
+    elif s.state.kind != "command":
+        ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"dip: not standing on a fountain/pool (got {s.state.kind}: {p!r})")
+    joined = " | ".join(msgs)
+    outcome = "; ".join(o for pat, o in _DIP_OUTCOMES if re.search(pat, joined)) or "nothing special"
+    if s.state.kind == "getlin" and "wish" in (s.state.prompt or "").lower():
+        outcome = "WISH"
+        ctx.pause("dip: WISH prompt open — follow PLAYBOOK §E (first wish: blessed +2 gray dragon scale mail); "
+                  "answer with cont(reply='...<CR>') promptly.")
+    print(f"dip({letter!r}): {outcome}")
+    return {"outcome": outcome, "messages": msgs}

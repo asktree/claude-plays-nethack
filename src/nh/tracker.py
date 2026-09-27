@@ -39,7 +39,12 @@ class Tracker:
         if self.state.get("current_level") and self.state.get("current_ldesc"):
             game.level_name = self.state["current_level"]
             game.level_name_ldesc = self.state["current_ldesc"]
+        feat_ch = {"up stairs": "<", "down stairs": ">", "fountain": "{", "altar": "_", "throne": "\\"}
         for key, lv in self.state["levels"].items():
+            for fname, fcells in lv.get("features", {}).items():
+                if fname in feat_ch:
+                    for c in fcells:
+                        game.terrain_seen.setdefault(key, {}).setdefault(tuple(c), feat_ch[fname])
             for attr in ("traps", "avoid"):
                 cells = {tuple(c) for c in lv.get(attr, [])}
                 if cells:
@@ -118,10 +123,12 @@ class Tracker:
     def _refresh_overview(self):
         saved = self.game.last
         ldesc = saved.status.ldesc if saved is not None and saved.status.ok else None
+        n_hist = len(self.game.history)
         snap = self.game.step(b"\x0f")
         text = "\n".join(snap.messages)
         if snap.state.kind not in ("command",):
             self.game.step(b"\x1b")
+        del self.game.history[n_hist:]        # the overview isn't a game message
         self.game.last = saved
         self.need_overview = False
         if text and ldesc:

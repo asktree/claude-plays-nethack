@@ -185,3 +185,25 @@ def test_reseen_hostile_rechecked_when_glyph_is_mixed():
     g.looked.clear()
     m = t.update(snap({(51, 10): "G"}, 12))
     assert g.looked == [(51, 10)] and m[0]["peaceful"]
+
+
+def test_second_monster_after_a_kill_is_new():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "dwarf zombie"}
+    t.update(snap({(41, 10): "Z"}, 100, color=1))
+    s = snap({}, 101, color=1)
+    s.messages = ["You destroy the dwarf zombie!"]
+    t.update(s)
+    assert not t.gone(101)
+    g.truth = {(45, 12): "dwarf zombie"}
+    g.looked.clear()
+    m = t.update(snap({(45, 12): "Z"}, 110, color=1))
+    assert g.looked == [(45, 12)] and m[0]["new"]
+
+
+def test_killed_names():
+    from nh.monitor import killed_names
+    assert killed_names(["You kill the jackal!", "The kitten kills the newt.", "The gnome lord is killed!",
+                         "You kill it!", "You destroy the dwarf zombie!"]) == ["jackal", "newt", "gnome lord",
+                                                                                 "dwarf zombie"]

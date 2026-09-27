@@ -15,7 +15,7 @@ _ctx.game_name = GAME_NAME  # noqa: F821
 
 from tactics.nav import (NavError, cursor_to, farlook, go_down, go_up, step,  # noqa: E402,F401
                          travel, travel_to)
-from tactics.items import engrave_test, find_item, here, inventory, inventory_text  # noqa: E402,F401
+from tactics.items import dip, engrave_test, find_item, here, inventory, inventory_text  # noqa: E402,F401
 from tactics import mapview  # noqa: E402,F401
 from tactics.explore import explore, frontiers  # noqa: E402,F401
 from tactics.survival import elbereth, engraving_here, pray, prayer_check, rest, search  # noqa: E402,F401

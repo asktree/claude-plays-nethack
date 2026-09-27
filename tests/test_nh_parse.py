@@ -286,3 +286,23 @@ def test_really_attack_guard():
         g._guard(snap, b"y", force=False)
     g._guard(snap, b"\x1b", force=False)
     g._guard(snap, b"y", force=True)
+
+
+def test_feature_under_hero_remembered():
+    from nh.game import Game, Snap, Timing
+    from nh.mapscan import features_in_view
+    from nh.parse import State, parse_status
+    g = Game(term=None, timing=Timing.local())
+    before = mk({5: "      |..{@.|", 22: STATUS1, 23: "Dlvl:5 $:0 HP:10(10) Pw:1(1) AC:6 Xp:5/200 T:900"},
+                cursor=(10, 5))
+    s0 = Snap(screen=before, state=State("command"), status=parse_status(before))
+    g._remember_terrain(s0, [])
+    on = mk({5: "      |..@..|", 22: STATUS1, 23: "Dlvl:5 $:0 HP:10(10) Pw:1(1) AC:6 Xp:5/200 T:901"},
+            cursor=(9, 5))
+    s1 = Snap(screen=on, state=State("command"), status=parse_status(on))
+    g._remember_terrain(s1, [])
+    assert s1.under == "{"
+    assert any(f["name"] == "fountain (under you)" for f in features_in_view(s1))
+    s2 = Snap(screen=on, state=State("command"), status=parse_status(on))
+    g._remember_terrain(s2, ["The fountain dries up!"])
+    assert s2.under is None

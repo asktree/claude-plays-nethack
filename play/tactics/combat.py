@@ -13,7 +13,9 @@ from .mapview import DIR_KEY
 ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misses|stings|butts|kicks|claws|touches)[!.]$",
            r"^The .* (turns to flee|is killed|dies)", r"^You hear some noises", r"^Welcome to experience level",
            # monster chatter in melee (wizard.c cuss(), demon/imp taunts, quoted speech)
-           r"casts aspersions on your ancestry", r"laughs fiendishly", r'^"[^"]*"$']
+           r"casts aspersions on your ancestry", r"laughs fiendishly", r'^"[^"]*"$',
+           # hit side effects that the HP check already covers
+           r"^You get zapped!$", r"^You are (?:stung|bitten|kicked|butted)"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 

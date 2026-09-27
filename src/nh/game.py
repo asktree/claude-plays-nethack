@@ -51,6 +51,7 @@ class Snap:
     unsent: str = ""        # keys NOT sent because the game state made them unsafe
     stop_reason: str = ""
     monsters: list = field(default_factory=list)   # set by the MonsterTracker (command state)
+    under: str | None = None   # remembered map feature under the hero ('<', '>', '{', '_', '\\')
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -192,6 +193,7 @@ class Game:
         self.visited: dict[str, set] = {}   # level (ldesc) -> hero positions seen in command state
         self.traps: dict[str, set] = {}     # level (ldesc) -> squares known to hold traps
         self.avoid: dict[str, set] = {}     # level (ldesc) -> squares the player asked to avoid
+        self.terrain_seen: dict[str, dict] = {}   # level key -> {(x, y): feature char} (stairs, fountains...)
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -216,6 +218,28 @@ class Game:
         for d in (self.traps, self.avoid, self.visited):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
+        if old in self.terrain_seen:
+            self.terrain_seen.setdefault(new, {}).update(self.terrain_seen.pop(old))
+
+    FEATURE_CHARS = "<>{_\\"
+
+    def _remember_terrain(self, snap: Snap, messages: list[str]) -> None:
+        """Remember stairs/fountains/altars/thrones per level so the one under
+        the hero (hidden by the '@') is still known: sets snap.under."""
+        if snap.hero is None or not snap.status.ok:
+            return
+        feats = self.terrain_seen.setdefault(self.level_key(snap.status), {})
+        for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
+            row = snap.screen.row(y)
+            for x, ch in enumerate(row):
+                if ch in self.FEATURE_CHARS:
+                    feats[(x, y)] = ch
+        for c in list(feats):
+            if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
+                del feats[c]           # e.g. a fountain that dried up
+        if any("dries up" in m for m in messages):
+            feats.pop(snap.hero, None)
+        snap.under = feats.get(snap.hero)
 
     # ---- low level ---------------------------------------------------------
     def capture(self) -> Snap:
@@ -471,6 +495,7 @@ class Game:
                     self.visited.setdefault(self.level_key(snap.status), set()).add(snap.hero)
                     moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
                     self._note_traps(snap, messages, moved_level=moved)
+                    self._remember_terrain(snap, messages)
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -682,6 +707,7 @@ class Game:
                 snap.messages = []
             if snap.hero is not None:
                 self.hero_pos = snap.hero
+                self._remember_terrain(snap, [])
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)

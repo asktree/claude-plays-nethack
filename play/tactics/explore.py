@@ -150,11 +150,13 @@ def _explore(max_legs: int, skip: set):
     legs = 0
     unreachable, locked = [], []
     why = {"avoided": []}
+    boulders_hit: list = []
     stuck = 0
 
     def result(reason):
         return {"reason": reason, "legs": legs, "unreachable": unreachable, "locked": locked,
-                "avoided": why["avoided"]}
+                "avoided": why["avoided"], "boulders": boulders_hit + [b for b in _boulder_leads()
+                                                                        if b not in boulders_hit]}
 
     def finished():
         left = []
@@ -165,6 +167,10 @@ def _explore(max_legs: int, skip: set):
             left.append(f"frontiers {why['avoided']} only reachable across avoided squares {sorted(bad_squares())}")
         if unreachable:
             left.append(f"frontiers {unreachable} travel couldn't reach")
+        bl = boulders_hit + [b for b in _boulder_leads() if b not in boulders_hit]
+        if bl:
+            left.append(f"boulders {bl} in the way / next to unexplored space (travel never pushes: step into "
+                        "one to push it if the square beyond is free; in Sokoban follow the solution)")
         if not left:
             return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages")
         return result("blocked: " + "; ".join(left))
@@ -234,11 +240,31 @@ def _explore(max_legs: int, skip: set):
                 stuck = 0
             continue
         if any(h in text for h in FAIL_HINTS) or s.hero == hero:
+            if "boulder" in text and s.hero is not None:
+                hx, hy = s.hero
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if (dx or dy) and s.screen.at(hx + dx, hy + dy) == "0" and (hx + dx, hy + dy) not in boulders_hit:
+                            boulders_hit.append((hx + dx, hy + dy))
             unreachable.append(target)
             skip.add(target)
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+def _boulder_leads(s=None) -> list:
+    """Boulders ('0') next to never-seen space: possibly the only way on
+    (NetHack's frontier finder ignores squares with objects on them)."""
+    s = s or ctx.last()
+    out = []
+    for o in s.objects:
+        if o["ch"] != "0":
+            continue
+        x, y = o["x"], o["y"]
+        if any(s.screen.at(x + dx, y + dy) == " " for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))):
+            out.append((x, y))
+    return out
 
 
 def search_until_change(max_turns: int = 30, step: int = 5):

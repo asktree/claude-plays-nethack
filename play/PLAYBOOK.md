@@ -76,6 +76,11 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 - **Unknown potions**: don't drink-test while monsters are near (sleeping, blindness, hallucination) or
   while Burdened on dangerous levels. Dip-test and price-ID instead where possible; never quaff from a
   fountain for fun (water moccasins, nymphs, demons).
+- **Old food can be "rotten"** (eat.c): any cursed food, and any non-corpse food older than 30 turns (50 if
+  blessed) — food rations and candy bars you found included; lembas and cram never — has a 1 in 7 chance of
+  "Blecch! Rotten food!": confusion, blindness for up to 50 turns, or unconsciousness for up to 10 turns
+  (then the whole stack stays flagged rotten). Eat such food only on a safe square (Elbereth, no monster
+  in view). Fresh safe corpses (`corpse()`) are the best food; eat before "Weak", not at "Fainting".
 - **Unknown rings/amulets**: never put on (teleportitis, hunger, levitation you can't remove if cursed;
   amulet of strangulation kills in 6 turns — remove it at once, prayer fixes it).
 

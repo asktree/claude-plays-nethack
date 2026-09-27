@@ -107,5 +107,9 @@ def features_in_view(snap, hero=None) -> list[dict]:
             d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
             out.append({"ch": ch, "x": x, "y": y, "name": name, "dist": d,
                         "color": COLOR_NAMES[col] if 0 <= col < 16 else str(col)})
+    under = getattr(snap, "under", None)
+    if under and hero and FEATURES.get(under):
+        out.append({"ch": under, "x": hero[0], "y": hero[1], "name": FEATURES[under] + " (under you)",
+                    "dist": 0, "color": ""})
     out.sort(key=lambda e: (e["dist"] if e["dist"] is not None else 99, e["y"], e["x"]))
     return out
