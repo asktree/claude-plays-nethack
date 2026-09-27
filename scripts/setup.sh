@@ -25,7 +25,7 @@ done
 [ -d .venv ] || "$PY" -m venv .venv
 .venv/bin/python3 -m pip install -q --upgrade pip pytest >/dev/null
 echo "python: $(.venv/bin/python3 --version), tmux: $(tmux -V), $(ssh -V 2>&1)"
-PYTHONPATH=src .venv/bin/python3 -m pytest -q tests/test_nh_parse.py tests/test_nh_data.py tests/test_nh_monitor.py tests/test_sokoban_data.py 2>&1 | tail -2
+PYTHONPATH=src .venv/bin/python3 -m pytest -q tests/test_nh_parse.py tests/test_nh_data.py tests/test_nh_monitor.py tests/test_sokoban_data.py tests/test_tactics.py 2>&1 | tail -2
 mkdir -p play/secrets && chmod 700 play/secrets
 if [[ "${1:-}" == "--allow-harness" ]]; then
   mkdir -p .claude
