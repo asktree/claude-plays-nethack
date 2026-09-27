@@ -1207,7 +1207,7 @@ def _forget_stairs(cell, ch: str) -> None:
 
 
 def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None, with_pet=None,
-                _retried: bool = False):
+                _retried: bool = False, pass_hostile: bool = False):
     s = ctx.last()
     engulfed_check(s, "go_down()" if ch == ">" else "go_up()")
     if s.status.ok and "Lev" in s.status.conditions:
@@ -1232,7 +1232,7 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         if s.hero == target:
             break
         try:
-            s = travel(*target, with_pet=with_pet)
+            s = travel(*target, with_pet=with_pet, pass_hostile=pass_hostile)
         except PetLost as e:
             if not auto:
                 raise
@@ -1274,7 +1274,7 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
             # arrival square): forget that square, re-read the map, try once more
             print(f"stairs: no {ch} at {target} after all — forgetting it and re-reading the map (#terrain)")
             _forget_stairs(target, ch)
-            return _use_stairs(ch, tries, wait_pet, to, with_pet, _retried=True)
+            return _use_stairs(ch, tries, wait_pet, to, with_pet, _retried=True, pass_hostile=pass_hostile)
         raise NavError(f"pressed {ch!r} at {target} but you are still on {ld0}"
                        + (f": {cur.messages}" if cur.messages else "") + " — look at why before going on")
     return s
@@ -1330,7 +1330,7 @@ def _wait_for_pet(s, turns: int):
     return s
 
 
-def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None):
+def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostile: bool = False):
     """Travel to a '>' (re-travelling after routine stops), check you are on
     it, then descend. Raises NavError instead of pressing '>' anywhere else.
     With several '>' on the level it takes the one that stays in this branch
@@ -1339,8 +1339,9 @@ def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None):
     wait_pet: if your pet is in view nearby but not next to you, wait up to
     this many turns for it (0: don't). with_pet: travel in pet-keeping legs
     (see travel()); default: yes when wait_pet and your pet is within 7
-    squares at the start. Says so when it leaves the pet behind."""
-    return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet)
+    squares at the start. Says so when it leaves the pet behind.
+    pass_hostile=True: walk past a hostile that stops the trip (see travel())."""
+    return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet, pass_hostile=pass_hostile)
 
 
 def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None):
@@ -1363,9 +1364,9 @@ def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None):
     return s
 
 
-def go_up(wait_pet: int = 6, to: str | None = None, with_pet=None):
+def go_up(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostile: bool = False):
     """Like go_down() for '<' (e.g. go_up(to='Sokoban') on the Oracle-below level)."""
-    return _use_stairs("<", wait_pet=wait_pet, to=to, with_pet=with_pet)
+    return _use_stairs("<", wait_pet=wait_pet, to=to, with_pet=with_pet, pass_hostile=pass_hostile)
 
 
 def kick_door(x, y, tries: int = 8):
