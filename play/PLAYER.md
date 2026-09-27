@@ -104,7 +104,8 @@ Available in the kernel:
 | `pause(reason)` | hand control back to yourself from inside a script |
 | `mon('soldier ant')` | monster stats (level, speed, attacks, resistances, corpse benefits) + danger note |
 | `corpse('killer bee', age=0, poison_res=False)` | is this corpse safe for us to eat? (SAFE/RISKY/DEADLY/NEVER + benefits) |
-| `obj('speed boots')`, `price_candidates('SCROLL_CLASS', 20)` | object facts; price-identification candidates |
+| `obj('speed boots')`, `price_candidates('SCROLL_CLASS', 20)` | object facts; price-identification candidates by base price |
+| `price_id('SCROLL_CLASS', buy=133)` / `price_id('SCROLL_CLASS', sell=40)` | shop price identification with the exact shk.c rules (your Charisma, the fixed 1-in-4 +1/3 surcharge on unidentified items, lowballing shopkeepers): the unidentified items consistent with the quoted unit price and/or the sell offer for one item. Quote several numbers to narrow it down |
 | `wiki('regex')`, `wiki_page('Floating eye')` | search/read the offline NetHack wiki (`knowledge/wiki/`) |
 | `sokoban.solve()` | Sokoban: recognises which of the 8 levels you're on and how far along the board is, then runs the level's **verified** solution one boulder at a time, checking the board after every push (pauses on anything unexpected; `solve(max_steps=3)` for a few steps). `sokoban.progress()` shows level, step k/N and the next push. The solutions come from the wiki, replayed in a simulator of the 3.6 rules |
 | `sokoban.board()`, `sokoban.push(x, y, 'hhk')` | Sokoban by hand (if the board deviated from the plan): show the board; push the boulder at (x,y) left,left,up with checked walking |

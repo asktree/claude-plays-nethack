@@ -116,3 +116,70 @@ def last_seen(name: str | None = None) -> list[dict]:
         out.append({"desc": r.get("desc"), "x": r["x"], "y": r["y"], "turn": r.get("turn"),
                     "ago": turn - (r.get("turn") or turn)})
     return out
+
+
+def _scale(tmp: int, mult: int, div: int) -> int:
+    """shk.c rounding: ((tmp * mult * 10) / div + 5) / 10, never 0 from nonzero."""
+    tmp *= mult
+    if div > 1:
+        tmp = (tmp * 10 // div + 5) // 10
+    return max(tmp, 1) if tmp else tmp
+
+
+def _buy_prices(base: int, cha: int, dunce: bool = False) -> set:
+    """Possible 'For you, N zorkmids' unit prices for an UNidentified item of
+    this base price (shk.c get_cost): 1 in 4 items carry a fixed +1/3."""
+    out = set()
+    for surcharge in (False, True):
+        mult, div = 1, 1
+        if surcharge:
+            mult, div = mult * 4, div * 3
+        if dunce:
+            mult, div = mult * 4, div * 3
+        if cha > 18:
+            div *= 2
+        elif cha == 18:
+            mult, div = mult * 2, div * 3
+        elif cha >= 16:
+            mult, div = mult * 3, div * 4
+        elif cha <= 5:
+            mult *= 2
+        elif cha <= 7:
+            mult, div = mult * 3, div * 2
+        elif cha <= 10:
+            mult, div = mult * 4, div * 3
+        out.add(_scale(base or 5, mult, div))
+    return out
+
+
+def _sell_offers(base: int, dunce: bool = False) -> set:
+    """Possible sell offers for one UNidentified item (shk.c set_cost): half
+    the base price, or 3/8 of it at a shopkeeper who lowballs (1 in 4
+    shopkeepers, always the same one)."""
+    div = 3 if dunce else 2
+    return {_scale(base, 1, div), _scale(base, 3, div * 4)} if base > 1 else {base}
+
+
+def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: int | None = None,
+             dunce: bool = False) -> list:
+    """Which unidentified items of a class match a shop price? klass like
+    'SCROLL_CLASS', 'POTION_CLASS', 'RING_CLASS', 'WAND_CLASS',
+    'AMULET_CLASS', 'SPBOOK_CLASS'. buy = the unit price quoted to you
+    ("For you, 133 zorkmids"), sell = the offer for ONE item. cha defaults
+    to your Charisma from the status line. Returns [(name, base price)]
+    consistent with every number given (formulas from shk.c)."""
+    from . import ctx
+    if cha is None:
+        st = ctx.last().status
+        cha = st.ch if st.ok else 10
+    out = []
+    for o in _objects():
+        if o.get("class") != klass or not o.get("name"):
+            continue
+        base = int(o.get("cost") or 0)
+        if buy is not None and buy not in _buy_prices(base, cha, dunce):
+            continue
+        if sell is not None and sell not in _sell_offers(base, dunce):
+            continue
+        out.append((o["name"], base))
+    return sorted(out, key=lambda x: (x[1], x[0]))
