@@ -275,6 +275,20 @@ _ARTIFACT_WEAPONS = re.compile(
     r"Sunsword|Sceptre of Might|Staff of Aesculapius|Longbow of Diana|Tsurugi of Muramasa)\b")
 
 
+_ELBERETH_IGNORERS = re.compile(r"\b(?:minotaur|shopkeeper|watchman|watch captain|guard|priest(?:ess)?|"
+                                r"Wizard of Yendor|Angel|Aleax|ki-rin|Archon|Death|Famine|Pestilence)\b")
+
+
+def ignores_elbereth(m: dict) -> bool:
+    """monmove.c onscary(): @ humans and elves, minotaurs, shopkeepers, guards, priests, the Wizard, lawful
+    minions (Angels...) and the Riders pay Elbereth no heed — hitting one from your Elbereth square is no
+    hypocrisy (mon.c setmangry), though a blow still smudges a dust engraving (uhitm.c u_wipe_engr)."""
+    desc = m.get("desc") or ""
+    if desc.startswith("peaceful "):
+        return False              # attacking a peaceful from Elbereth is hypocrisy whatever it is
+    return m.get("ch") == "@" or bool(_ELBERETH_IGNORERS.search(desc))
+
+
 def is_weapon_text(text: str) -> bool:
     """Does an inventory/wield text name a weapon or weapon-tool (pick-axe,
     unicorn horn...)? 'a blessed +6 long sword named Excalibur' -> True,
@@ -1011,8 +1025,11 @@ class Game:
                 if key in self._MOVE and unit[:1] != b"m":
                     dx, dy = self._MOVE[key]
                     tgt = (snap.hero[0] + dx, snap.hero[1] + dy)
-                    attack = attack or any((m["x"], m["y"]) == tgt and not m.get("tame") and not m.get("pet")
-                                           and not m.get("statue") for m in snap.monsters or [])
+                    there = [m for m in snap.monsters or [] if (m["x"], m["y"]) == tgt and not m.get("tame")
+                             and not m.get("pet") and not m.get("statue")]
+                    attack = attack or bool(there)
+                    if there and all(ignores_elbereth(m) for m in there):
+                        attack = False       # (no hypocrisy; the blow smudges the dust: re-engrave after)
                 if attack:
                     raise PermissionError(
                         "refusing to attack from your Elbereth square: melee, throwing/firing, zapping or kicking "
@@ -1131,6 +1148,8 @@ class Game:
                     if not m.get("tame") and not m.get("pet") and not m.get("statue")}
             for i in range(1, 14):
                 c = (hx + dx * i, hy + dy * i)
+                if c in mons and ignores_elbereth(mons[c]):
+                    break                    # the first monster in line ignores Elbereth: no hypocrisy
                 if c in mons:
                     raise PermissionError(
                         f"refusing to throw/zap/kick at the {mons[c].get('desc') or 'monster'} at {c} from your "

@@ -57,7 +57,9 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^The .+ (?:is|are) welded to (?:his|her|its) hands?!$", r" rises from the dead!$",
            r"^The [\w' -]+ crashes on .+ and breaks into shards\.$", r"^The .+ reads a scroll of create monster!$",
            r"^The (?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|"
-           r"fireball|cone of cold) (?:bounces|whizzes by you)!$"]
+           r"fireball|cone of cold) (?:bounces|whizzes by you)!$",
+           # other monsters' spells on themselves (mcastu.c: haste self, invisibility, cure self)
+           r" is suddenly moving faster\.$", r" becomes transparent\.$", r"^The invisible .+ casts a spell"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
@@ -134,7 +136,11 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
       uses auto_fightable, so a python joining a snake fight isn't meleed).
     - force=True: swing at an 'I' (unseen) square while blind — the guard
       refuses that by default (it may be a peaceful): e.g. blindfolded
-      against Medusa, on the square telepathy/her last position shows.
+      against Medusa, on the square telepathy/her last position shows; it
+      also passes force to every blow (past the move guards: yours to judge).
+      Hitting a monster that ignores Elbereth (@ humans/elves, minotaurs,
+      shopkeepers, priests...) from your Elbereth square needs no force: no
+      hypocrisy, but the blow smudges dust — re-engrave after.
     - HP pauses inside it follow the fight rules (kernel hp_rules): below
       stop_hp, a loss that would take you there in two more rounds, or a
       quarter of max HP in one step — not every blow below 70%."""
@@ -354,7 +360,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         key = _key_toward(s.hero, m)
         if key is None:
             return s
-        s = ctx.do("F" + key, ok=ROUTINE)
+        s = ctx.do("F" + key, ok=ROUTINE, force=force)
         seen.extend(s.messages)
     return s
 
@@ -664,6 +670,11 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             ctx.pause("zap: the wand wants a direction but none was given")
             return ctx.last()
         return ctx.do(direction, ok=ZAP_OK, force=force)
+    if direction and not any(m.startswith("Nothing happens") for m in s.messages):
+        # zap.c zapnodir(): no direction asked = a NODIR wand (light, secret door detection, create monster,
+        # enlightenment, wishing); an unknown one says which by what happened
+        print(f"zap: wand {wand} asked NO direction — a non-directional wand (light / secret door detection / "
+              f"create monster / enlightenment / wishing): {s.messages or 'no message'}")
     return s
 
 

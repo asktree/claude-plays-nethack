@@ -1139,3 +1139,22 @@ def test_it_kill_dates_the_corpse_and_pickaxe_wield_note():
     assert "digging tool" in g.wield_note()
     g.wielded = "a blessed +6 long sword named Excalibur"
     assert g.wield_note() == ""
+
+
+def test_elbereth_guard_lets_you_hit_monsters_that_ignore_it():
+    # mon.c setmangry(): hitting a monster that ignores Elbereth (onscary() false: @ humans, minotaurs...)
+    # from your Elbereth square is no hypocrisy
+    import pytest
+    g = _guard_game()
+    soldier = {"x": 11, "y": 5, "ch": "@", "desc": "soldier", "dist": 1}
+    s = _cmd_snap([soldier])
+    g._remember_here(s, ["Something is written here in the dust.", 'You read: "Elbereth".'])
+    g._guard(s, b"Fl", force=False)                              # a soldier: allowed
+    jackal = {"x": 11, "y": 5, "ch": "d", "desc": "jackal", "dist": 1}
+    with pytest.raises(PermissionError):
+        g._guard(_cmd_snap([jackal]), b"Fl", force=False)       # a jackal respects it: hypocrisy
+    peaceful = {"x": 11, "y": 5, "ch": "@", "desc": "peaceful watchman", "peaceful": True, "dist": 1}
+    with pytest.raises(PermissionError):
+        g._guard(_cmd_snap([peaceful]), b"Fl", force=False)
+    mino = {"x": 11, "y": 5, "ch": "H", "desc": "minotaur", "dist": 1}
+    g._guard(_cmd_snap([mino]), b"Fl", force=False)

@@ -531,7 +531,8 @@ class Kernel:
 
                 def far(m):
                     d = m.get("dist")
-                    if d is None or m.get("note"):
+                    # (a sea monster ';' can't leave its water: far off it waits like any other, note or not)
+                    if d is None or (m.get("note") and m.get("ch") != ";"):
                         return False
                     # a big lit room reveals a crowd a few at a time; telepathy senses a whole level
                     # (a sleeping court 30 squares off): those are news only when they come near
