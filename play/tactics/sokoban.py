@@ -502,11 +502,41 @@ def progress(s=None) -> dict:
         # can reach the next push from here, resume: replaying the whole step is often
         # impossible by then (the first push's side is cut off).
         partial = next((p for p in _partials(lv, cur, only=done) if reachable(p)), None)
+    out_of_order = None
+    if done < 0:
+        out_of_order = _out_of_order(lv, states, cur, ox, oy)
     nxt = lv["steps"][done] if 0 <= done < len(lv["steps"]) else None
     return dict(ident, done=done, total=len(lv["steps"]), next=nxt,
                 partial=({"pushes_done": partial[1], "boulder_at": (partial[2][0] + ident["ox"],
                                                                     partial[2][1] + ident["oy"])}
-                         if partial else None))
+                         if partial else None),
+                out_of_order=out_of_order)
+
+
+def _out_of_order(lv, states, cur, ox, oy):
+    """The board matches no plan state because holes were filled out of order (a teleported or extra boulder
+    plugged one: p3 shift 12). Find the latest plan state whose boulders include all of ours and whose open
+    holes include all of ours, with as many boulders gone as holes filled; list the rest of the plan without
+    the pushes of the gone boulders, as push_wiki() calls (screen coordinates). None if there is none."""
+    cb, ct, cov = cur
+    for k in range(len(states) - 1, -1, -1):
+        wb, wt = states[k]
+        gone, filled = (wb - cov) - (cb - cov), (wt - cov) - (ct - cov)
+        if not gone or len(gone) != len(filled) or not (cb - cov) <= (wb - cov) or not (ct - cov) <= (wt - cov):
+            continue
+        rest, dead = [], set(gone)
+        for st in lv["steps"][k:]:
+            at = tuple(st["at"])
+            pos = at
+            for mv in st["moves"]:
+                pos = (pos[0] + _DXY[mv][0], pos[1] + _DXY[mv][1])
+            if at in dead:
+                dead.add(pos)             # (that boulder's later pushes are gone too)
+                continue
+            rest.append(f"push_wiki({at[0] + ox}, {at[1] + oy}, '{st['moves']}')")
+        return {"from_step": k, "gone": sorted((x + ox, y + oy) for x, y in gone),
+                "filled": sorted((x + ox, y + oy) for x, y in filled), "rest": rest}
+    return None
 
 
 def solve(max_steps: int | None = None, defer: int = 6):
@@ -528,6 +558,15 @@ def solve(max_steps: int | None = None, defer: int = 6):
 
 def _solve(max_steps):
     p = progress()
+    if p["done"] < 0 and p.get("out_of_order"):
+        o = p["out_of_order"]
+        ctx.pause(f"sokoban: hole(s) {o['filled']} were filled out of order (boulder(s) {o['gone']} are gone): the "
+                  f"board is the plan's step {o['from_step']} without them. Each push drops its boulder into the "
+                  "FIRST open hole, so the remaining pushes still work (a boulder may fall in earlier than "
+                  "planned — push() then stops, which is fine; one that stops short needs a few more pushes). "
+                  "Run by hand, in order: " + "; ".join(o["rest"][:14])
+                  + (f" ... (+{len(o['rest']) - 14} more)" if len(o["rest"]) > 14 else ""))
+        return p
     if p["done"] < 0:
         lv = _levels()[p["level"]]
         cur = _state(ctx.last(), lv, p["ox"], p["oy"])

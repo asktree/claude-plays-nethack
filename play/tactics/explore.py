@@ -279,8 +279,13 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                         "(or dig / find another way)")
         bl = boulders_hit + [b for b in _boulder_leads() if b not in boulders_hit]
         if bl:
+            # (p3 shift 12: on a corridor maze the one boulder with unseen ground behind it opened half the
+            # level; the others sat against rock) — most unseen squares around first
+            unk = {b: _unseen_around(ctx.last(), b) for b in bl}
+            bl = sorted(bl, key=lambda b: -unk[b])
             lev = "Lev" in (ctx.last().status.conditions if ctx.last().status.ok else ())
-            left.append(f"boulders {bl} in the way / next to unexplored space ("
+            left.append("boulders " + ", ".join(f"{b} [{unk[b] or 'no'} unseen square(s) around]" for b in bl[:6])
+                        + " in the way / next to unexplored space — the first ones first ("
                         + ("you are LEVITATING: you can't push boulders now" if lev else
                            "travel never pushes: step into one to push it if the square beyond is free; in "
                            "Sokoban follow the solution") + ")")
@@ -564,6 +569,15 @@ def _cleared_I(target, err, tried: set) -> bool:
     except NavError as e:
         print(f"explore: couldn't clear the 'I' at {target}: {e}")
         return False
+
+
+def _unseen_around(s, c, r: int = 4) -> int:
+    """Blank (never-seen) squares within r of c that you were never next to: how much may lie behind it."""
+    from nh.parse import MAP_BOTTOM, MAP_TOP
+    near = {(vx + dx, vy + dy) for (vx, vy) in ctx.game.visited.get(ctx.game.level_key(s.status), set())
+            for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    return sum(1 for x in range(c[0] - r, c[0] + r + 1) for y in range(c[1] - r, c[1] + r + 1)
+               if MAP_TOP < y <= MAP_BOTTOM and 0 < x < 79 and s.screen.at(x, y) == " " and (x, y) not in near)
 
 
 def _trap_frontiers(s, bad) -> list:

@@ -70,6 +70,7 @@ class Snap:
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
+    no_squeeze: bool = False   # a diagonal squeeze between rock failed (pack over 600): planners avoid them
     room_note: str = ""        # set on the step that entered a special room (zoo, anthole, beehive...)
     room_mem: dict = field(default_factory=dict)    # {(x, y) entry: {"kind", "prev", "turn"}} special rooms here
     mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
@@ -243,6 +244,12 @@ def _menu_sig(snap: "Snap"):
     if not m:
         return ("-", snap.state.kind)
     return (m.title, tuple(it.text for it in m.items[:4]), m.page)
+
+
+def _squeeze_rock(scr: Screen, x: int, y: int) -> bool:
+    """hack.c bad_rock() as seen on the screen: rock/unknown, a wall (not an open door), a tree, a boulder."""
+    ch, col = scr.at(x, y), scr.color_at(x, y)
+    return ch in " 0" or (ch in "|-" and col not in (3, 15)) or (ch == "#" and col == 2)
 
 
 def _engulfed(scr: Screen, hero) -> bool:
@@ -1458,6 +1465,13 @@ class Game:
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
                         # moves or erases the engraving here without a word (zap.c)
                         self.engr_seen.get(self.level_key(snap.status), {}).pop(snap.hero, None)
+                    if any(m.startswith("You are carrying too much to get through") for m in messages):
+                        self.no_squeeze = True     # hack.c test_move(): inventory weight over 600
+                    elif len(data) == 1 and data[0] in self._MOVE and cur.hero is not None and snap.hero is not None \
+                            and abs(snap.hero[0] - cur.hero[0]) == 1 and abs(snap.hero[1] - cur.hero[1]) == 1 \
+                            and _squeeze_rock(cur.screen, snap.hero[0], cur.hero[1]) \
+                            and _squeeze_rock(cur.screen, cur.hero[0], snap.hero[1]):
+                        self.no_squeeze = False    # a squeeze went through: light enough again
                     if len(data) == 1 and data[0] in self._MOVE and cur.hero is not None and snap.hero == cur.hero \
                             and any(m in ("It's solid stone.", "It's a wall.") for m in messages):
                         dx, dy = self._MOVE[data[0]]
@@ -1800,6 +1814,7 @@ class Game:
                 solid.discard(c)            # dug out since (or you stand there)
         snap.solid_mem = set(solid or ())
         snap.niche_mem = dict(self.niches.get(key, {})) if key is not None else {}
+        snap.no_squeeze = bool(getattr(self, "no_squeeze", False))
         snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,

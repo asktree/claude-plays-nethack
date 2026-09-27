@@ -2668,3 +2668,37 @@ def test_covetous_ring_and_box_trap_check(monkeypatch):
     monkeypatch.setattr(ctx, "require_command", lambda what: s)
     monkeypatch.setattr(ctx, "last", lambda: s)
     assert items.check_box(3) == "trapped" and sent == ["#untrap<CR>", ".", "y", "n"]
+
+
+def test_sokoban_holes_filled_out_of_order():
+    # p3 shift 12: a teleported boulder plugged a different hole; progress() said done=-1
+    from tactics.sokoban import _out_of_order
+    lv = {"boulders": [[1, 1], [1, 3]], "traps": [[5, 1], [6, 1]],
+          "steps": [{"at": [1, 1], "moves": "rrrr", "after": {"boulders": [[1, 3]], "traps": [[6, 1]]}},
+                    {"at": [1, 3], "moves": "uurrrrr", "after": {"boulders": [], "traps": []}}]}
+    states = [({(1, 1), (1, 3)}, {(5, 1), (6, 1)}), ({(1, 3)}, {(6, 1)}), (set(), set())]
+    cur = ({(1, 1)}, {(5, 1)}, set())               # boulder (1,3) is gone into hole (6,1)
+    o = _out_of_order(lv, states, cur, 10, 2)
+    assert o["from_step"] == 0 and o["gone"] == [(11, 5)] and o["filled"] == [(16, 3)]
+    assert o["rest"] == ["push_wiki(11, 3, 'rrrr')"]
+    assert _out_of_order(lv, states, ({(2, 2)}, {(5, 1)}, set()), 0, 0) is None
+
+
+def test_no_squeeze_after_carrying_too_much():
+    # p3 shift 12 #2005: hunt() planned a diagonal squeeze while the pack was over 600
+    from nh.game import Game, Timing
+    from tactics.mapview import bfs_path
+    rows = {3: "    -----",
+            4: "    |-.|",
+            5: "    |.|-",
+            6: "    -----"}
+    s = _snap(rows, (5, 5), [])
+    assert bfs_path(s, (5, 5), (6, 4)) == [(6, 4)]
+    s.no_squeeze = True
+    assert bfs_path(s, (5, 5), (6, 4)) is None
+    g = Game(term=None, timing=Timing.local())
+    g.no_squeeze = True
+    s2 = _snap(rows, (5, 5), [])
+    s2.status.ldesc = "Dlvl:6"
+    g._annotate(s2)
+    assert s2.no_squeeze is True
