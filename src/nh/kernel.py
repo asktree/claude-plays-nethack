@@ -480,7 +480,10 @@ class Kernel:
                                  " and BURNS YOUR LUNGS (rnd(dmg)+5 HP a turn without poison resistance) — "
                                  "get out now"))
         trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)
-                   and not m.startswith("There is")]
+                   and not m.startswith("There is")
+                   # (the exec's own -a / ok patterns cover it: p2 shift 30's arrow traps in a trap-rich maze;
+                   # the square is remembered all the same, and HP loss pauses on its own)
+                   and not any(p.search(m) for p in self.autocontinue) and not any(p.search(m) for p in extra)]
         lt = getattr(self.game, "last_theft", None)
         if lt and lt.get("msg") in snap.messages and getattr(snap, "theft_note", ""):
             reasons.insert(0, "THEFT — " + snap.theft_note)

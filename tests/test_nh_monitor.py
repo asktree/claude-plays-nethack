@@ -1108,3 +1108,21 @@ def test_autopickup_of_a_cursed_item_pauses():
     k._last_keys = b"wa"
     k._check_events(before, same)
     assert not any("AUTOPICKUP" in r for r in reasons)
+
+
+def test_trap_pause_respects_the_exec_autocontinue_patterns():
+    # p2 shift 30: "trap at (x, y)" paused for arrow traps the exec's -a list already covered
+    import re as _re
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    before, after = snap({}, 20), snap({}, 21)
+    after.messages = ["An arrow shoots out at you!", "You are hit by an arrow."]
+    k._check_events(before, after)
+    assert any("trap at" in r for r in reasons)
+    reasons.clear()
+    k.autocontinue = [_re.compile(r"arrow shoots out|hit by an arrow")]
+    k._check_events(before, after)
+    assert not any("trap at" in r for r in reasons)
