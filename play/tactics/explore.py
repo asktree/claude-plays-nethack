@@ -761,6 +761,9 @@ def _hidden_stairs_hint() -> str:
             return ""
         return (f" — the down stairs are at {hidden[0]}, hidden under an object or monster (the game's own "
                 "map, #terrain): travel_to('>') / go_down() use it")
+    fixed = _desmap_stairs_hint(s)
+    if fixed:
+        return fixed
     visited = ctx.game.visited.get(ctx.game.level_key(s.status), set())
     cands = [(o["x"], o["y"]) for o in s.objects if (o["x"], o["y"]) not in visited and o["ch"] not in "0`"
              and _on_known_ground(s, o["x"], o["y"])]
@@ -769,6 +772,24 @@ def _hidden_stairs_hint() -> str:
         return " — no down stairs seen yet"
     return (" — no down stairs seen yet: stairs can hide under objects and statues; step onto / here() these: "
             + str(cands[:12]))
+
+
+def _desmap_stairs_hint(s) -> str:
+    """No '>' seen: on a special level with a fixed map (Minetown, the quest, the Valley...) the map knows where
+    the down stairs are — p3 shift 13: explore() circled Minetown for 30 legs; desmap had them at once."""
+    try:
+        from . import desmap
+        f = desmap.identify(s=s)
+        if not f or f.get("ambiguous"):
+            return ""
+        downs = [ft for ft in desmap.features(s) if ft["kind"] in ("stair", "ladder") and ft["detail"] == "down"]
+    except Exception:  # noqa: BLE001  (no map fits: nothing to add)
+        return ""
+    if not downs:
+        return ""
+    c = (downs[0]["x"], downs[0]["y"])
+    return (f" — this level is {f['level']} (a fixed map: desmap.show()): its DOWN STAIRS are at {c} — "
+            f"travel{c} routes over the map through the unseen parts (it stops at a locked door: unlock() it)")
 
 
 def _boulder_leads(s=None) -> list:

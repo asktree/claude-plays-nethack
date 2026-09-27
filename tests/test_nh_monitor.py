@@ -1126,3 +1126,72 @@ def test_trap_pause_respects_the_exec_autocontinue_patterns():
     k.autocontinue = [_re.compile(r"arrow shoots out|hit by an arrow")]
     k._check_events(before, after)
     assert not any("trap at" in r for r in reasons)
+
+
+def test_monster_wand_of_sleep_is_named_and_remembered():
+    # p3 shift 13 #627: "The ogre king zaps a curved wand! | The sleep ray bounces!" only paused as "message"
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel, wand_danger
+    g = Game(term=None, timing=Timing.local())
+    s = snap({(42, 10): "O"}, 30)
+    g._note_wand_zaps(s, ["The ogre king zaps a curved wand!", "The sleep ray bounces!",
+                          "The sleep ray whizzes by you!"])
+    assert s.wand_kind == "sleep" and "ogre king" in s.wand_note
+    key = g.level_key(s.status)
+    assert g.wand_users[key]["ogre king"]["kind"] == "sleep"
+    assert wand_danger(s.wand_note, s.wand_kind, g).startswith("SLEEP RAY")
+    g.intrinsics.add("sleep")
+    assert wand_danger(s.wand_note, s.wand_kind, g) == ""               # resisted: no named pause
+    g.intrinsics.discard("sleep")
+    g.reflecting = True
+    assert wand_danger(s.wand_note, s.wand_kind, g) == ""               # reflected
+    g.reflecting = False
+    assert wand_danger("the soldier zapped a wand", None, g).startswith("WAND ZAPPED AT YOU")
+    assert wand_danger("x", "death", g).startswith("DEATH RAY")
+    g.magic_res = True
+    assert wand_danger("x", "death", g) == ""
+    # a later zap without a ray message keeps the known kind
+    s2 = snap({(42, 10): "O"}, 31)
+    g._note_wand_zaps(s2, ["The ogre king zaps a curved wand!"])
+    assert s2.wand_kind == "sleep"
+    # self-zaps (teleport/digging away) are no attack
+    s3 = snap({}, 32)
+    g._note_wand_zaps(s3, ["The gnome lord zaps itself with a wand of digging!"])
+    assert not s3.wand_note
+    # the monster list keeps a note on the zapper
+    fg = FakeGame()
+    fg.truth = {(42, 10): "ogre king"}
+    t = MonsterTracker(fg)
+    s4 = snap({(42, 10): "O"}, 33)
+    s4.wand_users = dict(g.wand_users[key])
+    m = by_pos(t.update(s4))[(42, 10)]
+    assert m["note"].startswith("ZAPPED A WAND OF SLEEP AT YOU")
+    # the kernel pause
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    g.magic_res = False
+    s5 = snap({(42, 10): "O"}, 34)
+    s5.messages = ["The ogre king zaps a curved wand!", "The sleep ray whizzes by you!"]
+    s5.wand_note, s5.wand_kind = "the ogre king zapped a curved wand — a WAND OF SLEEP", "sleep"
+    k._check_events(snap({(42, 10): "O"}, 33), s5)
+    assert reasons and reasons[-1].startswith("SLEEP RAY")
+
+
+def test_undirected_spells_from_afar_pause_once():
+    # p1 shift 32 #418/#419: a caster sealed behind a locked door paused every rest loop
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    for turn in (40, 41, 42):
+        b, a = snap({}, turn - 1), snap({}, turn)
+        a.messages = ["The invisible nalfeshnee casts a spell!", "You feel that monsters are aware of your presence."]
+        k._check_events(b, a)
+    assert len(reasons) == 1                 # the aggravation once on this level; the cast itself is routine
+    reasons.clear()
+    b, a = snap({}, 50), snap({}, 51)
+    a.messages = ["The nalfeshnee casts a spell at you!"]
+    k._check_events(b, a)
+    assert reasons                           # a spell AT you is news

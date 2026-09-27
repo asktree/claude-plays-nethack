@@ -67,6 +67,9 @@ class Snap:
     medusa_risk: bool = False  # probably Medusa's level and you are neither blind nor known to reflect
     gold_note: str = ""        # loose gold while you carry a bag (leprechauns take the purse, not the bag)
     burn_note: str = ""        # in Gehennom: scrolls/potions outside the bag (fire traps destroy them)
+    wand_note: str = ""        # set on the step a monster zapped a wand / a wand ray came at you
+    wand_kind: str | None = None   # ... and what that wand does ("sleep", "death", "striking"...), if known
+    wand_users: dict = field(default_factory=dict)  # {monster name: {"kind", "wand", "turn"}} zappers here
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
@@ -443,6 +446,7 @@ class Game:
         self.solid: dict[str, set] = {}           # level key -> squares a step into said "It's solid stone."
                                                   # (gold/gems embedded in the Mines' rock look walkable)
         self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
+        self.wand_users: dict[str, dict] = {}    # level -> {monster name: {"kind", "wand", "turn"}} (_note_wand_zaps)
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -471,7 +475,7 @@ class Game:
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
-                  self.niches, self.mimics, self.desmap_ids, self.special_rooms):
+                  self.niches, self.mimics, self.desmap_ids, self.special_rooms, self.wand_users):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -695,6 +699,48 @@ class Game:
             letter = chr(data[0])
         if letter and letter in lb:
             self.loose_burnables = [c for c in lb if c != letter]
+
+    # muse.c mzapmsg(): "The ogre king zaps a curved wand!" (a wand of sleep, unidentified); zap.c buzz(): the ray
+    # names what it is ("The sleep ray whizzes by you!"); mbhitm(): striking says "The wand hits you!"
+    _ZAP_RE = re.compile(r"^(?:The |An? )?(?P<mon>.+?) zaps (?:an? |the )(?P<wand>[\w' -]*wand(?: of [\w ]+)?)!$")
+    _RAY_RE = re.compile(r"^The (?P<ray>sleep ray|death ray|bolt of fire|bolt of cold|bolt of lightning|"
+                         r"magic missile) (?:hits you|whizzes by you|bounces|misses)")
+    _RAY_KIND = {"sleep ray": "sleep", "death ray": "death", "bolt of fire": "fire", "bolt of cold": "cold",
+                 "bolt of lightning": "lightning", "magic missile": "magic missile"}
+
+    def _note_wand_zaps(self, snap: Snap, messages: list[str]) -> None:
+        """Remember monsters that zap attack wands at you (per level, by name) and what the wand does: the
+        kernel pauses on a SLEEP / DEATH ray you don't resist, the monster list keeps a note on the zapper, and
+        fight()/hunt() warn before closing in on one (p3 shift 13: an ogre king's wand of sleep, twice)."""
+        zap = next((self._ZAP_RE.match(m) for m in messages if self._ZAP_RE.match(m)), None)
+        ray = next((self._RAY_RE.match(m) for m in messages if self._RAY_RE.match(m)), None)
+        striking = any(m in ("The wand hits you!", "The wand misses you.") for m in messages)
+        if zap is None and ray is None and not striking:
+            return
+        kind = None
+        if zap is not None:
+            wm = re.search(r"wand of ([\w ]+)$", zap.group("wand"))
+            kind = wm.group(1) if wm else None
+        if ray is not None:
+            kind = self._RAY_KIND.get(ray.group("ray"), kind)
+        elif striking and kind is None:
+            kind = "striking"
+        name = zap.group("mon") if zap is not None else None
+        if name is not None and (" itself" in name or name.startswith("You")):
+            return
+        key = self.level_key(snap.status) if snap.status.ok else None
+        store = self.wand_users.setdefault(key, {}) if key else {}
+        if name:
+            from .danger import base_name
+            name = base_name(name) or name
+            rec = store.get(name) or {}
+            store[name] = {"kind": kind or rec.get("kind"), "wand": zap.group("wand") if zap else rec.get("wand"),
+                           "turn": snap.status.turn if snap.status.ok else None}
+            kind = store[name]["kind"]
+        snap.wand_note = (f"the {name} zapped {zap.group('wand') if zap else 'a wand'}" if name else
+                          "a wand ray came at you") + (f" — a WAND OF {kind.upper()}" if kind else
+                                                       " (what it does isn't known yet)")
+        snap.wand_kind = kind
 
     def _note_wield(self, messages: list[str]) -> None:
         """Keep self.wielded current from the messages: "You now wield a
@@ -1545,6 +1591,7 @@ class Game:
                         dx, dy = self._MOVE[mv]
                         self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
                     self._note_wield(messages)
+                    self._note_wand_zaps(snap, messages)
                     self._note_used_up(cur, data)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
@@ -1863,6 +1910,7 @@ class Game:
         snap.solid_mem = set(solid or ())
         snap.niche_mem = dict(self.niches.get(key, {})) if key is not None else {}
         snap.no_squeeze = bool(getattr(self, "no_squeeze", False))
+        snap.wand_users = dict(self.wand_users.get(key, {})) if key is not None else {}
         snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,

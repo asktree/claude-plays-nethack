@@ -311,3 +311,22 @@ def test_threat_level_info_notes_dont_force_danger():
     assert threat_level("hill orc", 3, 30) != "trivial"
     for n in ("killer bee", "soldier ant", "wood nymph", "floating eye", "cockatrice"):
         assert threat_level(n, 10, 121) == "dangerous", n
+
+
+def test_seducer_note_knows_the_heros_gender(monkeypatch):
+    # p1 shift 32 #50: mhitu.c could_seduce() — a succubus can't seduce a female hero (claws only)
+    from nh import danger
+    monkeypatch.setattr(danger, "HERO_GENDER", None)
+    assert "SEDUCES" in danger.note_for("succubus") and danger.threat_level("succubus", 15, 165) == "dangerous"
+    monkeypatch.setattr(danger, "HERO_GENDER", "female")
+    assert danger.note_for("succubus").startswith("claws only") and "SEDUCES" in danger.note_for("incubus")
+    assert danger.threat_level("succubus", 15, 165) != "dangerous"
+    monkeypatch.setattr(danger, "HERO_GENDER", "male")
+    assert danger.note_for("incubus").startswith("claws only") and "SEDUCES" in danger.note_for("succubus")
+
+
+def test_remote_character_read_from_the_server_rc():
+    from pathlib import Path
+    from nh.cli import _rc_character
+    rc = Path(__file__).resolve().parents[1] / "play" / "hardfought.nethackrc"
+    assert _rc_character(rc) == {"role": "Valkyrie", "race": "dwarf", "gender": "female", "align": "lawful"}

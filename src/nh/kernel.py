@@ -133,6 +133,10 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     # a monster's spell that fumbled or wasn't aimed at you (mcastu.c cursetxt(), castmu() fumble)
     r"^.+ points (?:at you, then curses|all around, then curses|and curses in your general direction)\.$",
     r"^You hear a mumbled curse\.$", r"^The air crackles around .+\.$",
+    # mcastu.c castmu(): an UNDIRECTED spell (no "at you": cure/haste self, disappear, aggravation, summoning)
+    # — cast from afar too, even from behind a locked door (p1 shift 32); its effect has its own message
+    # (new monsters, "monsters are aware of your presence") that pauses by itself
+    r"^(?!You )(?:The |An? )?[\w' -]+ casts a spell!$",
     r"^You feel yourself slowing down a bit\.$",     # a temporary speed-up ended; intrinsic speed remains
     # a light source burning down (timeout.c burn_object()); "has gone out" still pauses
     r"^Your .+ flickers(?: considerably)?\.$", r"^Your .+ seems? about to go out\.$",
@@ -161,12 +165,33 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
     r"^You hear a crunching sound\.",                    # mon.c meatmetal(): a metal-eater (rust monster, xorn)
+    r"^You feel that monsters are aware of your presence\.",   # mcastu.c aggravation: once per level is news
     # hack.c check_special_room(): said once per room (it turns into an ordinary room); the game records the
     # room (special_rooms) and the step's SPECIAL ROOM reason pauses for each new one
     r"^You enter an opulent throne room!", r"^You enter a leprechaun hall!", r"^You enter a giant beehive!",
     r"^You enter a disgusting nest!", r"^You enter an anthole!", r"^You enter a military barracks!",
     r"^Welcome to David's treasure zoo!", r"^You have an uncanny feeling\.\.\.", r"^Run away!  Run away!",
 )]
+
+
+def wand_danger(note: str, kind, game) -> str:
+    """The pause for a monster's wand zapped at you (game._note_wand_zaps): SLEEP and DEATH rays you neither
+    resist nor reflect are deadly (asleep 6d25 turns beside it; a death ray kills outright) — say so by name;
+    an unknown wand might be either; others ('' for a ray you resist) get the plain message pause."""
+    res = set(getattr(game, "intrinsics", None) or ())
+    refl = bool(getattr(game, "reflecting", False))
+    mr = bool(getattr(game, "magic_res", False))
+    lines = ("get OUT of its lines (the same row, column or diagonal, up to 13 squares away — it zaps from next "
+             "to you too, muse.c), kill it at range, or zap/teleport it away")
+    if kind == "sleep" and "sleep" not in res and not refl:
+        return (f"SLEEP RAY — {note}: you have NO sleep resistance or reflection: asleep for up to 150 turns "
+                f"beside it = death — {lines}")
+    if kind == "death" and not mr and not refl:
+        return f"DEATH RAY — {note}: you have NO magic resistance or reflection: one hit KILLS you — {lines}"
+    if kind is None and not refl:
+        return (f"WAND ZAPPED AT YOU — {note}: it may be SLEEP or DEATH — {lines} until you know (the ray names "
+                "itself when it comes: 'The sleep ray ...')")
+    return ""
 
 
 _RAYS = (r"(?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|"
@@ -507,6 +532,11 @@ class Kernel:
             if cursed:
                 reasons.insert(0, f"AUTOPICKUP took a CURSED item: {cursed[0]!r} — dead weight? drop it "
                                   f"(`d{cursed[0][0]}`) unless you want it")
+        wn = getattr(snap, "wand_note", "")
+        if wn:
+            reason = wand_danger(wn, getattr(snap, "wand_kind", None), self.game)
+            if reason:
+                reasons.insert(0, reason)
         if any("position suddenly seems very uncertain" in m for m in snap.messages) \
                 and not any("prevents you from teleporting" in m for m in snap.messages):
             reasons.insert(0, f"TELEPORTED by a monster's hit (quantum mechanic) — you are now at {snap.hero}")

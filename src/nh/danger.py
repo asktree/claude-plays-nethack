@@ -345,6 +345,15 @@ def covetous(name: str) -> bool:
     return bool(rec) and any(f in COVETOUS_FLAGS for f in rec.get("flags3", []))
 
 
+HERO_GENDER: str | None = None      # "female"/"male" (the daemon sets it from the game's meta.json)
+
+
+def harmless_seducer(name: str) -> bool:
+    """mhitu.c could_seduce(): an incubus/succubus of YOUR gender can't seduce you — its AD_SSEX bite does
+    nothing then (SYSOPT_SEDUCE), only the claws hurt (p1 shift 32: a succubus vs a female Valkyrie)."""
+    return (name == "succubus" and HERO_GENDER == "female") or (name == "incubus" and HERO_GENDER == "male")
+
+
 def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
     """Short danger note for a farlook description ('' if nothing notable).
     resists: your resistances — a poison note shrinks when you resist it."""
@@ -353,6 +362,9 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
     name = base_name(desc)
     bits = []
     n = NOTES.get(name)
+    if n and harmless_seducer(name):
+        n = ("claws only: it can't seduce you (the same gender as you — mhitu.c could_seduce), so no armor "
+             "comes off; an ordinary demon fight")
     if n and name in POISON_NOTES and "poison" in resists:
         n = "poisonous (you resist the poison)"
     if name in ("aligned priest", "high priest") and desc.startswith("peaceful "):
@@ -538,7 +550,7 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None, r
     diff = rec.get("difficulty", 0)
     mh = max_hit(name)
     noted = (NOTES.get(name) or name in PLAYER_MONSTERS or quest_role(name)) and name not in INFO_NOTES \
-        and not (name in POISON_NOTES and "poison" in resists)
+        and not (name in POISON_NOTES and "poison" in resists) and not harmless_seducer(name)
     if noted or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"
     if "poison" not in resists and poison_melee(name):

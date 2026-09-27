@@ -3102,3 +3102,58 @@ def test_travel_walks_round_a_trap_nethacks_travel_stopped_in_front_of(monkeypat
     cur["s"] = _snap(rows, (10, 5), [])
     with pytest.raises(nav.NavError, match="only known way crosses"):
         nav._travel(16, 5, 40, None, 3, None, False)
+
+
+def test_fight_and_hunt_warn_once_about_a_sleep_wand_zapper(monkeypatch):
+    # p3 shift 13 #627: an ogre king with a wand of sleep; melee keeps you in its line (muse.c zaps adjacent)
+    from tactics import combat, ctx
+    g = _G()
+    g.reflecting, g.magic_res = False, False
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(combat, "_WAND_WARNED", set())
+    s = _snap({}, (10, 5), [])
+    s.wand_users = {"ogre king": {"kind": "sleep", "wand": "curved wand", "turn": 30}}
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    paused = []
+    monkeypatch.setattr(ctx, "pause", lambda msg: paused.append(msg))
+    ogre = {"x": 11, "y": 5, "ch": "O", "desc": "ogre king"}
+    combat._wand_user_check(ogre, "fight")
+    combat._wand_user_check(ogre, "hunt")
+    assert len(paused) == 1 and paused[0].startswith("fight: SLEEP RAY")
+    g.intrinsics.add("sleep")
+    monkeypatch.setattr(combat, "_WAND_WARNED", set())
+    combat._wand_user_check(ogre, "fight")
+    assert len(paused) == 1                                     # sleep resistant: nothing to warn about
+
+
+def test_eat_pattern_with_no_matching_corpse_returns_empty(monkeypatch):
+    # p3 shift 13 #411: eat(pattern='scorpion corpse') raised when the kill left no corpse
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({5: "   ..@.."}, (5, 5), [])
+    prompt = _snap({5: "   ..@.."}, (5, 5), [])
+    prompt.state = State("object", prompt="What do you want to eat? [ab or ?*]")
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == "e":
+            return prompt
+        return s
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "require_command", lambda what: s)
+    assert items.eat(pattern="scorpion corpse") == [] and sent == ["e", "<Esc>"]
+
+
+def test_explore_verdict_names_the_fixed_maps_down_stairs(monkeypatch):
+    # p3 shift 13 #1632: explore() circled Minetown ~30 legs; desmap.identify() knew the '>' at once
+    from tactics import desmap, explore
+    s = _snap({}, (10, 5), [])
+    monkeypatch.setattr(desmap, "identify", lambda s=None, **kw: {"level": "minetn-5", "ox": 0, "oy": 0})
+    monkeypatch.setattr(desmap, "features", lambda s=None, names=None: [
+        {"kind": "stair", "x": 5, "y": 3, "detail": "up"}, {"kind": "stair", "x": 48, "y": 4, "detail": "down"}])
+    h = explore._desmap_stairs_hint(s)
+    assert "minetn-5" in h and "(48, 4)" in h and "travel(48, 4)" in h
+    monkeypatch.setattr(desmap, "identify", lambda s=None, **kw: None)
+    assert explore._desmap_stairs_hint(s) == ""

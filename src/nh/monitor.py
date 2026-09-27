@@ -404,6 +404,12 @@ class MonsterTracker:
             m["peaceful"] = d.startswith("peaceful ")
             if d and not m.get("statue"):
                 m["note"] = note_for(d, xl, getattr(self.game, "intrinsics", ()))
+                wz = (getattr(snap, "wand_users", None) or {}).get(base_name(d))
+                if wz:
+                    # (it zapped a wand at you on this level: that doesn't change with its next farlook)
+                    kind = wz.get("kind")
+                    m["note"] = (f"ZAPPED A WAND{' OF ' + kind.upper() if kind else ''} AT YOU (T:{wz.get('turn')})"
+                                 + (" — " + m["note"] if m["note"] else ""))
                 if (lk or "").startswith(("Gehennom", "Vlad's Tower")) and not _friendly(d) \
                         and base_name(d) == "wolf":
                     # 3.6.7 vampire shape-shifting: a vampire lord (1 in 10) or Vlad without the Candelabrum

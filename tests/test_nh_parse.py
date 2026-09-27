@@ -1258,3 +1258,19 @@ def test_hole_plunge_records_no_stairs_and_rescan_drops_stale_ones():
     g.terrain_seen[new_key][(8, 8)] = "<"
     g.merge_terrain(new_key, {"features": {(8, 8): "<"}, "plain": {(5, 16)}, "traps": set()}, hero=(9, 9))
     assert g.terrain_seen[new_key] == {(8, 8): "<"}
+
+
+def test_remembered_door_under_a_gas_cloud_stays_a_feature():
+    # p1 shift 32 #646: a closed door vanished from features under a poison gas cloud
+    from nh.game import Snap
+    from nh.mapscan import features_in_view
+    from nh.parse import classify, parse_status
+    scr = mk({5: "          |.@.#.|", 22: STATUS1, 23: "Dlvl:38 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"},
+             cursor=(12, 5))
+    scr.fg[5][14] = 10                               # bright green '#': a poison gas cloud
+    s = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    s.feature_mem = {(14, 5): "D"}
+    feats = features_in_view(s)
+    assert any((f["x"], f["y"]) == (14, 5) and f["name"].startswith("door (remembered") for f in feats)
+    s.feature_mem = {}
+    assert not any(f["name"].startswith("door (remembered") for f in features_in_view(s))

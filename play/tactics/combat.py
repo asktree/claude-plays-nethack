@@ -220,6 +220,28 @@ def _wielding() -> bool:
     return bool(w)
 
 
+_WAND_WARNED: set = set()        # (level, monster name) already warned about by _wand_user_check
+
+
+def _wand_user_check(m, who: str) -> None:
+    """Pause ONCE per monster kind and level before closing in on / meleeing one that zapped a sleep or death
+    wand at you that you don't resist (p3 shift 13: muse.c zaps offensive wands from next to you too — melee
+    doesn't get you out of its line). cont() goes on."""
+    from nh.danger import base_name
+    s = ctx.last()
+    name = base_name(m.get("desc") or "")
+    rec = (getattr(s, "wand_users", None) or {}).get(name)
+    if not rec:
+        return
+    from nh.kernel import wand_danger
+    reason = wand_danger(f"the {name} zapped {rec.get('wand') or 'a wand'}", rec.get("kind"), ctx.game)
+    key = (ctx.game.level_key(s.status) if s.status.ok else None, name)
+    if not reason or key in _WAND_WARNED:
+        return
+    _WAND_WARNED.add(key)
+    ctx.pause(f"{who}: {reason}. Meleeing it keeps you in its line. cont() closes in anyway")
+
+
 def _check_target(m) -> tuple:
     """Look at the monster about to get an F blow (no game time). Returns (snap, fresh monster dict at
     that square or None when nothing is there now)."""
@@ -475,6 +497,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 print(f"fight: a look at ({m['x']},{m['y']}) shows a {m2.get('desc')} (was labeled '{old}')")
                 continue                          # re-pick with the corrected label (passive/danger checks)
             m = m2
+        _wand_user_check(m, "fight")
         key = _key_toward(s.hero, m)
         if key is None:
             return s
@@ -851,19 +874,25 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
     return ctx.do(direction, ok=THROW_OK, force=force)
 
 
+class WandEmpty(RuntimeError):
+    """zap() of a wand that said "Nothing happens" last time (0 charges): catch it to try another wand."""
+
+
 def zap(wand: str, direction: str | None = None, force: bool = False):
     """Zap wand `wand` (a letter) in `direction` (or None for non-directional
     wands). Sends the direction only if the game actually asks for one (an
     empty wand says "Nothing happens" and asks nothing). Refuses (pauses)
     when your pet or a peaceful is anywhere on the straight line (rays and
-    beams go through monsters; force=True to zap anyway)."""
+    beams go through monsters; force=True to zap anyway). A wand known to be
+    EMPTY raises WandEmpty (no game time) — `except WandEmpty:` tries the next
+    one; force=True wrests at it."""
     ctx.require_command("zap()")
     empty = getattr(ctx.game, "empty_wands", None)
     if empty and wand in empty and not force:
-        ctx.pause(f"zap: wand {wand} said \"Nothing happens\" last time — it is EMPTY (0 charges): recharge it "
-                  "(scroll of charging) or use another; zap(..., force=True) tries to wrest a last charge (1 in "
-                  "121 per zap, a turn each)")
-        return ctx.last()
+        # (p1 shift 32: a pause here broke the script's fallback loop over several wands)
+        raise WandEmpty(f"zap: wand {wand} said \"Nothing happens\" last time — it is EMPTY (0 charges): recharge "
+                        "it (scroll of charging) or use another; zap(..., force=True) tries to wrest a last charge "
+                        "(1 in 121 per zap, a turn each)")
     if direction and _refuse_friendly_fire("zap", direction, ray=True, force=force):
         return ctx.last()
     if direction:
@@ -1063,6 +1092,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                     return out(f"no hostile {target!r} in view")
                 m = min(hs, key=lambda e: e["dist"] if e["dist"] is not None else 99)
                 want, species = m.get("id"), base_name(m.get("desc") or "")
+                _wand_user_check(m, "hunt")
                 if ctx.unwatch_monsters is not None and want is not None:
                     ctx.unwatch_monsters([want])      # (p2 shift 27: 'approaching:' for the very target)
             else:

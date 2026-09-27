@@ -220,6 +220,24 @@ def cmd_start_local(a) -> int:
     return _print(request(name, {"op": "obs", "mode": "full"}))
 
 
+def _rc_character(rc) -> dict:
+    """role/race/gender/align from an rc file's OPTIONS=role:...,gender:... line (the server rc makes the
+    character: danger notes need the gender)."""
+    import re as _re
+    out: dict = {}
+    try:
+        for line in Path(rc).read_text().splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            for k in ("role", "race", "gender", "align"):
+                m = _re.search(rf"\b{k}:(\w+)", line)
+                if m and line.lstrip().startswith("OPTIONS"):
+                    out[k] = m.group(1)
+    except OSError:
+        pass
+    return out
+
+
 def cmd_start_remote(a) -> int:
     name = a.name
     d = game_dir(name)
@@ -231,7 +249,8 @@ def cmd_start_remote(a) -> int:
     command = f"{shlex.quote(str(script))} {shlex.quote(a.server)}"
     env = {"TERM": "screen", "LANG": "C", "LC_ALL": "C"}
     meta = {"name": name, "kind": "remote", "server": a.server, "tmux_session": session,
-            "width": 80, "height": 24, "command": command, "env": env, "created": time.time()}
+            "width": 80, "height": 24, "command": command, "env": env, "created": time.time(),
+            "character": _rc_character(REPO_ROOT / "play" / "hardfought.nethackrc")}
     save_meta(name, meta)
     from .tmuxterm import TmuxTerminal
     term = TmuxTerminal(session, d / "raw.log")

@@ -895,7 +895,7 @@ def eat(letter: str | None = None, pattern: str | None = None) -> list:
     (the others are declined). The harness guards still apply (deadly/old
     corpses, tins, Satiated) — except that a corpse with 0 nutrition (a
     wraith's) can't choke you, so it is eaten while Satiated too. Returns
-    the messages."""
+    the messages — [] when nothing (matching) was on the floor to eat."""
     ctx.require_command("eat()")
     rx = re.compile(pattern, re.I) if pattern else None
     zero_ok = False
@@ -919,9 +919,12 @@ def eat(letter: str | None = None, pattern: str | None = None) -> list:
             s = ctx.do("y" if take else "n", quiet=True)
         elif k == "object":
             if letter is None:
+                # (p3 shift 13: the kill left no corpse — raising aborted the rest of the exec)
                 ctx.do("<Esc>", quiet=True)
-                raise RuntimeError("eat(): no " + (f"floor food matching {pattern!r}" if pattern else "food on the floor")
-                                   + " here — pass an inventory letter")
+                print("eat(): nothing eaten — no " + (f"floor food matching {pattern!r}" if pattern else
+                                                      "food on the floor") + " here (pass an inventory letter "
+                      "to eat from your pack)")
+                return []
             s = ctx.do(letter, quiet=True)
         elif k in ("yn", "getlin") and "Continue eating" in p:
             if _zero_nutrition(current):

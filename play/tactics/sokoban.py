@@ -506,7 +506,10 @@ def progress(s=None) -> dict:
     if done < 0:
         out_of_order = _out_of_order(lv, states, cur, ox, oy)
     nxt = lv["steps"][done] if 0 <= done < len(lv["steps"]) else None
+    cb, ct, _cov = cur
     return dict(ident, done=done, total=len(lv["steps"]), next=nxt,
+                # (p3 shift 13: a count check — the notes said one hole was left, the board had two)
+                holes_open=sorted((x + ox, y + oy) for x, y in ct), boulders_left=len(cb),
                 partial=({"pushes_done": partial[1], "boulder_at": (partial[2][0] + ident["ox"],
                                                                     partial[2][1] + ident["oy"])}
                          if partial else None),
@@ -572,8 +575,10 @@ def _solve(max_steps):
         cur = _state(ctx.last(), lv, p["ox"], p["oy"])
         start = (set(map(tuple, lv["boulders"])), set(map(tuple, lv["traps"])))
         ctx.pause(f"sokoban: the board of {p['wiki']} matches no point of the solution (vs the start: "
-                  f"{_diff(cur, start, p['ox'], p['oy'])}) — solve the rest by hand (board(), push_wiki()) "
-                  "or ask for help")
+                  f"{_diff(cur, start, p['ox'], p['oy'])}) — {len(p['holes_open'])} hole(s) still open "
+                  f"{p['holes_open'][:8]}, {p['boulders_left']} boulder(s) on the board: every open hole needs "
+                  "one; the plan's LAST steps are the ones that fill the last holes — solve the rest by hand "
+                  "(board(), push_wiki() with the wiki's move strings) or ask for help")
         return p
     lv = _levels()[p["level"]]
     ox, oy = p["ox"], p["oy"]

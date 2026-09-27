@@ -216,6 +216,17 @@ def features_in_view(snap, hero=None) -> list[dict]:
     shown = {(f["x"], f["y"]) for f in out}
     top = MAP_TOP + getattr(snap.state, "msg_rows", 0)
     for (x, y), ch in (getattr(snap, "feature_mem", None) or {}).items():
+        if ch == "D" and top <= y <= MAP_BOTTOM and scr.at(x, y) == "#" and scr.color_at(x, y) == 10:
+            # a remembered door under a poison gas cloud (p1 shift 32 #646: a script read it as open floor)
+            name = ("door (remembered: under a poison gas cloud — open or closed is unknown until the cloud "
+                    "clears)")
+            cloud = next((f for f in out if (f["x"], f["y"]) == (x, y)), None)
+            if cloud is not None:
+                cloud["name"] = name
+            else:
+                d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
+                out.append({"ch": "+", "x": x, "y": y, "name": name, "dist": d, "color": ""})
+            continue
         if (x, y) in shown or (hero and (x, y) == hero) or ch not in MEM_NAMES or not top <= y <= MAP_BOTTOM:
             continue
         now = scr.at(x, y)

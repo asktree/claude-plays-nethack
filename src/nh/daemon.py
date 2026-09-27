@@ -32,6 +32,8 @@ class Daemon:
         self.name = name
         self.dir = game_dir(name)
         self.meta = load_meta(name)
+        from . import danger
+        danger.HERO_GENDER = (self.meta.get("character") or {}).get("gender") or danger.HERO_GENDER
         timing = Timing.remote() if self.meta.get("kind") == "remote" else Timing.local()
         self.term = TmuxTerminal(self.meta["tmux_session"], self.dir / "raw.log",
                                  width=self.meta.get("width", 80), height=self.meta.get("height", 24))
