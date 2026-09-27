@@ -678,8 +678,11 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                 path = [nxt, goal]           # a step into unexplored dark floor toward it
             _check_free(s, path[0], "hunt()")
             h0 = s.hero
-            s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])], ok=HUNT_OK + BENIGN)
+            s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])],
+                       ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])
             kills += killed_names(s.messages)
+            if s.hero == h0 and any(m.startswith("The door opens") for m in s.messages):
+                continue                     # the step opened a door on the way (autoopen): go on through it
             if s.hero == h0 and s.state.kind == "command" and not kills:
                 return out(f"no way toward the {species or target} at {goal}: the step to {path[0]} failed "
                            f"({s.messages or 'rock or a wall'})")

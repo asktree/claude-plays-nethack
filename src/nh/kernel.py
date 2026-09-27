@@ -93,6 +93,9 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You were wearing (?!.*\bcursed\b)", r"^You are now wearing (?!.*\bcursed\b)",
     r"^You finish (?:taking off|your dressing maneuver)",
     r"^You can see again\.$",           # blindness over (the status line shows it)
+    # a monster stumbling into a trap (trap.c mintrap(): the trap is already on the map or now is)
+    r"^(?!You )(?:The |An? |[A-Z][\w']*'s )?[\w' -]+ (?:falls into a pit|is caught in a bear trap|"
+    r"is caught in a web|steps on a squeaky board|is hit by a (?:little dart|arrow))!$",
     # a monster's spell that fumbled or wasn't aimed at you (mcastu.c cursetxt(), castmu() fumble)
     r"^.+ points (?:at you, then curses|all around, then curses|and curses in your general direction)\.$",
     r"^You hear a mumbled curse\.$", r"^The air crackles around .+\.$",

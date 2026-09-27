@@ -1638,8 +1638,12 @@ class Game:
         self._annotate(snap)
         if snap.rogue and snap.monsters:
             # ']' is armor on the Rogue level, not a mimic's "strange object" (random monsters there
-            # are upper-case letters only: no mimics)
-            snap.monsters = [m for m in snap.monsters if not (m["ch"] == "]" and m.get("mimic"))]
+            # are upper-case letters only: no mimics); a ':' looked at and found to be food is an object
+            from .monitor import _monster_desc
+            food = [m for m in snap.monsters if m["ch"] == ":" and m.get("desc") and not _monster_desc(m["desc"])]
+            if food and self.tracker is not None and hasattr(self.tracker, "rogue_objects"):
+                self.tracker.rogue_objects.update((snap.status.ldesc, m["x"], m["y"]) for m in food)
+            snap.monsters = [m for m in snap.monsters if not (m["ch"] == "]" and m.get("mimic")) and m not in food]
 
     def _medusa_risk(self, snap: Snap, key) -> bool:
         """Probably Medusa's level (Dungeons of Doom, Dlvl 21+, water all around — or Medusa seen here)
