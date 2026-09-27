@@ -355,3 +355,19 @@
 - T:16118-16136 — sorties vs the xorns: killed a xan, a giant beetle, a xorn; but the fort square kept getting occupied (xan, xorn, then an UMBER HULK) while a CAPTAIN, the ogre king, the cockatrice (touched + hissed once: no stoning) and an unseen zombie piled on: **HP 134 → 50**. Zapped SLEEP NE at the captain (slept) and E at the hulk on the fort (hulk + xorn slept), killed the sleeping hulk (HP 37), stepped onto the fort, killed the helpless captain from it.
 - T:16136-16228 — hold loop on the fort: rested 40 → 128, one more soldier killed.
 - SHIFT 24 END T:16228 D28 on the burned Elbereth (11,12), HP 128/139, XL12 (Exp 32775, +3551 this shift), AC -8, towel on (Blind). No prayer used (last T:10649). Extra healing c unused. Wand trip NOT started (budget + 3 throne-room trolls + ~12 barracks soldiers + captain): next shift, from full HP.
+
+## Shift 25 (the wand of wishing)
+- T:16229 D28 — on the burned-Elbereth fort (11,12), HP 128/139, blind (towel). Picked up 3 soldier wands from the fort pile: z, A (aluminum, unknown), J (sleep) + 2 C-rations, 2 K-rations.
+- T:16234-16245 — sortie: sleep ray (J) on the adjacent GREEN DRAGON, killed the ogre king (1 blow), a xorn, then the sleeping GREEN DRAGON. Sleep ray at the RED DRAGON missed twice. Unseen mindless monsters ("It hits!", ~10 each) and a gargoyle took the fort square; HP 134 → 67; destroyed the fort occupant and stepped back on.
+- T:16246-16310 — rested on the fort (killed a soldier + sergeant that came through the gate). HP back to 124.
+- T:16311-16323 — sortie at (12,12): killed the COCKATRICE (1 blow); the PURPLE WORM ENGULFED me (digesting) → killed it from inside (T:16316); red naga; unseen thing; then the RED DRAGON (3 blows) — HP 50/139 with the gargoyle on the fort square; killed the gargoyle, back on the fort (HP 53).
+- T:16326-16420 — rested to 132 (killed more soldiers/sergeant from the fort); Hungry → ate a K-ration.
+- T:16421-16435 — killed LICH #1 (3 blows, no spell landed), another unseen thing, the hostile GOLDEN NAGA (at the gate). hunt() walked me next to eel water at (13,11) — stepped away at once. Picked up M (wand, = FIRE) + S (striking) from the dragon pile (13,12).
+- T:16451 — travel to the corridor end (33,12) without trouble. T:16453 zapped S at the locked door (40,16) from (36,12): EMPTY. Back to (33,12): sleep ray J hit the troll + the CAPTAIN; killed rust monster (iron shoes rusted completely, AC -6), 2 soldiers, sergeant, then walked out and killed the sleeping CAPTAIN (T:16482). More soldiers + a sergeant at the chokepoint (T:16508).
+- T:16513 — `unlock(40,16)` from (40,15), opened it; killed the rock troll (it revived within 3 turns and died again), ice troll, ogre, 2 soldiers. T:16544 travel along the south hall to (62,17); the tower door (63,17) was already OPEN.
+- **T:16548 on the chest square (66,18). T:16550 #loot: chest locked → key → U - a WAND OF WISHING.** Removed the towel (T:16550).
+- **WISH 1 T:16551 "blessed +2 gray dragon scale mail" → +0 GDSM (d)**. Took off the cloak, uncursed the mithril with holy water (1 of 2), swapped to the GDSM: **MAGIC RESISTANCE**, AC -10.
+- **WISH 2 T:16563 "2 blessed scrolls of charging" (m)**. **WISH 3 T:16564 "blessed amulet of life saving" (n, octagonal) — worn** (ESP amulet O off).
+- T:16566 read blessed charging on U: "glows blue" = 3 charges (recharged once — never again).
+- **WISH 4 T:16568 "blessed +2 speed boots" → +0 speed boots (o, riding boots) — worn, Very fast**; dropped the rusted iron shoes. AC -8.
+- SHIFT 25 END T:16573 D28 on the SE-tower scare-monster square (66,18), HP 139/139, XL12 (Exp 39110, +6335), AC -8, MR + reflection + life saving + very fast. Wand of wishing U: 2 charges. No prayer (4 wishes: prayer unreliable until ~T:17100).

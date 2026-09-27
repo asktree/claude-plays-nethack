@@ -86,7 +86,8 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You smell marsh gas",
     r"^You suddenly realize it is unnaturally quiet",
     r"on the back of your .* (stand|stands) up",
-    r"^You see no objects here",
+    r"^You see no objects here", r"^There are (?:several|many) objects here\.",
+    r"^You try to feel what is lying here on the ",       # (blind: the pile's list follows)
     r"^There (is|are) (a|an|several|many|\d+) .* here\.?$",
     r"^You hear (some noises|a door open|the footsteps of a guard|bubbling water|water falling|the splashing|a gurgling|a slow drip|a chugging|someone counting money|the chime of a cash register|someone cursing shoplifters)",
     r"^You hear some noises in the distance",
@@ -157,6 +158,10 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:the tones of courtly conversation|a sceptre pounded|Queen Beruthiel)",
     r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
+    # hack.c check_special_room(): every entry says it again while the room keeps its monsters
+    r"^You enter an opulent throne room!", r"^You enter a leprechaun hall!", r"^You enter a giant beehive!",
+    r"^You enter a disgusting nest!", r"^You enter an anthole!", r"^You enter a military barracks!",
+    r"^Welcome to David's treasure zoo!", r"^You have an uncanny feeling\.\.\.", r"^Run away!  Run away!",
 )]
 
 
@@ -489,10 +494,12 @@ class Kernel:
         if gulp and re.sub(r"^(?:invisible |tame |peaceful )+", "", gulp.group(1).lower()) in DIGESTERS:
             # mhitu.c gulpmu() AD_DGST: total digestion when u.uswldtim runs out (~25 - its level, halved,
             # + 10 - your AC turns); a wand of digging zapped from inside tears it open (zap.c zap_dig)
+            hell = (self.game.level_key(snap.status) if snap.status.ok else "").startswith("Gehennom")
             reasons.insert(0, f"SWALLOWED by a {gulp.group(1)}: it DIGESTS you — death when its timer runs "
                               "out (roughly 10-30 turns, fewer with worse AC; 'thoroughly'/'utterly digests "
                               "you' = nearly done). From inside every blow hits: fight() now; a wand of digging "
-                              "zapped any direction tears you out; prayer works at low HP")
+                              "zapped any direction tears you out; "
+                              + ("NO prayer in Gehennom" if hell else "prayer works at low HP if it's safe"))
         dig = next((m for m in snap.messages if re.search(r"(?:thoroughly |utterly )digests you!$", m)), None)
         if dig:
             reasons.insert(0, f"BEING DIGESTED — {dig!r}: " + ("the NEXT turn digests you totally (death): pray / "
@@ -502,8 +509,14 @@ class Kernel:
                       or re.match(r"^You cannot escape from ", m)), None)
         if stuck and "stuck" not in expect:
             # uhitm.c stumble_onto_mimic() / hack.c domove(): a mimic's AD_STCK holds you (u.ustuck)
-            reasons.insert(0, f"STUCK — {stuck!r}: you can't walk away while it lives (teleporting works); "
-                              "fight() it — a giant mimic hits 3d6 twice")
+            reasons.insert(0, f"STUCK — {stuck!r}: you can't walk away while it holds you (teleporting works); "
+                              "fight() it — fight() hits the holder first"
+                              + (" (a giant mimic hits 3d6 twice)" if "mimic" in stuck else ""))
+        hiss = next((m for m in snap.messages if re.match(r"^You hear (?:the |an? )?.+'s? hissing!$", m)), None)
+        if hiss:
+            # mhitu.c AD_STON: after the hiss, 1 in 10 (always at new moon without a lizard) starts stoning
+            reasons.insert(0, f"COCKATRICE HISS — {hiss!r}: each hiss can start STONING (then 'You are slowing "
+                              "down': eat a lizard/acidic corpse or pray at once). Kill it now or step away")
         if any(m.startswith("Your brain is eaten!") for m in snap.messages):
             # mhitu.c AD_DRIN / eat.c eat_brains(): with Int (base) at 3 a brain-eating hit KILLS, life
             # saving or not; each one costs 1-2 Int; a worn helmet stops 7 in 8
@@ -513,10 +526,14 @@ class Kernel:
                                  "at Int 3 the next one kills you")
                               + " (life saving doesn't help). Kill it at range, Elbereth, or get away NOW; a worn "
                                 "helmet stops 7 in 8")
-        if any(m.startswith("You feel as if you need some help.") for m in snap.messages):
-            # mcastu.c MGC_CURSE_ITEMS -> rndcurse(): some of your items are cursed now (fewer with MR)
-            reasons.insert(0, "CURSED ITEMS — a curse spell hit you: inventory() shows which (cursed armor can't "
-                              "come off, a cursed weapon welds, a cursed bag of holding loses items when opened)")
+        if any(m.startswith(("You feel as if you need some help.", "You notice a black glow surrounding you",
+                             "You feel a malignant aura surround you")) for m in snap.messages):
+            # sit.c rndcurse() (mcastu.c MGC_CURSE_ITEMS; wizard.c intervene() after the Wizard's death): some
+            # items are cursed now (fewer with MR: "malignant aura")
+            reasons.insert(0, "CURSED ITEMS — a curse hit you: inventory() marks 'cursed' only on items whose "
+                              "B/U/C you knew; the others may be cursed too (test on an altar, or watch for a "
+                              "welded weapon / armor that won't come off; a cursed bag of holding loses items "
+                              "when opened)")
         bash = next((m for m in snap.messages if m.startswith("You begin bashing monsters with ")), None)
         if bash:
             # uhitm.c: the first blow with something that isn't a proper weapon (a pick-axe applied to dig,
@@ -528,7 +545,8 @@ class Kernel:
         if any(m.startswith("A mysterious force momentarily surrounds you") for m in snap.messages):
             reasons.insert(0, "MYSTERIOUS FORCE (you carry the Amulet): the climb failed — you were moved on this "
                               "level or sent down a few; climb again (1 in 4 climbs deep in the dungeon)")
-        if trapmsg and snap.hero is not None and not quiet and not getattr(snap, "engulfed", False):
+        if trapmsg and snap.hero is not None and not quiet and not getattr(snap, "engulfed", False) \
+                and "trap" not in expect:
             # (inside an energy vortex "your magical energy drain away" is its attack, not a magic trap)
             reasons.append(f"trap at {snap.hero}")
         if snap.state.kind == "getlin" and (snap.state.prompt or "").startswith("Call ") \

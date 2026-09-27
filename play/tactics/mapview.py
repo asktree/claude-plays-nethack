@@ -51,7 +51,7 @@ def is_closed_door(s, x, y) -> bool:
 
 def is_wall(s, x, y) -> bool:
     ch = cell(s, x, y)
-    return ch in "|-" and color(s, x, y) != BROWN
+    return ch in "|-" and color(s, x, y) != BROWN and not (ch == "|" and color(s, x, y) == 15)   # (15: a grave)
 
 
 def is_walkable(s, x, y, allow_monsters=True) -> bool:
@@ -69,6 +69,8 @@ def is_walkable(s, x, y, allow_monsters=True) -> bool:
         return color(s, x, y) == 6 or (x, y) in getattr(s, "floor_mem", ())
     if ch == "#":
         return color(s, x, y) in (7, 8, 15)   # corridor (lit or not); not tree(green)/bars(cyan)
+    if ch == "|" and color(s, x, y) == 15:
+        return True                            # a grave (drawing.c: bright white '|'; walls are gray)
     if ch in FLOORISH:
         return True
     if is_open_door(s, x, y):
@@ -87,7 +89,7 @@ def is_solid(s, x, y) -> bool:
     unknown, walls (not doors), trees, boulders."""
     ch = cell(s, x, y)
     if ch in "|-":
-        return color(s, x, y) != BROWN
+        return color(s, x, y) not in (BROWN, 15)      # (brown: an open door; bright white '|': a grave)
     return ch in " 0" or (ch == "#" and color(s, x, y) == 2)
 
 

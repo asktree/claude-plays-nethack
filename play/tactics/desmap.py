@@ -77,7 +77,7 @@ def _screen_cls(s) -> dict:
         for x, ch in enumerate(row):
             col = scr.color_at(x, y)
             if ch in "-|":
-                out[(x, y)] = "door" if col == BROWN else "wall"
+                out[(x, y)] = "door" if col == BROWN else "floor" if (ch == "|" and col == 15) else "wall"
             elif ch == "+" and col == BROWN:
                 out[(x, y)] = "door"
             elif ch in ".<>_{\\^":
@@ -276,6 +276,23 @@ def features(s=None, names=None) -> list:
     return [dict(ft, x=ft["x"] + f["ox"], y=ft["y"] + f["oy"]) for ft in m["features"]]
 
 
+# secret doors the .des maps don't place at a fixed square: (map rectangle of the room, walls, source)
+RANDOM_SDOORS = {
+    "wizard1": ((12, 1, 20, 9), "south, east or west", "mkmaze.c fixup_special(): the Wizard's room"),
+    "wizard3": ((20, 6, 26, 11), "north or west", "yendor.des ROOMDOOR: the portal room"),
+}
+
+
+def random_sdoor_hint(m: dict, f: dict) -> str:
+    """'' or where an unplaced secret door of this map is (screen coordinates)."""
+    r = RANDOM_SDOORS.get(m["level"])
+    if not r:
+        return ""
+    (x1, y1, x2, y2), walls, what = r
+    return (f"{what} ({x1 + f['ox']},{y1 + f['oy']})-({x2 + f['ox']},{y2 + f['oy']}) has ONE secret door at a "
+            f"random spot of its {walls} wall — search along those walls (it isn't in the map)")
+
+
 def show(s=None, names=None) -> str:
     """One line per feature, plus the secret doors of the map; prints and returns it."""
     s = s or ctx.last()
@@ -290,6 +307,9 @@ def show(s=None, names=None) -> str:
         lines.append(f"  {ft['kind']:10} ({ft['x']},{ft['y']}) {detail}")
     if secret:
         lines.append(f"  secret doors: {secret[:20]}" + (" ..." if len(secret) > 20 else ""))
+    hint = random_sdoor_hint(m, f)
+    if hint:
+        lines.append(f"  note: {hint}")
     txt = "\n".join(lines)
     print(txt)
     return txt
@@ -367,7 +387,12 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
                     prev[n] = p
                     heapq.heappush(pq, (d + cost, n))
     if goal not in prev:
+        try:
+            hint = random_sdoor_hint(*_current(s, names))
+        except Exception:  # noqa: BLE001
+            hint = ""
         raise RuntimeError(f"desmap.route: no way to {goal} on the map either"
+                           + (f" ({hint})" if hint else "")
                            + (" (water is in the way: allow_water=True if you can cross it)" if water_hit[0]
                               else " — the way runs through ground outside the fixed map that you haven't seen "
                                    "(a maze or filler: explore() it), or through rock (dig), or it is sealed"))
@@ -387,18 +412,33 @@ def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = Fa
     a trap it would have to cross (step_onto() it on purpose), at a locked door (unlock()), or when something
     happens. fight=True: trivial hostiles next to you (combat.auto_fightable: 'trivial' threat, no passive
     attack, no danger note) are fought on the way; anything else stops the walk. Returns the final snap."""
+    import contextlib
     from .nav import NavError, walk_path
-    from .combat import fight_trivial
+    from .combat import fight_trivial, not_auto_fightable
+    mf = getattr(ctx, "monster_filter", None)
+    # (like travel's auto_fight: trivial newcomers don't pause, they get fought when they come next to you)
+    with (mf(not_auto_fightable) if fight and mf is not None else contextlib.nullcontext()):
+        return _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight_trivial)
+
+
+def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight_trivial):
     s = ctx.last()
     steps = fights = opened = 0
     while steps < max_steps:
         s = ctx.last()
         if s.state.kind != "command" or s.hero == (x, y):
             return s
-        if fight and fights < 12 and s.adjacent_hostiles():
-            if fight_trivial(s) is not None:
+        adj = s.adjacent_hostiles()
+        if adj:
+            if fight and fights < 12 and fight_trivial(s) is not None:
                 fights += 1
                 continue
+            # a hostile that isn't trivial (or fight=False): never walk on beside it (QA round 7: two more
+            # steps with a master lich next to you)
+            print("desmap.walk: stopped — " + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                                                         for m in adj[:3])
+                  + " next to you (not a trivial one): fight it or get away yourself, then walk again")
+            return s
         r = route(x, y, s=s, names=names, allow_water=allow_water)
         path = r["path"]
         stop = len(path)

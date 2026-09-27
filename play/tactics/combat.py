@@ -85,6 +85,23 @@ def _covetous(name) -> bool:
     return any(f.startswith("M3_WANTS") for f in rec.get("flags3") or [])
 
 
+_HOLD_RE = re.compile(r"^(?:You cannot escape from (?:the |an? )?(?P<a>.+?)!|(?:The |An? )?(?P<b>.+?) grabs you!)$")
+_FREE_RE = re.compile(r" releases you\.$|^You (?:get|are) released|^You pull free|^You get expelled")
+
+
+def _holder_from(messages) -> str | None:
+    """The species holding you per the latest messages ("The owlbear grabs you!", "You cannot escape from
+    the owlbear!"), or None (none, or released since)."""
+    from nh.danger import base_name
+    for msg in reversed(list(messages or [])):
+        if _FREE_RE.search(msg):
+            return None
+        mm = _HOLD_RE.match(msg)
+        if mm:
+            return base_name(mm.group("a") or mm.group("b"))
+    return None
+
+
 def _ignores_elbereth(m) -> bool:
     try:
         from nh.game import ignores_elbereth
@@ -363,8 +380,10 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         # never pick one the passive checks below refuse while another is there (a coyote beside a
         # floating eye gets the blow)
         # a monster HOLDING you comes first: while held, a blow at anything else only says "You cannot
-        # escape from ..." (hack.c domove u.ustuck)
-        targets.sort(key=lambda m: ("holding you" not in (m.get("desc") or ""),
+        # escape from ..." (hack.c domove u.ustuck). Its label may predate the grab: the messages tell too
+        holder = _holder_from([m for _t, m in list(getattr(ctx.game, "history", []))[-12:]] + list(seen))
+        targets.sort(key=lambda m: ("holding you" not in (m.get("desc") or "")
+                                    and not (holder and base_name(m.get("desc") or "") == holder),
                                     bool(allow_passive is False and _passive_refusal(m.get("desc") or "", st)),
                                     _danger_rank(m.get("desc") or "")))
         m = targets[0]
@@ -809,6 +828,20 @@ def _greedy_step(s, goal, bad) -> tuple | None:
     return best[1] if best else None
 
 
+def _ignored(m, ignore) -> bool:
+    """hunt(ignore=...): a species name / names (matched against the label) or a predicate."""
+    if not ignore:
+        return False
+    if callable(ignore):
+        try:
+            return bool(ignore(m))
+        except Exception:  # noqa: BLE001
+            return False
+    names = (ignore,) if isinstance(ignore, str) else tuple(ignore)
+    d = (m.get("desc") or "").lower()
+    return any(str(n).lower() in d for n in names)
+
+
 def _hunt_hidden_mimic(target, stop_hp, out, kills) -> dict:
     """hunt((x, y)) on a remembered mimic hiding as an object: walk next to it (never onto it), then
     fight(x, y) — the first blow unmasks it."""
@@ -839,7 +872,7 @@ def _hunt_hidden_mimic(target, stop_hp, out, kills) -> dict:
     return out("killed" if gone else f"fought the {name} at {target} (not dead yet: fight({tx}, {ty}) again)")
 
 
-def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
+def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None) -> dict:
     """Close in on one hostile and fight it: target = part of its label
     ('pyrolisk') or its square (x, y). Each turn: adjacent -> fight() it
     (all of fight()'s checks); otherwise ONE checked step along a known-map
@@ -849,7 +882,9 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
     Returns {"reason", "turns", "kills"}: reason "killed", "lost: ..." (out
     of view: it first follows it up to 6 steps toward where it was last seen,
     and hunts on if it shows up again), "HP ...", "blocked: ..." (another
-    non-trivial hostile next to you), "no route ..." or "max_turns"."""
+    non-trivial hostile next to you), "no route ..." or "max_turns".
+    ignore: monsters next to you that don't block the hunt — species names
+    (ignore=('ghost',) in a morgue of sleepers) or a predicate on the monster."""
     import contextlib
     from nh.danger import base_name
     from nh.monitor import killed_names
@@ -922,12 +957,17 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                                        ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])
                             kills += killed_names(s.messages, include_it=True)
                             continue
+                    if _covetous(species):
+                        return out(f"lost: the {species} teleported away — COVETOUS: it heals (usually on the "
+                                   "up stairs) and comes back next to you; telepathy_scan() shows where it is. Stay "
+                                   "ready at full HP; walking after it is pointless")
                     return out(f"lost: the {species or target} is out of view"
                                + (f" (last seen at {last}; followed {chase} step(s))" if last else ""))
                 chase = 0
             from nh.monitor import _stationary
             others = [e for e in s.adjacent_hostiles() if e is not m and not auto_fightable(e, s)
-                      and not _stationary(e.get("desc") or "")]     # a mold can't follow: walk on past it
+                      and not _stationary(e.get("desc") or "")      # a mold can't follow: walk on past it
+                      and not _ignored(e, ignore)]
             if others and m["dist"] != 1:
                 return out("blocked: " + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})"
                                                    for e in others) + " is next to you — your call")
@@ -949,12 +989,24 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                     kills += killed_names(fs.messages, include_it=True)
                     continue
             goal = (m["x"], m["y"])
-            from .nav import squeaky_boards
+            from .nav import _eel_zone, squeaky_boards
             boards = squeaky_boards(s)      # (they only squeak: a hunt crosses them)
-            path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal} - boards), allow_monsters=False,
-                            allow_pets=True)
+            # squares next to water where a drowning monster may be (p2 shift 25: hunt walked beside the
+            # Castle moat with a giant eel adjacent — travel() avoided it, hunt() didn't)
+            zone = {c: w for c, w in _eel_zone(s).items() if c not in (s.hero, goal)}
+            path = bfs_path(s, s.hero, goal, avoid=frozenset((bad_squares(s) | set(zone)) - {goal} - boards),
+                            allow_monsters=False, allow_pets=True)
+            if not path and zone:
+                wet = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal} - boards),
+                               allow_monsters=False, allow_pets=True)
+                hit = [c for c in wet or [] if c in zone]
+                if hit:
+                    return out(f"blocked: the only way to the {species or target} at {goal} passes {hit[0]}, next "
+                               f"to water — {zone[hit[0]][0]} (its wrap drowns you). Wait for it to come to you "
+                               "away from the water, fight it at range, or walk there yourself if you accept that")
             if not path or len(path) < 2:
-                nxt = _greedy_step(s, goal, bad_squares(s)) if m["dist"] is not None and m["dist"] <= 6 else None
+                nxt = _greedy_step(s, goal, bad_squares(s) | set(zone)) if m["dist"] is not None and m["dist"] <= 6 \
+                    else None
                 if nxt is None:
                     # far off, just past the edge of the map you know: go to the frontier nearest to it
                     from .explore import screen_frontiers

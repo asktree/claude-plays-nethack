@@ -2,12 +2,12 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:8385 / Dlvl 14 (leaving for D15) / XL10 (Exp 7208; XL11 at 10000) / 118/118 / 18/18 / AC-6 (divine protection 3 bought T:7328)
+- Turn / Dlvl / XL / HP / Pw / AC: T:8852 / Dlvl 17, standing ON THE DOWN STAIRS (69,3) / XL10 (Exp 7691; XL11 at 10000) / 118/118 / 18/18 / AC-6 (divine protection 3 bought T:7328)
 - Attributes: St17 Dx12 Co19 In9 Wi10 Ch10 (Ch10 = shop prices x4/3)
 - Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7, T:4938) + VERY FAST from speed boots. NOT poison resistant. Excalibur: +2 to searching.
 - Luck notes: +1 at T:8033 and +1 at T:8074 (sacrifice four-leaf clovers) -> Luck ~2 (times out 1 per 600 turns without a luckstone). Prayer timeout proven 0 at T:8074. Alignment fine (possibly -1 if the Soko3 pocket monster was peaceful: unlikely, it was probably a mimic).
 - Skills: long sword EXPERT (T:5735), dagger Basic
-- Hunger: SATIATED (hill giant corpse T:7941 + part of a 2nd T:7959, nutrition ~1500+; Hungry not before ~T:9300)
+- Hunger: not hungry (Satiated ended ~T:8440 after two hill giant meals T:7941/7959). Expect Hungry around T:9200-9300 (ring J adds a little hunger).
 
 ## Prayer log
 | turn | reason | result |
@@ -21,6 +21,7 @@
 - m: uncursed +0 orcish helm; M: uncursed +0 splint mail; P: uncursed -1 SPEED BOOTS
 - j: uncursed +0 CLOAK OF INVISIBILITY (WORN since T:5518). TAKE IT OFF before entering any shop (T j, W O). Invisible = monsters guess my square ("explodes at a spot in thin air", "strikes at thin air").
 - O: uncursed +0 elven cloak, carried for shop visits
+- J: uncursed ring of PROTECTION FROM SHAPE CHANGERS, WORN on the left hand since T:8137 (no lycanthropy; weres stay @, vampires can't take bat/fog form)
 
 ## Key inventory (letters)
 - Food: D 5 uncursed food rations; E uncursed cram ration (never rots: emergency food)
@@ -32,7 +33,7 @@
 - Wands (V and R altar-tested uncursed): V WAND OF PROBING (0:4); R WAND OF SECRET DOOR DETECTION (spiked; formally identified T:6579: it UNMASKS MIMICS within 8 squares, even on traps); (undead turning + light wands dropped at D12)
 - Tools: f uncursed UNICORN HORN (apply for conf/stun/blind/sick); h blindfold (yellow light trick!); v skeleton key
 - Gems: T uncursed AMETHYST (base 600: sell/keep); e uncursed yellow gem (citrine/chrysoberyl/glass); y 5 orange, z 4 violet, A 7 yellowish brown gems (from hill giants: unknown, maybe glass)
-- Gold: $1173 (see the D8 VAULT below). Next protection at XL10 = 4000 (any temple priest).
+- Gold: $1575 (see the D8 VAULT below). Next protection at XL10 = 4000 (any temple priest: D16 Odin temple (18,8) is closest to the action).
 
 ## Identified appearances
 - scrolls: ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
@@ -54,6 +55,7 @@
 | 7 | Dungeons | up (4,14), DOWN (72,4) (was under gold); spiked pit (22,4); boulder (40,3) |
 | 8 | Dungeons | up (17,6), down (70,10). **VAULT (2-3,17-18): ~$1650 of MINE + the vault's gold (~4x450)**: dig in with a pick-axe/wand of digging, grab it, leave in <30 turns. WEREWOLF (@) seen near (56,13). |
 | 9 | Dungeons = ORACLE | up (61,8), down (19,3). Fountains (38-40,11-13). Monkey with my remove curse fled west. |
+| 17 | Dungeons | up (5,8), DOWN (69,3). SPOTTED JELLY (46,7) (avoid). Scroll (66,8) behind a diagonal squeeze. Mostly unexplored. |
 | 16 | Dungeons = QUEST PORTAL LEVEL | arrived T:8457 at the up stairs (4,5): "faint telepathic message from the Norn ... Shrine of Destiny". MAGIC PORTAL to the quest at (46,5) (room 42-52,4-7). Temple of ODIN (neutral, peaceful priestess), altar (18,8) (room 12-23,6-11). Start room door (7,8) + hidden door (13,8). Booby-trapped door (52,7) exploded. LAWFUL ALTAR (58,18) in a small room (56-60,18-19), no priest: co-aligned sacrifice spot on the portal level. DOWN (70,9). Vault somewhere ("counting money"). Trap-door closet (22,5). Quest needs XL14 + piety 20. |
 | 15 | Dungeons = ROGUE LEVEL | up (10,5), DOWN (36,10) (shown as %). Conical hat (36,9) left. Not the portal level (no message). |
 | 14 | Dungeons | up (65,8), DOWN (16,6). MORGUE (68-75,14-17): a sleeping VAMPIRE (68,17) (left asleep) + a few zombies; wraiths/ghosts/ghouls killed. CHAOTIC ALTAR of Loki (41,17) (BUC tests). Trap under a scroll (42,19). Hidden corridor (35,16). Not the quest portal level. |
@@ -76,11 +78,15 @@
 - Soko4 giant mimic (above) and vampire bat; Soko2 sleeping wood nymph.
 - D8 werewolf (@ form); D9 monkey (thief); D3 molds by both stairs.
 - Barrow wights cast STUN — fight on. Yellow lights: blindfold ON before hitting one.
-- Winter wolves: cold breath can't hurt me (cold res) but can shatter potions: close in fast.
+- Winter wolves: cold breath can't hurt me (cold res) but can shatter potions: close in fast, or drop the potions on a square no straight line reaches (T:8043 lost 3).
+- D14 morgue: a sleeping VAMPIRE (68,17) left alone. D17: spotted jelly (46,7).
 
 ## Objective and plan
-- SHIFT 9: explore D13 from the Tyr altar (40,9) for `>`; sacrifice fresh kills on the altar when convenient (Luck, gifts). Keep looking for an ATTACK WAND (fire/cold/lightning/MM) or a WAND OF STRIKING / pick-axe: striking (or digging through) the stuck Soko4 boulder at (39,5) costs only -1 Luck and lets me melee the giant mimic from (39,5) — check first that Soko4 has a spare boulder. Engrave-test every new wand. Unknowns to price-ID: scrolls g VELOX NEB, Q NR 9; potions s (blessed smoky), l (emerald), u (dark); rings N, Z; gem e. Watch gold around leprechauns (drop/bag it).
-- NEXT: decide between (a) continuing the main dungeon (D10 down stairs (55,12) -> D11+: XP, loot, look for an ATTACK WAND — then return to Soko4), or (b) a supply trip for Soko4 (daggers at D4 Fleac's weapon shop; gold from selling the amethyst T). Recommended: (a); zap-ID any new wand on the engrave test first. The Soko4 mimic waits forever.
-- Unknowns to identify: N engagement ring (uncursed), Q scroll NR 9 (uncursed): price-ID in a shop. D10 gray stone at (20,11) = LOADSTONE (kick: Thump). Z uncursed topaz ring, e yellow gem: unknown.
+- SHIFT 10: explore D17 (the `>` (69,3) is under me; up stairs (5,8); a SPOTTED JELLY sits at (46,7) — avoided, never melee (6d6 acid splash); unknown scroll (66,8) reachable only by a diagonal squeeze: my pack is >600, skip). Then continue down D18+ for XP (XL11 at 10000) and loot. Medusa is ~D21-24: before that level, keep ring Z (LEVITATION) ready and a blindfold (h) on hand; read PLAYBOOK E (Medusa) first.
+- Carried escapes: G 2 scrolls of TELEPORTATION, ring Z levitation, 1 extra healing (I), unicorn horn (f), prayer (timeout 0 at T:8074; Luck ~2).
+- Soko4 still needs an attack wand / striking / digging / pick-axe: none found yet (engrave-test every new wand).
+- Quest: portal D16 (46,5). Needs XL14 + piety 20 (check with piety() — no stethoscope; probing wand V (0:4) at yourself works). Sacrifice on the D16 lawful altar (58,18) to raise Luck/alignment when passing.
+- Unknowns: scrolls K (VE FORBRYDERNE), Q 2x NR 9, g VELOX NEB (all uncursed; price-ID or read-test at full HP in a quiet spot — pool incl. genocide/charging/destroy armor/fire/punishment); potions s blessed smoky, l emerald, H milky (uncursed); spellbook U (thin, uncursed — do NOT read: Valkyrie Int 9); gems y/z/A/e/T.
+- Poison: still NOT resistant. Skipped a soldier ant corpse (20% resistance vs 80% lose 1-4 Str; the 3.6 unicorn horn does not restore Str).
 - Shops: TAKE OFF the cloak of invisibility (T j, W O) before entering.
-- Later: D10 temple protection 400*XL (3200/3600); gold from the D8 vault needs digging; Mines' End luckstone; quest portal level (D11-16).
+- Later: D8 vault gold (needs digging), Mines' End luckstone, protection 4000 at XL10.

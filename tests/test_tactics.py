@@ -1977,13 +1977,20 @@ def test_desmap_walk_fights_trivial_neighbours(monkeypatch):
     monkeypatch.setattr(desmap, "route", lambda x, y, **kw: {"path": [(23, 7), (24, 7)], "secret": [], "traps": []})
     s = desmap.walk(24, 7)
     assert fought == [1] and walked == [[(23, 7), (24, 7)]] and s.hero == (24, 7)
-    # fight=False: never fights
+    # fight=False: never fights — and never walks on beside a hostile either (QA round 7)
     fought.clear()
     walked.clear()
     cur["s"] = _snap({}, (22, 7), [newt])
     cur["s"].hostiles = lambda radius=None: [newt]
     desmap.walk(24, 7, fight=False)
-    assert fought == [] and walked
+    assert fought == [] and walked == []
+    # a non-trivial neighbour: stops without fighting even with fight=True
+    lich = {"x": 23, "y": 7, "ch": "L", "desc": "master lich", "dist": 1}
+    cur["s"] = _snap({}, (22, 7), [lich])
+    cur["s"].hostiles = lambda radius=None: [lich]
+    monkeypatch.setattr(combat, "fight_trivial", lambda s=None: None)
+    desmap.walk(24, 7)
+    assert walked == []
 
 
 def test_travel_pass_hostile_walks_past_a_sleeper(monkeypatch):
@@ -2282,3 +2289,84 @@ def test_desmap_skips_unique_levels_placed_elsewhere(monkeypatch):
     s = _snap({}, (10, 5), [])
     desmap.identify(s=s, remember=False)
     assert seen_levels and "asmodeus" not in seen_levels and "juiblex" in seen_levels
+
+
+def test_squeaky_board_crossing_next_to_eel_water_is_refused(monkeypatch):
+    # QA round 7 R7-1: go_up() crossed a board next to a kraken moat — the board branch skipped the eel check
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {4: "        -----", 5: "        |.^.|", 6: "        -}}}-"}
+    kraken = {"x": 10, "y": 6, "ch": ";", "desc": "kraken", "dist": 1}
+    s = _snap(rows, (9, 5), [kraken], colors={(x, 6): 4 for x in range(9, 12)})
+    s.feature_desc = {(10, 5): "squeaky board"}
+    g.traps = {"L": {(10, 5)}}
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    walked = []
+    monkeypatch.setattr(nav, "_walk_over", lambda path, boards: walked.append((path, boards)) or s)
+    with pytest.raises(nav.NavError, match="kraken"):
+        nav._travel(11, 5, 40, None, 3, None, False)
+    assert walked == []
+    nav._travel(11, 5, 40, None, 3, None, False, near_water=True)       # on purpose: crosses
+    assert walked
+
+
+def test_fight_hits_the_holder_first_even_with_an_old_label(monkeypatch):
+    # QA round 7 R7-7: held by an owlbear (labelled before the grab), fight_until_clear swung at a gremlin
+    from tactics import combat, ctx
+    g = _G()
+    g.history = [(100, "The owlbear grabs you!")]
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    monkeypatch.setattr(combat, "_wielding", lambda: True)
+    owl = {"x": 11, "y": 5, "ch": "Y", "desc": "owlbear", "dist": 1}
+    grem = {"x": 9, "y": 5, "ch": "g", "desc": "gremlin", "dist": 1, "note": "steals intrinsics"}
+    s = _snap({}, (10, 5), [grem, owl])
+    s.status.hp, s.status.hpmax, s.status.xl = 100, 100, 20
+    sent = []
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "pause", lambda m: None)
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        raise RuntimeError("stop")
+    monkeypatch.setattr(ctx, "do", fake_do)
+    try:
+        combat.fight(max_blows=1)
+    except RuntimeError:
+        pass
+    assert sent and sent[0] == "Fl"             # the owlbear to the east, not the gremlin
+
+
+def test_graves_are_walkable_not_walls():
+    # p3 shift 9 #663: path_to() treated graves ('|', bright white) as walls
+    from tactics.mapview import bfs_path, is_walkable, is_wall
+    rows = {4: "        -------", 5: "        |.|.|.|", 6: "        |.....|", 7: "        -------"}
+    s = _snap(rows, (9, 5), [], colors={(10, 5): 15, (12, 5): 15})
+    assert is_walkable(s, 10, 5) and not is_wall(s, 10, 5)
+    assert not is_walkable(s, 8, 5) and is_wall(s, 8, 5)
+    p = bfs_path(s, (9, 5), (13, 5), allow_monsters=True)
+    assert p is not None and len(p) == 4        # straight along row 5 over the graves
+
+
+def test_hunt_keeps_away_from_eel_water(monkeypatch):
+    # p2 shift 25 #131: hunt() walked beside the Castle moat with a giant eel adjacent
+    from tactics import combat, ctx
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    # the only way east runs along the moat (row 6); the eel sits in it
+    rows = {5: "        ---------------", 6: "        |.............|", 7: "        }}}}}}}}}}}}}}}"}
+    colors = {(x, 7): 4 for x in range(8, 23)}
+    eel = {"x": 14, "y": 7, "ch": ";", "desc": "giant eel", "dist": 5}
+    troll = {"x": 20, "y": 6, "ch": "T", "desc": "troll", "dist": 11, "id": 5}
+    s = _snap(rows, (9, 6), [eel, troll], colors=colors)
+    s.status.hp, s.status.hpmax, s.status.xl, s.status.turn = 100, 100, 14, 500
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    r = combat.hunt("troll", max_turns=2)
+    assert r["reason"].startswith("blocked: the only way") and "giant eel" in r["reason"] and sent == []

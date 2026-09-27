@@ -125,6 +125,9 @@ class Daemon:
                              hero=self.game.hero_pos)
         where = self.memory.state.get("current_level")
         if where and mode != "brief":
+            dm = (getattr(self.game, "desmap_ids", None) or {}).get(where)
+            if dm and dm.get("level") and not dm.get("ambiguous"):
+                where = f"{where} ({dm['level']} map at offset ({dm.get('ox')},{dm.get('oy')}): desmap.show())"
             text = text.replace("\n", f"\nwhere: {where}\n", 1)
         stale = self._stale_code_note()
         if stale:

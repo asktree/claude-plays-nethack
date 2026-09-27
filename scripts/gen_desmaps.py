@@ -41,6 +41,7 @@ _FEATS = [
     ("portal", re.compile(rf'^\s*PORTAL\s*:\s*{_BOX}\s*,\s*\([^)]*\)\s*,\s*"([^"]+)"')),
     ("branch", re.compile(rf"^\s*BRANCH\s*:\s*{_BOX}")),
     ("monster", re.compile(rf"^\s*MONSTER\s*:\s*\(\s*'.'\s*,\s*\"([^\"]+)\"\s*\)\s*,\s*{_XY}")),
+    ("monster", re.compile(rf"^\s*MONSTER\s*:\s*'(.)'\s*,\s*{_XY}")),        # a random one of that class
 ]
 
 
@@ -103,7 +104,8 @@ def parse(path: Path) -> list[dict]:
                 elif kind == "branch":
                     cur["features"].append({"kind": kind, "x": int(g[0]), "y": int(g[1]), "detail": ""})
                 elif kind == "monster":
-                    cur["features"].append({"kind": kind, "x": int(g[1]), "y": int(g[2]), "detail": g[0]})
+                    detail = g[0] if len(g[0]) > 1 else f"a random '{g[0]}' (class)"
+                    cur["features"].append({"kind": kind, "x": int(g[1]), "y": int(g[2]), "detail": detail})
                 break
         i += 1
     return out

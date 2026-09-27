@@ -171,7 +171,7 @@ def _walk_over(path, boards: set):
             raise NavError(f"walk: {cell} is not adjacent to {h}")
         _check_free(s, cell, "travel")
         s = ctx.do(key, ok=BENIGN + [r"^A board beneath you squeaks", r"^You hear a (?:distant )?squeak"],
-                   force=cell in boards)
+                   force=cell in boards, expect=("trap",) if cell in boards else ())
         if s.hero != cell:
             return s
     return s
@@ -237,6 +237,12 @@ def walk_path(path, ok=None):
         _check_free(s, cell, "walk_path")
         s = ctx.do(key, ok=ok if ok is not None else BENIGN)
         if s.hero != cell:
+            if s.state.kind == "command" and s.hero == h and any(
+                    m.startswith(("You are carrying too much to get through", "You try to squeeze")) for m in
+                    s.messages or []):
+                # hack.c test_move(): no diagonal squeeze between rock/boulders over 600 weight
+                raise NavError(f"walk_path: can't squeeze diagonally from {h} to {cell} ({s.messages[-1]!r}) — "
+                               "drop heavy things (the pack is over 600) or take another way")
             return s
     return s
 
@@ -604,6 +610,10 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
            and not m.get("pet") and not m.get("statue")]
     if occ and s.hero != (x, y):
+        if all(m.get("unseen") or m["ch"] == "I" for m in occ):
+            raise NavError(f"travel target {(x, y)} holds an 'I' — a REMEMBERED unseen monster, maybe long gone: "
+                           "go next to it and fight(x, y, force=True) once (\"You attack thin air\" clears a "
+                           "stale marker; a real invisible monster gets hit), then travel again")
         raise NavError(f"travel target {(x, y)} is occupied by {_mdesc(occ)} (travelling there would bump "
                        "into it and waste a turn)")
     if max_dist is not None and s.hero is not None:
@@ -614,12 +624,30 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     # objects or squares we chose to avoid: if the direct route crosses one,
     # walk our own detour step by step instead.
     bad = {c for c in bad_squares(s) if c != (x, y)}
+    zone = {} if near_water or s.hero is None else {c: w for c, w in _eel_zone(s).items()
+                                                    if c not in (s.hero, (x, y))}
+
+    def eel_guard(path):
+        """A route walked by hand (over a squeaky board) gets the same drowning check as travel's own
+        (QA round 7: go_up() crossed a board next to a kraken moat without a word)."""
+        hit = [c for c in path or [] if c in zone]
+        if not hit:
+            return
+        vis = [c for c in hit if zone[c][1]]
+        if vis:
+            raise NavError(f"travel to {(x, y)}: the only known way passes {vis[0]}, next to the water with "
+                           f"the {zone[vis[0]][0]} — its wrap drowns you (levitation doesn't help). Kill it or "
+                           "freeze the water (cold ray) first, wait for it to leave, or travel(..., near_water=True)")
+        print(f"travel: WARNING — the only known way passes {hit[0]}, next to {zone[hit[0]][0]}; going on "
+              "(\"brushes against your leg\" / \"swings itself around you\" = step away from the water NOW)")
+
     if bad and s.hero is not None and bfs_path(s, s.hero, (x, y), allow_monsters=True) is None:
         # the only way may cross a displayed trap: fine if all of them are squeaky boards (they only squeak)
         wide = bfs_path(s, s.hero, (x, y), allow_monsters=True, allow_traps=True)
         on = [c for c in wide or [] if c in bad]
         boards = squeaky_boards(s)
         if on and set(on) <= boards:
+            eel_guard(wide)
             print(f"travel: the only known way crosses the squeaky board(s) {on} — harmless (it squeaks and "
                   "wakes monsters nearby): walking over")
             return _walk_over(wide, boards)
@@ -630,8 +658,6 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             raise NavError(f"travel to {(x, y)}: the only known way crosses the known trap(s) {what} — cross it "
                            "on purpose (travel next to it, then step_onto(x, y): check what it does to you first), "
                            "or dig / find another way")
-    zone = {} if near_water or s.hero is None else {c: w for c, w in _eel_zone(s).items()
-                                                    if c not in (s.hero, (x, y))}
     if zone:
         direct = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad), allow_monsters=True)
         hit = [c for c in direct or [] if c in zone]
@@ -660,10 +686,12 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 boards = squeaky_boards(cur)
                 if detour is None and on and set(on) <= boards:
                     # a squeaky board only squeaks (wakes monsters nearby): cross it rather than fail
+                    over = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad - boards), allow_monsters=False,
+                                    allow_pets=True) or direct
+                    eel_guard(over)
                     print(f"travel: the only known way crosses the squeaky board(s) {on} — harmless (it squeaks "
                           "and wakes monsters nearby): walking over")
-                    return _walk_over(bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad - boards),
-                                               allow_monsters=False, allow_pets=True) or direct, boards)
+                    return _walk_over(over, boards)
                 if detour is None:
                     raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square — the direct "
                                    f"one crosses {on} (traps, avoid() squares, mimics, stationary hostiles: "

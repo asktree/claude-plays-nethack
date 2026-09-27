@@ -15,6 +15,8 @@ from pathlib import Path
 NOTES = {
     "floating eye": "NEVER melee (paralysis -> death). Ranged only, or ignore. Corpse = telepathy.",
     "cockatrice": "touch/hiss -> stoning. Never touch or eat its corpse; fight with a weapon, never bare-handed.",
+    "fire elemental": "its fire burns scrolls, potions and spellbooks in your open pack (fire resistance saves "
+                      "you, not them: bag them) and your cloak.",
     "chickatrice": "touch/hiss -> stoning. Never touch or eat its corpse; fight with a weapon.",
     "gas spore": "EXPLODES when killed (4d6 to adjacent). Kill at range or walk away.",
     "green slime": "touch -> SLIMING. Kill at range; carry fire/polymorph cure.",
@@ -371,9 +373,9 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
         bits.append(n.rstrip(". ") if len(n) > 1 else n)     # (joined with "; " below: no ".;")
     rec = monster_record(name)
     if rec and not desc.startswith("peaceful ") and any(f in COVETOUS_FLAGS for f in rec.get("flags3", [])):
-        if n and "Covetous:" in n:
-            bits[-1] = bits[-1].replace("Covetous:", "COVETOUS (it teleports next to you, even on no-teleport "
-                                        "levels):")
+        if n and re.search(r"\bcovetous:", n, re.I):
+            bits[-1] = re.sub(r"\b[Cc]ovetous:", "COVETOUS (it teleports next to you, even on no-teleport "
+                              "levels):", bits[-1], count=1)
         else:
             bits.append(COVETOUS_NOTE)
     if rec and hero_xl is not None and not desc.startswith("peaceful "):
