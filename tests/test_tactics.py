@@ -2611,6 +2611,43 @@ def test_trap_crossing_policy_and_trek(monkeypatch):
     calls.clear()
     nav.trek(13, 5)
     assert calls == [("travel", (11, 5)), ("step_onto", (12, 5)), ("travel", (13, 5))]
+    # p1 shift 31 #86: a stalker's remembered 'I' ON the dart trap of the only way — name it, not the traps
+    rows[5] = "        |...I...|"
+    cur["s"] = _snap(rows, (10, 5), [])
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    with pytest.raises(nav.NavError, match=r"unseen monster 'I' at \(12, 5\) \(on the dart trap\) — clear_I"):
+        nav.trek(13, 5)
+
+
+def test_detection_browse_is_left_but_player_prompts_are_not():
+    # p1 shift 31 #2095: object detection left the game in its getpos browse
+    from nh.game import _detect_browse
+    top = "You detect the presence of objects.  (For instructions type a '?')"
+    assert _detect_browse([top], top)
+    assert _detect_browse(["You sense your surroundings."], "(For instructions type a '?')")
+    assert _detect_browse(["You feel very greedy, and sense gold!"], "")
+    assert not _detect_browse(["You sense a faint wave of psychic energy."], "")
+    # a travel/teleport prompt the player asked for is never escaped, whatever came before it
+    assert not _detect_browse(["You sense your surroundings."], "Where do you want to travel to?  (For instructions")
+    assert not _detect_browse(["You detect the presence of objects."], "Pick an object.")
+
+
+def test_fall_through_trap_door_is_remembered_on_the_level_left():
+    # p1 shift 31: the DL41 trap door fallen through wasn't in `nh info` nor a known trap
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+
+    class _M:
+        state = {"levels": {"Gehennom / Level 41": {"features": {"up stairs": [[59, 5]]}}}}
+    g.memory = _M()
+    cur = _snap({5: "   ....@...."}, (7, 5), [])
+    g._note_fall(cur, ["A trap door opens up under you!"], "Gehennom / Level 41")
+    assert (7, 5) in g.traps["Gehennom / Level 41"]
+    assert g.feature_desc["Gehennom / Level 41"][(7, 5)] == "trap door"
+    lv = _M.state["levels"]["Gehennom / Level 41"]
+    assert lv["features"]["trap door"] == [[7, 5]] and lv["traps"] == [[7, 5]]
+    g._note_fall(cur, ["You climb up the stairs."], "Gehennom / Level 40")
+    assert "Gehennom / Level 40" not in g.traps
 
 
 def test_levitation_drowner_zone_stays_in_its_own_pool(monkeypatch):
@@ -2702,3 +2739,68 @@ def test_no_squeeze_after_carrying_too_much():
     s2.status.ldesc = "Dlvl:6"
     g._annotate(s2)
     assert s2.no_squeeze is True
+
+
+def test_explore_small_max_legs_notices_back_and_forth(monkeypatch):
+    # p1 shift 31 #2002: explore(max_legs=3) x16 in a closed pocket only ever said "max_legs reached"
+    from tactics import ctx, explore, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(explore, "_STALE", {})
+    rows = {4: "        ----------------", 5: "        |..............|", 6: "        ----------------"}
+    cur = {"s": _snap(rows, (11, 5), [])}
+    cur["s"].status = Status(ok=True, hp=50, hpmax=50, turn=100)
+    steps = {"seq": [(12, 5), (11, 5)], "i": 0}
+
+    def fake_do(keys, **kw):
+        if keys == ".":
+            seq = steps["seq"]
+            x, y = seq[steps["i"] % len(seq)]
+            steps["i"] += 1
+            s = _snap(rows, (x, y), [])
+            s.status = Status(ok=True, hp=50, hpmax=50, turn=cur["s"].status.turn + 1)
+            cur["s"] = s
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(explore, "_pick_target", lambda skip, bad, why: (22, 5))
+    monkeypatch.setattr(nav, "waypoint", lambda s, t, cap: t)
+    monkeypatch.setattr(nav, "leg_cap", lambda s=None: 8)
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y: None)
+    monkeypatch.setattr(explore, "frontiers", lambda limit=12: [(22, 5)])
+    monkeypatch.setattr(explore, "_boulder_leads", lambda s=None: [(15, 5)])
+    monkeypatch.setattr(explore, "_hidden_stairs_hint", lambda: "")
+    monkeypatch.setattr(explore, "dead_ends", lambda s=None, limit=8: [])
+    assert explore._explore(3, set())["reason"] == "max_legs reached"
+    r = explore._explore(3, set())
+    assert r["reason"].startswith("blocked: boulders (15, 5)") and "back and forth over 2 squares" in r["reason"]
+    # legs across known ground toward a far frontier end on new squares each time: never a verdict
+    monkeypatch.setattr(explore, "_STALE", {})
+    steps.update(seq=[(12, 5), (14, 5), (16, 5), (18, 5), (20, 5), (13, 5)], i=0)
+    assert explore._explore(3, set())["reason"] == "max_legs reached"
+    assert explore._explore(2, set())["reason"] == "max_legs reached"
+
+
+def test_burn_note_drops_quaffed_letters_and_refreshes(monkeypatch):
+    # p1 shift 31 / shift 29 #3333: the Gehennom burn warning named a quaffed potion / a bagged scroll
+    from nh.game import Game, Timing
+    from tactics import ctx, items
+    g = Game(term=None, timing=Timing.local())
+    g.level_name, g.level_name_ldesc = "Gehennom / Level 44", "Dlvl:44"
+    g.loose_burnables, g.bags = ["m", "i"], ["D"]
+    s = _snap({5: "   ..@.."}, (5, 5), [])
+    s.status = Status(ok=True, hp=50, hpmax=50, ldesc="Dlvl:44")
+    assert g.burn_note_for(s).startswith("2 scroll(s)/potion(s)/spellbook(s) in the open pack (per the last "
+                                         "inventory(): mi)")
+    g._note_used_up(s, b"qm")
+    assert g.loose_burnables == ["i"]
+    s.state = State("object", prompt="What do you want to read? [i or ?*]")
+    g._note_used_up(s, b"i")
+    assert g.loose_burnables == [] and g.burn_note_for(s) == ""
+    g.loose_burnables = ["i"]
+    s.burn_note = "stale"
+    g.last = s
+    monkeypatch.setattr(ctx, "game", g)
+    items._stashed("i", ["You put a scroll labeled FOO into the bag."])
+    assert g.loose_burnables == [] and s.burn_note == ""

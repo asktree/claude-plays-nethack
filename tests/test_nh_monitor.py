@@ -1058,3 +1058,27 @@ def test_burnables_warning_in_gehennom():
     s = snap({}, 100)
     g._annotate(s)
     assert s.burn_note == ""
+
+
+def test_telepathy_only_sightings_raise_no_left_view_alarm():
+    # p1 shift 31 #2322: monsters seen only through a blindfold scan "left view" when it came off, and
+    # fight_until_clear() called that a hit-and-run in the dark
+    from nh.game import Game, Timing
+    g = FakeGame()
+    g.truth = {(50, 10): "vampire lord"}
+    t = MonsterTracker(g)
+    s = snap({(50, 10): "V"}, 10, color=1)
+    s.screen.chars[23] = (s.screen.chars[23].rstrip() + " Blind").ljust(W)
+    s.status = parse_status(s.screen)
+    assert "Blind" in s.status.conditions
+    t.update(s)
+    t.update(snap({}, 12, color=1))
+    assert t.gone(12)[0]["blind"] is True
+    game = Game(term=None, timing=Timing.local())
+    game.tracker = t
+    assert game._recently_gone(snap({}, 12)) == []
+    t2 = MonsterTracker(g)                       # seen with your own eyes: it counts
+    t2.update(snap({(50, 10): "V"}, 10, color=1))
+    t2.update(snap({}, 12, color=1))
+    game.tracker = t2
+    assert [r["desc"] for r in game._recently_gone(snap({}, 12))] == ["vampire lord"]

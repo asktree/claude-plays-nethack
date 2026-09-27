@@ -226,6 +226,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
 
     def result(reason):
         now = ctx.last()
+        # (carried to the next call on this level: explore(max_legs=3) in a loop must still notice that its
+        # legs go back and forth showing nothing new — p1 shift 31: 16 calls walked a closed pocket 53 turns)
+        _STALE.update(key=ctx.game.level_key(now.status) if now is not None and now.status.ok else None,
+                      known=known0, ends=list(ends))
         # (a door that has opened since — unlocked, kicked, or opened by a monster — isn't locked any more)
         still = [d for d in locked if now is None or now.screen.at(*d) == "+"]
         return {"reason": reason, "legs": legs, "unreachable": unreachable, "locked": still,
@@ -304,6 +308,16 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
     fights = 0
     idle, last_mark = 0, None
     known0, stale, legs0 = -1, 0, 0    # map squares shown; legs in a row that showed nothing new
+    ends: list = []                    # where those legs ended (carried across calls on the same level)
+    s0 = ctx.last()
+    if s0.status.ok and _STALE.get("key") == ctx.game.level_key(s0.status):
+        known0, ends = _STALE["known"], list(_STALE["ends"])     # the previous calls' legs on this level count
+
+    def stuck_msg():
+        return (f"stuck: {stale} legs in a row showed nothing new — NetHack's travel is guessing "
+                f"its way to frontiers it can't reach (frontiers: {frontiers()[:6]}; avoided squares on "
+                f"the way: {sorted(bad_squares())[:8]}): cross a trap/hole on purpose (step_onto), dig around it, "
+                "or search for a hidden passage")
     while legs < max_legs:
         s = ctx.last()
         if s.state.kind != "command":
@@ -316,18 +330,14 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         if idle >= 6:
             return result(f"stuck: no move and no game time for {idle} rounds at {s.hero} "
                           f"(last messages: {s.messages}) — look at the screen and act by hand")
-        from nh.parse import MAP_BOTTOM as _MB, MAP_TOP as _MT
-        known = sum(1 for y in range(_MT + 1, _MB + 1) for ch in s.screen.row(y) if ch != " ")
+        known = _known_count(s)
         if legs > legs0:                       # (only travel legs count; fights and door-opening don't)
             stale = stale + 1 if known <= known0 else 0
+            ends = ends + [s.hero] if known <= known0 else []
             legs0 = legs
         known0 = max(known0, known)
         if stale >= 12:
-            avoided = sorted(bad_squares())
-            return result(f"stuck: {stale} legs in a row showed nothing new — NetHack's travel is guessing "
-                          f"its way to frontiers it can't reach (frontiers: {frontiers()[:6]}; avoided squares on "
-                          f"the way: {avoided[:8]}): cross a trap/hole on purpose (step_onto), dig around it, "
-                          "or search for a hidden passage")
+            return result(stuck_msg())
         if auto_fight and fights < 30:
             from .combat import fight_trivial
             fs = fight_trivial(s)
@@ -521,10 +531,33 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 why["squeeze"].extend(squeeze_steps(ctx.last(), own, s.hero))
             continue
         stuck = 0
+    if legs > legs0 and ctx.last().state.kind == "command":
+        k = _known_count(ctx.last())                  # (the last leg counts too)
+        ends = ends + [ctx.last().hero] if k <= known0 else []
+        known0 = max(known0, k)
+    if len(ends) >= 4 and len(set(ends)) * 2 <= len(ends):
+        # the last legs (of this call and the calls before it here) went back and forth over the same few
+        # squares showing nothing new: say why, not just "max_legs reached" (a plain explore() would have
+        # said "blocked: boulders ..." at once). (Legs across known ground toward a far frontier end on new
+        # squares each time: they don't count.)
+        n = len(ends)
+        r = finished()
+        if r["reason"].startswith("explored") and frontiers():
+            stale = n
+            r = result(stuck_msg())
+        r["reason"] += f" [the last {n} legs went back and forth over {len(set(ends))} squares, showing nothing new]"
+        return r
     return result("max_legs reached")
 
 
 _CROWDS_SEEN: set = set()          # (level, box) crowds explore() already paused for
+
+
+def _known_count(s) -> int:
+    """Map squares shown (not blank): explore()'s measure of progress."""
+    from nh.parse import MAP_BOTTOM, MAP_TOP
+    return sum(1 for y in range(MAP_TOP + 1, MAP_BOTTOM + 1) for ch in s.screen.row(y) if ch != " ")
+_STALE: dict = {}                  # {"key", "known", "stale"}: the last explore() call's no-progress count
 
 
 def _crowd_near(s, target, n_min: int = 5):

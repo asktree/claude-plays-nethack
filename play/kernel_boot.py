@@ -4,6 +4,8 @@ Wires tactics to the kernel's do/look/pause and imports the player-facing
 helpers so they're available directly inside `nh exec`.
 """
 
+import re  # noqa: F401,E402  (for the player's own loops: p1 shift 31 hit a NameError)
+
 import tactics.ctx as _ctx
 
 _ctx.do = do          # noqa: F821  (provided by the kernel namespace)

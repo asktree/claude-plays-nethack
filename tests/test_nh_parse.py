@@ -1194,7 +1194,8 @@ def test_clairvoyance_browse_cursor_is_left_by_the_step():
             return snap_of(rows, (36, 0))
         if data in (b"\r", b" "):                      # the --More-- dismissed: the browse cursor on the map
             rows = dict(base)
-            rows[0] = next(iter(GETPOS_HINTS))
+            rows[0] = "(For instructions type a '?')"      # do_name.c getpos() with flags.verbose
+            assert any(h in rows[0] for h in GETPOS_HINTS)
             return snap_of(rows, (15, 8))
         return snap_of(base, (10, 5))                  # Esc: back at the command prompt
     g.send_bytes = fake_send

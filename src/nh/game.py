@@ -369,6 +369,19 @@ def engraving_is(text: str, orig: str) -> bool:
     return False
 
 
+# detect.c: the messages right before browse_map()'s cursor (the game opens it by itself, it asks nothing)
+_DETECT_BROWSE = re.compile(r"You sense your surroundings\.|You detect the presence of |You sense the presence of "
+                            r"monsters\.|You feel very greedy(?:, and sense gold!|\.)|You feel entrapped\.|"
+                            r"and you smell (?:food|something)\.|You sense (?:food|something)\.")
+_NOT_BROWSE = ("Where do you want", "Pick ", "Select ", "Showing ")
+
+
+def _detect_browse(lines, top: str = "") -> bool:
+    """A detection map-browse cursor follows these messages — and the top line isn't a position the player
+    asked for (travel, farlook, a teleport/jump/spell target)."""
+    return not any(n in top for n in _NOT_BROWSE) and any(_DETECT_BROWSE.search(ln) for ln in lines)
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
@@ -646,13 +659,42 @@ class Game:
         out = []
         for r in self.tracker.gone(turn):
             d = r.get("desc") or ""
+            # (last seen while Blind = through telepathy — a telepathy_scan() census: it didn't "leave view",
+            # your sight came back; p1 shift 31: sealed fake-tower monsters raised a hit-and-run alarm)
             if turn - r.get("turn", 0) <= 20 and d and not d.startswith(("tame ", "peaceful ")) \
-                    and not r.get("statue") and note_for(d):
+                    and not r.get("statue") and not r.get("blind") and note_for(d):
                 out.append({"desc": d, "x": r["x"], "y": r["y"], "ago": turn - r.get("turn", 0)})
         return out[:4]
 
     _WIELD_NOW = re.compile(r"^You now wield (.+?)\.$")          # wield_tool(): #rub, apply a pick-axe
     _WIELD_INV = re.compile(r"^[a-zA-Z] - (.+?)\.?$")          # 'w'/'x' echo the inventory line
+
+    def burn_note_for(self, snap: Snap) -> str:
+        """The Gehennom fire-trap warning for scrolls/potions/books outside the bag (per the last inventory();
+        items.inventory()/bag_put() refresh it on the current snap, quaffing/reading drops the letter)."""
+        burn = getattr(self, "loose_burnables", None) or []
+        bags = getattr(self, "bags", None) or []
+        key0 = self.level_key(snap.status) if snap.status.ok else ""
+        return (f"{len(burn)} scroll(s)/potion(s)/spellbook(s) in the open pack (per the last inventory(): "
+                f"{''.join(burn[:12])}) — Gehennom's FIRE TRAPS burn scrolls and boil potions: "
+                f"bag_put('{bags[0]}', ...) them" if burn and bags and key0.startswith("Gehennom") else "")
+
+    _USE_UP = re.compile(r"^What do you want to (?:drink|read)\?")
+
+    def _note_used_up(self, cur: Snap, data: bytes) -> None:
+        """q/r + letter: that potion/scroll may be gone — drop it from the burn warning's list (a stack that is
+        left shows again at the next inventory()). p1 shift 31: the warning kept naming a quaffed potion."""
+        lb = getattr(self, "loose_burnables", None)
+        if not lb:
+            return
+        letter = None
+        if len(data) >= 2 and data[:1] in (b"q", b"r") and chr(data[1]).isalpha():
+            letter = chr(data[1])
+        elif len(data) == 1 and chr(data[0]).isalpha() and cur.state.kind == "object" \
+                and self._USE_UP.search(cur.state.prompt or ""):
+            letter = chr(data[0])
+        if letter and letter in lb:
+            self.loose_burnables = [c for c in lb if c != letter]
 
     def _note_wield(self, messages: list[str]) -> None:
         """Keep self.wielded current from the messages: "You now wield a
@@ -1416,12 +1458,19 @@ class Game:
                         messages.append(txt)
                     snap = self.send_bytes(snap.state.dismiss.encode())
                     pages += 1
-                    if snap.state.kind in ("getpos", "unknown") and any(
-                            m.startswith("You sense your surroundings") for m in messages[-3:]):
+                    if snap.state.kind in ("getpos", "unknown") and _detect_browse(messages[-3:],
+                                                                                    snap.screen.row(0)):
                         # detect.c do_vicinity_map(): clairvoyance opens a map-browse cursor by itself
                         # between turns; leave it (Esc, no game time) — the next keys would move that
                         # cursor instead of playing (QA round 7)
                         snap = self.send_bytes(b"\x1b")
+                if snap.state.kind == "getpos" and _detect_browse([snap.screen.row(0)], snap.screen.row(0)):
+                    # detect.c browse_map(): object/monster/gold/food/trap detection (potion, scroll, spell,
+                    # crystal ball) opens the same browse cursor with its message on the same line (p1 shift
+                    # 31: "You detect the presence of objects. (For instructions type a '?')"). The detected
+                    # things stay on the map; leave the browse (Esc, no game time).
+                    messages.extend(m for m in _split_top(snap.screen.row(0)) if not m.startswith("(For instr"))
+                    snap = self.send_bytes(b"\x1b")
                 kind = snap.state.kind
                 if menu_before is not None and unit.isalpha() and i < len(data) and not multi \
                         and _menu_sig(snap) != menu_before:
@@ -1496,9 +1545,12 @@ class Game:
                         dx, dy = self._MOVE[mv]
                         self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
                     self._note_wield(messages)
+                    self._note_used_up(cur, data)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
                     self._note_arrival(cur, snap, data, messages, old_key, moved)
+                    if moved:
+                        self._note_fall(cur, messages, old_key)
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             elif snap.state.kind == "getpos" and snap.status.ok:
@@ -1792,11 +1844,7 @@ class Game:
                       and not (r.get("desc") or "").startswith(("tame ", "peaceful "))
                       and turn - r.get("turn", 0) <= 500
                       for r in (getattr(self.tracker, "recent", None) or {}).values())
-        burn = getattr(self, "loose_burnables", None) or []
-        key0 = self.level_key(snap.status) if snap.status.ok else ""
-        snap.burn_note = (f"{len(burn)} scroll(s)/potion(s)/spellbook(s) in the open pack (per the last inventory(): "
-                          f"{''.join(burn[:12])}) — Gehennom's FIRE TRAPS burn scrolls and boil potions: "
-                          f"bag_put('{bags[0]}', ...) them" if burn and bags and key0.startswith("Gehennom") else "")
+        snap.burn_note = self.burn_note_for(snap)
         if bags and gold >= 200:
             snap.gold_note = (f"${gold} loose in your purse — a leprechaun takes it all: bag_put('{bags[0]}', '$')"
                               + (" — and a LEPRECHAUN is on this level" if lep else ""))
@@ -1851,6 +1899,29 @@ class Game:
             self._arrival_check = {"n": snap.n, "hero": snap.hero, "ch": arrive, "old_key": old_key}
 
     _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
+
+    def _note_fall(self, cur: Snap, messages: list, old_key) -> None:
+        """trap.c fall_through(): "A trap door opens up under you!" / "There's a gaping hole under you!" — the
+        square you stood on, on the level you LEFT, holds that trap: remember it there (a known way down, and a
+        square for routes to avoid) — in the harness memory too, as `nh info` shows it (p1 shift 31)."""
+        kind = ("trap door" if any(m.startswith("A trap door opens up under you") for m in messages) else
+                "hole" if any(m.startswith("There's a gaping hole under you") for m in messages) else None)
+        if kind is None or not old_key or cur.hero is None:
+            return
+        x, y = cur.hero
+        self.traps.setdefault(old_key, set()).add((x, y))
+        self.feature_desc.setdefault(old_key, {})[(x, y)] = kind
+        mem = getattr(self, "memory", None)
+        lv = (getattr(mem, "state", None) or {}).get("levels", {}).get(old_key)
+        if lv is not None:
+            lst = lv.setdefault("features", {}).setdefault(kind, [])
+            if [x, y] not in lst:
+                lst.append([x, y])
+            tr = lv.setdefault("traps", [])
+            if [x, y] not in tr:
+                tr.append([x, y])
+                tr.sort()
+            lv.setdefault("feature_desc", {})[f"{x},{y}"] = kind
 
     def _quiet_look(self) -> str:
         """':' (no game time) read straight off the screen, outside the step machinery (no history, no

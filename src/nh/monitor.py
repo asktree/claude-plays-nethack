@@ -428,7 +428,7 @@ class MonsterTracker:
             if m.get("desc"):
                 self.recent[m["id"]] = {"id": m["id"], "ch": m["ch"], "color": m["color"], "x": m["x"],
                                         "y": m["y"], "desc": m["desc"], "statue": m.get("statue", False),
-                                        "turn": turn}
+                                        "turn": turn, "blind": "Blind" in st.conditions}
         new_visible = {m["id"] for m in mons}
         killed = killed_names(getattr(snap, "messages", None))
         resolved = self._forget_killed(killed, self.visible_ids - new_visible, snap.hero, turn)

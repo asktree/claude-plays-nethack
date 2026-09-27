@@ -75,6 +75,7 @@ def inventory():
                                     and not re.search(r"\bBook of the Dead\b", it["text"])]
         ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
         ctx.game.punished = any("(chained to you)" in it["text"] for it in items)   # objnam.c: ball and chain
+        _refresh_burn_note()
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
     return []
@@ -752,6 +753,19 @@ def _stashed(letters: str, msgs) -> None:
     lb = getattr(ctx.game, "loose_burnables", None)
     if lb:
         ctx.game.loose_burnables = [c for c in lb if c not in letters]
+        _refresh_burn_note()
+
+
+def _refresh_burn_note() -> None:
+    """The snap the obs shows was annotated before the list changed (p1 shift 29 #3333: the warning named an
+    item right after bag_put() and inventory()): recompute its burn note now."""
+    f = getattr(ctx.game, "burn_note_for", None)
+    s = getattr(ctx.game, "last", None)
+    if f is not None and s is not None and hasattr(s, "burn_note"):
+        try:
+            s.burn_note = f(s)
+        except Exception:  # noqa: BLE001  (a note must never break the helper)
+            pass
 
 
 _DISCO_LINE = re.compile(r"^\*?\s*(?P<name>\S.*?) \((?P<app>[^()]+)\)$")

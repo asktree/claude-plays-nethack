@@ -690,10 +690,7 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
             return finish(travel(x, y))
         path = bfs_path(s, s.hero, goal, avoid=frozenset(bad - allow), allow_traps=True, allow_pets=True)
         if path is None:
-            blocking = sorted(c for c in bad if c in names)
-            raise NavError(f"trek{goal}: no way even across the traps you may cross; known traps: "
-                           + ", ".join(f"{c} {names[c]}" for c in blocking[:6])
-                           + " (trap_crossable() says which are allowed; cross_traps=['...'] adds more)")
+            raise NavError(_trek_blocked(s, goal, bad, allow, names))
         idx = next((i for i, c in enumerate(path) if c in allow), None)
         if idx is None:
             return finish(travel(x, y))
@@ -705,6 +702,39 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
         if s.hero != path[idx - 1]:
             return s                  # stopped short (a monster, a message): the caller looks
     return ctx.last()
+
+
+def _trek_blocked(s, goal, bad, allow, names) -> str:
+    """Why trek() finds no way: a monster (or a remembered unseen 'I') on the way — p1 shift 31: a stalker's
+    'I' sat ON the spiked pit of the only route, and the error blamed the traps — or a trap it may not cross."""
+    from .mapview import MONSTER_CHARS
+    via = bfs_path(s, s.hero, goal, avoid=frozenset(bad - allow), allow_traps=True, allow_pets=True,
+                   allow_monsters=True)
+    if via is not None:
+        mons = {(m["x"], m["y"]): m for m in (s.monsters or [])}
+        on = [c for c in via if c != goal and s.screen.at(*c) in MONSTER_CHARS]
+        if on:
+            what = []
+            for c in on[:3]:
+                m = mons.get(c) or {}
+                if s.screen.at(*c) == "I":
+                    what.append(f"a remembered unseen monster 'I' at {c}" + (f" (on the {names[c]})" if c in names
+                                                                             else "")
+                                + f" — clear_I{c} (a stale marker) or fight it")
+                else:
+                    what.append(f"{m.get('desc') or s.screen.at(*c)} at {c}")
+            return f"trek{goal}: the way is blocked by " + "; ".join(what) + " — then trek again"
+    worst = bfs_path(s, s.hero, goal, avoid=frozenset(), allow_traps=True, allow_pets=True, allow_monsters=True)
+    if worst is not None:
+        tr = [c for c in worst if c in bad and c not in allow and c != goal]
+        if tr:
+            return (f"trek{goal}: the only way crosses " + ", ".join(f"{c} {names.get(c, 'trap/avoided square')}"
+                                                                     for c in tr[:4])
+                    + " — not allowed for you now (trap_crossable() says why; cross_traps=['<name>'] to cross "
+                      "it anyway, or find another way)")
+    blocking = sorted(c for c in bad if c in names)
+    return (f"trek{goal}: no known way even across all known traps (known: "
+            + (", ".join(f"{c} {names[c]}" for c in blocking[:6]) or "none") + ") — explore, search or dig")
 
 
 def covetous_ring(s=None) -> list:
