@@ -498,3 +498,47 @@ def test_monster_trap_messages():
     for m in ["You fall into a pit!", "A gush of water hits you!", "There is a pit here.",
               "The kitten misses the rock mole."]:
         assert not MON_TRAP_RE.search(m), m
+
+
+def test_guard_still_climb():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    p = "Beware, there will be no return!  Still climb? [yn] (n)"
+    snap = Snap(screen=mk({0: p}, cursor=(len(p), 0)), state=State("yn", prompt=p, choices="yn"),
+                status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"y", force=False)
+    g._guard(snap, b"n", force=False)
+    g._guard(snap, b"y", force=True)
+
+
+def test_guard_cockatrice_corpse_pickup_and_blind_step():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import Menu, MenuItem, State, Status
+    g = _guard_game()
+    s = _cmd_snap([])
+    g._remember_here(s, ["You see here a cockatrice corpse."])
+    with pytest.raises(PermissionError):
+        g._guard(s, b",", force=False)
+    g._guard(s, b",", force=True)
+    # a pile: ',' opens a menu, so it's allowed; confirming with the corpse selected is not
+    g._remember_here(s, ["Things that are here:\na cockatrice corpse\na dagger"])
+    g._guard(s, b",", force=False)
+    menu = Menu(title="Pick up what?", items=[MenuItem("a", "a cockatrice corpse", selected=True),
+                                             MenuItem("b", "a dagger", selected=True)])
+    ms = Snap(screen=mk({}), state=State("menu", menu=menu, prompt="Pick up what?"), status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(ms, b"\r", force=False)
+    menu.items[0].selected = False
+    g._guard(ms, b"\r", force=False)
+    # blind: stepping onto the corpse square is refused, other squares are fine
+    blind = _cmd_snap([], hero=(9, 5), conditions=["Blind"])
+    with pytest.raises(PermissionError):
+        g._guard(blind, b"l", force=False)        # (10,5) holds the corpse
+    g._guard(blind, b"h", force=False)
+    # "You see no objects here." forgets it
+    g._remember_here(s, ["You see no objects here."])
+    g._guard(s, b",", force=False)

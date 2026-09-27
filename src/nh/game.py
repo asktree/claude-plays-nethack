@@ -265,6 +265,7 @@ class Game:
         self.traps: dict[str, set] = {}     # level (ldesc) -> squares known to hold traps
         self.avoid: dict[str, set] = {}     # level (ldesc) -> squares the player asked to avoid
         self.terrain_seen: dict[str, dict] = {}   # level key -> {(x, y): feature char} (stairs, fountains...)
+        self.here_seen: dict[str, dict] = {}      # level key -> {(x, y): last "You see here"/pile text}
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -300,6 +301,28 @@ class Game:
                                r"fountain|altar|opulent throne)\b.* here\.")
     _HERE_CH = {"staircase up": "<", "staircase down": ">", "ladder up": "<", "ladder down": ">",
                 "fountain": "{", "altar": "_", "opulent throne": "\\"}
+
+    _HERE_OBJS = re.compile(r"(?:^|\n)(?:You (?:see|feel) here |Things that (?:are|you feel) here:)")
+    _NO_OBJS = re.compile(r"^You (?:see|feel) no objects here")
+    COCKATRICE_CORPSE = re.compile(r"\b(?:cockatrice|chickatrice) corpses?\b")
+
+    def _remember_here(self, snap: Snap, messages: list[str]) -> None:
+        """Remember what the look messages said lies on the hero's square
+        (the guards use it: cockatrice corpses)."""
+        if snap.hero is None or not snap.status.ok:
+            return
+        here = self.here_seen.setdefault(self.level_key(snap.status), {})
+        texts = [m for m in messages if self._HERE_OBJS.search(m)]
+        if texts:
+            here[snap.hero] = "\n".join(texts)
+        elif any(self._NO_OBJS.search(m) for m in messages):
+            here.pop(snap.hero, None)
+
+    def _here_text(self, snap: Snap, cell=None) -> str:
+        cell = cell or snap.hero
+        if cell is None or not snap.status.ok:
+            return ""
+        return self.here_seen.get(self.level_key(snap.status), {}).get(cell, "")
 
     def _remember_terrain(self, snap: Snap, messages: list[str]) -> None:
         """Remember stairs/fountains/altars/thrones per level so the one under
@@ -450,6 +473,20 @@ class Game:
                         f"refusing to attack the remembered unseen monster 'I' at {(tx, ty)} while blind: it may be "
                         "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
                         "it. force=True if it is attacking you.")
+            if unit == b"," and snap.hero is not None:
+                txt = self._here_text(snap)
+                if self.COCKATRICE_CORPSE.search(txt) and "Things that" not in txt:
+                    raise PermissionError(
+                        "refusing to pick up here: the only object on this square is a cockatrice/chickatrice "
+                        "corpse, and ',' takes it without a menu — touching it bare-handed is instant stoning. "
+                        "force=True only if you wear gloves.")
+            if step in self._MOVE and snap.hero is not None and "Blind" in conds:
+                dx, dy = self._MOVE[step]
+                if self.COCKATRICE_CORPSE.search(self._here_text(snap, (snap.hero[0] + dx, snap.hero[1] + dy))):
+                    raise PermissionError(
+                        "refusing to step blind onto the square with the cockatrice corpse: while blind you feel "
+                        "the objects you step on, and feeling it bare-handed is instant stoning. Wait until you "
+                        "can see, go around, or force=True if you wear gloves.")
             if step in self._MOVE and snap.hero is not None and conds & {"Conf", "Stun"}:
                 from .danger import base_name
                 near = [m for m in snap.monsters or [] if m.get("dist") == 1 and not m.get("tame")
@@ -472,6 +509,25 @@ class Game:
                                 f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
                                 f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
                                 "Use ranged attacks or go around. force=True overrides.")
+        elif k == "yn" and unit[:1] in (b"y", b"Y") and "Still climb?" in (snap.state.prompt or ""):
+            raise PermissionError(
+                "refusing 'y' to 'Beware, there will be no return! Still climb?': going up from dungeon level 1 "
+                "LEAVES THE DUNGEON and ends the game, unless you carry the real Amulet of Yendor (then it "
+                "takes you to the Planes). Answer n. force=True only with the Amulet.")
+        elif k == "menu" and snap.state.menu is not None and "Pick up what?" in (snap.state.prompt or "") \
+                and unit in (b"\r", b"\n"):
+            bad = [i.text for i in snap.state.menu.selectable() if i.selected and self.COCKATRICE_CORPSE.search(i.text)]
+            if bad:
+                raise PermissionError(
+                    f"refusing to confirm the pickup of {bad[0]!r}: touching a cockatrice corpse bare-handed is "
+                    "instant stoning. Unselect it (its letter again), or force=True if you wear gloves.")
+        elif k == "menu" and snap.state.menu is not None and "of what?" in (snap.state.prompt or "") \
+                and unit[:1].isalpha():
+            hit = [i.text for i in snap.state.menu.selectable()
+                   if i.letter == unit[:1].decode() and self.COCKATRICE_CORPSE.search(i.text)]
+            if hit:
+                raise PermissionError(f"refusing to pick up {hit[0]!r} (instant stoning bare-handed); "
+                                      "force=True if you wear gloves.")
         elif k in ("getlin", "object") and "genocide" in (snap.state.prompt or "").lower():
             why = _genocide_danger(snap.state.prompt, unit.decode(errors="replace"))
             if why:
@@ -641,6 +697,7 @@ class Game:
                     moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
+                    self._remember_here(snap, messages)
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
                     if arrive and snap.under is None:
                         # took the stairs: you stand on the other end (the '@' hides it)
