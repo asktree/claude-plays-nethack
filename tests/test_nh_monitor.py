@@ -284,3 +284,27 @@ def test_grow_regex_ignores_other_becomes():
     assert _GROW_RE.search("The gnome changes into a male gnome lord.").group("new") == "gnome lord"
     assert not _GROW_RE.search("The water becomes murky.")
     assert not _GROW_RE.search("You feel that Tyr is displeased.")
+
+
+def test_kernel_monster_filter_limits_new_monster_pauses():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    before = snap({}, 10)
+    after = snap({(41, 10): "d", (45, 12): "D"}, 11)
+    after.monsters = [{"ch": "d", "x": 41, "y": 10, "desc": "jackal", "new": True},
+                      {"ch": "D", "x": 45, "y": 12, "desc": "red dragon", "new": True}]
+    k._check_events(before, after)
+    assert reasons and "jackal" in reasons[-1] and "red dragon" in reasons[-1]
+    reasons.clear()
+    with k.ns["monster_filter"](lambda m: m["desc"] != "jackal"):
+        k._check_events(before, after)
+    assert reasons and "jackal" not in reasons[-1] and "red dragon" in reasons[-1]
+    reasons.clear()
+    with k.ns["monster_filter"](lambda m: False):
+        k._check_events(before, after)
+    assert reasons == []
+    assert k.new_monster_filter is None

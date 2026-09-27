@@ -11,6 +11,7 @@ parked code (the game state is consistent at the pause boundary).
 from __future__ import annotations
 
 import builtins
+import contextlib
 import io
 import linecache
 import queue
@@ -141,6 +142,7 @@ class Kernel:
         self.abandon_flag = False
         self.autocontinue: list[re.Pattern] = []
         self.pause_on_monsters = True
+        self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
         self.parked = False        # True while an exec worker waits at a pause point
         self.hp_pause = 0.7        # pause on HP loss when HP < this fraction of max...
         self.hp_hit_pause = 0.15   # ...or when one step costs >= this fraction of max
@@ -182,7 +184,19 @@ class Kernel:
         def note(text: str) -> None:
             k.game.log_event({"ev": "note", "ts": round(time.time(), 3), "text": text})
 
-        self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game)
+        @contextlib.contextmanager
+        def monster_filter(fn):
+            """Inside this block a newly seen hostile pauses the exec only if
+            fn(monster_dict) is true (e.g. only dangerous ones during a fight
+            at a chokepoint). Everything else still pauses as usual."""
+            old = k.new_monster_filter
+            k.new_monster_filter = fn
+            try:
+                yield
+            finally:
+                k.new_monster_filter = old
+
+        self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -268,6 +282,11 @@ class Kernel:
             if snap.monsters:
                 new = [m for m in snap.monsters if m.get("new") and not m.get("statue")
                        and not m.get("tame") and not m.get("peaceful")]
+                if new and self.new_monster_filter is not None:
+                    try:
+                        new = [m for m in new if self.new_monster_filter(m)]
+                    except Exception as e:  # noqa: BLE001 — a broken filter must not hide monsters
+                        reasons.append(f"monster_filter error: {e!r}")
                 if new:
                     reasons.append("new monster: " + ", ".join(
                         f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))
@@ -310,6 +329,7 @@ class Kernel:
         self.drop()
         self.autocontinue = [re.compile(p) for p in (autocontinue or [])]
         self.pause_on_monsters = monsters
+        self.new_monster_filter = None
         self.hp_pause = 0.7 if hp_pause is None else float(hp_pause)
         self.code_counter += 1
         fname = f"<exec-{self.code_counter}>"

@@ -11,6 +11,7 @@ _ctx.look = look      # noqa: F821
 _ctx.pause = pause    # noqa: F821
 _ctx.note = note      # noqa: F821
 _ctx.game = game      # noqa: F821
+_ctx.monster_filter = globals().get("monster_filter")   # absent in daemons started before it existed
 _ctx.game_name = GAME_NAME  # noqa: F821
 
 from tactics.nav import (NavError, cursor_to, farlook, go_down, go_up, step,  # noqa: E402,F401
@@ -27,6 +28,6 @@ from tactics.info import (corpse, last_seen, mon, obj, price_candidates, price_i
 from tactics.nav import kick_door  # noqa: E402,F401
 from tactics.explore import object_frontiers, search_until_change  # noqa: E402,F401
 from tactics.nav import avoid, bad_squares, blockers, path_to, walk_path  # noqa: E402,F401
-from tactics.combat import fight, friendly_in_line, throw, zap  # noqa: E402,F401
+from tactics.combat import fight, fight_until_clear, friendly_in_line, throw, zap  # noqa: E402,F401
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))
 from tactics.town import buy_protection  # noqa: E402,F401

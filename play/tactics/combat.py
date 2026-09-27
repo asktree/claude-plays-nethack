@@ -106,6 +106,68 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
     return s
 
 
+def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6) -> dict:
+    """Hold your square and fight a crowd (a zoo from its doorway, a pack in a
+    corridor): melee whatever hostile comes adjacent (fight(): passive checks,
+    worst-case HP rule), wait a turn while hostiles within `radius` aren't
+    adjacent yet, and return when none is left within it.
+    Newly seen monsters pause only when threat() rates them 'dangerous' (or
+    they can't be rated); HP loss, messages and status changes still pause
+    as usual — run it with `bin/nh exec --hp-pause 0.4`.
+    Returns {"reason", "kills", "turns"}: reason "clear"; "HP ..." (below
+    stop_hp: Elbereth / retreat / pray); "... not coming" (a hostile in range
+    didn't approach for `patience` turns: trapped, slow or sessile — go to
+    it or leave it); or "max_turns"."""
+    import contextlib
+    from nh.danger import threat_level
+    from nh.monitor import killed_names
+
+    def dangerous(m):
+        d = m.get("desc") or ""
+        st = ctx.last().status
+        return not d or threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None) == "dangerous"
+
+    ctx.require_command("fight_until_clear()")
+    t0 = ctx.last().status.turn or 0
+    kills: list = []
+    best, idle = None, 0
+
+    def out(reason):
+        return {"reason": reason, "kills": kills, "turns": (ctx.last().status.turn or t0) - t0}
+
+    guard = ctx.monster_filter(dangerous) if ctx.monster_filter else contextlib.nullcontext()
+    with guard:
+        for _ in range(max_turns):
+            s = ctx.last()
+            if s.state.kind != "command" or s.hero is None:
+                return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
+            st = s.status
+            if st.ok and st.hp < stop_hp * max(1, st.hpmax):
+                return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%} — Elbereth / retreat / pray if HP <= 1/7")
+            if s.adjacent_hostiles():
+                s = fight(stop_hp=stop_hp)
+                kills += killed_names(s.messages)
+                best, idle = None, 0
+                if s.adjacent_hostiles() and s.status.ok and s.status.hp < stop_hp * max(1, s.status.hpmax):
+                    return out(f"HP {s.status.hp}/{s.status.hpmax} below {stop_hp:.0%} with hostiles adjacent")
+                continue
+            near = s.hostiles(radius)
+            if not near:
+                return out("clear")
+            d = min(m["dist"] for m in near)
+            if best is None or d < best:
+                best, idle = d, 0
+            else:
+                idle += 1
+            if idle >= patience:
+                who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in near[:4])
+                return out(f"{who} within {radius} but not coming for {idle} turns (trapped, slow or sessile?) "
+                           "— go to it or leave it")
+            s = ctx.do("s", ok=ROUTINE)
+            kills += killed_names(s.messages)
+    return out("max_turns")
+
+
 def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13) -> list:
     """Tame/peaceful monsters in the straight line from you in `direction`.
     A thrown object stops at the first monster in its path, so only friends

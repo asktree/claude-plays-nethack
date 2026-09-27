@@ -9,6 +9,7 @@ look = None    # look() -> Snap
 pause = None   # pause(reason)
 note = None    # note(text)
 game = None    # nh.game.Game
+monster_filter = None   # with monster_filter(fn): only newcomers with fn(m) true pause
 
 
 def last():

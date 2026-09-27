@@ -116,7 +116,8 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   by hand from `knowledge/wiki/Sokoban_Level_*.txt` with `sokoban.push(x, y, 'dirs')`.
   Boulders only move orthogonally; you can't squeeze diagonally between boulders; breaking boulders or
   reading earth costs Luck. A monster behind a boulder blocks the push — wait or deal with it. The top
-  level is a zoo; fight at a chokepoint. Prize: bag of holding or amulet of reflection.
+  level is a zoo; fight at a chokepoint (stand in the doorway, `fight_until_clear()` at full HP). Prize: bag
+  of holding or amulet of reflection.
 - **Mines' End luckstone** when strong enough (XL10+). Keep it (it also locks in good Luck).
 - AC: dwarvish iron helm, dwarvish mithril coat (from Mines dwarves), boots, gloves, cloak. AC ≤ 0 before
   D10; ≤ −5 before D20.
