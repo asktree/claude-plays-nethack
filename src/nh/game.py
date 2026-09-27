@@ -538,7 +538,7 @@ class Game:
                         "doesn't stop a single step (only running/travel avoid it). Lava is death without fire "
                         "resistance; water soaks your scrolls/potions and can drown you. Go around; force=True only "
                         "with levitation/water walking you're sure of.")
-            if unit == b"e" and snap.status.ok and snap.status.hunger == "Satiated":
+            if unit == b"e" and snap.status.ok and snap.status.hunger == "Satiated" and "Stone" not in conds:
                 raise PermissionError(
                     "refusing to eat while Satiated: eating past 2000 nutrition chokes you to death (19 times in "
                     "20), and a one-bite food gives no 'Continue eating?' warning. Wait until 'Not hungry'. "

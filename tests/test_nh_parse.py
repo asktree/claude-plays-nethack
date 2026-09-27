@@ -566,6 +566,8 @@ def test_guard_water_lava_and_choking():
     with pytest.raises(PermissionError):
         g._guard(full, b"e", force=False)
     g._guard(s, b"e", force=False)
+    stoned = Snap(screen=scr, state=State("command"), status=Status(ok=True, hunger="Satiated", conditions=["Stone"]))
+    g._guard(stoned, b"e", force=False)     # a lizard corpse against stoning beats the choking risk
     p = "Continue eating? [yes/no] (no)"
     q = Snap(screen=mk({0: p}, cursor=(len(p), 0)), state=State("yn", prompt=p, choices="yes/no"),
              status=Status(ok=True))

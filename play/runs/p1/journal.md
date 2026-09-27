@@ -136,3 +136,5 @@ T:6673–6681 Soko4 — kicked the stair-room door (48,14) open: FOUR OGRES behi
 T:6699–6702 Soko4 — a SUCCUBUS appeared at the west end of the lane and wandered off; daemon restarted for `fight_until_clear()` (loaded OK).
 T:6807–6808 Soko4 — resting on Elbereth at (44,15): a RED NAGA breathed fire down the lane (studded leather burnt: AC3). One lightning bolt (E, 0:5) killed it -> **XL8 (HP 76/97)**. Zapping from the Elbereth square = "You feel like a hypocrite", engraving erased (3.6.7: any attack from the square).
 T:6815–6817 Soko4 — eating the red naga corpse (fire res 20%) at (37,15); the succubus came back adjacent and was killed in 2 blows (Exp 1383; no theft). HP 75/97.
+T:6818–6820 Soko4 — a FLAMING SPHERE came at me while I ate: put on the RING OF FIRE RESISTANCE (w, left hand) first; "The flaming sphere explodes! You seem unaffected by it." Ring kept on for now.
+T:6829–6830 Soko4 — a XAN (speed 18, AC-4) in the lane: one lightning bolt (E, now 0:3) missed; fighting it in melee with the new fight_until_clear() helper.
