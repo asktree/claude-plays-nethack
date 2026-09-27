@@ -642,15 +642,18 @@ def test_kernel_encumbrance_and_gas_cloud_rules():
     assert "encumbrance: Burdened" in check("", "Burdened", ["Your movements are slowed slightly because of your load."])
     assert check("Burdened", "", ["Your movements are now unencumbered."]) == ""        # lighter: no news
     assert check("", "Burdened", expect=("encumbrance",)) == ""                         # an item helper's own pickup
-    # a poison gas cloud: without poison resistance every turn pauses
+    # a poison gas cloud: news once per level (again after 50 turns without one); the burns are the HP
+    # rules' job and the 1-turn blindness in it is routine after that (p2 shift 24: a pause every turn)
     g.intrinsics = {"cold"}
     first = check("", "", ["Your eyes sting.", "Something is burning your lungs!", "You cough and spit blood!"],
                   conds=((), ("Blind",)))
     assert "POISON GAS CLOUD" in first and "BURNS YOUR LUNGS" in first
-    assert "status: +Blind" in check("", "", ["Your eyes sting.", "You cough!"], conds=((), ("Blind",)))
-    # with poison resistance: news once per level, then routine (the 1-turn blindness included)
+    again = check("", "", ["Your eyes sting.", "Something is burning your lungs!"], conds=((), ("Blind",)))
+    assert "POISON GAS CLOUD" not in again and "status: +Blind" not in again
+    # with poison resistance: the same, saying it's harmless
     g.intrinsics = {"cold", "poison"}
     k._heard.clear()
+    k._cloud_turns.clear()
     once = check("", "", ["Your eyes sting.", "You cough!"], conds=((), ("Blind",)))
     assert "POISON GAS CLOUD" in once and "harmless" in once
     assert check("", "", ["You can see again.", "Your eyes sting.", "You cough!"], conds=((), ("Blind",))) == ""

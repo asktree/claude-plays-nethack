@@ -100,8 +100,62 @@ def _candidates(key: str, names=None) -> list:
     return [m for m in maps() if files is None or m["file"] in files]
 
 
+def _cdiv(a: int, b: int) -> int:
+    """C integer division (truncates toward zero)."""
+    q = abs(a) // abs(b)
+    return q if (a >= 0) == (b > 0) else -q
+
+
+X_MAZE_MAX, Y_MAZE_MAX, ROWNO = 78, 20, 21      # decl.c: (COLNO - 1) & ~1, (ROWNO - 1) & ~1
+
+
+def fixed_offset(m: dict):
+    """Screen offset (ox, oy) where the level generator puts map m: sp_lev.c spo_map() places a map with a
+    named GEOMETRY (left/half-left/center/half-right/right, top/center/bottom) at a fixed (xstart, ystart)
+    — forced odd — and the tty shows level x in column x-1, level y in row y+1. (Checked against the
+    Castle, the Valley, Juiblex's swamp, Orcus Town, Vlad's Tower and the Wizard's Tower.) None when the
+    geometry isn't a named alignment."""
+    geo = (m.get("geometry") or "").replace(" ", "").lower()
+    if "," not in geo or "(" in geo:
+        return None
+    h, v = geo.split(",", 1)
+    xs = m.get("w") or max((len(r) for r in m["rows"]), default=0)
+    ys = m.get("h") or len(m["rows"])
+    X, Y = X_MAZE_MAX, Y_MAZE_MAX
+    xstart = {"left": 1 if m.get("init") else 3, "half-left": 2 + _cdiv(X - 2 - xs, 4),
+              "center": 2 + _cdiv(X - 2 - xs, 2), "half-right": 2 + _cdiv((X - 2 - xs) * 3, 4),
+              "right": X - xs - 1}.get(h)
+    ystart = {"top": 3, "center": 2 + _cdiv(Y - 2 - ys, 2), "bottom": Y - ys - 1}.get(v)
+    if xstart is None or ystart is None:
+        return None
+    if xstart % 2 == 0:
+        xstart += 1
+    if ystart % 2 == 0:
+        ystart += 1
+    if ystart < 0 or ystart + ys > ROWNO:
+        ystart += -2 if ystart > 0 else 2
+        if ys == ROWNO:
+            ystart = 0
+    return xstart - 1, ystart + 1
+
+
+def _score_at(m: dict, seen: dict, ox: int, oy: int) -> tuple:
+    score = good = bad = 0
+    for x, y, cls in m["_cells"]:
+        sc = seen.get((x + ox, y + oy))
+        if sc is None:
+            continue
+        v = _SCORE.get(sc, {}).get(cls, 0)
+        score += v
+        if v > 0:
+            good += 1
+        elif v < 0:
+            bad += 1
+    return score, good, bad
+
+
 def _best_offset(m: dict, seen: dict) -> tuple:
-    """(score, ox, oy, good, bad, runner_up_score) of the best placement of map m."""
+    """(score, ox, oy, good, bad, runner_up_score) of the best placement of map m anywhere on screen."""
     best = (-10 ** 9, 0, 0, 0, 0)
     second = -10 ** 9
     w, h = m["w"], m["h"]
@@ -126,6 +180,29 @@ def _best_offset(m: dict, seen: dict) -> tuple:
     return best + (second,)
 
 
+def _identify_fixed(cands: list, seen: dict):
+    """The candidate map that fits what you see at the spot the level generator puts it (fixed_offset):
+    a dozen matching squares are enough there (a dark level seen from a few squares), as long as no other
+    map fits its own spot about as well. None otherwise (identify() then slides the maps freely)."""
+    best, runner = None, -10 ** 9
+    for m in cands:
+        fo = fixed_offset(m)
+        if fo is None:
+            continue
+        sc, good, bad = _score_at(m, seen, *fo)
+        if best is None or sc > best["score"]:
+            if best is not None and best["rows"] != m["rows"]:
+                runner = max(runner, best["score"])
+            best = {"level": m["level"], "index": m["index"], "ox": fo[0], "oy": fo[1], "score": sc,
+                    "good": good, "bad": bad, "rows": m["rows"], "fixed": True}
+        elif m["rows"] != best["rows"]:
+            runner = max(runner, sc)
+    if best is None or best["score"] < 12 or best["good"] < 6 or best["bad"] * 4 > best["good"] \
+            or runner >= best["score"] - max(4, best["score"] // 10):
+        return None
+    return best
+
+
 def identify(names=None, s=None, min_score: int = 30, remember: bool = True) -> dict | None:
     """Which fixed map is this level (and where on the screen)? Slides the candidate maps (by the level's
     branch, or `names` like 'valley' / ['medusa-1', 'medusa-2']) over what you have seen and returns the best
@@ -136,19 +213,24 @@ def identify(names=None, s=None, min_score: int = 30, remember: bool = True) -> 
     seen = _screen_cls(s)
     best = None
     runner = -10 ** 9
-    for m in _candidates(key, names):
-        sc, ox, oy, good, bad, second = _best_offset(m, seen)
-        if best is None or sc > best["score"]:
-            if best is not None and (best["rows"] != m["rows"]):
-                runner = max(runner, best["score"])      # (identical maps, e.g. fakewiz1/2: not a rival)
-            best = {"level": m["level"], "index": m["index"], "ox": ox, "oy": oy, "score": sc, "good": good,
-                    "bad": bad, "rows": m["rows"]}
-            runner = max(runner, second)
-        elif m["rows"] != best["rows"]:
-            runner = max(runner, sc)
-    if best is None or best["score"] < min_score or best["bad"] * 4 > best["good"]:
-        return None
-    best.pop("rows")
+    cands = _candidates(key, names)
+    fixed = _identify_fixed(cands, seen)
+    if fixed is not None:
+        best = fixed
+    else:
+        for m in cands:
+            sc, ox, oy, good, bad, second = _best_offset(m, seen)
+            if best is None or sc > best["score"]:
+                if best is not None and (best["rows"] != m["rows"]):
+                    runner = max(runner, best["score"])      # (identical maps, e.g. fakewiz1/2: not a rival)
+                best = {"level": m["level"], "index": m["index"], "ox": ox, "oy": oy, "score": sc, "good": good,
+                        "bad": bad, "rows": m["rows"]}
+                runner = max(runner, second)
+            elif m["rows"] != best["rows"]:
+                runner = max(runner, sc)
+        if best is None or best["score"] < min_score or best["bad"] * 4 > best["good"]:
+            return None
+    best.pop("rows", None)
     if runner >= best["score"] - max(4, best["score"] // 10):
         best["ambiguous"] = True       # another placement fits almost as well: see more of the level first
         return best

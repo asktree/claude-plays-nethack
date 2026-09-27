@@ -242,6 +242,7 @@ class Kernel:
         self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
         self._announced: dict[str, dict] = {}   # species -> {turn, level, cells} of its last new-monster pause
         self._heard: set = set()     # (level, ONCE_PER_LEVEL index) already paused for
+        self._cloud_turns: dict = {}  # level -> turn of the last poison-gas-cloud message there
         self.defer_dist: int | None = None   # defer_far(): newcomers farther than this wait until they come near
         self._deferred: dict = {}    # monster id -> {level, pos, near}: seen far off, pauses once it MOVES within near
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
@@ -427,7 +428,12 @@ class Kernel:
         extra = [re.compile(p) if isinstance(p, str) else p for p in (ok or [])]
         in_cloud = any(_CLOUD.search(m) for m in snap.messages)
         cloud_key = (snap.status.ldesc if snap.status.ok else "", "cloud")
-        cloud_news = in_cloud and cloud_key not in self._heard
+        turn = snap.status.turn if snap.status.ok and snap.status.turn is not None else 0
+        last_cloud = self._cloud_turns.get(cloud_key[0])
+        # once per level (again after 50 turns without cloud messages); the HP checks cover the damage
+        cloud_news = in_cloud and (last_cloud is None or turn - last_cloud > 50)
+        if in_cloud:
+            self._cloud_turns[cloud_key[0]] = turn
         # a ray you reflected (zap.c buzz(): "The sleep ray hits you!" + "But it reflects from your
         # shield!"): the hit and the monster's zap before it are news only without the reflection
         reflected = any(m.startswith("But it reflects from your ") for m in snap.messages)
@@ -552,7 +558,7 @@ class Kernel:
                     if big_hit or low:
                         reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}")
             new_conds = [c for c in a.conditions if c not in b.conditions
-                         and not (c == "Blind" and in_cloud and not cloud_news and self._poison_res())
+                         and not (c == "Blind" and in_cloud and not cloud_news)
                          and not (c == "Blind" and "blind" in expect)]
             if new_conds:
                 reasons.append("status: +" + ",".join(new_conds)

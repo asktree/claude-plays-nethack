@@ -48,6 +48,7 @@ def parse(path: Path) -> list[dict]:
     out: list[dict] = []
     level = None
     geometry = None
+    init = False           # the level has INIT_MAP (sp_lev.c splev_init_present: LEFT maps start at x=1)
     count: dict = {}
     cur = None
     lines = path.read_text(errors="replace").splitlines()
@@ -56,9 +57,11 @@ def parse(path: Path) -> list[dict]:
         ln = lines[i]
         m = _LEVEL.match(ln)
         if m:
-            level, geometry, cur = m.group(1), None, None
+            level, geometry, cur, init = m.group(1), None, None, False
             i += 1
             continue
+        if ln.strip().startswith("INIT_MAP"):
+            init = True
         if ln.strip().startswith("GEOMETRY:"):
             geometry = ln.split(":", 1)[1].strip()
         if ln.strip() == "MAP" and level is not None:
@@ -69,7 +72,7 @@ def parse(path: Path) -> list[dict]:
                 i += 1
             k = count.get(level, 0)
             count[level] = k + 1
-            cur = {"level": level, "file": path.name, "index": k, "geometry": geometry, "rows": rows,
+            cur = {"level": level, "file": path.name, "index": k, "geometry": geometry, "init": init, "rows": rows,
                    "features": []}
             out.append(cur)
             geometry = None

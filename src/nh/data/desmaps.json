@@ -6,6 +6,7 @@
 "file": "Arch.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 "............................................................................",
@@ -204,6 +205,7 @@
 "file": "Arch.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 "............................................................................",
@@ -438,6 +440,7 @@
 "file": "Arch.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "                                  ---------                                 ",
@@ -492,6 +495,7 @@
 "file": "Barb.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "..................................PP........................................",
 "...................................PP.......................................",
@@ -726,6 +730,7 @@
 "file": "Barb.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "..........PPP.........................................                      ",
 "...........PP..........................................        .......      ",
@@ -966,6 +971,7 @@
 "file": "Barb.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "                               .............                                ",
@@ -1026,6 +1032,7 @@
 "file": "Caveman.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "  ......     ..........................       ...        ....  ......       ",
@@ -1218,6 +1225,7 @@
 "file": "Caveman.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "    .............                     ...........                           ",
@@ -1362,6 +1370,7 @@
 "file": "Caveman.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "                          .....................                             ",
@@ -1416,6 +1425,7 @@
 "file": "Healer.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
 "PPPP........PPPP.....PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP.P..PPPPP......PPPPPPPP",
@@ -1590,6 +1600,7 @@
 "file": "Healer.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "PPPPPPPPPPPPP.......PPPPPPPPPPP",
 "PPPPPPPP...............PPPPPPPP",
@@ -1652,6 +1663,7 @@
 "file": "Healer.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 ".P....................................PP.",
 "PP.......PPPPPPP....PPPPPPP....PPPP...PP.",
@@ -1686,6 +1698,7 @@
 "file": "Knight.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "..................................................",
 ".-----......................................-----.",
@@ -1964,6 +1977,7 @@
 "file": "Knight.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "xxxxxxxxx......xxxx...........xxxxxxxxxx",
 "xxxxxxx.........xxx.............xxxxxxxx",
@@ -2274,6 +2288,7 @@
 "file": "Knight.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "....PPPP..PPP..                                                             ",
 ".PPPPP...PP..     ..........     .................................          ",
@@ -2334,6 +2349,7 @@
 "file": "Monk.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 "............................................................................",
@@ -2628,6 +2644,7 @@
 "file": "Monk.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "             ----------------------------------------------------   --------",
 "           ---.................................................-    --.....|",
@@ -2658,6 +2675,7 @@
 "file": "Monk.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "xxxxxx..xxxxxx...xxxxxxxxx",
 "xxxx......xx......xxxxxxxx",
@@ -2685,6 +2703,7 @@
 "file": "Priest.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 "............................................................................",
@@ -2979,6 +2998,7 @@
 "file": "Priest.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "........................................",
 "........................................",
@@ -3063,6 +3083,7 @@
 "file": "Priest.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "xxxxxx..xxxxxx...xxxxxxxxx",
 "xxxx......xx......xxxxxxxx",
@@ -3090,6 +3111,7 @@
 "file": "Ranger.des",
 "index": 0,
 "geometry": "left,center",
+"init": true,
 "rows": [
 "                                       xx",
 "   ...................................  x",
@@ -3313,6 +3335,7 @@
 "file": "Ranger.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "              .......  .........  .......              ",
 "     ...................       ...................     ",
@@ -3361,6 +3384,7 @@
 "file": "Ranger.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "  ...                                                                  ...  ",
@@ -3595,6 +3619,7 @@
 "file": "Rogue.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "---------------------------------.------------------------------------------",
 "|.....|.||..........|....|......|.|.........|.......+............---.......|",
@@ -4016,6 +4041,7 @@
 "file": "Rogue.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "             ----------------------------------------------------   --------",
 "           ---.................................................-    --.....|",
@@ -4046,6 +4072,7 @@
 "file": "Rogue.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "-----      -------.......................................|-----------------|",
 "|...|  -----.....|.......................................|.................|",
@@ -4113,6 +4140,7 @@
 "file": "Samurai.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "..............................................................PP............",
 "...............................................................PP...........",
@@ -4341,6 +4369,7 @@
 "file": "Samurai.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 "............................................................................",
@@ -4665,6 +4694,7 @@
 "file": "Samurai.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                             ",
 "           .......................           ",
@@ -4743,6 +4773,7 @@
 "file": "Samurai.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "-------------                                  -------------",
 "|...........|                                  |...........|",
@@ -4793,6 +4824,7 @@
 "file": "Tourist.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 ".......}}....---------..-------------------------------------------------...",
 "........}}...|.......|..|.-------------------------------------------...|...",
@@ -5057,6 +5089,7 @@
 "file": "Tourist.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------------------------------------------------------",
 "|....|......|..........|......|......|...|....|.....|......|...............|",
@@ -5309,6 +5342,7 @@
 "file": "Tourist.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------------------------------------------------------",
 "|.........|.........|..........|..| |.................|........|........|..|",
@@ -5627,6 +5661,7 @@
 "file": "Valkyrie.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 "xxxxxxxxxxxxxxxxx..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxx",
@@ -5813,6 +5848,7 @@
 "file": "Valkyrie.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "PPPPxxxx                      xxxxPPPPPx",
 "PLPxxx                          xPPLLLPP",
@@ -5848,6 +5884,7 @@
 "file": "Valkyrie.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "xxxxxx.....................xxxxxxxx",
 "xxxxx.......LLLLL.LLLLL......xxxxxx",
@@ -5977,6 +6014,7 @@
 "file": "Wizard.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 ".....................C....CC.C........................C.....................",
@@ -6139,6 +6177,7 @@
 "file": "Wizard.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 ".............        .......................................................",
 "..............       .............}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}.......",
@@ -6278,6 +6317,7 @@
 "file": "Wizard.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "                                                                            ",
@@ -6470,6 +6510,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "---------------------------------------------------------------------------",
 "|.........................................................................|",
@@ -6497,6 +6538,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "---------------------------------------------------------------------------",
 "|.........................................................................|",
@@ -6524,6 +6566,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "---------------------------------------------------------------------------",
 "|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|.|",
@@ -6551,6 +6594,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "-----------                                                     -----------",
 "|.........|                                                     |.........|",
@@ -6603,6 +6647,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                            ------------------                            ",
 "                    ---------................---------                    ",
@@ -6631,6 +6676,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "     ---------         ---------         ---------         ---------     ",
 "   ---.......---     ---.......---     ---.......---     ---.......---   ",
@@ -6659,6 +6705,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "                                                        -----              ",
 "                                                ---------...---            ",
@@ -6687,6 +6734,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "----------------------------------------------                             ",
 "|............................................---                           ",
@@ -6714,6 +6762,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}................}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
@@ -6742,6 +6791,7 @@
 "file": "bigroom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 ".......................................................................",
 ".......................................................................",
@@ -6770,6 +6820,7 @@
 "file": "castle.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "}}}}}}}}}.............................................}}}}}}}}}",
 "}-------}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}-------}",
@@ -7097,6 +7148,7 @@
 "file": "endgame.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                                                                            ",
 "  ...                                                                       ",
@@ -7505,6 +7557,7 @@
 "file": "endgame.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
@@ -7534,6 +7587,7 @@
 "file": "endgame.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "............................................................................",
 "....LLLLLLLL............L.......................LLL.........................",
@@ -7570,6 +7624,7 @@
 "file": "endgame.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
 "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
@@ -7606,6 +7661,7 @@
 "file": "endgame.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "                              ---------------                              ",
 "                              |.............|                              ",
@@ -8014,6 +8070,7 @@
 "file": "gehennom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------------------------------------------------------",
 "|...S.|..|.....|  |.....-|      |................|   |...............| |...|",
@@ -8116,6 +8173,7 @@
 "file": "gehennom.des",
 "index": 0,
 "geometry": "left,bottom",
+"init": true,
 "rows": [
 "xxxxxxxx",
 "xx...xxx",
@@ -8130,6 +8188,7 @@
 "file": "gehennom.des",
 "index": 1,
 "geometry": "right,top",
+"init": true,
 "rows": [
 "xxxxxxxx",
 "xxxx.xxx",
@@ -8144,6 +8203,7 @@
 "file": "gehennom.des",
 "index": 2,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "xx}}}}}x}}}}}x}}}}}x}}}}}x}}}}}x}}}}}x}}}}}x}}}}}xx",
 "x}}}.}}}}}..}}}..}}}}}..}}}..}}}}}..}}}..}}}}}.}}}x",
@@ -8196,6 +8256,7 @@
 "file": "gehennom.des",
 "index": 0,
 "geometry": "right,center",
+"init": false,
 "rows": [
 ".|....|....|....|..............|....|........",
 ".|....|....|....|..............|....|........",
@@ -8379,6 +8440,7 @@
 "file": "gehennom.des",
 "index": 0,
 "geometry": "half-left,center",
+"init": false,
 "rows": [
 "---------------------",
 "|.............|.....|",
@@ -8455,6 +8517,7 @@
 "file": "gehennom.des",
 "index": 1,
 "geometry": "half-right,center",
+"init": false,
 "rows": [
 "---------------------------------",
 "................................|",
@@ -8476,6 +8539,7 @@
 "file": "gehennom.des",
 "index": 0,
 "geometry": "right,center",
+"init": false,
 "rows": [
 "-------------------------------------------------",
 "|                   ----               ----      ",
@@ -8535,6 +8599,7 @@
 "file": "gehennom.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------------------------------------------------------",
 "|             --------------                                               |",
@@ -8889,6 +8954,7 @@
 "file": "knox.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------------------------------------------------------",
 "| |........|...............................................................|",
@@ -9135,6 +9201,7 @@
 "file": "medusa.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
@@ -9267,6 +9334,7 @@
 "file": "medusa.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
@@ -9435,6 +9503,7 @@
 "file": "medusa.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
 "}}}}}}}}}}.}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}.}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
@@ -9489,6 +9558,7 @@
 "file": "medusa.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 "}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}",
 "}}}}}}}}}}}}}}........}}}}}}}}}}}}}}}}}}}}}}}..}}}.....}}}}}}}}}}}----|}}}}}",
@@ -9574,6 +9644,7 @@
 "file": "mines.des",
 "index": 0,
 "geometry": "center,center",
+"init": true,
 "rows": [
 ".....................................",
 ".----------------F------------------.",
@@ -9687,6 +9758,7 @@
 "file": "mines.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "-----         ---------                                                    ",
 "|...---  ------.......--    -------                       ---------------  ",
@@ -9904,6 +9976,7 @@
 "file": "mines.des",
 "index": 0,
 "geometry": "center,top",
+"init": true,
 "rows": [
 ".-----................----------------.-",
 ".|...|................|...|..|...|...|..",
@@ -10062,6 +10135,7 @@
 "file": "mines.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "------------------------------------------------------------------   ------",
 "|                        |.......|     |.......-...|       |.....|.       |",
@@ -10138,6 +10212,7 @@
 "file": "mines.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "---------------------------------------------------------------------------",
 "|...................................................|                     |",
@@ -10196,6 +10271,7 @@
 "file": "mines.des",
 "index": 0,
 "geometry": "center,bottom",
+"init": false,
 "rows": [
 " - - - - - - - - - - -- -- - - . - - - - - - - - - -- - - -- - - - - . - - |",
 "------...---------.-----------...-----.-------.-------     ----------------|",
@@ -10265,6 +10341,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "------  ----- ",
 "|....|  |...| ",
@@ -10354,6 +10431,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "-------- ------",
 "|.|....|-|....|",
@@ -10447,6 +10525,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "-----------       -----------",
 "|....|....|--     |.........|",
@@ -10577,6 +10656,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 " ----          -----------",
 "-|..|-------   |.........|",
@@ -10691,6 +10771,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "--------------------",
 "|........|...|.....|",
@@ -10791,6 +10872,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "  --------          ",
 "--|.|....|          ",
@@ -10898,6 +10980,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "--------------------------",
 "|........................|",
@@ -11052,6 +11135,7 @@
 "file": "sokoban.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "  ------------------------",
 "  |......................|",
@@ -11217,6 +11301,7 @@
 "file": "tower.des",
 "index": 0,
 "geometry": "half-left,center",
+"init": false,
 "rows": [
 "  --- --- ---  ",
 "  |.| |.| |.|  ",
@@ -11292,6 +11377,7 @@
 "file": "tower.des",
 "index": 0,
 "geometry": "half-left,center",
+"init": false,
 "rows": [
 "  --- --- ---  ",
 "  |.| |.| |.|  ",
@@ -11337,6 +11423,7 @@
 "file": "tower.des",
 "index": 0,
 "geometry": "half-left,center",
+"init": false,
 "rows": [
 "    --- --- ---  ",
 "    |.| |.| |.|    ",
@@ -11378,6 +11465,7 @@
 "file": "yendor.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------.",
 "|.......|..|.........|.....|.",
@@ -11509,6 +11597,7 @@
 "file": "yendor.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------.",
 "|.....|.S....|.............|.",
@@ -11556,6 +11645,7 @@
 "file": "yendor.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 "----------------------------.",
 "|..|............S..........|.",
@@ -11651,6 +11741,7 @@
 "file": "yendor.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 ".........",
 ".}}}}}}}.",
@@ -11711,6 +11802,7 @@
 "file": "yendor.des",
 "index": 0,
 "geometry": "center,center",
+"init": false,
 "rows": [
 ".........",
 ".}}}}}}}.",

@@ -2213,3 +2213,35 @@ def test_render_groups_far_unseen_markers():
     txt = monsters_line(s, mons=mons)
     assert "I x5 remembered unseen monsters" in txt and txt.count("an unseen monster was here") == 0
     assert "jackal" in txt
+
+
+def test_desmap_identifies_a_dark_level_from_a_few_squares(monkeypatch):
+    # p1 shift 26: Juiblex's swamp is dark; from a 3x3 view the free slide can't place it, but the level
+    # generator puts every map at a fixed spot (sp_lev.c spo_map), here offset (14,4)
+    from tactics import ctx, desmap
+    g = _G()
+    g.level_key = lambda status=None: "Gehennom / Level 30"
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(desmap, "_MAPS", None)
+    m = next(mm for mm in desmap.maps() if mm["level"] == "juiblex" and mm["index"] == 2)
+    assert desmap.fixed_offset(m) == (14, 4)
+    castle = next(mm for mm in desmap.maps() if mm["level"] == "castle")
+    assert desmap.fixed_offset(castle) == (8, 4)
+    valley = next(mm for mm in desmap.maps() if mm["level"] == "valley")
+    assert desmap.fixed_offset(valley) == (2, 2)
+    # draw 4x4 squares of the swamp around a spot with water and floor, everything else unseen
+    rows = {y: [" "] * 80 for y in range(24)}
+    cx, cy = 30, 8
+    colors = {}
+    for y in range(cy - 2, cy + 2):
+        for x in range(cx - 2, cx + 2):
+            ch = m["rows"][y - 4][x - 14] if 0 <= y - 4 < len(m["rows"]) and 0 <= x - 14 < len(m["rows"][y - 4]) else " "
+            rows[y][x] = {"}": "}", ".": ".", "-": "-", "|": "|"}.get(ch, " ")
+            if ch == "}":
+                colors[(x, y)] = 4
+    s = _snap({y: "".join(r) for y, r in rows.items()}, (cx, cy), [], colors=colors)
+    seen = desmap._screen_cls(s)
+    assert 6 <= len(seen) <= 16
+    r = desmap.identify(s=s, remember=False)
+    assert r is not None and r["level"] == "juiblex" and r["index"] == 2 and (r["ox"], r["oy"]) == (14, 4)
+    assert r.get("fixed") and not r.get("ambiguous")
