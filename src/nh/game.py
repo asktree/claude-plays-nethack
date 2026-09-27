@@ -112,6 +112,16 @@ class Snap:
         return " | ".join(self.messages)
 
     @property
+    def msgs(self) -> list:
+        """Alias of .messages (the repr prints msgs=...)."""
+        return self.messages
+
+    @property
+    def turn(self):
+        """Alias of .status.turn."""
+        return self.status.turn
+
+    @property
     def prompt(self) -> str:
         return self.state.prompt if self.state.kind not in ("command",) else ""
 
@@ -200,6 +210,13 @@ def _genocide_danger(prompt: str, answer: str) -> str:
         return (f"refusing to genocide {a!r}: that is your own race/role — you would die. Uncursed genocide: "
                 "'master mind flayer' or 'mind flayer'.")
     return ""
+
+
+def _menu_sig(snap: "Snap"):
+    m = snap.state.menu if snap.state.kind == "menu" else None
+    if not m:
+        return ("-", snap.state.kind)
+    return (m.title, tuple(it.text for it in m.items[:4]), m.page)
 
 
 def _engulfed(scr: Screen, hero) -> bool:
@@ -292,7 +309,7 @@ class Game:
         for c in list(feats):
             if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
                 del feats[c]           # e.g. a fountain that dried up
-        if any("dries up" in m for m in messages):
+        if any("dries up" in m or "fountain disappears" in m for m in messages):
             feats.pop(snap.hero, None)
         snap.under = feats.get(snap.hero)
 
@@ -474,9 +491,11 @@ class Game:
         state the game is in right now."""
         n = len(data)
         c = data[i]
-        if kind in ("getlin", "extcmd", "menu", "count", "dgl"):
+        if kind in ("getlin", "extcmd", "count", "dgl"):
             j = data.find(b"\r", i)
             return n if j < 0 else j + 1
+        if kind == "menu":
+            return i + 1          # one key at a time: a pick-one menu closes on the letter itself
         if kind == "getpos":
             j = i
             while j < n and data[j] not in b".,;:\x1b":
@@ -533,6 +552,7 @@ class Game:
             unsent = b""
             stop_reason = ""
             sent_any = False
+            answered: list[str] = []     # prompts answered in this step (their text can linger on row 0)
             if "Destroy old game?" in (cur.state.prompt or "") and data[:1] in (b"y", b"Y"):
                 raise PermissionError("refusing to answer 'y' to 'Destroy old game?' -- that erases the "
                                       "game in progress. Answer 'n' and investigate.")
@@ -566,6 +586,9 @@ class Game:
                     stop_reason = str(e)
                     break
                 i = j
+                if snap.state.kind in ("yn", "getlin", "object", "direction", "count") and snap.state.prompt:
+                    answered.append(snap.state.prompt.strip()[:40])
+                menu_before = _menu_sig(snap) if snap.state.kind == "menu" else None
                 snap = self.send_bytes(unit)
                 sent_any = True
                 pages = 0
@@ -578,12 +601,21 @@ class Game:
                     snap = self.send_bytes(snap.state.dismiss.encode())
                     pages += 1
                 kind = snap.state.kind
+                if menu_before is not None and unit.isalpha() and i < len(data) and not multi \
+                        and _menu_sig(snap) != menu_before:
+                    # the letter closed the menu (pick-one) or opened another one: the
+                    # rest of the keys were meant for the old menu
+                    unsent = data[i:]
+                    stop_reason = (f"the menu closed on {unit.decode()!r} (a pick-one menu) — the remaining "
+                                   "keys were not sent; look at the new state first")
+                    break
             if snap.state.kind == "gameover" and snap.state.prompt:
                 messages.append(snap.state.prompt)
             elif snap.state.kind == "command":
                 top = snap.screen.row(0).strip()
                 if top:
-                    messages.extend(_split_top(top))
+                    messages.extend(m for m in _split_top(top)
+                                    if not any(a and m.startswith(a) for a in answered))
             snap.messages = messages
             snap.keys = "<secret>" if secret else describe_bytes(data[: len(data) - len(unsent)])
             snap.unsent = describe_bytes(unsent)
@@ -597,6 +629,11 @@ class Game:
                     moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
+                    arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
+                    if arrive and snap.under is None:
+                        # took the stairs: you stand on the other end (the '@' hides it)
+                        self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive
+                        snap.under = arrive
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             if self.tracker is not None and snap.state.kind == "command":

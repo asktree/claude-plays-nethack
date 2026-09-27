@@ -263,8 +263,8 @@ def max_hit(desc: str) -> int:
 def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None) -> str:
     """'trivial' | 'normal' | 'dangerous' for a monster description vs you.
     dangerous: has a danger note, deadly passive, or difficulty >= XL+3, or
-    its worst-case hit is >= half your HP; trivial: difficulty <= XL/2 and
-    worst-case hit < a fifth of your HP (or <= 4)."""
+    its worst-case round is >= 3/4 of your HP; trivial: difficulty <= XL/2
+    and worst-case round < a fifth of your HP (or <= 4)."""
     name = base_name(desc or "")
     rec = monster_record(name)
     if not rec:
@@ -274,8 +274,8 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None) -
     mh = max_hit(name)
     if NOTES.get(name) or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"
-    if diff >= xl + 3 or (hp is not None and mh * 2 >= hp):
-        return "dangerous"
+    if diff >= xl + 3 or (hp is not None and mh * 4 >= hp * 3):
+        return "dangerous"      # much stronger, or one worst-case round takes 3/4 of your HP
     if diff <= max(1, xl // 2) and (mh <= 4 or (hp is not None and mh * 5 < hp)):
         return "trivial"
     return "normal"

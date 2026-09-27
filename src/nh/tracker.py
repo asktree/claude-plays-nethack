@@ -16,6 +16,24 @@ from .parse import MAP_BOTTOM, MAP_TOP
 _DUNGEON_HDR = re.compile(r"^(?P<name>[A-Z][A-Za-z' ]+?):(?: levels? (?P<a>\d+)(?: up)? to (?P<b>\d+))?\s*$")
 _LEVEL_LINE = re.compile(r"^(?:Level (?P<n>\d+)|(?P<plane>Plane of \w+|Astral Plane|Home \d+))(?::| \[)(?P<rest>.*)$")
 
+# level sounds (sounds.c dosounds) -> what they reveal about the level
+SOUNDS = [
+    (r"bubbling water|water falling on coins|splashing of a naiad|a soda fountain", "fountain"),
+    (r"a slow drip|a gurgling noise|dishes being washed", "sink"),
+    (r"courtly conversation|sceptre pounded|Off with|Queen Beruthiel", "THRONE ROOM (court: many monsters)"),
+    (r"mosquitoes|marsh gas|Donald Duck", "swamp"),
+    (r"counting money|quarterback|someone searching|footsteps of a guard|Ebenezer Scrooge", "vault (gold + guard)"),
+    (r"low buzzing|angry drone|bees in your", "BEEHIVE (killer bees: poison)"),
+    (r"unnaturally quiet|on the back of your", "graveyard/morgue (undead)"),
+    (r"blades being honed|loud snoring|dice being thrown|General MacArthur", "BARRACKS (soldiers)"),
+    (r"elephant stepping on a peanut|seal barking|Doctor Dolittle", "zoo (sleeping monsters + gold)"),
+    (r"cursing shoplifters|chime of a cash register|Neiman and Marcus", "shop"),
+    (r"someone praising|someone beseeching|carcass being offered|plea for donations", "temple (priest)"),
+    (r"a strange wind|convulsive ravings|snoring snakes|No more woodchucks|a loud ZOT", "Oracle"),
+    (r"crashing rock", "something digging (dwarf with a pick?)"),
+    (r"howling at the moon", "WERE-CREATURE (lycanthropy)"),
+]
+
 FEATURE_CHARS = {"<": "up stairs", ">": "down stairs", "{": "fountain", "_": "altar", "\\": "throne",
                  "#": None}
 
@@ -88,6 +106,14 @@ class Tracker:
         if snap.state.kind == "command" and st.ok:
             key = self.game.level_key(st)
             lv = self.state["levels"].setdefault(key, {"first_turn": st.turn})
+            for m in snap.messages:
+                if m.startswith("You hear") or m.startswith("You smell") or "unnaturally quiet" in m \
+                        or "on the back of your" in m:
+                    for pat, what in SOUNDS:
+                        if re.search(pat, m):
+                            heard = lv.setdefault("sounds", [])
+                            if what not in heard:
+                                heard.append(what)
             lv["last_turn"] = st.turn
             lv["ldesc"] = st.ldesc
             feats = lv.setdefault("features", {})
@@ -197,5 +223,6 @@ class Tracker:
         for key, lv in self.state["levels"].items():
             f = lv.get("features", {})
             fs = ", ".join(f"{k} {v}" for k, v in f.items() if v)
-            out.append(f"{key}: T{lv.get('first_turn')}-{lv.get('last_turn')} {fs}")
+            snd = ("; heard: " + ", ".join(lv["sounds"])) if lv.get("sounds") else ""
+            out.append(f"{key}: T{lv.get('first_turn')}-{lv.get('last_turn')} {fs}{snd}")
         return "\n".join(out) or "(no levels recorded)"

@@ -55,6 +55,9 @@ monsters:
   - `[direction]`: `In what direction?` → a direction key, `.` for self, `<`/`>` for up/down.
   - `[getlin]`: free text (a name, an engraving, a wish) ending with `<CR>`.
   - `[menu]`: items with letters; type letters to toggle, then `<CR>`. `>` next page, `<Esc>` cancel.
+    **Pick-one menus** (e.g. `#loot`'s "Do what with the box?") close on the letter itself: send just the
+    letter. The harness sends menu keys one at a time and stops (unsent keys reported) when a letter
+    closes the menu or opens another, so a trailing `<CR>` can't confirm an empty selection in the next one.
   - `[getpos]`: a map cursor (travel/farlook). Tactics handle these; `<Esc>` cancels.
 - **Monsters are identified automatically** with farlook (`;`) the first time they appear, so you see
   `peaceful dwarf`, `tame kitten`, `statue of a newt` (statues look like monsters!), `jackal`. Labels
@@ -81,8 +84,8 @@ Available in the kernel:
 |---|---|
 | `do(keys, quiet=False, ok=None)` | one step; `quiet=True` = don't pause on messages (info-only keys); `ok=[regex]` = these messages don't pause |
 | `obs` | last snapshot: `obs.status.hp`, `.hpmax`, `.turn`, `.hunger`, `.conditions`, `.ldesc`; `obs.hero` (x,y); `obs.messages`; `obs.kind` (`command`, `yn`, `menu`...), `obs.prompt`; `obs.screen.at(x,y)`, `obs.screen.chars` (24 strings), `obs.screen.dump()`; `obs.monsters` (dicts: ch,x,y,color,dist,desc,note,new,tame,peaceful,statue,pet), `obs.hostiles(radius)`, `obs.adjacent_hostiles()`; `obs.objects` (ch,x,y,kind,pile,color,dist); `obs.features` (name,x,y: stairs, fountain, altar, doors, traps...; the one under you is listed as e.g. `fountain (under you)`, also `obs.under`); `obs.menu` (iterate it for selectable items: `.letter`, `.text`, `.selected`; `.page`/`.pages`) |
-| `look()` | re-read the screen without acting |
-| `travel(x, y)` | NetHack's travel command to a known map spot (stops when something happens). NetHack never starts a travel next to a non-tame monster: `travel()` then waits for a peaceful to move, and raises `NavError` naming the hostile/peaceful (or "no known path") instead of silently not moving. `blockers()` lists non-tame monsters adjacent to you |
+| `look()` | re-read the screen without acting (a fresh snapshot: its `.messages` is empty — read the messages of a step from the snap `do()` returned) |
+| `travel(x, y)` | NetHack's travel command to a known map spot (stops when something happens). It goes in **short legs** (8 squares, 4 with a hostile around) because NetHack's travel only stops for a monster that is already adjacent — a fast monster could otherwise reach you unseen during one long leg; `leg=0` = one long leg. It opens closed doors in the way (travel itself never does). NetHack never starts a travel next to a non-tame monster: `travel()` then waits for a peaceful to move, and raises `NavError` naming the hostile/peaceful, a locked door, or "no known path" instead of silently not moving. `blockers()` lists non-tame monsters adjacent to you |
 | `travel_to('>')` | travel to the nearest `>` (or any map symbol; stairs/fountains/altars hidden under items or monsters are remembered); `go_down()` / `go_up()` travel, re-travel after routine stops, check you are on the stairs, then use them (NavError instead of pressing `>` elsewhere). `travel()` refuses a target square occupied by a non-tame monster |
 | `explore()` | auto-explore this level using the game's own unexplored-frontier data; pauses on events; returns a dict whose `reason` is `explored ...` only when nothing reachable is left (→ search for secret doors or move on), or `blocked: ...` naming locked doors (kick them yourself with `kick_door(x, y)` — never shop doors or in Minetown), frontiers cut off by avoided squares, boulders in the way or next to unexplored space (`r['boulders']`; travel never pushes boulders — step into one to push it), or an adjacent hostile |
 | `frontiers()` | list unexplored frontier spots, nearest first |
@@ -177,10 +180,15 @@ Prayer (exact 3.6.7 rules, `pray.c`) — **always run `prayer_check()` first; `p
   off-hand, blindness, confusion, stun, hallucination, Hungry) is *minor* and not worth a prayer at Luck 0.
 - Never pray in Gehennom. Log every prayer (turn, reason, result) in state.md (`bin/nh info` also tracks it).
 
-Elbereth (3.6 rules): standing on an engraved "Elbereth" makes most monsters flee instead of meleeing you.
-It does **not** work on `@` humans and elves, minotaurs, shopkeepers/guards/priests, or the Riders. It is
-erased if you attack (melee, fire, cast at monsters) while standing on it, and dust engravings can wear
-away when they scare monsters — re-check with `engraving_here()`. Engrave *before* HP gets critical.
+Elbereth (3.6.7 rules, from the source): standing on an engraving that reads exactly "Elbereth" makes most
+monsters flee instead of meleeing you. It does **not** scare `@` humans and elves, minotaurs,
+shopkeepers, vault guards, peacefuls or **blind** monsters, and does nothing in Gehennom or on the Planes.
+**Every step smudges dust engravings on the square you leave and the one you enter** — engrave where you
+stand, when you need it (a pre-made one is usually broken when you step back onto it). Attacking, firing,
+applying or kicking while standing on it smudges it too (and attacking a monster it scares costs
+alignment: "You feel like a hypocrite"); dust also decays at random. `elbereth()` reads it back and
+re-engraves once if a letter slipped; `engraving_here()` flags a BROKEN one. While Blind, dust can't be
+felt: an engraving made blind is unverified. Engrave *before* HP gets critical.
 
 Never:
 - melee a **floating eye** (blue `e`) — paralysis = death. Kill it with thrown daggers/arrows or ignore it.

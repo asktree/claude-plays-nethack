@@ -15,3 +15,13 @@ def last():
     """Most recent snapshot (captures one if none yet)."""
     s = game.last
     return s if s is not None else look()
+
+
+def require_command(what: str):
+    """Raise if the game isn't at the command prompt (a helper that starts a
+    new command must never type into an open prompt/menu)."""
+    s = last()
+    if s.state.kind != "command":
+        raise RuntimeError(f"{what}: the game is not at the command prompt ({s.state.kind}: "
+                           f"{s.state.prompt!r}) — answer or <Esc> it first")
+    return s

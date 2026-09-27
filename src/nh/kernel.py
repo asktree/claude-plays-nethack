@@ -39,6 +39,18 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You move .* out of your way",
     r"^You see here ",
     r"^Things that are here:",
+    # level sounds (sounds.c dosounds): recorded per level by the tracker (`nh info`);
+    # the beehive and barracks sounds still pause
+    r"^You hear (bubbling water|water falling on coins|the splashing of a naiad|a soda fountain|a slow drip|"
+    r"a gurgling noise|dishes being washed|the tones of courtly conversation|a sceptre pounded|"
+    r"Queen Beruthiel's cats|mosquitoes|Donald Duck|someone counting money|the quarterback calling|"
+    r"someone searching|the footsteps of a guard on patrol|Ebenezer Scrooge|a sound reminiscent of|"
+    r"Doctor Dolittle|someone cursing shoplifters|the chime of a cash register|Neiman and Marcus|"
+    r"someone praising|someone beseeching|an animal carcass being offered|a strident plea|"
+    r"a strange wind|convulsive ravings|snoring snakes|someone say|a loud ZOT|crashing rock)",
+    r"^You smell marsh gas",
+    r"^You suddenly realize it is unnaturally quiet",
+    r"on the back of your .* (stand|stands) up",
     r"^You see no objects here",
     r"^There (is|are) (a|an|several|many|\d+) .* here\.?$",
     r"^You hear (some noises|a door open|the footsteps of a guard|bubbling water|water falling|the splashing|a gurgling|a slow drip|a chugging|someone counting money|the chime of a cash register|someone cursing shoplifters)",
@@ -179,8 +191,11 @@ class Kernel:
                 raise Abandon()
             # prompt-swallow check: a [yn]-style prompt ignores other keys
             if cur.state.kind == "yn" and data:
-                allowed = set(cur.state.choices.replace(" ", "")) | {"\x1b", "\r", "\n"}
-                if chr(data[0]) not in allowed and cur.state.choices not in ("yes/no",):
+                if cur.state.choices == "yes/no":       # typed answer: "yes<CR>" / "no<CR>" / <Esc>
+                    allowed = set("yYnN\x1b\r\n")
+                else:
+                    allowed = set(cur.state.choices.replace(" ", "")) | {"\x1b", "\r", "\n"}
+                if chr(data[0]) not in allowed:
                     self._maybe_pause(
                         f"prompt open: {cur.state.prompt!r} accepts [{cur.state.choices}] "
                         f"but code sent {keys!r} (not sent). Answer with cont(reply=...)", cur, force=True,
@@ -192,8 +207,9 @@ class Kernel:
         self.ns["obs"] = snap
         if self.in_worker():
             self._check_events(before, snap, quiet=quiet, ok=ok)
-            if (self._steps >= self.budget_steps or
-                    time.monotonic() - self._t0 >= self.budget_seconds):
+            if snap.state.kind == "command" and (self._steps >= self.budget_steps or
+                                                 time.monotonic() - self._t0 >= self.budget_seconds):
+                # (only at the command prompt: never park a script inside a menu/cursor prompt)
                 self._maybe_pause(
                     f"budget: {self._steps} steps / {time.monotonic() - self._t0:.0f}s in this exec "
                     f"— cont() to keep going", snap, force=True)

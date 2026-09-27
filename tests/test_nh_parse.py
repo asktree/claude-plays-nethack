@@ -390,3 +390,39 @@ def test_more_wrapped_to_column_zero():
             23: "Dlvl:1 $:0 HP:18(18) Pw:1(1) AC:6 Xp:1/0 T:1"}, cursor=(8, 1))
     st = classify(s)
     assert st.kind == "more" and "You are a lawful dwarven Valkyrie" in st.more_text
+
+
+def test_prompt_hard_wrapped_at_79():
+    # p2 #1082: tty wraps the message line at column 79 (CO-1), mid-token
+    row0 = "Kittamagh offers 30 gold pieces for your scroll labeled YUM YUM.  Sell it? [yna"
+    assert len(row0) == 79
+    s = mk({0: row0, 1: "q] (y)", 5: "      |..@..|", 22: STATUS1,
+            23: "Dlvl:2 $:7 HP:20(20) Pw:1(1) AC:6 Xp:2/30 T:1000"}, cursor=(7, 1))
+    st = classify(s)
+    assert st.kind == "yn" and st.choices == "ynaq" and st.default == "y"
+    assert "Sell it? [ynaq]" in st.prompt
+
+
+def test_pick_one_menu_stops_extra_keys():
+    from nh.game import Game, Snap, Timing
+    from nh.parse import State, Status, classify
+    menu1 = mk({0: "                     Do what with the large box?",
+                1: "                     o - take something out",
+                2: "                     i - put something in",
+                3: "                     (end)"}, cursor=(26, 3))
+    menu2 = mk({0: "                     Take out what?",
+                1: "                     a - a scroll labeled FOO",
+                2: "                     (end)"}, cursor=(26, 2))
+    g = Game(term=None, timing=Timing.local())
+    first = Snap(screen=menu1, state=classify(menu1), status=Status())
+    assert first.state.kind == "menu"
+    g.last = first
+    sent = []
+
+    def fake_send(data):
+        sent.append(data)
+        return Snap(screen=menu2, state=classify(menu2), status=Status())
+    g.send_bytes = fake_send
+    s = g.step("o<CR>")
+    assert sent == [b"o"]
+    assert s.unsent == "<CR>" and "pick-one" in s.stop_reason

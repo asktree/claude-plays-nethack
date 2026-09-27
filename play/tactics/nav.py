@@ -126,7 +126,45 @@ def _mdesc(ms) -> str:
     return ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in ms)
 
 
-def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
+LEG = 8          # max squares per travel leg, so the kernel looks around between legs
+LEG_DANGER = 4   # ... while a hostile is in view or was seen in the last 30 turns
+
+
+def leg_cap(s=None) -> int:
+    """How far one travel leg may go right now. NetHack's travel only stops
+    for a monster that is already adjacent, so a fast monster (a yellow light,
+    speed 13) can close in and attack during one long leg; short legs give the
+    harness a look (and a 'new monster' pause) every few squares."""
+    s = s or ctx.last()
+    if s.hostiles():
+        return LEG_DANGER
+    tr = getattr(ctx.game, "tracker", None)
+    turn = s.status.turn or 0
+    if tr is not None:
+        for r in tr.gone(turn):
+            d = r.get("desc") or ""
+            if turn - (r.get("turn") or 0) <= 30 and not d.startswith(("peaceful ", "tame ")) \
+                    and not r.get("statue"):
+                return LEG_DANGER
+    return LEG
+
+
+def waypoint(s, target, cap):
+    """The square `cap` steps along our known-map path toward target (or the
+    target itself if it's closer / there's no known path)."""
+    if s.hero is None or cap is None:
+        return target
+    path = bfs_path(s, s.hero, target, allow_monsters=True)
+    if not path or len(path) <= cap:
+        return target
+    occupied = {(m["x"], m["y"]) for m in (s.monsters or []) if not m.get("tame")}
+    for i in range(cap - 1, -1, -1):
+        if path[i] not in occupied:
+            return path[i]
+    return target
+
+
+def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -134,8 +172,11 @@ def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
     a guard against burning many turns on a far-away target.
     If the hero doesn't move at all, raises NavError saying why (a hostile
     adjacent; a peaceful that stays in the way after `wait_peaceful` waits;
-    no known path) instead of returning silently."""
-    s = ctx.last()
+    no known path) instead of returning silently.
+    Long trips go in legs of at most leg_cap() squares (8, or 4 with a
+    hostile around) so a monster coming into view pauses the script early;
+    leg=0 disables that."""
+    s = ctx.require_command("travel()")
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
            and not m.get("pet") and not m.get("statue")]
     if occ and s.hero != (x, y):
@@ -161,10 +202,12 @@ def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
         h0 = s.hero
         if h0 == (x, y):
             return s
+        cap = leg_cap(s) if leg is None else (leg or None)
+        tx, ty = waypoint(s, (x, y), cap)
         s = ctx.do("_", quiet=True)
         if s.state.kind != "getpos":
             return s
-        cursor_to(x, y)
+        cursor_to(tx, ty)
         s = ctx.do(".", ok=BENIGN)
         if s.state.kind != "command":
             return s
@@ -184,11 +227,36 @@ def travel(x, y, max_legs=6, max_dist=None, wait_peaceful=3):
             if blk:
                 raise NavError(f"travel to {(x, y)} did not move: {_mdesc(blk)} stays next to you; "
                                "step around it by hand.")
+            if any("door is closed" in m for m in s.messages):
+                s = _open_door_toward(s, (x, y))    # travel never opens doors (autoopen is for plain steps)
+                continue
             raise NavError(f"travel to {(x, y)} did not move (no known path?)"
                            + (f"; messages: {s.messages}" if s.messages else ""))
         if _notable(s.messages):
             return s   # something happened en route; let the caller look
     return s
+
+
+def _open_door_toward(s, target):
+    """Open the closed door next to you that lies toward target, by stepping
+    into it (autoopen). Raises NavError if it is locked or won't open."""
+    from .mapview import is_closed_door
+    h = s.hero
+    doors = [(h[0] + dx, h[1] + dy) for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))
+             if is_closed_door(s, h[0] + dx, h[1] + dy)]
+    if not doors:
+        raise NavError(f"travel: 'That door is closed' but no closed door next to {h}")
+    door = min(doors, key=lambda d: dist(d, target))
+    key = DIR_KEY[(door[0] - h[0], door[1] - h[1])]
+    for _ in range(6):
+        s = ctx.do(key, ok=BENIGN + [r"^The door opens\.", r"^The door resists", r"^This door is locked"])
+        text = " ".join(s.messages)
+        if "locked" in text:
+            raise NavError(f"travel: the door at {door} is locked — kick_door{door} (never a shop door or "
+                           "in Minetown), or go another way")
+        if "door opens" in text or not is_closed_door(s, *door):
+            return s
+    raise NavError(f"travel: the door at {door} won't open (stuck?)")
 
 
 def _notable(messages) -> list:

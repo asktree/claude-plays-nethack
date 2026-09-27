@@ -8,22 +8,21 @@ from . import ctx
 
 
 def search(n: int = 10):
-    """Search n turns in place (count-prefixed 's'; interrupted by monsters)."""
-    return ctx.do(f"{int(n)}s")
+    """Search n turns in place (count-prefixed 's'; interrupted by monsters).
+    A monster fleeing from your Elbereth ("turns to flee") doesn't pause."""
+    ctx.require_command("search()")
+    return ctx.do(f"{int(n)}s", ok=[r"turns to flee"])
 
 
 def rest(n: int = 20):
-    """Rest n turns in place (count-prefixed '.'; needs !rest_on_space off: '.')."""
-    return ctx.do(f"{int(n)}.")
+    """Rest n turns in place (count-prefixed '.'; needs !rest_on_space off: '.').
+    A monster fleeing from your Elbereth ("turns to flee") doesn't pause."""
+    ctx.require_command("rest()")
+    return ctx.do(f"{int(n)}.", ok=[r"turns to flee", r"^You stop searching"])
 
 
-def elbereth():
-    """Engrave Elbereth in the dust with a finger. Returns the final snap.
-
-    3.6 rules: most monsters won't melee you while you stand on it (not @
-    humans, minotaurs, shopkeepers/guards/priests, the Riders). Attacking
-    while standing on it usually erases it; so does fighting/firing. Dust
-    engravings can smudge when monsters flee over... re-engrave as needed."""
+def _engrave_elbereth():
+    ctx.require_command("elbereth()")
     s = ctx.do("E", quiet=True)
     for _ in range(8):
         k = s.state.kind
@@ -37,11 +36,49 @@ def elbereth():
         elif k == "getlin" and ("write" in p or "engrave" in p):
             s = ctx.do("Elbereth<CR>")
             break
-        elif k == "command":
-            break
         else:
             break
     return s
+
+
+def elbereth(retries: int = 1):
+    """Engrave Elbereth in the dust where you stand, read it back and
+    re-engrave (up to `retries` times) if a letter slipped. Returns the
+    final snap and prints OK / GARBLED / UNVERIFIED.
+
+    NetHack 3.6.7 rules (monmove.c onscary, hack.c, engrave.c):
+    - It must read exactly "Elbereth" (any case) and protects only while you
+      STAND on it. It does not scare @ (humans and elves), minotaurs,
+      shopkeepers, vault guards, peacefuls, or blind monsters, and does
+      nothing in Gehennom or on the Planes.
+    - Every step smudges dust engravings on the square you leave AND the one
+      you enter: engrave where you stand, when you need it (a pre-made one
+      nearby is usually already broken when you step back onto it).
+    - Attacking (melee, firing, applying, kicking) while standing on it
+      smudges it, and a scared monster you then attack makes you "feel like a
+      hypocrite" (alignment penalty). Dust also decays at random over time.
+    - While Blind you can engrave, but dust can't be felt: unverifiable."""
+    blind = "Blind" in ctx.last().status.conditions
+    s = ctx.last()
+    for attempt in range(retries + 1):
+        s = _engrave_elbereth()
+        if s.state.kind != "command":
+            return s
+        if blind:
+            print("elbereth(): engraved while Blind — dust engravings can't be felt, so it is UNVERIFIED "
+                  "(a slipped letter makes it useless)")
+            return s
+        txt = engraving_here()
+        if _elbereth_ok(txt):
+            print("elbereth(): OK (reads \"Elbereth\")")
+            return ctx.last()
+        print(f"elbereth(): GARBLED ({txt!r})" + (" — engraving again" if attempt < retries else ""))
+    return ctx.last()
+
+
+def _elbereth_ok(txt: str) -> bool:
+    m = re.search(r'You (?:read|feel the words): "(.*)"', txt or "")
+    return bool(m) and m.group(1).strip().lower() == "elbereth"
 
 
 _ENGR_KIND = re.compile(r"(is written here in the (dust|frost)|is engraved here on the|"
@@ -55,9 +92,16 @@ def engraving_here() -> str:
     The first sentence tells the kind: written in the dust (smudges),
     engraved (semi-permanent), burned (permanent), graffiti, blood.
     Returns '' when nothing is engraved here."""
+    ctx.require_command("engraving_here()")
     s = ctx.do(":", quiet=True)
     parts = [m for m in s.messages if _ENGR_KIND.search(m) or _ENGR_TEXT.search(m)]
-    return " ".join(parts)
+    txt = " ".join(parts)
+    m = re.search(r'You (?:read|feel the words): "(.*)"', txt)
+    if m and not _elbereth_ok(txt) and re.search(r"[Ee].{0,2}b.{0,2}r.{0,2}th|lber|bere", m.group(1)):
+        txt += " [BROKEN Elbereth: it no longer scares anything — engrave again]"
+    if not txt and "Blind" in s.status.conditions:
+        print("engraving_here(): Blind — dust engravings can't be felt; burned/engraved ones can")
+    return txt
 
 
 import json as _json

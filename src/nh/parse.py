@@ -314,8 +314,10 @@ def classify(scr: Screen) -> State:
         for i, part in enumerate(parts):
             if i == 0:
                 prompt_text = part.rstrip()
-            elif len(parts[i - 1].rstrip()) >= scr.width:
-                prompt_text += part.rstrip()          # hard wrap mid-word ("Sel" + "l it?")
+            elif len(parts[i - 1].rstrip()) >= scr.width - 1:
+                # tty's topl_putsym() hard-wraps at column CO-1 (79): a full
+                # row continues mid-word on the next one ("[yna" + "q] (y)")
+                prompt_text += part.rstrip()
             else:
                 prompt_text += " " + part.strip()
         msg_rows = cy

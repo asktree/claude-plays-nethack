@@ -18,6 +18,11 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^You get zapped!$", r"^You are (?:stung|bitten|kicked|butted)"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
+# a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
+_RAY = r"(?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|fireball|cone of cold)"
+ZAP_OK = ROUTINE + [rf"^The {_RAY} (?:hits|misses|whizzes by) (?!you)", rf"^The {_RAY} bounces!",
+                    r"^The .+ (?:is killed|is destroyed|dies)", r"^You (?:kill|destroy) ",
+                    r"^The .+ resists", r"^The .+ is not affected"]
 
 _warned: set = set()
 
@@ -90,6 +95,7 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
 def throw(item: str, direction: str, count: bool = False):
     """Throw inventory item `item` (a letter) in `direction` (y k u h l b j n
     < >), verifying each prompt. Returns the final Snap."""
+    ctx.require_command("throw()")
     s = ctx.do("t", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -109,6 +115,7 @@ def zap(wand: str, direction: str | None):
     """Zap wand `wand` (a letter) in `direction` (or None for non-directional
     wands). Sends the direction only if the game actually asks for one (an
     empty wand says "Nothing happens" and asks nothing)."""
+    ctx.require_command("zap()")
     s = ctx.do("z", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -121,5 +128,5 @@ def zap(wand: str, direction: str | None):
             ctx.do("<Esc>", quiet=True)
             ctx.pause("zap: the wand wants a direction but none was given")
             return ctx.last()
-        return ctx.do(direction)
+        return ctx.do(direction, ok=ZAP_OK)
     return s

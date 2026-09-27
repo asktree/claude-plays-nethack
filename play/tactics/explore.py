@@ -131,6 +131,7 @@ def explore(max_legs: int = 150, skip: set | None = None):
     """(skip: extra squares never to target; known traps and avoid() squares
     are always skipped.)"""
     from .nav import bad_squares
+    ctx.require_command("explore()")
     skip = set(skip or ()) | bad_squares()
     return _explore(max_legs, skip)
 
@@ -196,6 +197,10 @@ def _explore(max_legs: int, skip: set):
                 unreachable.append(target)
                 continue
         else:
+            from .nav import cursor_to, leg_cap, waypoint
+            wp = waypoint(cur, target, leg_cap(cur))
+            if wp != target:
+                cursor_to(*wp)            # a short leg: look around before going further
             s = ctx.do(".", ok=BENIGN)
         legs += 1
         if s.state.kind != "command":
@@ -239,6 +244,9 @@ def _explore(max_legs: int, skip: set):
                 skip.add(target)
                 stuck = 0
             continue
+        if s.hero != hero and s.hero != target and not text:
+            stuck = 0
+            continue                      # a leg toward the target: keep going
         if any(h in text for h in FAIL_HINTS) or s.hero == hero:
             if "boulder" in text and s.hero is not None:
                 hx, hy = s.hero

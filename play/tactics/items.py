@@ -36,6 +36,7 @@ def _parse_menu_pages(first):
 
 def inventory():
     """Return the hero's inventory as a list of {letter, text, class, buc}."""
+    ctx.require_command("inventory()")
     s = ctx.do("i", quiet=True)
     if s.state.kind == "menu":
         items, _ = _parse_menu_pages(s)
@@ -65,6 +66,7 @@ def find_item(pattern: str, inv=None):
 
 def here():
     """What's on the floor here (':' look). Takes no game time."""
+    ctx.require_command("here()")
     s = ctx.do(":", quiet=True)
     return " | ".join(s.messages)
 
@@ -189,6 +191,7 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
     in Minetown (the Watch). Each dip: 1/6 Excalibur; otherwise the sword may
     rust and the fountain dries up about 1 time in 3 — so expect to need 2-3
     fountains. Returns {"outcome", "messages"}; prints the outcome."""
+    ctx.require_command("dip()")
     s = ctx.do("#dip<CR>", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":
