@@ -1615,8 +1615,19 @@ class Game:
         if r is not None:
             key = self.level_key(cur.status)
             self.traps.setdefault(key, set()).update(r["traps"])
-            self.terrain_seen.setdefault(key, {}).update(r["features"])
+            self.merge_terrain(key, r, cur.hero)
         return r
+
+    def merge_terrain(self, key: str, found: dict, hero=None) -> None:
+        """A #terrain scan into the level's feature memory: new features, and stairs remembered where the
+        game's own map now shows plain floor dropped (p3 shift 11: a hole landing recorded as '<')."""
+        mem = self.terrain_seen.setdefault(key, {})
+        mem.update(found.get("features") or {})
+        plain = found.get("plain") or set()
+        for c in [c for c, v in mem.items() if v in "<>" and c in plain and c != hero]:
+            del mem[c]
+            self.stair_links.get(key, {}).pop(c, None)
+            self.log_event({"ev": "stale_stairs_dropped", "level": key, "cell": list(c)})
 
     def terrain_scan(self) -> dict | None:
         """What the hero knows of this level's terrain (and doors), from NetHack's own
@@ -1650,10 +1661,12 @@ class Game:
                 browsing = "Showing known terrain" in s.screen.row(0) or s.state.kind == "getpos"
                 if browsing:
                     from .mapscan import _door_like
-                    found = {"traps": set(), "features": {}}
+                    found = {"traps": set(), "features": {}, "plain": set()}
                     for y in range(MAP_TOP + 1, MAP_BOTTOM + 1):
                         row = s.screen.row(y)
                         for x, ch in enumerate(row):
+                            if ch in ".#" and s.screen.color_at(x, y) in (7, 8, 15):
+                                found["plain"].add((x, y))          # plain floor/corridor: no stairs here
                             if ch == "^" or ch == '"':
                                 found["traps"].add((x, y))
                             elif ch in self.FEATURE_CHARS and feature_at(s.screen, x, y):
@@ -1804,6 +1817,12 @@ class Game:
         if any(self._NOT_STAIRS.search(m) for m in messages) or (stood is not None and stood != chr(data[-1])) \
                 or cur.state.kind != "command":
             return
+        if old_key and cur.hero in self.traps.get(old_key, ()):
+            # '>' on a known hole/trap door plunges you through it (trap.c fall_through with TOOKPLUNGE says
+            # NOTHING for a one-level drop): you land on a random square, not on stairs (p3 shift 11)
+            return
+        if any(self._HERE_OBJS.search(m) for m in messages) and not any(self._ON_STAIRS.search(m) for m in messages):
+            return      # the arrival look listed what lies here without "There is a staircase ... here"
         if snap.under is None:
             self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive
             snap.under = arrive

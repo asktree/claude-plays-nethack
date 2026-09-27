@@ -170,6 +170,13 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   Medusa's level is 1-4 levels ABOVE the Castle (dungeon.def: medusa @ (-5, 4), castle = the bottom level):
   digging down may land on a filler level; its `<` then leads up onto Medusa's `>` on her island, next to
   her (asleep). Reflection kills her with her own gaze only if she can see you: don't be invisible then.
+  **Digging down when every square touches water** (p3 shift 11, checked in dig.c/trap.c):
+  1. Put on levitation first. A hole dug while levitating doesn't swallow you, and a water-filled hole
+     can't drown you.
+  2. Zap digging down: `zap(wand, '>')`.
+  3. Take the ring off. You may "escape your hole": that's the 1-in-5 escape roll for a known trap.
+  4. Press `>` on the hole. That plunges you through with no escape roll and no message; you land on a random
+     square of the level below.
 - **Eels** (Medusa, the Castle moat, any water): "The giant eel swings itself around you!" = HELD: its NEXT
   hit drowns you — LEVITATION DOES NOT HELP (QA death). That turn: engrave Elbereth (it flees and lets go;
   impossible while levitating), kill it, or teleport (not on the Castle: no-teleport). The harness pauses

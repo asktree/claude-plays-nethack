@@ -59,7 +59,9 @@ def frontiers(limit: int = 12):
             break
         spots.append(c)
     ctx.do("<Esc>", quiet=True)
-    return spots + [c for c in object_frontiers() if c not in spots]
+    from .nav import bad_squares
+    bad = bad_squares()            # (p3 shift 11: avoid()ed squares were listed as frontiers)
+    return [c for c in spots + [c for c in object_frontiers() if c not in spots] if c not in bad]
 
 
 def _on_known_ground(s, x, y) -> bool:
@@ -330,6 +332,18 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         hero = s.hero
         bad = bad_squares()
         target = _pick_target(skip, bad, why)
+        if target is not None:
+            crowd = _crowd_near(ctx.last(), target)
+            if crowd:
+                key = (ctx.game.level_key(ctx.last().status), crowd["box"])
+                if key not in _CROWDS_SEEN:
+                    _CROWDS_SEEN.add(key)
+                    ctx.do("<Esc>", quiet=True)           # (close the travel prompt before pausing)
+                    ctx.pause(f"explore: the next leg ({target}) leads toward {crowd['n']} hostiles packed around "
+                              f"{crowd['box']} ({crowd['kinds']}) — a zoo/graveyard/barracks-like crowd, likely "
+                              "asleep. cont() goes on anyway; else avoid() that area (or fight them one at a time "
+                              "from a doorway)")
+                    continue
         if target is None:
             # NetHack's own finder skips squares with objects on them and misses some dark-maze edges:
             # try the screen frontiers (walkable squares beside never-seen space) before giving up
@@ -503,6 +517,39 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+_CROWDS_SEEN: set = set()          # (level, box) crowds explore() already paused for
+
+
+def _crowd_near(s, target, n_min: int = 5):
+    """A dense group of non-trivial hostiles in view (at least n_min within a room-sized box) that the
+    next explore leg would walk toward: the target lies within 3 squares of the group's box. The
+    'You enter ...' message only comes at its door (p3 shift 11: 40 sleeping undead in a lit graveyard)."""
+    from .combat import auto_fightable
+    mons = [m for m in s.monsters or [] if not (m.get("tame") or m.get("peaceful") or m.get("statue")
+                                                 or m.get("pet")) and m.get("ch") != "I" and not auto_fightable(m, s)]
+    if len(mons) < n_min:
+        return None
+    best = None
+    for m in mons:
+        grp = [o for o in mons if abs(o["x"] - m["x"]) <= 14 and abs(o["y"] - m["y"]) <= 6]
+        if len(grp) >= n_min and (best is None or len(grp) > len(best)):
+            best = grp
+    if not best:
+        return None
+    x0, x1 = min(o["x"] for o in best), max(o["x"] for o in best)
+    y0, y1 = min(o["y"] for o in best), max(o["y"] for o in best)
+    tx, ty = target
+    if not (x0 - 3 <= tx <= x1 + 3 and y0 - 3 <= ty <= y1 + 3):
+        return None
+    from nh.danger import base_name
+    kinds: dict = {}
+    for o in best:
+        k = base_name(o.get("desc") or "") or o["ch"]
+        kinds[k] = kinds.get(k, 0) + 1
+    return {"n": len(best), "box": (x0, y0, x1, y1),
+            "kinds": ", ".join(f"{n} {k}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1])[:5])}
 
 
 def _cleared_I(target, err, tried: set) -> bool:

@@ -1232,3 +1232,28 @@ def test_status_line_full_flags_a_possibly_cut_word():
     assert st.ok and st.cut == line.split()[-1] and "STATUS LINE FULL" in st.short()
     st = parse_status(mk({22: STATUS1, 23: "Dlvl:3 $:0 HP:17(21) Pw:1(1) AC:6 Xp:2 T:512 Blind"}))
     assert not st.cut and "STATUS LINE FULL" not in st.short()
+
+
+def test_hole_plunge_records_no_stairs_and_rescan_drops_stale_ones():
+    # p3 shift 11 #1151: '>' on a known hole plunges you through with no message (trap.c fall_through,
+    # TOOKPLUNGE, one level): the landing square was recorded as up stairs
+    from nh.game import Game, Snap, Timing
+    from nh.parse import State
+    g = Game(term=None, timing=Timing.local())
+
+    def snap_at(hero, dl):
+        scr = mk({22: STATUS1, 23: f"Dlvl:{dl} $:0 HP:10(10) Pw:1(1) AC:6 Xp:1 T:5"}, cursor=hero)
+        return Snap(screen=scr, state=State("command"), status=parse_status(scr))     # (hero = the cursor)
+    cur, new = snap_at((71, 15), 22), snap_at((5, 16), 23)
+    old_key, new_key = g.level_key(cur.status), g.level_key(new.status)
+    g.traps[old_key] = {(71, 15)}
+    g._note_arrival(cur, new, b">", ["You see here a worthless piece of red glass."], old_key, True)
+    assert (5, 16) not in g.terrain_seen.get(new_key, {})
+    g.traps[old_key] = set()                                  # (no trap known: the look without stairs tells)
+    g._note_arrival(cur, new, b">", ["You see here a worthless piece of red glass."], old_key, True)
+    assert (5, 16) not in g.terrain_seen.get(new_key, {})
+    g._note_arrival(cur, new, b">", [], old_key, True)        # a plain staircase trip still records it
+    assert g.terrain_seen[new_key][(5, 16)] == "<"
+    g.terrain_seen[new_key][(8, 8)] = "<"
+    g.merge_terrain(new_key, {"features": {(8, 8): "<"}, "plain": {(5, 16)}, "traps": set()}, hero=(9, 9))
+    assert g.terrain_seen[new_key] == {(8, 8): "<"}

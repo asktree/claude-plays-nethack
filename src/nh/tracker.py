@@ -363,7 +363,10 @@ class Tracker:
             if found is not None:
                 self.scanned.add(key)
                 self.game.traps.setdefault(key, set()).update(found["traps"])
-                self.game.terrain_seen.setdefault(key, {}).update(found["features"])
+                if hasattr(self.game, "merge_terrain"):
+                    self.game.merge_terrain(key, found, getattr(snap, "hero", None))
+                else:
+                    self.game.terrain_seen.setdefault(key, {}).update(found["features"])
         self.save()
 
     def _parse_overview(self, text: str, snap, ldesc: str):

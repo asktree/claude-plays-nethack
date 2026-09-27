@@ -1135,9 +1135,17 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                           "and wakes monsters nearby): walking over")
                     return _walk_over(over, boards)
                 if detour is None:
+                    manual = set(ctx.game.avoid.get(ctx.game.level_key(cur.status), set()))
+                    zone = set(special_room_zone(cur))
+                    lst = sorted(bad)
                     raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square — the direct "
-                                   f"one crosses {on} (traps, avoid() squares, mimics, stationary hostiles: "
-                                   f"{sorted(bad)}); avoid(clear=True) forgets the manual ones")
+                                   f"one crosses {on[:6]} (traps, avoid() squares, mimics, stationary hostiles, "
+                                   f"special rooms: {lst[:12]}" + (f" ... and {len(lst) - 12} more" if len(lst) > 12
+                                                                   else "") + ")"
+                                   + (f"; {len(manual)} of them are your manual avoid() squares — avoid(clear=True) "
+                                      "forgets them" if manual else "")
+                                   + ("; a special room's squares count too — forget_room()" if zone & set(on)
+                                      else ""))
                 try:
                     return walk_path(detour)
                 except NavError:
