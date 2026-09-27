@@ -155,7 +155,10 @@ after death except the end-of-game answers; any key in the server lobby (use `ta
 there will be no return! Still climb?" (the up stairs of dungeon level 1 end the game without the Amulet);
 picking up a **cockatrice/chickatrice corpse** (`,` when it's the only object here, or confirming a pickup
 menu with it selected — wear gloves and force=True); **while blind**, stepping onto a square known to hold
-one (you feel what you step on; bare-handed that is instant stoning).
+one (you feel what you step on; bare-handed that is instant stoning); a plain step into **water/lava `}`**
+(NetHack only stops running/travel, not a single step; lava is death without fire resistance) unless
+levitating/flying; **eating while Satiated** and `y` to "Continue eating?" (choking is death 19 times in 20;
+force=True only for an emergency cure like a lizard corpse against stoning).
 
 What the monster list shows in odd states: while hallucinating every monster is `hallu` (no names, no
 "new monster" pauses; everything is looked at again when it ends); `I` markers are `unseen`; a `]` is a

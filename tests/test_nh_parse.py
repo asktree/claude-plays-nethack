@@ -542,3 +542,30 @@ def test_guard_cockatrice_corpse_pickup_and_blind_step():
     # "You see no objects here." forgets it
     g._remember_here(s, ["You see no objects here."])
     g._guard(s, b",", force=False)
+
+
+def test_guard_water_lava_and_choking():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    scr = mk({5: " " * 10 + "@}", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}, cursor=(10, 5))
+    s = Snap(screen=scr, state=State("command"), status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(s, b"l", force=False)
+    with pytest.raises(PermissionError):
+        g._guard(s, b"ml", force=False)
+    g._guard(s, b"h", force=False)
+    g._guard(s, b"l", force=True)
+    lev = Snap(screen=scr, state=State("command"), status=Status(ok=True, conditions=["Lev"]))
+    g._guard(lev, b"l", force=False)
+    full = Snap(screen=scr, state=State("command"), status=Status(ok=True, hunger="Satiated"))
+    with pytest.raises(PermissionError):
+        g._guard(full, b"e", force=False)
+    g._guard(s, b"e", force=False)
+    p = "Continue eating? [yes/no] (no)"
+    q = Snap(screen=mk({0: p}, cursor=(len(p), 0)), state=State("yn", prompt=p, choices="yes/no"),
+             status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(q, b"y", force=False)
+    g._guard(q, b"n", force=False)

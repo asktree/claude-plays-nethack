@@ -473,6 +473,19 @@ class Game:
                         f"refusing to attack the remembered unseen monster 'I' at {(tx, ty)} while blind: it may be "
                         "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
                         "it. force=True if it is attacking you.")
+            if step in self._MOVE and snap.hero is not None and not conds & {"Lev", "Fly"}:
+                dx, dy = self._MOVE[step]
+                if snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) == "}":
+                    raise PermissionError(
+                        f"refusing to step into the water/lava at {(snap.hero[0] + dx, snap.hero[1] + dy)}: NetHack "
+                        "doesn't stop a single step (only running/travel avoid it). Lava is death without fire "
+                        "resistance; water soaks your scrolls/potions and can drown you. Go around; force=True only "
+                        "with levitation/water walking you're sure of.")
+            if unit == b"e" and snap.status.ok and snap.status.hunger == "Satiated":
+                raise PermissionError(
+                    "refusing to eat while Satiated: eating past 2000 nutrition chokes you to death (19 times in "
+                    "20), and a one-bite food gives no 'Continue eating?' warning. Wait until 'Not hungry'. "
+                    "force=True only for an emergency cure (lizard/acidic corpse against stoning).")
             if unit == b"," and snap.hero is not None:
                 txt = self._here_text(snap)
                 if self.COCKATRICE_CORPSE.search(txt) and "Things that" not in txt:
@@ -509,6 +522,10 @@ class Game:
                                 f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
                                 f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
                                 "Use ranged attacks or go around. force=True overrides.")
+        elif k in ("yn", "getlin") and unit[:1] in (b"y", b"Y") and "Continue eating?" in (snap.state.prompt or ""):
+            raise PermissionError(
+                "refusing to continue eating: you started while Satiated and are nearly full — going on chokes you "
+                "to death (19 times in 20). Answer no. force=True overrides.")
         elif k == "yn" and unit[:1] in (b"y", b"Y") and "Still climb?" in (snap.state.prompt or ""):
             raise PermissionError(
                 "refusing 'y' to 'Beware, there will be no return! Still climb?': going up from dungeon level 1 "
