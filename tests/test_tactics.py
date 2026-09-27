@@ -83,3 +83,22 @@ def test_squeeze_steps():
     path = bfs_path(s, (2, 7), (7, 7))
     assert path is not None
     assert squeeze_steps(s, path, (2, 7)) == [(2, 6), (4, 5), (6, 6)]
+
+
+def test_auto_fightable():
+    from tactics.combat import auto_fightable
+    s = _snap({}, (10, 5), [])
+    s.status.xl, s.status.hp, s.status.hpmax = 7, 70, 70
+
+    def m(desc, **kw):
+        return dict({"x": 11, "y": 5, "ch": "x", "desc": desc}, **kw)
+    assert auto_fightable(m("jackal"), s) and auto_fightable(m("newt"), s) and auto_fightable(m("sewer rat"), s)
+    for bad in ("floating eye", "gas spore", "yellow mold", "acid blob", "soldier ant", "cockatrice",
+                "leprechaun", "werejackal", "hill orc"):
+        assert not auto_fightable(m(bad), s), bad
+    assert not auto_fightable(m("peaceful gnome", peaceful=True), s)
+    assert not auto_fightable(m("jackal", hallu=True), s)
+    assert not auto_fightable(m("", unseen=True), s)
+    # at XL1 with 12 HP a hill orc or a jackal pack member is judged differently
+    s.status.xl, s.status.hp, s.status.hpmax = 1, 12, 12
+    assert not auto_fightable(m("gnome lord"), s)

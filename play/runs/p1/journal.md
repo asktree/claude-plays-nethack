@@ -138,3 +138,4 @@ T:6807–6808 Soko4 — resting on Elbereth at (44,15): a RED NAGA breathed fire
 T:6815–6817 Soko4 — eating the red naga corpse (fire res 20%) at (37,15); the succubus came back adjacent and was killed in 2 blows (Exp 1383; no theft). HP 75/97.
 T:6818–6820 Soko4 — a FLAMING SPHERE came at me while I ate: put on the RING OF FIRE RESISTANCE (w, left hand) first; "The flaming sphere explodes! You seem unaffected by it." Ring kept on for now.
 T:6829–6830 Soko4 — a XAN (speed 18, AC-4) in the lane: one lightning bolt (E, now 0:3) missed; fighting it in melee with the new fight_until_clear() helper.
+T:6833–6853 Soko4 — fight_until_clear() killed the xan ({'reason': 'clear', 'kills': ['xan'], 'turns': 3}; Exp 1468; both legs pricked but no lasting wound). Finished the red naga corpse: **"You feel healthy." = POISON RESISTANCE gained** (T:6853). HP 80/97.

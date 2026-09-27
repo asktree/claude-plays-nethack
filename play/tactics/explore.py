@@ -127,16 +127,26 @@ def _pick_target(skip, bad=frozenset(), why=None):
     return None
 
 
-def explore(max_legs: int = 150, skip: set | None = None):
+def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = True):
     """(skip: extra squares never to target; known traps and avoid() squares
-    are always skipped.)"""
+    are always skipped. auto_fight: fight adjacent hostiles that are all
+    trivial for you (combat.auto_fightable: newts, rats, jackals...) on the
+    spot, and don't pause when such a monster comes into view; anything
+    else still pauses / stops as before.)"""
+    import contextlib
     from .nav import bad_squares
     ctx.require_command("explore()")
     skip = set(skip or ()) | bad_squares()
-    return _explore(max_legs, skip)
+    if auto_fight and ctx.monster_filter:
+        from .combat import not_auto_fightable
+        guard = ctx.monster_filter(not_auto_fightable)
+    else:
+        guard = contextlib.nullcontext()
+    with guard:
+        return _explore(max_legs, skip, auto_fight)
 
 
-def _explore(max_legs: int, skip: set):
+def _explore(max_legs: int, skip: set, auto_fight: bool = False):
     """Travel to unexplored frontiers until none remain (or max_legs).
 
     Returns a dict: {"reason", "legs", "unreachable", "locked", "avoided"}.
@@ -186,10 +196,17 @@ def _explore(max_legs: int, skip: set):
             return r
         return result("blocked: " + "; ".join(left) + hint)
 
+    fights = 0
     while legs < max_legs:
         s = ctx.last()
         if s.state.kind != "command":
             return result(f"not at command prompt ({s.state.kind}: {s.state.prompt!r})")
+        if auto_fight and fights < 30:
+            from .combat import fight_trivial
+            fs = fight_trivial(s)
+            if fs is not None:
+                fights += 1
+                continue
         hero = s.hero
         bad = bad_squares()
         target = _pick_target(skip, bad, why)

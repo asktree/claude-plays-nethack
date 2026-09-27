@@ -106,6 +106,39 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
     return s
 
 
+def auto_fightable(m, s=None) -> bool:
+    """A hostile the movement helpers may fight without asking: threat()
+    'trivial' for you now, not sessile (molds: walk away instead), no passive
+    attack, no danger note, seen clearly (not 'I', not while hallucinating)."""
+    from nh.danger import base_name, passive_attacks, threat_level
+    from nh.monitor import _stationary
+    d = m.get("desc") or ""
+    if not d or m.get("peaceful") or m.get("tame") or m.get("pet") or m.get("statue") or m.get("unseen") \
+            or m.get("hallu") or m.get("mimic") or m.get("engulfer"):
+        return False
+    st = (s or ctx.last()).status
+    if threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None) != "trivial":
+        return False
+    return not passive_attacks(base_name(d)) and not _stationary(d)
+
+
+def not_auto_fightable(m) -> bool:
+    """monster_filter predicate: pause only for newcomers the helpers won't fight."""
+    return not auto_fightable(m)
+
+
+def fight_trivial(s=None):
+    """If hostiles are adjacent and every one of them is auto_fightable(),
+    fight them (fight(): one checked blow at a time) and return the Snap;
+    otherwise return None and do nothing."""
+    s = s or ctx.last()
+    adj = s.adjacent_hostiles()
+    if not adj or not all(auto_fightable(m, s) for m in adj):
+        return None
+    print("auto-fight: " + ", ".join(f"{m.get('desc')} at ({m['x']},{m['y']})" for m in adj))
+    return fight()
+
+
 def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6) -> dict:
     """Hold your square and fight a crowd (a zoo from its doorway, a pack in a
     corridor): melee whatever hostile comes adjacent (fight(): passive checks,

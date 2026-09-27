@@ -164,10 +164,13 @@ def waypoint(s, target, cap):
     return target
 
 
-def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
+def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
+    auto_fight: hostiles next to you that are all trivial for you
+    (combat.auto_fightable) are fought on the spot, and such monsters coming
+    into view don't pause; anything else pauses / raises as before.
     max_dist: refuse (NavError) if the known-map path is longer than this —
     a guard against burning many turns on a far-away target.
     If the hero doesn't move at all, raises NavError saying why (a hostile
@@ -176,7 +179,19 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
     Long trips go in legs of at most leg_cap() squares (8, or 4 with a
     hostile around) so a monster coming into view pauses the script early;
     leg=0 disables that."""
-    s = ctx.require_command("travel()")
+    import contextlib
+    ctx.require_command("travel()")
+    if auto_fight and ctx.monster_filter:
+        from .combat import not_auto_fightable
+        guard = ctx.monster_filter(not_auto_fightable)
+    else:
+        guard = contextlib.nullcontext()
+    with guard:
+        return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight)
+
+
+def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
+    s = ctx.last()
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
            and not m.get("pet") and not m.get("statue")]
     if occ and s.hero != (x, y):
@@ -202,6 +217,14 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
         h0 = s.hero
         if h0 == (x, y):
             return s
+        if auto_fight:
+            from .combat import fight_trivial
+            fs = fight_trivial(s)
+            if fs is not None:
+                s = fs
+                if s.state.kind != "command":
+                    return s
+                continue
         cap = leg_cap(s) if leg is None else (leg or None)
         tx, ty = waypoint(s, (x, y), cap)
         if (tx, ty) == (x, y) and h0 is not None and max(abs(x - h0[0]), abs(y - h0[1])) == 1:
