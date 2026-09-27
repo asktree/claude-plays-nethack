@@ -36,6 +36,8 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) ",
     r"^You swap places with ",
     r"^You stop\. .* is in your way",
+    r"^You stop\.$",                                   # "You stop.  Your kitten is in your way." is split
+    r"^(Your|The) .* is in your way\.$",
     r"^You move .* out of your way",
     r"^You see here ",
     r"^Things that are here:",
@@ -226,9 +228,15 @@ class Kernel:
                 and not any(p.search(m) for p in DEFAULT_BENIGN)]
         if msgs and not quiet:
             reasons.append("message")
-        trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)]
-        if trapmsg and snap.hero is not None:
+        trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)
+                   and not m.startswith("There is")]
+        if trapmsg and snap.hero is not None and not quiet:
             reasons.append(f"trap at {snap.hero}")
+        if snap.state.kind == "getlin" and (snap.state.prompt or "").startswith("Call ") \
+                and not (before is not None and before.state.kind == "getlin"):
+            # e.g. a scroll of scare monster crumbled on pickup: the game asks you to name
+            # the type; the script's next keys would be typed into this prompt
+            reasons.append(f"naming prompt open: {snap.state.prompt!r} — type a name + <CR> or <Esc>")
         if before is not None and before.status.ok and snap.status.ok:
             b, a = before.status, snap.status
             if a.hp < b.hp:

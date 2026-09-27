@@ -18,6 +18,18 @@ BROWN = 3
 NO_OVERLAY = ("command", "yn", "direction", "object", "getlin", "extcmd", "count", "getpos")
 
 
+def _door_like(scr, x, y) -> bool:
+    """A brown '+' is a closed door if it sits in a wall line (walls on both
+    sides, or on at least one side with rock/nothing opposite); otherwise a
+    (brown) spellbook lying on the floor."""
+    def wall(cx, cy):
+        return scr.at(cx, cy) in "|-" and scr.color_at(cx, cy) != BROWN
+    horiz = wall(x - 1, y) or wall(x + 1, y)
+    vert = wall(x, y - 1) or wall(x, y + 1)
+    floor_around = sum(1 for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)) if scr.at(x + dx, y + dy) in ".")
+    return (horiz or vert) and floor_around <= 2
+
+
 def _hero(snap, hero):
     return snap.hero or hero
 
@@ -68,7 +80,7 @@ def objects_in_view(snap, hero=None) -> list[dict]:
             if ch not in OBJECT_CLASSES:
                 continue
             col = scr.color_at(x, y)
-            if ch == "+" and col == BROWN:
+            if ch == "+" and col == BROWN and _door_like(scr, x, y):
                 continue  # a door, not a spellbook
             if ch == '"' and col in (7, 8):
                 kind = "web?"
@@ -95,7 +107,7 @@ def features_in_view(snap, hero=None) -> list[dict]:
             name = FEATURES.get(ch)
             col = scr.color_at(x, y)
             if name is None:
-                if ch == "+" and col == BROWN:
+                if ch == "+" and col == BROWN and _door_like(scr, x, y):
                     name = "closed door"
                 elif ch in "|-" and col == BROWN:
                     name = "open door"

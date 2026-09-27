@@ -217,3 +217,48 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
                   "answer with cont(reply='...<CR>') promptly.")
     print(f"dip({letter!r}): {outcome}")
     return {"outcome": outcome, "messages": msgs}
+
+
+def loot_all() -> list:
+    """Take everything out of the (single) container on your square with
+    #loot: confirms, picks "take something out" in the pick-one "Do what?"
+    menu, then "Auto-select every item". Returns the messages. A locked box
+    says so (kick it open or #force with a blade). Pauses on anything else."""
+    ctx.require_command("loot_all()")
+    s = ctx.do("#loot<CR>", quiet=True)
+    msgs = list(s.messages)
+    for _ in range(10):
+        k, p = s.state.kind, (s.state.prompt or "")
+        if k == "command":
+            break
+        if k == "yn" and "loot it?" in p:
+            s = ctx.do("y", quiet=True)
+        elif k == "menu" and "Do what" in p:
+            opt = [it for it in s.state.menu.selectable() if "take something out" in it.text]
+            if not opt:
+                ctx.do("<Esc>", quiet=True)
+                msgs.append("(nothing to take out)")
+                break
+            s = ctx.do(opt[0].letter, quiet=True)
+        elif k == "menu":
+            items = s.state.menu.selectable()
+            auto = [it for it in items if "Auto-select every item" in it.text]
+            if auto:
+                s = ctx.do(auto[0].letter, quiet=True)
+                s = ctx.do("<CR>", quiet=True)
+            else:                                   # an item list: select every item on every page
+                for _page in range(8):
+                    for it in s.state.menu.selectable():
+                        if not it.selected:
+                            s = ctx.do(it.letter, quiet=True)
+                    if s.state.menu and s.state.menu.page < s.state.menu.pages:
+                        s = ctx.do(">", quiet=True)
+                    else:
+                        break
+                s = ctx.do("<CR>", quiet=True)
+        else:
+            ctx.pause(f"loot_all(): unexpected {k} {p!r}")
+            s = ctx.last()
+        msgs += s.messages
+    print("loot_all(): " + " | ".join(msgs[-6:]))
+    return msgs

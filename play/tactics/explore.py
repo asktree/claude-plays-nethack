@@ -247,6 +247,17 @@ def _explore(max_legs: int, skip: set):
         if s.hero != hero and s.hero != target and not text:
             stuck = 0
             continue                      # a leg toward the target: keep going
+        if s.hero == hero and not any(h in text for h in FAIL_HINTS) and hero is not None:
+            # NetHack's travel only paths over squares you have *seen*; a displayed but
+            # never-walked dark corridor can still be walked: try our own route
+            from .nav import walk_path
+            own = bfs_path(ctx.last(), hero, target, avoid=frozenset(bad_squares() - {target}),
+                           allow_monsters=False)
+            if own:
+                s = walk_path(own[:8])
+                if s.hero != hero:
+                    stuck = 0
+                    continue
         if any(h in text for h in FAIL_HINTS) or s.hero == hero:
             if "boulder" in text and s.hero is not None:
                 hx, hy = s.hero

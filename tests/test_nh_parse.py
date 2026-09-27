@@ -426,3 +426,27 @@ def test_pick_one_menu_stops_extra_keys():
     s = g.step("o<CR>")
     assert sent == [b"o"]
     assert s.unsent == "<CR>" and "pick-one" in s.stop_reason
+
+
+def test_prompt_filling_the_row_cursor_on_next_row():
+    # p2 #556: 79-char prompt + trailing space wrapped; cursor at (1,1)
+    row0 = "Upernavik offers 50 gold pieces for your vellum spellbook.  Sell it? [ynaq] (y)"
+    assert len(row0) == 79
+    s = mk({0: row0, 5: "      |..@..|", 22: STATUS1,
+            23: "Dlvl:4 $:6 HP:40(40) Pw:4(4) AC:2 Xp:3/69 T:1800"}, cursor=(1, 1))
+    st = classify(s)
+    assert st.kind == "yn" and st.choices == "ynaq" and "Sell it?" in st.prompt
+
+
+def test_brown_plus_door_vs_spellbook():
+    from nh.game import Snap
+    from nh.mapscan import features_in_view, objects_in_view
+    from nh.parse import State, Status
+    s = mk({4: "      |-----+-----|", 5: "      |...........|", 6: "      |.....+.@...|", 7: "      |...........|",
+            22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}, cursor=(14, 6))
+    s.fg[4][12] = 3          # brown '+' in the top wall: a door
+    s.fg[6][12] = 3          # brown '+' on the floor: a spellbook
+    snap = Snap(screen=s, state=State("command"), status=Status(ok=True))
+    doors = [(f["x"], f["y"]) for f in features_in_view(snap) if f["name"] == "closed door"]
+    books = [(o["x"], o["y"]) for o in objects_in_view(snap) if o["ch"] == "+"]
+    assert doors == [(12, 4)] and books == [(12, 6)]

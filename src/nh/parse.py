@@ -305,6 +305,20 @@ def classify(scr: Screen) -> State:
     msg_rows = 0
     if cy == 0:
         prompt_text = top
+    elif cy >= 1 and cx <= 1 and not scr.row(cy)[:cx].strip() and _PROMPT_END.search(scr.row(cy - 1).rstrip() + " ") \
+            and len(scr.row(cy - 1).rstrip()) >= scr.width - 2:
+        # a prompt that exactly fills the row: its trailing space wrapped to the
+        # next row and the cursor sits at column 0/1 there ("... Sell it? [ynaq] (y)")
+        parts = [scr.row(r).rstrip() for r in range(0, cy)]
+        prompt_text = ""
+        for i, part in enumerate(parts):
+            if i == 0:
+                prompt_text = part
+            elif len(parts[i - 1]) >= scr.width - 1:
+                prompt_text += part
+            else:
+                prompt_text += " " + part.strip()
+        msg_rows = cy
     elif 1 <= cy <= 4 and scr.at(cx, cy) == " " and scr.row(cy)[:cx].strip() and top \
             and (len(top) >= 60 or _PROMPT_END.search(scr.row(cy)[:cx]) or _texty(scr.row(cy)[:cx])):
         # rows 0..cy are one message/prompt: word-wrapped by tty (join with a

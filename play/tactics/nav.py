@@ -204,6 +204,17 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
             return s
         cap = leg_cap(s) if leg is None else (leg or None)
         tx, ty = waypoint(s, (x, y), cap)
+        if (tx, ty) == (x, y) and h0 is not None and max(abs(x - h0[0]), abs(y - h0[1])) == 1:
+            # last square by a plain step: NetHack's travel never picks anything up
+            # (it sets 'nopick'), a plain move autopicks gold and thrown weapons
+            s = ctx.do(DIR_KEY[(x - h0[0], y - h0[1])], ok=BENIGN)
+            if s.hero == (x, y) or s.state.kind != "command":
+                return s
+            continue
+        if (tx, ty) == (x, y) and h0 is not None:
+            path = bfs_path(s, h0, (x, y), allow_monsters=True)
+            if path and len(path) >= 2:
+                tx, ty = path[-2]          # stop one short; the last step is a plain move
         s = ctx.do("_", quiet=True)
         if s.state.kind != "getpos":
             return s
@@ -229,6 +240,10 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None):
                                "step around it by hand.")
             if any("door is closed" in m for m in s.messages):
                 s = _open_door_toward(s, (x, y))    # travel never opens doors (autoopen is for plain steps)
+                continue
+            if any("in your way" in m for m in s.messages) and waits < wait_peaceful + 2:
+                waits += 1
+                s = ctx.do("s", ok=BENIGN)          # your pet is in the way (no swapping in shops): wait
                 continue
             raise NavError(f"travel to {(x, y)} did not move (no known path?)"
                            + (f"; messages: {s.messages}" if s.messages else ""))

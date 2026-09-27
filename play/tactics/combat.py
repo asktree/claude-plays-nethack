@@ -46,6 +46,18 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
       threaten 21 HP); otherwise it pauses.
     - Exec tip: run fights with `bin/nh exec --hp-pause 0.4` so ordinary
       bites below 70% HP don't pause every round."""
+    seen: list[str] = []
+    try:
+        return _fight(x, y, stop_hp, max_blows, allow_passive, seen)
+    finally:
+        last = ctx.last()
+        if seen and last is not None:
+            last.messages = seen + [m for m in last.messages if m not in seen]
+
+
+def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
+    """fight() body; `seen` collects every round's messages (so an early
+    'You feel feverish' isn't lost behind later rounds)."""
     from nh.danger import STOP_PASSIVES, max_hit, passive_attacks
     s = ctx.last()
     for _ in range(max_blows):
@@ -58,6 +70,7 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
                 ctx.pause(f"fight: engulfed and HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} — pray if HP <= 1/7 max")
                 return ctx.last()
             s = ctx.do("Fk", ok=ROUTINE + [r"^You (hit|miss) the ", r"^You get (expelled|regurgitated)"])
+            seen.extend(s.messages)
             continue
         if "Hallu" in st.conditions:
             ctx.pause("fight: hallucinating — can't tell hostile from peaceful (and NetHack won't ask). Attack "
@@ -89,6 +102,7 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
         if key is None:
             return s
         s = ctx.do("F" + key, ok=ROUTINE)
+        seen.extend(s.messages)
     return s
 
 
