@@ -156,6 +156,8 @@ def _explosion_frame(scr: Screen) -> bool:
         if "/" not in rows[y - 1] + rows[y + 1] and "\\" not in rows[y - 1] + rows[y + 1]:
             continue
         for x in range(1, scr.width - 1):
+            if rows[y][x] == "@":
+                continue      # engulfed: the same ring drawn around the hero is the engulfer
             hits = [scr.fg[y + dy][x + dx] for dx, dy, ch in want if rows[y + dy][x + dx] == ch]
             if len(hits) >= 3 and len(set(hits)) == 1:
                 return True
@@ -273,12 +275,22 @@ class Game:
         first = t.first if expect_output else min(t.first, t.quiet * 4)
         self.term.wait_quiet(size0, first, t.quiet, t.max_wait)
         snap = self.capture()
+        stable = 0
         for _ in range(t.recheck):
             if self._plausible(snap):
                 break
             size1 = self.term.raw_size()
             self.term.wait_quiet(size1, t.quiet * 3, t.quiet, t.max_wait)
-            snap = self.capture()
+            prev, snap = snap, self.capture()
+            # an implausible screen that no longer changes is the real one
+            # (invisible hero with no '@' drawn, odd displays): stop waiting
+            if snap.screen.chars == prev.screen.chars and snap.screen.cursor == prev.screen.cursor \
+                    and self.term.raw_size() == size1:
+                stable += 1
+                if stable >= 3:
+                    break
+            else:
+                stable = 0
         return snap
 
     def send_bytes(self, data: bytes) -> Snap:

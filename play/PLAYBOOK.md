@@ -50,6 +50,10 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   free off-hand, blindness, etc. are *minor* trouble — at Luck 0 prayer usually won't fix them, and the
   prayer timeout resets anyway. Don't spend a prayer on minor trouble.
 - Acid blobs: don't melee with your good weapon (passive corrosion); kill with thrown daggers or ignore.
+- **Were-creatures** (`@` human form, `d`/`r` animal form): their animal-form bite gives lycanthropy
+  ("You feel feverish") — major trouble, cured by prayer, holy water or a sprig of wolfsbane. They
+  summon packs ("summons help"). When you change form you drop armor and even a welded weapon, and
+  on stairs a third of what you drop falls to the level below. Fight them in `@` form or at range.
 - Don't let a far-away travel target burn dozens of turns (use `travel(x, y, max_dist=N)`), and check that
   a target square isn't shop stock before "fetching" it.
 
