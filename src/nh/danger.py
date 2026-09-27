@@ -216,6 +216,36 @@ PLAYER_MONSTERS = {"archeologist", "barbarian", "caveman", "cavewoman", "healer"
                    "priestess", "rogue", "ranger", "samurai", "tourist", "valkyrie", "wizard"}
 PLAYER_MONSTER_NOTE = ("player-monster: on the Astral Plane level 15-30 with a +4..+8 weapon (half the time an "
                        "ARTIFACT), good armor, maybe wands; don't let several gang up on you.")
+# role.c rank titles: do_name.c names a player monster OUTSIDE the endgame by its rank ("wayfarer", "enchanter"),
+# and outside the endgame those are nearly always a DOPPELGANGER's shapes (mon.c select_newcham_form(): 4 in 7 of
+# its changes pick a player-monster form) — p2 shift 33 met one as "enchanter" / "wayfarer" with no note
+_RANKS = {
+    "archeologist": "digger field worker investigator exhumer excavator spelunker speleologist collector curator",
+    "barbarian": "plunderer plunderess pillager bandit brigand raider reaver slayer chieftainess "
+                 "conqueror conqueress",
+    "caveman": "troglodyte aborigine wanderer vagrant wayfarer roamer nomad rover pioneer",
+    "healer": "rhizotomist empiric embalmer dresser medicus_ossium medica_ossium herbalist magister magistra "
+              "physician chirurgeon",
+    "knight": "gallant esquire bachelor banneret chevalier chevaliere seignieur dame paladin",
+    "monk": "candidate novice initiate student_of_stones student_of_waters student_of_metals student_of_winds "
+            "student_of_fire",
+    "priest": "aspirant adept curate canon canoness lama patriarch matriarch",
+    "rogue": "footpad cutpurse pilferer robber burglar filcher magsman magswoman thief",
+    "ranger": "tenderfoot lookout trailblazer reconnoiterer reconnoiteress scout arbalester archer sharpshooter "
+              "marksman markswoman",
+    "samurai": "hatamoto ronin kunoichi joshu ryoshu kokushu daimyo kuge shogun",
+    "tourist": "rambler sightseer excursionist peregrinator peregrinatrix traveler journeyer voyager explorer "
+               "adventurer",
+    "valkyrie": "stripling skirmisher fighter man-at-arms woman-at-arms swashbuckler hero heroine champion "
+                "lord lady",
+    "wizard": "evoker conjurer thaumaturge magician enchanter enchantress sorcerer sorceress necromancer mage",
+}
+# (left out: titles that are also monsters — the quest guardians chieftain, acolyte, warrior; sergeant, ninja,
+# high priest — and the role names themselves, which PLAYER_MONSTERS covers)
+RANK_TITLES = {t.replace("_", " "): role for role, ts in _RANKS.items() for t in ts.split()}
+RANK_TITLE_NOTE = ("a player-monster form ({role}): outside the Astral Plane almost always a DOPPELGANGER in disguise "
+                   "(it changes shape at random, often into something nastier — kill it quickly); on the Astral "
+                   "Plane a real one: " + PLAYER_MONSTER_NOTE)
 # damage types of poisonous active attacks (mhitu.c AD_DRST/DRDX/DRCO -> poisoned(): Str/Dex/Con loss, or
 # death outright 1 time in 30 without poison resistance)
 POISON_AD = ("AD_DRST", "AD_DRDX", "AD_DRCO")
@@ -377,6 +407,8 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
         n = PEACEFUL_PRIEST_NOTE
     elif name in PLAYER_MONSTERS and not desc.startswith("peaceful "):
         n = PLAYER_MONSTER_NOTE
+    elif not n and name in RANK_TITLES and not desc.startswith("peaceful "):
+        n = RANK_TITLE_NOTE.format(role=RANK_TITLES[name])
     elif not n and quest_role(name) == "leader":
         n = LEADER_NOTE
     elif not n and quest_role(name) == "nemesis":
@@ -555,7 +587,8 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None, r
     xl = hero_xl or 1
     diff = rec.get("difficulty", 0)
     mh = max_hit(name)
-    noted = (NOTES.get(name) or name in PLAYER_MONSTERS or quest_role(name)) and name not in INFO_NOTES \
+    noted = (NOTES.get(name) or name in PLAYER_MONSTERS or name in RANK_TITLES or quest_role(name)) \
+        and name not in INFO_NOTES \
         and not (name in POISON_NOTES and "poison" in resists) and not harmless_seducer(name)
     if noted or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"

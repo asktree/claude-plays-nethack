@@ -330,3 +330,14 @@ def test_remote_character_read_from_the_server_rc():
     from nh.cli import _rc_character
     rc = Path(__file__).resolve().parents[1] / "play" / "hardfought.nethackrc"
     assert _rc_character(rc) == {"role": "Valkyrie", "race": "dwarf", "gender": "female", "align": "lawful"}
+
+
+def test_rank_titles_note_a_doppelganger_form():
+    # p2 shift 33: a doppelganger showed as "enchanter" / "wayfarer" (do_name.c names player monsters by rank
+    # outside the endgame) with no note
+    from nh.danger import RANK_TITLES, _monsters, note_for
+    assert "DOPPELGANGER" in note_for("enchanter") and "(wizard)" in note_for("enchanter")
+    assert "DOPPELGANGER" in note_for("wayfarer [seen: telepathy]")
+    assert "DOPPELGANGER" not in note_for("peaceful wayfarer")
+    assert not [t for t in RANK_TITLES if t in _monsters()]        # quest guardians etc. keep their own notes
+    assert "DOPPELGANGER" not in note_for("warrior") and "DOPPELGANGER" not in note_for("sergeant")
