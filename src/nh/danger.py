@@ -129,12 +129,19 @@ NOTES = {
 }
 
 _STRIP = re.compile(r"^(?:peaceful |tame |invisible |saddled )+")
+# farlook suffixes (pager.c look_at_monster / mhidden_description) and the long worm's "tail of a"
+_SUFFIX = re.compile(r",\s*(?:swallowing you|engulfing you|being held|holding you|leashed to you|trapped in\b|"
+                     r"mimicking\b|masquerading as\b|hiding\b).*$")
+_TAIL = re.compile(r"^(?:peaceful |tame )?tail of (?:a )?")
 
 
 def base_name(desc: str) -> str:
-    """'peaceful dwarf called Bob' -> 'dwarf'; 'tame kitten' -> 'kitten'."""
+    """'peaceful dwarf called Bob' -> 'dwarf'; 'tame kitten' -> 'kitten';
+    'jackal, trapped in a pit' -> 'jackal'; 'tail of a long worm' -> 'long worm'."""
     d = desc.strip()
     d = re.sub(r"\s*\[seen:.*\]$", "", d)
+    d = _SUFFIX.sub("", d)
+    d = _TAIL.sub("", d)
     d = re.sub(r",? called .*$", "", d)
     d = re.sub(r"\s+named .*$", "", d)
     d = _STRIP.sub("", d)

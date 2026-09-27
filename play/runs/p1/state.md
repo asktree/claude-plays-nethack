@@ -2,43 +2,41 @@
 
 ## Character
 - Name/role: P1 the Skirmisher — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
-- Turn / Dlvl / XL / HP / Pw / AC: T:6207 / **Sokoban level 4 (= Sokoban 3b, soko2-1; the third Sokoban level; entered T:6063)** / **XL7** (Exp 762; XL8 at 1280) / 84/84 / 14/14 / AC2. Wielding blessed rustproof +2 EXCALIBUR. Ring f (prot. from shape changers) worn on the right hand since T:3940.
-- Position at shift end (shift 6, T:6207): Soko4 (41,15) standing on the plugged hole in the row-15 lane; board at solve() step 5/15. A SLEEPING MANES sits on the hole square (43,15) (2 squares E; it never moves). No other monsters in view. HP 84/84, not hungry (ate a ration at T:6207 -> Hungry ~T:7000).
+- Turn / Dlvl / XL / HP / Pw / AC: T:6880 / **Sokoban level 4 (= Sokoban 3b, soko2-1; SOLVED T:6669)** / **XL8** (Exp 1550; XL9 at 2560) / 63/97 (resting) / 17/17 / **AC3** (studded leather burnt by naga fire: was AC2). Wielding blessed rustproof +2 EXCALIBUR. Rings worn: f (prot. from shape changers, right hand), **w (fire resistance, left hand, since T:6818 — remove later to save hunger, or keep vs fire)**.
+- Position at shift-7 end: see the journal's last line (lane east end (48,15) below the broken stair-room door (48,14), or nearby). Two OGRES loot the stair room (44-48,7-13) that holds the `<` (46,10): kill them from the doorway before climbing.
 - Attributes: St18 Dx12 Co20 In10 Wi10 Ch7 (Ch7 => shop prices +50%)
-- Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf), **speed (XL7, "You feel quick!" T:6036)**. Long sword skill: SKILLED. Excalibur gives auto-search.
-- Luck 0 (keep it: no boulder smashing / earth scrolls / squeezing in Sokoban); alignment record high; no peacefuls killed.
+- Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf), speed (XL7), **POISON RESISTANCE (red naga corpse, T:6853: "You feel healthy")**. Long sword skill: SKILLED -> "more confident" at T:6880 (#enhance to EXPERT). Excalibur gives auto-search.
+- Luck 0 (keep it: no boulder smashing / earth scrolls / squeezing in Sokoban); alignment record high (one "hypocrite" hit T:6808: zapped from an Elbereth square); no peacefuls killed.
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
 | T:1271 | welded cursed orcish dagger (MINOR trouble — mistake) | accepted, trouble NOT fixed, timeout reset |
 | T:2016 | lycanthropy (MAJOR) | "well-pleased ... You feel purified" CURED |
-| T:3401 | Weak from hunger (MAJOR; prayer_check 98%) | "well-pleased. Your stomach feels content." nutrition 900. Prayer available again (2800 turns since); always `prayer_check()` first. |
+| T:3401 | Weak from hunger (MAJOR; prayer_check 98%) | "well-pleased. Your stomach feels content." nutrition 900. Prayer available again (~3500 turns since; prayer_check() said 99.9% at T:6207); always `prayer_check()` first. |
 
 ## Equipment worn/wielded (letter: item)
-- **WIELDED: a: blessed rustproof +2 EXCALIBUR** (made T:4180 at the DL7 fountain (12,16); enchant weapon read on it T:4182). +d5 to-hit, +d10 damage, drain resistance, auto-search.
-- c: uncursed +3 small shield (worn), e: +0 studded leather armor (worn), n: uncursed +0 orcish helm (worn; stolen by a nymph T:5170 and recovered) -> AC2 [seen]
+- **WIELDED: a: blessed rustproof +2 EXCALIBUR** (made T:4180). +d5 to-hit, +d10 damage, drain resistance, auto-search. Rustproof = also corrosion-proof (acid blobs are safe to hit).
+- c: uncursed +3 small shield (worn), e: +0 studded leather armor (worn, BURNT -1), n: uncursed +0 orcish helm (worn) -> AC3
 - The cursed corroded orcish dagger lies on the DL1 `>` (54,7). Never pick it up.
 
 ## Key inventory (letters)
-- **B: BLESSED SCROLL OF TELEPORTATION** — emergency escape OUTSIDE Sokoban (Sokoban levels are no-teleport: it fails there; nymphs can't teleport away either).
-- z: wand of lightning (0:3), E: wand of lightning (0:6) — 6d6 ray, bounces; never zap toward a wall < 14 squares away in line; `zap('E', dir)`. Shock destroys wands/rings if it bounces onto you.
-- **S: WAND OF STRIKING** (engrave-tested T:5280; force bolt 2d12, no bounce; breaks boulders -> never zap it at a boulder in Sokoban: -1 Luck).
+- **B: BLESSED SCROLL OF TELEPORTATION** — emergency escape OUTSIDE Sokoban (Sokoban levels are no-teleport).
+- Wands: **z lightning (0:2)**, **E lightning (0:3)** — 6d6 ray, bounces: only zap along a line whose first wall is >= 14 squares away (or where the bounce can't return: range is 7-13 squares total). Shock destroys the target's wands (blew up an ogre's wand of magic missile T:6674). **S wand of striking (3 charges used; remaining unknown)** — force bolt 2d12, no bounce, ideal vs gelatinous cubes / floating eyes; never at a boulder in Sokoban. **Unknown wands: X crystal, Z short** (engrave-test OUTSIDE Sokoban on a quiet level).
 - **h: magic marker (0:82) but CURSED** — needs remove curse / holy water first.
-- Rings: w uncursed fire resistance (not worn); f uncursed protection from shape changers (WORN). **Unknown rings (do NOT wear): K engagement ring, R ivory ring, W bronze ring.** Price-ID/identify later.
-- **Unknown wands (engrave-test on a quiet level OUTSIDE Sokoban): X crystal wand; a 3rd unknown wand still lies at Soko4 (33,14) (pick it up).**
-- Scrolls: i uncursed AMNESIA (NEVER READ; future blank paper), x uncursed light, A uncursed fire, **N + O: two scrolls labeled NR 9 (the Sokoban entry level's pair = almost certainly EARTH; never read them in Sokoban)**.
+- Rings: w fire resistance (WORN left), f prot. shape changers (WORN right). **Unknown rings (do NOT wear): K engagement, R ivory, W bronze, k agate.** Price-ID/identify later.
+- Scrolls: i uncursed AMNESIA (NEVER READ), x + l uncursed light (2), A uncursed fire, **N + O: two scrolls labeled NR 9 (probably EARTH; never read in Sokoban)**.
 - Potions: q blessed sickness (throw at a tough non-poison-resistant monster), C uncursed oil, **M swirly potion (unknown)**.
-- **L: bag (not a bag of tricks: #loot did not bite; sack / oilskin sack / bag of holding; BUC unknown — put nothing valuable in until it is tested at an altar / with a known item).**
-- y: figurine of a coyote (junk). $137.
-- **Food: P 3 food rations (BUC unknown, Sokoban finds), Q 1 pancake, U slime mold, j uncursed candy bar. g: 2 CURSED candy bars (never). T: 2 EGGS of unknown kind — NEVER eat (cockatrice eggs stone you).** Eat when Hungry (~T:7000); a ration lasts ~750 turns.
+- **L: bag (sack / oilskin / bag of holding; BUC unknown — test at an altar before trusting it).**
+- **b: 11 darts** (Valkyrie: restricted skill, -4 to hit; still the answer to a floating eye at range). y: figurine of a coyote (junk). $165.
+- **Food: P 3 food rations, Q 1 pancake, U slime mold, j uncursed candy bar, d fortune cookie. g: 2 CURSED candy bars (never). T: 2 EGGS of unknown kind — NEVER eat.** Ate at T:6207 (ration) + python/cube/red naga corpses T:6563-6853: not hungry until ~T:7500+.
 - No healing potions, no unicorn horn, no lizard corpse. Escapes: Elbereth where you stand (works in Sokoban), the stairs; scroll B outside Sokoban. Prayer available (prayer_check() first).
-- Left behind: DL3 `<` room: +0 dagger, orcish dagger, violet gems (werejackal territory). DL6 (8,5): scale mail. DL7 (57,4): orcish helm; (58,8): orcish helm + orcish shield + orcish chain mail (unknown BUC). DL1 `>` (54,7): the cursed orcish dagger — never.
+- Left behind: DL3 `<` room: +0 dagger, orcish dagger, violet gems. DL6 (8,5): scale mail. DL7 (57,4): orcish helm; (58,8): orcish helm + orcish shield + orcish chain mail. Soko4 (33,13): orcish helm + orcish shield + knife (orc-captain's); (35,12): a tin; (48,14): ogre corpse pile (clubs).
 
 ## Identified appearances
 - Scrolls: ZELGO MER identify, EIRIS SAZUN IDISI amnesia, GARVEN DEH light, HACKEM MUCHE fire, TEMOV teleportation, FOOBIE BLETCH enchant weapon. (ZLORFIK, DUAM XNAHT: base-100 class, types unknown. NR 9: probably earth, unconfirmed.)
 - Potions: yellow sickness, brilliant blue blindness, cyan oil (swirly base 100, murky base 50: unknown).
-- Wands: marble lightning, iridium striking. Rings: diamond fire resistance, iron protection from shape changers.
+- Wands: marble lightning, iridium striking, **oak = magic missile** (seen: an ogre zapped one). Rings: diamond fire resistance, iron protection from shape changers.
 
 ## Dungeon map
 | Dlvl | branch | features |
@@ -49,23 +47,25 @@
 | 4 | main | `>` (20,14); hidden door (17,14) -> W room with `<` (5,9). SLEEPING GAS TRAP (58,15). South half unexplored. |
 | 5 | main | `<` (59,16). `>` (70,16). BURNED ELBERETH (45,18). Fully explored. |
 | 6 | main | **ORACLE LEVEL.** `<` (9,7). `>` (65,10) — **HOSTILE WATER DEMON roams near it: never re-enter DL6 by its `>`**. Fountains (38,12) (39,11) (39,13) (40,12) (one used). Peaceful Oracle (39,12). |
-| 7 | main (Sokoban entry level) | `<` (5,7) to DL6. `>` (13,8) in room B (13-17,6-8). **SOKOBAN `<` = (14,15) UNDER THE STATUE of a hill orc** in the fountain room C (10-19,15-17), TRAP (18,15). Orc gear (57,4),(58,8). Peaceful dwarf wanders. South-middle band is solid rock (searched). |
-| Sokoban 6 (= Sokoban 1a) | Sokoban | **SOLVED T:5249**. `>` (35,7) back to DL7 (14,15); `<` (33,7) up (1-wide stair column (33,7-13): a peaceful monster in it blocks you — wait at (33,15) and slip past via (34,14)->(33,13)). |
+| 7 | main (Sokoban entry level) | `<` (5,7) to DL6. `>` (13,8) in room B (13-17,6-8). **SOKOBAN `<` = (14,15) UNDER THE STATUE of a hill orc** in the fountain room C (10-19,15-17), TRAP (18,15). Orc gear (57,4),(58,8). Peaceful dwarf wanders. |
+| Sokoban 6 (= Sokoban 1a) | Sokoban | **SOLVED T:5249**. `>` (35,7) back to DL7 (14,15); `<` (33,7) up (1-wide stair column (33,7-13)). |
 | Sokoban 5 (= Sokoban 2a) | Sokoban | **SOLVED T:5991**. `>` (29,7); `<` (46,10) behind the (kicked-open) door (50,15). |
-| Sokoban 4 (= Sokoban 3b, soko2-1) | Sokoban | **IN PROGRESS: sokoban.solve() step 5/15 done** (holes (38-41,15) plugged; remaining holes (42-47,15)). `>` (36,16). `<` (46,10) in the stair room behind the CLOSED (probably locked) door (48,14) at the E end of the row-15 lane: kick it. **A sleeping MANES sits on the hole (43,15): after step 6 plugs (42,15), step onto (42,15) and F-attack east to kill it (a monster in the hole blocks the boulder of step 7). NEVER step onto an unplugged hole square.** Loot left: wand (33,14), food (35,12), food (31,9). |
+| Sokoban 4 (= Sokoban 3b, soko2-1) | Sokoban | **SOLVED T:6669** (all holes (38-47,15) plugged; the row-15 lane is a plain corridor now). `>` (36,16). `<` (46,10) in the stair room (44-48,7-13) behind the BROKEN door (48,14) (kicked open T:6673). **2 OGRES (clubs) loot that room** as of T:6880. Green mold at (40,11) (never touch; avoid() set). Leftover junk listed above. |
+| Sokoban 3 (top) | Sokoban | NEXT: Sokoban Level 4 (a or b); solve() first, then the TREASURE ZOO behind its door. |
 
 ## Threats / known dangers
-- **Sokoban**: no teleport (scroll B useless), no diagonal squeezing, Luck penalties for smashing boulders/reading earth. **After this level comes the top level (dungeon level 3) with the TREASURE ZOO: fight it at the door one at a time at full HP; Elbereth works.** Prize: bag of holding or amulet of reflection.
+- **Sokoban**: no teleport (scroll B useless), no diagonal squeezing for me, Luck penalties for smashing boulders/reading earth. **The top level has the TREASURE ZOO: go in at full HP, fight from the doorway one at a time (fight_until_clear(radius=2, stop_hp=0.5)); Elbereth if swarmed (rest on it, never attack from it).** Prize: bag of holding or amulet of reflection (the amulet is always reflection: wear it at once).
+- Level spawns were heavy this shift (a monster every ~40 turns): wargs (2d6, come in threes), ogres (clubs ~10/hit; one had a wand of magic missile), red naga (fire breath burns armor and can destroy scrolls/potions), gelatinous cube (never melee: striking wand), owlbear (took 20 HP in one round), succubus (theft only; can't teleport away here), flaming sphere (harmless with ring w on).
+- **Elbereth (3.6.7, verified this shift): attacking OR ZAPPING from the square erases it and costs alignment ("You feel like a hypocrite"). Rest on it, step off to fight.** Scared adjacent monsters don't interrupt counted rests.
+- **A LARGE monster (python) DID squeeze diagonally between a boulder and a wall** — don't count on the "big monsters can't squeeze" rule; the HUGE ettin zombie could not.
 - **DL6 (Oracle level): HOSTILE WATER DEMON** near the DL6 `>` (65,10). Never re-enter DL6 by its `>`.
-- DL7: werejackals (2 killed), yellow lights (2 killed; no potion of blindness left). DL3 werejackal pack camps the DL3 `<`.
-- Poisonous biters/stingers: 1/30 instadeath per poisoned hit — no poison resistance yet.
+- DL7: werejackals (2 killed), yellow lights (2 killed). DL3 werejackal pack camps the DL3 `<`.
 - Cockatrices possible from DL8 (never touch/eat; flee hissing; no lizard/acidic corpse yet). Unknown eggs T: never eat.
-- Nymphs: in Sokoban they cannot teleport — corner and kill; elsewhere drop wands/marker first.
-- No healing items. Escapes: Elbereth where you stand, stairs; scroll B outside Sokoban. Prayer available (~98%); prayer_check() first.
+- No healing items. Escapes: Elbereth where you stand, stairs; scroll B outside Sokoban. Prayer available (~99%); prayer_check() first.
 
 ## Objective and plan
-1. **Finish Sokoban 3b**: `sokoban.solve()` from step 6 (if `progress()` says done=-1 the board is mid-step: compare with `sokoban._diff(sokoban._state(obs, lv, ox, oy), after_k)` and finish that boulder's remaining moves with `sokoban.push()`, then solve() again). After step 6: kill the manes on (43,15) from (42,15). Pick up the wand (33,14). Kick the stair-room door (48,14), climb the `<` (46,10).
-2. **Sokoban top level (dungeon level 3)**: solve(), then the zoo behind the door: full HP, fight from the doorway one at a time (Elbereth if swarmed), loot the prize (bag of holding / amulet of reflection — the prize-square amulet is always reflection: wear it at once).
-3. Food: 3 rations + pancake + slime mold + candy bar: fine. Hungry ~T:7000.
-4. After Sokoban: back down (Soko `>`s -> DL7 (14,15)), then DL8+ / Mines-Minetown detour: altar (BUC of the bag, rings, wands, rations), temple protection ($137 is far from 400 x XL = 2800), price-ID rings K/R/W and potion M, engrave-test wands X + the (33,14) wand OUTSIDE Sokoban, uncurse the marker (remove curse / holy water), AC below 0.
-5. Keep ring f on for now (+5% hunger only). Don't wear unknown rings. No poison resistance: avoid bee/ant swarms.
+1. **Sokoban 3b is done.** Rest to full at the lane's east end (48,15) on Elbereth (only (47,15) and the doorway (48,14) touch it). Kill the 2 ogres from there (they come through the doorway one at a time; `fight_until_clear(radius=8)`; lightning up the door column (48,x) when two line up — the far wall is 9 squares off, the bounce can't come back). Then `<` (46,10).
+2. **Sokoban top level**: `sokoban.solve()` (it identifies 4a/4b). If it pauses, deal with the monster and call `solve()` again: `progress()` reports `partial: {pushes_done, boulder_at}` and `solve()` finishes the interrupted boulder itself (verified 3 times this shift). **Only if `progress()` says done=-1 with `partial: None`** is the board really off-plan: then compare with `sokoban._diff(sokoban._state(obs, lv, ox, oy), after_k)` and fix that boulder by hand with `sokoban.push()`.
+3. **The zoo**: full HP first, stand in the doorway, `fight_until_clear(radius=2, stop_hp=0.5)`; back off to an Elbereth square (not the doorway) when HP < 50%; loot the prize; wear the amulet at once if it is one.
+4. Food: 3 rations + pancake + slime mold + candy bar + cookie: fine. Not hungry until ~T:7500.
+5. After Sokoban: back down (Soko `>`s -> DL7 (14,15)), then DL8+ / Mines-Minetown: altar (BUC of the bag, rings, wands, rations), temple protection ($165 is far from 400 x XL = 3200), price-ID rings K/R/W/k and potion M, engrave-test wands X and Z OUTSIDE Sokoban, uncurse the marker, AC below 0. Consider removing ring w when fire is not a threat (hunger).

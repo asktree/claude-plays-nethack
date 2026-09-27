@@ -52,6 +52,8 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
     if not mons:
         return ""
     parts = []
+    statues = [m for m in mons if m.get("statue")]
+    mons = [m for m in mons if not m.get("statue")]
     for m in mons:
         if m.get("desc"):
             who = m["desc"]
@@ -64,6 +66,10 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
             adj += "  (NEW)"
         note = f"\n      !! {m['note']}" if m.get("note") else ""
         parts.append(f"  {m['ch']} {who} at ({m['x']},{m['y']}) d={m['dist']}{adj}{note}")
+    if statues:
+        # statues look like monsters but never move: one line for all of them
+        parts.append("  statues: " + ", ".join(f"{m['ch']} ({m['x']},{m['y']})" for m in statues[:12])
+                     + (f" +{len(statues) - 12} more" if len(statues) > 12 else ""))
     return "monsters:\n" + "\n".join(parts)
 
 

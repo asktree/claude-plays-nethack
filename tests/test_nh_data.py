@@ -282,3 +282,17 @@ def test_price_id_rules():
     assert info._sell_offers(80) == {40, 30}
     names = [n for n, _ in info.price_id("SCROLL_CLASS", sell=40, cha=7)]
     assert names == ["enchant armor", "remove curse"]
+
+
+def test_base_name_strips_farlook_suffixes():
+    from nh.danger import base_name, note_for, threat_level
+    assert base_name("jackal, trapped in a pit") == "jackal"
+    assert base_name("peaceful dwarf, trapped in a bear trap") == "dwarf"
+    assert base_name("cockatrice, trapped in a web") == "cockatrice"
+    assert base_name("tame kitten, leashed to you") == "kitten"
+    assert base_name("trapper, hiding on the ground") == "trapper"
+    assert base_name("giant mimic, mimicking a large box") == "giant mimic"
+    assert base_name("purple worm, engulfing you") == "purple worm"
+    assert base_name("tail of a long worm") == "long worm"
+    assert "stoning" in note_for("cockatrice, trapped in a pit", 5)
+    assert threat_level("floating eye, trapped in a web", 5, 40) == "dangerous"

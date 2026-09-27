@@ -265,6 +265,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
                                "travel never starts next to one. Fight it (fight()) or step away by hand.")
             if blk and waits < wait_peaceful:
                 waits += 1
+                print(f"travel: waiting a turn for {_mdesc(blk)} to move")
                 s = ctx.do("s", ok=BENIGN)      # give the peaceful a turn to move off
                 continue
             if blk:

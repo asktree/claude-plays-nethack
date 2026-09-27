@@ -286,6 +286,8 @@ class MonsterTracker:
                 m["new"] = not m.get("statue")
 
         xl = st.xl if st.ok else None
+        lk = self.game.level_key() if hasattr(self.game, "level_key") else ""
+        no_tele = "Sokoban" in (lk or "")
         for m in mons:
             if m["id"] is None:
                 m["id"] = self._new_id()
@@ -294,6 +296,8 @@ class MonsterTracker:
             m["peaceful"] = d.startswith("peaceful ")
             if d and not m.get("statue"):
                 m["note"] = note_for(d, xl)
+                if no_tele and "telep" in m["note"]:
+                    m["note"] += " — BUT teleporting is blocked in Sokoban: corner it and kill it"
 
         for m in mons:
             if m.get("desc") and not m.get("statue"):
