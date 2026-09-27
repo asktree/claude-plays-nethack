@@ -102,3 +102,28 @@ def test_auto_fightable():
     # at XL1 with 12 HP a hill orc or a jackal pack member is judged differently
     s.status.xl, s.status.hp, s.status.hpmax = 1, 12, 12
     assert not auto_fightable(m("gnome lord"), s)
+
+
+def test_wait_for_pet_at_stairs(monkeypatch):
+    from tactics import ctx, nav
+    cat_far = {"x": 13, "y": 5, "ch": "f", "desc": "tame kitten", "tame": True, "pet": True, "dist": 3}
+    cat_near = dict(cat_far, x=11, dist=1)
+    frames = [_snap({}, (10, 5), [cat_far]), _snap({}, (10, 5), [dict(cat_far, x=12, dist=2)]),
+              _snap({}, (10, 5), [cat_near])]
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return frames[min(len(sent), len(frames) - 1)]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    s = nav._wait_for_pet(frames[0], 6)
+    assert sent == ["s", "s"] and any(m["dist"] == 1 for m in s.monsters)
+    # no pet in view: no waiting at all
+    sent.clear()
+    nav._wait_for_pet(_snap({}, (10, 5), []), 6)
+    assert sent == []
+    # a hostile close by: don't wait
+    sent.clear()
+    jackal = {"x": 11, "y": 6, "ch": "d", "desc": "jackal", "dist": 1}
+    nav._wait_for_pet(_snap({}, (10, 5), [cat_far, jackal]), 6)
+    assert sent == []
