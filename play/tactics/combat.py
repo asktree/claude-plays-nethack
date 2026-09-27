@@ -106,10 +106,54 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
     return s
 
 
-def throw(item: str, direction: str, count: bool = False):
+def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13) -> list:
+    """Tame/peaceful monsters in the straight line from you in `direction`.
+    A thrown object stops at the first monster in its path, so only friends
+    before the first hostile count; a ray (ray=True) passes through
+    everything, so the whole line counts (bounces off walls aren't followed:
+    mind them yourself)."""
+    from .mapview import KEY_DIR
+    s = s or ctx.last()
+    d = KEY_DIR.get(direction)
+    if d is None or s.hero is None:
+        return []
+    mons = {(m["x"], m["y"]): m for m in (s.monsters or [])}
+    out = []
+    x, y = s.hero
+    for _ in range(maxlen):
+        x, y = x + d[0], y + d[1]
+        m = mons.get((x, y))
+        if m is None:
+            if s.screen.at(x, y) in " |-" and s.screen.color_at(x, y) != 3:
+                break                       # rock or wall (a brown '|'/'-' is an open door)
+            continue
+        if m.get("tame") or m.get("peaceful") or m.get("pet"):
+            out.append(m)
+        elif not ray and not m.get("unseen"):
+            break                           # the first hostile stops a thrown object
+    return out
+
+
+def _refuse_friendly_fire(what: str, direction: str, ray: bool, force: bool) -> bool:
+    if force:
+        return False
+    friends = friendly_in_line(direction, ray=ray)
+    if not friends:
+        return False
+    who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in friends)
+    ctx.pause(f"{what}: not firing {direction!r} — {who} is in the line of fire (the game won't ask). "
+              f"Step aside / wait for it to move, or pass force=True.")
+    return True
+
+
+def throw(item: str, direction: str, count: bool = False, force: bool = False):
     """Throw inventory item `item` (a letter) in `direction` (y k u h l b j n
-    < >), verifying each prompt. Returns the final Snap."""
+    < >), verifying each prompt. Refuses (pauses) when your pet or a
+    peaceful stands between you and the first hostile in that direction
+    (force=True to throw anyway). Returns the final Snap."""
     ctx.require_command("throw()")
+    if _refuse_friendly_fire("throw", direction, ray=False, force=force):
+        return ctx.last()
     s = ctx.do("t", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -125,11 +169,15 @@ def throw(item: str, direction: str, count: bool = False):
     return ctx.do(direction, ok=THROW_OK)
 
 
-def zap(wand: str, direction: str | None):
+def zap(wand: str, direction: str | None, force: bool = False):
     """Zap wand `wand` (a letter) in `direction` (or None for non-directional
     wands). Sends the direction only if the game actually asks for one (an
-    empty wand says "Nothing happens" and asks nothing)."""
+    empty wand says "Nothing happens" and asks nothing). Refuses (pauses)
+    when your pet or a peaceful is anywhere on the straight line (rays and
+    beams go through monsters; force=True to zap anyway)."""
     ctx.require_command("zap()")
+    if direction and _refuse_friendly_fire("zap", direction, ray=True, force=force):
+        return ctx.last()
     s = ctx.do("z", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":

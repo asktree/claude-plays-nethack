@@ -174,8 +174,12 @@ def _explore(max_legs: int, skip: set):
                         "one to push it if the square beyond is free; in Sokoban follow the solution)")
         hint = _hidden_stairs_hint()
         if not left:
-            return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages"
-                          + hint)
+            de = dead_ends()
+            r = result("explored (no reachable frontier left) — search for hidden passages: "
+                       + (f"corridor dead ends {de}, then " if de else "") + "closets / room walls facing "
+                       "unexplored space" + hint)
+            r["dead_ends"] = de
+            return r
         return result("blocked: " + "; ".join(left) + hint)
 
     while legs < max_legs:
@@ -272,6 +276,26 @@ def _explore(max_legs: int, skip: set):
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+def dead_ends(s=None, limit: int = 8) -> list:
+    """Corridor squares ('#') with at most one walkable neighbour: corridors
+    that just stop, the first places to search for a hidden passage
+    (search(15) standing on one). Nearest first."""
+    from nh.parse import MAP_BOTTOM, MAP_TOP
+    from .mapview import is_walkable, neighbors
+    s = s or ctx.last()
+    out = []
+    for y in range(MAP_TOP, MAP_BOTTOM + 1):
+        for x, ch in enumerate(s.screen.row(y)):
+            if ch != "#" or s.screen.color_at(x, y) not in (7, 8, 15):
+                continue                     # corridors only (not trees, sinks, bars)
+            if sum(1 for c in neighbors(x, y) if is_walkable(s, *c)) <= 1:
+                out.append((x, y))
+    h = s.hero
+    if h:
+        out.sort(key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
+    return out[:limit]
 
 
 def _hidden_stairs_hint() -> str:

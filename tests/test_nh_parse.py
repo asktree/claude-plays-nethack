@@ -473,3 +473,28 @@ def test_brown_plus_door_vs_spellbook():
     doors = [(f["x"], f["y"]) for f in features_in_view(snap) if f["name"] == "closed door"]
     books = [(o["x"], o["y"]) for o in objects_in_view(snap) if o["ch"] == "+"]
     assert doors == [(12, 4)] and books == [(12, 6)]
+
+
+def test_default_benign_monster_vs_monster_melee():
+    from nh.kernel import DEFAULT_BENIGN
+
+    def benign(m):
+        return any(p.search(m) for p in DEFAULT_BENIGN)
+    for m in ["The kitten misses the rock mole.", "The kitten bites the newt.", "It hits the jackal.",
+              "The gnome lord hits the little dog.", "The soldier ant stings the kitten."]:
+        assert benign(m), m
+    for m in ["The jackal bites!", "The kitten turns to stone.", "The purple worm swallows the kitten.",
+              "The mind flayer's tentacles suck the kitten.", "The imp hits!", "You hit the rock mole."]:
+        assert not benign(m), m
+
+
+def test_monster_trap_messages():
+    from nh.tracker import MON_TRAP_RE
+    for m in ["The leprechaun falls into a pit!", "The jackal is caught in a bear trap!",
+              "The gnome is caught in a spider web.", "A board beneath the newt squeaks loudly.",
+              "Click!  The dwarf triggers a rolling boulder trap.", "The hill orc triggers a land mine!",
+              "The leprechaun doesn't fall into the pit.", "A gush of water hits the gnome's left arm!"]:
+        assert MON_TRAP_RE.search(m), m
+    for m in ["You fall into a pit!", "A gush of water hits you!", "There is a pit here.",
+              "The kitten misses the rock mole."]:
+        assert not MON_TRAP_RE.search(m), m

@@ -27,8 +27,7 @@ def in_map(x, y):
 
 
 def is_door(s, x, y) -> bool:
-    ch = cell(s, x, y)
-    return ch in "|-+" and color(s, x, y) == BROWN
+    return is_open_door(s, x, y) or is_closed_door(s, x, y)
 
 
 def is_open_door(s, x, y) -> bool:
@@ -36,7 +35,9 @@ def is_open_door(s, x, y) -> bool:
 
 
 def is_closed_door(s, x, y) -> bool:
-    return cell(s, x, y) == "+" and color(s, x, y) == BROWN
+    """A brown '+' in a wall line; a '+' lying on the floor is a spellbook."""
+    from nh.mapscan import _door_like
+    return cell(s, x, y) == "+" and color(s, x, y) == BROWN and _door_like(s.screen, x, y)
 
 
 def is_wall(s, x, y) -> bool:
@@ -59,6 +60,8 @@ def is_walkable(s, x, y, allow_monsters=True) -> bool:
         return True
     if is_open_door(s, x, y):
         return True
+    if ch == "+":
+        return not is_closed_door(s, x, y)   # a spellbook on the floor
     if ch == "^":
         return False  # traps: avoid by default
     if ch in MONSTER_CHARS:

@@ -56,6 +56,12 @@ def killed_names(messages) -> list[str]:
     return out
 
 
+# makemon.c grow_up(): "Your kitten grows up into a housecat.", "The gnome becomes a
+# gnome lord.", "The gnome changes into a male gnome lord."
+_GROW_RE = re.compile(r"^(?P<the>Your |The )?(?P<old>.+?) (?:grows up into|becomes|changes into) "
+                      r"an? (?:male |female )?(?P<new>[a-z][a-z' -]*?)\.$")
+
+
 def _stationary(desc: str) -> bool:
     """Monsters that never move (molds, lichens are slow but move): remember
     them at their square for the whole visit to the level."""
@@ -158,6 +164,7 @@ class MonsterTracker:
         if self._was_hallu:
             self._was_hallu = False
             self.reset()                 # labels from before/while hallucinating: look at everything again
+        self._apply_growth(getattr(snap, "messages", None))
         dt = 1 if self.last_turn is None else max(1, turn - self.last_turn)
         radius = min(10, max(3, 2 * dt + 1))
         allm = monsters_in_view(snap)
@@ -314,6 +321,34 @@ class MonsterTracker:
         for m in special:
             m["id"] = self._new_id()
         return mons + special
+
+    def _apply_growth(self, messages) -> None:
+        """A monster that grew up keeps its glyph (kitten -> housecat): rename
+        its record so the label doesn't stay "tame kitten". If it's unclear
+        which record (two of that kind, or a named pet), clear the candidates'
+        labels so they get looked at again."""
+        from .danger import base_name
+        for msg in messages or []:
+            mm = _GROW_RE.search(msg)
+            if not mm:
+                continue
+            old, new = mm.group("old").lower(), mm.group("new")
+            recs = [k for k in self.known if base_name(k.get("desc", "")) == old]
+            if not recs and not mm.group("the"):
+                # a named pet ("Fluffy grows up into a housecat."): relook the tame ones
+                recs = [k for k in self.known if k.get("desc", "").startswith("tame ")]
+                old = None
+            for k in recs:
+                if len(recs) == 1 and old:
+                    k["desc"] = k["desc"].replace(old, new, 1)
+                else:
+                    k["desc"] = ""
+                r = self.recent.get(k.get("id"))
+                if r is not None:
+                    if k["desc"]:
+                        r["desc"] = k["desc"]
+                    else:
+                        del self.recent[k["id"]]
 
     def _forget_killed(self, names: list[str], vanished: set, hero) -> None:
         """A killed monster must not be 're-seen' later: drop its record

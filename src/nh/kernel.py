@@ -35,6 +35,10 @@ _HUNGER_RANK = {"": 0, "Satiated": 0, "Hungry": 1, "Weak": 2, "Fainting": 3, "Fa
 DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) ",
     r"^You swap places with ",
+    # monster-vs-monster melee (mhitm.c), usually your pet's fights; a death, stoning or
+    # swallowing still pauses
+    r"^(?:The |Your )?[\w' -]+? (?:misses|bites|stings|butts|touches|hits|squeezes) "
+    r"(?:the [\w' -]+|it|itself|himself|herself)\.$",
     r"^You stop\. .* is in your way",
     r"^You stop\.$",                                   # "You stop.  Your kitten is in your way." is split
     r"^(Your|The) .* is in your way\.$",

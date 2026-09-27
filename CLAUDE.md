@@ -35,7 +35,7 @@ play/
 knowledge/                  offline NetHackWiki (wiki/ gitignored; scripts/fetch_wiki.py regenerates)
 docs/research/              astra-lessons.md (first LLM ascension post-mortem), servers.md (Hardfought/NAO)
 scripts/                    setup.sh, build_nethack.sh (local 3.6.7), nh-connect.sh (ssh), gen_nh_data.py
-tests/                      test_nh_parse.py, test_nh_data.py (run: scripts/setup.sh)
+tests/                      test_nh_parse/data/monitor.py, test_sokoban_data.py, test_tactics.py
 run/                        runtime state per game (gitignored): raw.log, events.jsonl, harness_state.json
 ```
 
@@ -47,7 +47,7 @@ in `docs/legacy-nle-CLAUDE.md`.
 - Test against the local build: `bin/nh start-local <name> --seed N [--wizard]`; restart the daemon after
   core changes with `bin/nh --game <name> daemon`; tactics changes: `bin/nh --game <name> reload`.
   Don't restart the daemon of a game a player agent is using mid-shift.
-- Unit tests: `PYTHONPATH=src python3 -m pytest -q tests/test_nh_parse.py tests/test_nh_data.py`.
+- Unit tests: `PYTHONPATH=src python3 -m pytest -q tests/test_nh_parse.py tests/test_nh_data.py tests/test_nh_monitor.py tests/test_sokoban_data.py tests/test_tactics.py` (the other files in tests/ belong to the legacy NLE harness).
 - Every harness change that could affect safety (key sending, prompt detection, pausing) needs a test or a
   live check on a local game. A misparse on the live server can kill the character.
 - Player feedback lives in `play/runs/*/harness_notes.md` — treat it as the bug tracker.

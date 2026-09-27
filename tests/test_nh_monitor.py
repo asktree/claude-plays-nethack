@@ -249,3 +249,38 @@ def test_stationary_monster_remembered_long():
     g.looked.clear()
     m = t.update(snap({(50, 10): "F"}, 400, color=11))     # 300 turns later, same square
     assert g.looked == [] and not m[0]["new"] and m[0]["desc"] == "yellow mold"
+
+
+def test_pet_grows_up_label_follows():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(42, 10): "tame kitten"}
+    first = t.update(snap({(42, 10): "f"}, 10, color=7, pets={(42, 10)}))
+    g.looked.clear()
+    s = snap({(43, 10): "f"}, 11, color=7, pets={(43, 10)})
+    s.messages = ["Your kitten grows up into a housecat."]
+    m = t.update(s)
+    assert g.looked == [] and m[0]["desc"] == "tame housecat" and m[0]["tame"] and not m[0]["new"]
+    assert m[0]["id"] == first[0]["id"]
+
+
+def test_hostile_grows_up_ambiguous_is_relooked():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(45, 10): "gnome", (47, 10): "gnome"}
+    t.update(snap({(45, 10): "G", (47, 10): "G"}, 10))
+    g.truth = {(45, 10): "gnome lord", (47, 10): "gnome"}
+    g.looked.clear()
+    s = snap({(45, 10): "G", (47, 10): "G"}, 11)
+    s.messages = ["The gnome becomes a gnome lord."]
+    m = by_pos(t.update(s))
+    assert sorted(g.looked) == [(45, 10), (47, 10)]
+    assert m[(45, 10)]["desc"] == "gnome lord" and m[(47, 10)]["desc"] == "gnome"
+
+
+def test_grow_regex_ignores_other_becomes():
+    from nh.monitor import _GROW_RE
+    assert _GROW_RE.search("Your kitten grows up into a housecat.")
+    assert _GROW_RE.search("The gnome changes into a male gnome lord.").group("new") == "gnome lord"
+    assert not _GROW_RE.search("The water becomes murky.")
+    assert not _GROW_RE.search("You feel that Tyr is displeased.")

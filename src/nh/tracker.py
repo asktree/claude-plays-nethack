@@ -38,6 +38,17 @@ FEATURE_CHARS = {"<": "up stairs", ">": "down stairs", "{": "fountain", "_": "al
                  "#": None}
 
 
+# a monster in view set off / got caught in a trap (trap.c mintrap): the game now
+# knows that trap, but the monster (or what it drops) may hide the '^' — re-read #terrain
+MON_TRAP_RE = re.compile(
+    r"(?:falls|tumbles) into (?:a|an|your) pit|is caught in (?:a|an|your) (?:bear trap|spider web)|"
+    r"evades (?:a|an|your) bear trap|tears through (?:a|an|your) spider web|avoids (?:a|an|your) spider web|"
+    r"^A board beneath .* squeaks|triggers a trap but nothing happens|triggers (?:a|an|your) land mine|"
+    r"^Click! .* triggers|seems to be yanked down|doesn't fall (?:into the pit|through the hole)|"
+    r"^A gush of water hits (?!you)|erupts from the .* under (?!you)|"
+    r"^A trigger appears in a pile of soil|pulls free\.\.\.|eats a bear trap|munches on some spikes")
+
+
 class Tracker:
     def __init__(self, game: Game, path: Path):
         self.game = game
@@ -96,6 +107,9 @@ class Tracker:
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
             self.need_overview = True
+        if st.ok and any(MON_TRAP_RE.search(m) for m in snap.messages):
+            self.scanned.discard(self.game.level_key(st))
+            self.need_overview = True        # the refresh re-reads this level's traps
         if snap.state.kind == "command" and st.ok and self.need_overview and not self._refreshing:
             # learn the level's name right away (^O takes no game time), so
             # this step's features/traps are filed under the right level
