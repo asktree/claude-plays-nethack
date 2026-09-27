@@ -15,7 +15,11 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 1. **No Castle, and no loitering on D20+ near soldiers, without magic resistance (MR) or reflection. Prefer
    both.** Get reflection early (Sokoban prize 50%, silver dragon scales, shield of reflection).
 2. **Soldiers/sergeants/lieutenants/captains and anything seen zapping a wand may carry a death ray.** Never
-   stand in line with one (row, column, diagonal) at range without MR + reflection.
+   stand in line with one (row, column, diagonal) at range without MR + reflection. A **wand of sleep** is
+   as bad without sleep resistance or reflection: 6d25 turns asleep beside the zapper (p3: an ogre king
+   zapped one twice up its column). Monsters zap from NEXT to you too (muse.c), so melee doesn't get you out
+   of the line. The harness pauses by name (SLEEP RAY / DEATH RAY / WAND ZAPPED AT YOU) and keeps a note on
+   the zapper: get out of its lines, kill it at range, or zap it away.
 3. **On `Slime`, `Stone`, `Strngl`, `TermIll`, `FoodPois`: stop everything; the very next action is a
    verified cure.** Keep a checked list in state.md: stoning → lizard or acidic corpse (carry 2+ lizard
    corpses from the midgame), prayer; sliming → fire (wand with known charges, scroll of fire) or a
@@ -65,6 +69,9 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
     `fight(x, y)`), then `forget_room()` to go in.
   - Soldier ants and killer bees are deadly early without poison resistance.
   - A cockatrice nest means stoning: gloves, a wielded weapon and a lizard corpse, or leave it.
+  - A boulder can hide a trap: pushing one into a sleeping zoo moved the hero onto the magic trap under it,
+    and its roar woke the whole zoo (p1: 165 → 89 HP in 3 turns). Clear a room from its doorway; never step
+    into its never-seen squares while its monsters sleep.
 - **Gold vaults and their teleporter** (vault.c, mklev.c). A vault is a closed 2x2 room holding 4 piles of
   gold. It has no door. A guard shows up on your 30th turn inside, asks "Hello stranger, who are you?", and
   makes you drop **all** your gold, including gold in bags.
@@ -213,9 +220,10 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 - Valley of the Dead via the Castle trapdoors (the Castle has no down stairs; its trap doors are the way —
   obs names them `trap door` once looked at). Temple of Moloch — don't anger its priest; its altar is
   UNALIGNED: never pray or #offer there.
-- Incubi/succubi (`&`, from the Valley on): they take off your armor and RINGS — a levitation ring over water
-  or lava is then death. Kill them at range, answer n to "remove your ...?"; vampires hide as fog clouds,
-  vampire bats and wolves (killing the shape makes the vampire rise).
+- Incubi (`&`, from the Valley on): they take off your armor and RINGS — a levitation ring over water or lava
+  is then death. Kill them at range, answer n to "remove your ...?". A **succubus can't seduce a female
+  Valkyrie** (mhitu.c could_seduce: same gender), only claw — an ordinary fight. Vampires hide as fog
+  clouds, vampire bats and wolves (killing the shape makes the vampire rise).
 - Juiblex (swamp; engulf → illness), Orcus (town; wand of death), Asmodeus, Baalzebub.
 - **Mind flayers / master mind flayers** (`h`, purple): each tentacle hit your HELMET doesn't stop (it stops 7
   in 8) eats your brain: −1-2 Int, and with Int at 3 the next one KILLS you — life saving doesn't help. Never
