@@ -282,7 +282,7 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
     ctx.require_command("throw()")
     if _refuse_friendly_fire("throw", direction, ray=False, force=force):
         return ctx.last()
-    s = ctx.do("t", quiet=True)
+    s = ctx.do("t", quiet=True, force=force)
     if s.state.kind != "object":
         if s.state.kind != "command":
             ctx.do("<Esc>", quiet=True)
@@ -294,7 +294,7 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
             ctx.do("<Esc>", quiet=True)
         ctx.pause(f"throw: expected 'In what direction?', got {s.state.kind}: {s.state.prompt!r}")
         return ctx.last()
-    return ctx.do(direction, ok=THROW_OK)
+    return ctx.do(direction, ok=THROW_OK, force=force)
 
 
 def zap(wand: str, direction: str | None, force: bool = False):
@@ -306,7 +306,7 @@ def zap(wand: str, direction: str | None, force: bool = False):
     ctx.require_command("zap()")
     if direction and _refuse_friendly_fire("zap", direction, ray=True, force=force):
         return ctx.last()
-    s = ctx.do("z", quiet=True)
+    s = ctx.do("z", quiet=True, force=force)
     if s.state.kind != "object":
         if s.state.kind != "command":
             ctx.do("<Esc>", quiet=True)
@@ -318,5 +318,5 @@ def zap(wand: str, direction: str | None, force: bool = False):
             ctx.do("<Esc>", quiet=True)
             ctx.pause("zap: the wand wants a direction but none was given")
             return ctx.last()
-        return ctx.do(direction, ok=ZAP_OK)
+        return ctx.do(direction, ok=ZAP_OK, force=force)
     return s

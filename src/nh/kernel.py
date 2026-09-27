@@ -149,6 +149,7 @@ class Kernel:
         self.pause_on_monsters = True
         self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
+        self._reply_sent: bytes | None = None   # the `cont --reply` keys just sent for the script
         self.parked = False        # True while an exec worker waits at a pause point
         self.hp_pause = 0.7        # pause on HP loss when HP < this fraction of max...
         self.hp_hit_pause = 0.15   # ...or when one step costs >= this fraction of max
@@ -218,6 +219,13 @@ class Kernel:
     def _do(self, keys: str, force: bool = False, quiet: bool = False, ok=None, multi: bool = False,
             secret: bool = False) -> Snap:
         data = parse_keys(keys) if isinstance(keys, str) else keys
+        if self.in_worker() and self._reply_sent is not None:
+            sent, self._reply_sent = self._reply_sent, None
+            if data == sent:
+                # the player already answered the prompt with `cont --reply`; this is the script's
+                # own answer to the same prompt — sending it now would type it as commands
+                print(f"(skipped do({keys!r}): already answered by cont --reply)")
+                return self.game.last or self.game.look()
         _guard_dangerous(data, force)
         cur = self.game.last or self.game.look()
         if self.in_worker():
@@ -337,6 +345,7 @@ class Kernel:
             r, self._pending_reply = self._pending_reply, None
             snap2 = self.game.step(parse_keys(r))
             self.ns["obs"] = snap2
+            self._reply_sent = parse_keys(r)
 
     # ---------------------------------------------------------- exec api
     def busy(self) -> bool:
@@ -349,6 +358,13 @@ class Kernel:
         self.pause_on_monsters = monsters
         self.new_monster_filter = None
         self.activity = ""
+        self._reply_sent = None
+        if self.game.last is None:
+            try:
+                self.game.look()           # after a daemon restart: `obs` must not be None
+            except Exception:  # noqa: BLE001
+                pass
+        self.ns["obs"] = self.game.last
         self.hp_pause = 0.7 if hp_pause is None else float(hp_pause)
         self.code_counter += 1
         fname = f"<exec-{self.code_counter}>"

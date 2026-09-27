@@ -669,10 +669,22 @@ def test_guard_elbereth_attack_and_peaceful_step():
     s = _cmd_snap([{"x": 11, "y": 5, "desc": "jackal"}, {"x": 9, "y": 5, "desc": "peaceful gnome", "peaceful": True}])
     g._remember_here(s, ["Something is written here in the dust.", 'You read: "Elbereth".'])
     assert g.on_elbereth(s)
-    for keys in (b"Fl", b"l", b"t", b"f", b"z", b"\x04"):
+    for keys in (b"Fl", b"l"):
         with pytest.raises(PermissionError):
             g._guard(s, keys, force=False)
+    for keys in (b"t", b"f", b"z", b"\x04"):       # checked at their direction prompt instead
+        g._guard(s, keys, force=False)
     g._guard(s, b"Fl", force=True)
+    # at the direction prompt: toward the jackal (east) is refused, down/west/up are fine
+    from nh.game import Snap
+    from nh.parse import State
+    g.hero_pos = (10, 5)
+    d = Snap(screen=s.screen, state=State("direction", prompt="In what direction?"), status=s.status,
+             monsters=s.monsters)
+    with pytest.raises(PermissionError):
+        g._guard(d, b"l", force=False)
+    g._guard(d, b">", force=False)
+    g._guard(d, b"k", force=False)
     g._guard(s, b"k", force=False)            # stepping away is fine
     # a plain step into the peaceful gnome is refused (NetHack would ask 'Really attack?')
     with pytest.raises(PermissionError):

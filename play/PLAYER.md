@@ -18,7 +18,7 @@ are, and your run's memory (`play/runs/<game>/state.md`, the end of `journal.md`
 | `bin/nh do KEYS` | send keys, wait for the game to settle, auto-dismiss `--More--`, print the result (cropped map) |
 | `bin/nh do KEYS --full` / `--brief` | same with the full map / no map |
 | `bin/nh exec <<'EOF' ... EOF` | run Python in the persistent game kernel (see §2) |
-| `bin/nh cont` / `bin/nh cont --reply KEYS` | resume a paused exec (optionally answering the open prompt first) |
+| `bin/nh cont` / `bin/nh cont --reply KEYS` | resume a paused exec (optionally answering the open prompt first). Use `--reply` only for a prompt your script does NOT answer itself; if the script's next `do()` sends exactly the same keys, the harness skips it (it would otherwise be typed as commands) |
 | `bin/nh drop` | abandon a paused exec |
 | `bin/nh history 40` | the last 40 game messages with turn numbers |
 | `bin/nh screen` | the raw 80x24 terminal (use when the parsed view looks wrong) |
@@ -163,8 +163,9 @@ there will be no return! Still climb?" (the up stairs of dungeon level 1 end the
 picking up a **cockatrice/chickatrice corpse** (`,` when it's the only object here, or confirming a pickup
 menu with it selected — wear gloves and force=True); **while blind**, stepping onto a square known to hold
 one (you feel what you step on; bare-handed that is instant stoning); **attacking from your Elbereth square**
-(melee, `t`/`f`/`z`, kick: it erases the engraving and costs −5 alignment — step off first; the harness knows
-the square's engraving from the last "You read: ..." message); a plain step into a **peaceful** (you can't
+(melee, or a throw/fire/zap/kick whose direction has a monster in line — down, up and empty lines are fine:
+it erases the engraving and costs −5 alignment — step off first; the harness knows the square's engraving
+from the last "You read: ..." message, and forgets it after a downward zap); a plain step into a **peaceful** (you can't
 swap places with peacefuls; wait a turn or go around); a plain step into **water/lava `}`**
 (NetHack only stops running/travel, not a single step; lava is death without fire resistance) unless
 levitating/flying; **eating while Satiated** and `y` to "Continue eating?" (choking is death 19 times in 20;

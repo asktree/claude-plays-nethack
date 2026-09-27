@@ -321,7 +321,8 @@ class Game:
 
     _ENGR_READ = re.compile(r'You (?:read|feel the words): "(.*)"\.?$')
     _ENGR_GONE = re.compile(r"engraving beneath you fades|You wipe out the message|engraving now reads|"
-                            r"^You disturb the engraving|is riddled by bullet holes|gets? smudged")
+                            r"^You disturb the engraving|is riddled by bullet holes|gets? smudged|"
+                            r"engraving on the .* vanishes")
 
     def _remember_here(self, snap: Snap, messages: list[str], prev_hero=None) -> None:
         """Remember what the look messages said lies on the hero's square
@@ -350,11 +351,12 @@ class Game:
             # arriving on a square shows its engraving; none shown = none left (smudged away)
             engr.pop(snap.hero, None)
 
-    def on_elbereth(self, snap: Snap) -> bool:
-        """The hero stands on an engraving last read as exactly 'Elbereth'."""
-        if snap.hero is None or not snap.status.ok:
+    def on_elbereth(self, snap: Snap, cell=None) -> bool:
+        """The hero (or `cell`) stands on an engraving last read as exactly 'Elbereth'."""
+        cell = cell or snap.hero
+        if cell is None or not snap.status.ok:
             return False
-        txt = self.engr_seen.get(self.level_key(snap.status), {}).get(snap.hero, "")
+        txt = self.engr_seen.get(self.level_key(snap.status), {}).get(cell, "")
         return txt.strip().lower() == "elbereth"
 
     def record_kill(self, name: str, cell, turn: int | None) -> None:
@@ -586,7 +588,8 @@ class Game:
                         "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
                         "it. force=True if it is attacking you.")
             if snap.hero is not None and self.on_elbereth(snap):
-                attack = unit[:1] == b"F" or unit in (b"t", b"f", b"z", b"\x04") or unit.startswith(b"#force")
+                # throws/zaps/kicks are checked at their direction prompt (only hitting a monster counts)
+                attack = unit[:1] == b"F" or unit.startswith(b"#force")
                 if key in self._MOVE and unit[:1] != b"m":
                     dx, dy = self._MOVE[key]
                     tgt = (snap.hero[0] + dx, snap.hero[1] + dy)
@@ -672,6 +675,25 @@ class Game:
             name, reasons = self._tin_verdict((snap.state.prompt or "") + "  " + "  ".join(snap.messages or []))
             raise PermissionError(f"refusing to eat the tin of {name}: " + "; ".join(reasons)
                                   + " — answer n (the tin is discarded). force=True overrides.")
+        elif k == "direction" and len(unit) == 1 and unit[0] in self._MOVE and self.hero_pos is not None \
+                and self.on_elbereth(snap, self.hero_pos):
+            # setmangry(via_attack): throwing, firing, zapping or kicking AT a monster from an
+            # Elbereth square makes you a hypocrite; down/up/self or an empty line doesn't
+            dx, dy = self._MOVE[unit[0]]
+            hx, hy = self.hero_pos
+            mons = {(m["x"], m["y"]): m for m in snap.monsters or []
+                    if not m.get("tame") and not m.get("pet") and not m.get("statue")}
+            for i in range(1, 14):
+                c = (hx + dx * i, hy + dy * i)
+                if c in mons:
+                    raise PermissionError(
+                        f"refusing to throw/zap/kick at the {mons[c].get('desc') or 'monster'} at {c} from your "
+                        "Elbereth square: it erases the engraving and costs -5 alignment ('You feel like a "
+                        "hypocrite') unless the target ignores Elbereth (@ humans/elves, minotaurs, "
+                        "shopkeepers). Step off first, or force=True.")
+                ch = snap.screen.at(*c)
+                if ch == " " or (ch in "|-" and snap.screen.color_at(*c) != 3):
+                    break
         elif k in ("yn", "getlin") and unit[:1] in (b"y", b"Y") and "Continue eating?" in (snap.state.prompt or ""):
             raise PermissionError(
                 "refusing to continue eating: you started while Satiated and are nearly full — going on chokes you "
@@ -876,9 +898,20 @@ class Game:
                 if snap.status.ok:
                     self.visited.setdefault(self.level_key(snap.status), set()).add(snap.hero)
                     moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
+                    old_key = self.level_key(cur.status) if cur.status.ok else None
+                    if moved:
+                        # the ^O name belongs to the level we left; until the tracker names the new
+                        # one, file things under its provisional ldesc (main-dungeon and Mines/Sokoban
+                        # levels share "Dlvl:N", so a stale name would mix their memories)
+                        self.level_name = None
+                        self.level_name_ldesc = None
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
+                    if (cur.state.kind == "direction" or b"z" in data[:2]) and data[-1:] == b">":
+                        # zapped/applied downward: a wand of teleportation/cancellation/make invisible
+                        # moves or erases the engraving here without a word (zap.c)
+                        self.engr_seen.get(self.level_key(snap.status), {}).pop(snap.hero, None)
                     if any(re.search(r"wield|empty.handed|slips from your|welded|disarm|wrested", m)
                            for m in messages):
                         self.wielded = None     # re-check the weapon next time it matters
@@ -887,9 +920,9 @@ class Game:
                         # took the stairs: you stand on the other end (the '@' hides it)
                         self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive
                         snap.under = arrive
-                    if arrive and cur.hero is not None:
+                    if arrive and cur.hero is not None and old_key:
                         # where each staircase leads: the one you took, and the one you arrived on
-                        old_key, new_key = self.level_key(cur.status), self.level_key(snap.status)
+                        new_key = self.level_key(snap.status)
                         self.stair_links.setdefault(old_key, {})[cur.hero] = new_key
                         self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
             if snap.hero is not None:
