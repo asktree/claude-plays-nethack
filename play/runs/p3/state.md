@@ -68,7 +68,7 @@
 - Yellow lights: blindfold ON before hitting one (Blind = immune to the flash).
 
 ## Objective and plan
-- NEXT (shift 7): Hungry is due ~T:6300: eat a food ration (H/D) on a quiet square. Then go_up() to SOKOBAN 3 (door of Soko2's stair room is open now), sokoban.progress(), sokoban.solve(). Then Sokoban 4 (the prize level has a ZOO: full HP, fight at the entrance chokepoint with fight_until_clear(); prize = bag of holding or amulet of reflection).
+- SHIFT 7 PLAN (T:6226): (1) eat a food ration H now on the Elbereth square (Hungry due ~T:6300; rot risk 1/7 is safest taken here, cram E kept as the never-rotting emergency food). (2) go_up() to SOKOBAN 3, sokoban.progress(), sokoban.solve(). (3) Sokoban 4 = prize level with a sleeping ZOO: arrive at full HP, stealth keeps sleepers asleep; fight at the entrance chokepoint with fight_until_clear(), kill casters first. Prize = bag of holding or amulet of reflection (don't put on an unknown amulet: the prize one is reflection only if it is the "amulet of reflection" object — check with farlook/here()). (4) When convenient: zap-test R (spiked), identify N ring / Q scroll (price-ID or altar).
 - Unknowns to identify: N engagement ring, Q scroll NR 9, R spiked wand (zap-test), K earth (by placement). No identify scrolls left: price-ID in a shop or altar-test (D10 temple altar (38,5) for BUC).
 - Shops: TAKE OFF the cloak of invisibility (T j, W O) before entering, or the shopkeeper blocks the door.
 - Later: D10 temple (Odin, neutral priestess) sells PROTECTION for 400*XL (3200 at XL8, 3600 at XL9); I have $42. Gold sources: D8 vault (~$1650 of mine + vault gold) needs a pick-axe/wand of digging; sell the amethyst (T) in Minetown.
