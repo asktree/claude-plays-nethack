@@ -826,6 +826,9 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
     if any("KABOOM" in m for m in msgs):
         print("!! unlock(): the door was booby-trapped — the explosion WOKE everything within ~15 squares "
               "(a zoo/throne room next door is now awake)")
+    elif x is not None and any(re.search(r"You succeed in (?:unlocking|picking)", m) for m in msgs):
+        print("unlock(): note — a booby-trapped door can still explode when you OPEN it (stunned, woken "
+              "neighbours): open it at full HP")
     return msgs
 
 

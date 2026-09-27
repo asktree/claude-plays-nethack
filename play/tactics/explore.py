@@ -287,6 +287,8 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             for _try in range(6):
                 if door is None or door in known:
                     break
+                if _try == 0:
+                    print(f"explore(): opening the door at {door}")   # (a booby-trapped one goes KABOOM)
                 s = ctx.do(_dir_key(s.hero, door), ok=BENIGN)
                 text = " ".join(s.messages)
                 if "This door is locked" in text:

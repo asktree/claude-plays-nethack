@@ -415,4 +415,16 @@ def _solve(max_steps):
             return progress()
         n += 1
     ctx.activity("")
-    return progress()
+    p = progress()
+    if p.get("done") == p.get("total"):
+        try:
+            from .nav import known_cells
+            s = ctx.last()
+            ups = known_cells("<", s)
+            hs = s.hostiles()
+            print(f"sokoban: level solved — up stairs {ups[:2] or 'not in view yet'}; hostiles in view: "
+                  + (", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in hs[:5]) or "none")
+                  + " (the stair room's door may be locked: unlock() / kick; the top level's prize room is a zoo)")
+        except Exception:  # noqa: BLE001
+            pass
+    return p
