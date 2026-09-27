@@ -729,6 +729,42 @@ def _objects_in_line(direction: str, maxlen: int = 13, s=None) -> list:
     return out
 
 
+def _monsters_in_line(direction: str, maxlen: int = 13, s=None) -> list:
+    """Monsters in view on the straight line from you (up to a wall or rock), nearest first."""
+    from .mapview import KEY_DIR
+    s = s or ctx.last()
+    d = KEY_DIR.get(direction)
+    if d is None or s.hero is None:
+        return []
+    mons = {(m["x"], m["y"]): m for m in s.monsters or [] if not m.get("statue") and m.get("ch") != "I"}
+    out, (x, y) = [], s.hero
+    for _ in range(maxlen):
+        x, y = x + d[0], y + d[1]
+        if s.screen.at(x, y) in " |-" and s.screen.color_at(x, y) != 3:
+            break
+        if (x, y) in mons:
+            out.append(mons[(x, y)])
+    return out
+
+
+def _vanished(before: list, s) -> list:
+    """Monsters from `before` whose square no longer shows them and no kill message names them: a wand of
+    teleportation / make invisible / polymorph leaves no message (p3 shift 12: a minotaur zapped away)."""
+    from nh.monitor import killed_names
+    shown = {(m["x"], m["y"]): m for m in s.monsters or []}
+    killed = set(killed_names(s.messages, include_it=True))
+    out = []
+    for m in before:
+        now = shown.get((m["x"], m["y"]))
+        if now is not None and now.get("ch") == m.get("ch"):
+            continue
+        name = (m.get("desc") or "").split(" [")[0]
+        if name and any(k and k in name for k in killed):
+            continue
+        out.append(m)
+    return out
+
+
 def _refuse_friendly_fire(what: str, direction: str, ray: bool, force: bool) -> bool:
     if force:
         return False
@@ -836,6 +872,7 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             print(f"zap: objects on the line {objs[:4]} — a beam goes on past a monster: striking/force bolt "
                   "BREAKS potions and glass there, fire burns scrolls/potions, teleportation sends them away, "
                   "polymorph changes them, undead turning revives corpses")
+    s0 = ctx.last()
     s = ctx.do("z", quiet=True, force=force)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -855,7 +892,13 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             ctx.do("<Esc>", quiet=True)
             ctx.pause("zap: the wand wants a direction but none was given")
             return ctx.last()
-        return ctx.do(direction, ok=ZAP_OK, force=force)
+        before = _monsters_in_line(direction, s=s0)        # (the snap before 'z': the hero was on the map)
+        s = ctx.do(direction, ok=ZAP_OK, force=force)
+        gone = _vanished(before, s) if s.state.kind == "command" else []
+        if gone:
+            print("zap: " + ", ".join(f"the {m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in gone[:3])
+                  + " is gone from that square — no message (teleported, turned invisible, or changed shape?)")
+        return s
     if direction and not any(m.startswith("Nothing happens") for m in s.messages):
         # zap.c zapnodir(): no direction asked = a NODIR wand (light, secret door detection, create monster,
         # enlightenment, wishing); an unknown one says which by what happened

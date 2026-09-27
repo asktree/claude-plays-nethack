@@ -2951,3 +2951,16 @@ def test_hunt_desmap_step_over_dark_unseen_floor(monkeypatch):
     assert combat._desmap_step(s, (20, 5)) is None                  # an undiscovered secret door: search first
     g.desmap_ids["L"]["ambiguous"] = True
     assert combat._desmap_step(s, (20, 5)) is None
+
+
+def test_zap_reports_a_monster_gone_without_a_message():
+    # p3 shift 12 #120: zap('W', 'n') teleported an adjacent minotaur away — the game says nothing
+    from tactics.combat import _monsters_in_line, _vanished
+    mino = {"x": 11, "y": 6, "ch": "H", "desc": "minotaur", "dist": 1}
+    newt = {"x": 14, "y": 5, "ch": ":", "desc": "newt", "dist": 4}
+    s = _snap({5: "        ..@......", 6: "        ...H....."}, (10, 5), [mino, newt])
+    assert _monsters_in_line("n", s=s) == [mino] and _monsters_in_line("l", s=s) == [newt]
+    after = _snap({5: "        ..@......", 6: "        ........."}, (10, 5), [newt])
+    assert _vanished([mino], after) == [mino]
+    after.messages = ["You kill the minotaur!"]
+    assert _vanished([mino], after) == []
