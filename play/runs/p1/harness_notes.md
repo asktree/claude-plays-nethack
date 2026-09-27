@@ -653,3 +653,18 @@ No "harness code on disk is newer" line appeared this shift (daemon and code in 
 1. trek()/travel() blame known traps when a remembered `I` on the trap square is the real blocker (#86).
 2. explore(max_legs=small) never reports 'blocked' in a closed pocket — wasted turns/calls (#2002).
 3. A trap door fallen through is not recorded on the level left (DL41); object detection's getpos browse is left open (#2095).
+
+## Shift 32 (T:26595 -> 26890; DL44 fakewiz1 -> portal -> DL39 wizard3 -> DL38 wizard2; step numbers from #1)
+No "harness code on disk is newer" line appeared this shift (daemon and code in sync).
+1. **#481: zap('Z', ...) on a wand already known EMPTY calls ctx.pause() ("zap: wand Z said 'Nothing happens' last time — it is EMPTY")** instead of returning/raising. Inside my own fallback loop (try Z, then G) that pause cost a call and dropped the loop. Expected: a return value or a specific exception (e.g. WandEmpty) a script can catch to switch wands; keep the pause only for interactive use.
+2. **Succubus danger note is wrong for this hero** (#50-#54, fakewiz1): "SEDUCES: takes off your armor/cloak/rings" — but mhitu.c could_seduce() returns 0 when attacker and defender have the same gender (a succubus vs a female Valkyrie): its AD_SSEX bite then does nothing special. The note (and fight()'s caution) could be gender-aware: succubus vs female / incubus vs male = harmless claws only.
+3. **Rest loops paused by out-of-view spellcaster messages** (#418, #419: "The invisible nalfeshnee casts a spell!", "You feel that monsters are aware of your presence." from a caster sealed behind a locked door). Each was a separate call; I ended up using `-a '.*'` for rests. Suggest: undirected monster-spell messages (casts a spell / aggravation / "You hear...") treated as routine inside search()/rest() when no hostile can reach you, or a documented message class to silence.
+4. **#475: a successful wand of teleportation zap returns no information** (`zap Z j -> []`): the monsters in the beam just vanish, so the script can't tell who was removed. A post-zap diff of the line ("teleported away: mastodon, raven") would help plan the next zap.
+5. **#646: `features` dropped the known "closed door (39,8)" while a poison gas cloud ('#') covered that square**, and `obs.screen.at()` returned '#'. My own loop misread the door as open. Remembered doors could stay in features under a gas cloud (like doors under objects).
+6. #403 (not a bug, a wish): push_boulder('j') into a SLEEPING ZOO moved me onto an unseen magic trap under the boulder's old square (the boulder hid it). A caution line when pushing/stepping into never-seen squares of a known special room ("search first: a trap there wakes the room") would have saved ~75 HP.
+7. Worked well: desmap.identify(names='wizard3'/'wizard2') from ~40 seen squares + desmap.walk() with a small search loop at each undiscovered secret door (both towers crossed with ~6 calls each); dig('l') through the chamber walls (re-wields Excalibur and pauses when monsters appear); fight_until_clear() from the ice square; step_onto(38,12, force=True) into the portal; unlock()/manual lock; telepathy_scan() before each moat approach (it showed the kraken moving to my side); the HP/fight rules inside hp_rules(); `with monster_filter(lambda m: False)` made the zoo loops usable.
+
+### Shift 32 — ranked summary
+1. zap() pauses (instead of returning/raising) on a known-empty wand, breaking script fallbacks (#481).
+2. Rest/search loops pause on out-of-view monster spell messages (#418/#419) — expensive in a sealed-off wait.
+3. Succubus note ignores the hero's gender (#50); teleport zap gives no "who vanished" summary (#475); door missing from features under a gas cloud (#646).

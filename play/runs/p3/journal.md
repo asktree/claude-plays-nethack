@@ -204,3 +204,10 @@ T:12377 SOKO4 — engrave-test: p GLASS = WAND OF LIGHTNING (auto-ID; burned an 
 T:12401 SOKO4 — on the way to `>`: an OGRE KING (battle-axe) at (33,7) ZAPPED A CURVED WAND = SLEEP up my column (missed twice). Sleep ray = 6d25 turns asleep = death next to it. Zapped W (teleportation) at it: teleported away (W had a 5th charge). Killed a sasquatch (33,6). Took w = WAND OF LIGHT at (28,5). The ogre king + sleep wand stay on Soko4.
 T:12457 — descend(4): Soko4 -> D10 (4,8) without trouble.
 T:12482 D10 — Odin altar (38,5): O elven mithril-coat and X elven leather helm UNCURSED. Swapped: splint mail + rusty orcish helm left on the altar. AC -6, ~277 wt lighter.
+T:12518-12555 — up D10 -> D9 -> D8.
+T:12600-12609 D8 — dug into the VAULT (2-3,17-18) with wand n: zap south from the NW room (3,9) reached (3,13); 2nd zap from the tunnel end opened the vault. Took $3045 in 4 turns, no guard. n has now used 6 charges (maybe EMPTY).
+T:12624-12776 — up D8 -> D4, down the Mines to MINETOWN (D7). A yellow light exploded on D5 (blind, unicorn horn).
+T:12796 MINETOWN — bought PROTECTION from the Odin priestess: 5200, AC -6 -> -7 ($1835 left).
+T:12798-12877 MINETOWN — wore the MUMMY WRAPPING to be visible for shops ("You can no longer see through yourself!"). Stewe's hardware store: NO PICK-AXE (lock picks, oil lamps, tin whistle, looking glass, glass orb 80zm). Wonotobo's general store: only gems/potions. Izchak's: bought 6 CANDLES (2 tallow, 4 wax; 143zm) -> in the bag. Cloak of invisibility back on.
+T:12896 MINETOWN — Hungry: ate a food ration: "Blecch! Rotten food!" -> confused (unicorn horn fixed it).
+T:12909-13079 MINETOWN — explored for the `>`: not found. Unlocked the east door (71,19) (no watchman in view); the SE door (75,19) is locked. desmap.identify() = minetn-5: `>` at (48,4) behind the locked door (52,7); a watchman stayed in view, so it is still locked. END OF SHIFT 13 at (52,8) (T:13090): HP 142/142, XL13, AC-7, $1692 in the bag.

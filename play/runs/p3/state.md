@@ -2,13 +2,13 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:12493 / D10 Odin temple altar (38,5) / XL13 (Exp 45667; XL14 at 80000) / 142/142 / 22/22 / AC-6
+- Turn / Dlvl / XL / HP / Pw / AC: T:13090 / MINETOWN (Mines 3 = Dlvl 7) at (52,8), just south of the locked door (52,7) on the way to `>` (48,4) / XL13 (Exp 45686; XL14 at 80000) / 142/142 / 22/22 / AC-7 (protection bought T:12796)
 - Attributes: St18 Dx14 Co19 In9 Wi12 Ch10
 - Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7) + VERY FAST from speed boots, TELEPATHY (floating eye corpse, T:11594: blindfold h ON = see all minded monsters; telepathy_scan(); MINDLESS monsters (zombies, mummies, golems, vortices, spheres) never show), PERMANENT INVISIBILITY + SEE INVISIBLE (stalker corpse eaten while invisible, T:12233: 'You feel hidden!'). NOT poison resistant. Excalibur: +2 to searching.
 - INVISIBLE FOR GOOD: shopkeepers refuse invisible customers -> wear the MUMMY WRAPPING (in bag r) instead of cloak j to enter a shop (it blocks invisibility while worn).
 - Luck: back to ~0 (the T:8033/T:8074 sacrifice Luck timed out by ~T:11700). Prayer timeout surely 0 (never prayed). Alignment fine.
 - Skills: long sword EXPERT (T:5735), dagger Basic
-- Hunger: ate an ice troll (T:12179, 300) and a stalker (T:12233, 400) corpse on top of the T:11650 ration -> next Hungry ~T:13000. Two worn rings add hunger (~1.1/turn total).
+- Hunger: ate a (rotten) food ration T:12898 -> next Hungry ~T:13600. Two worn rings add hunger (~1.1/turn total). Food: D 1 food ration (carried), E cram + F candy bar in the bag. Food is getting LOW: buy/eat corpses.
 
 ## Prayer log
 | turn | reason | result |
@@ -26,10 +26,10 @@
 - k: uncursed ring of TELEPORT CONTROL, WORN right hand (T:10712) (useless on no-teleport levels: Sokoban, Medusa, Castle — swap for Z there when needed)
 
 ## Key inventory (letters)
-- r BAG OF HOLDING (Soko4 prize, uncursed: bags of holding are generated uncursed). INSIDE: $3990, L mummy wrapping, food (D 2 food rations, E cram, F candy bar), scrolls (s 2 EARTH, Q 2x NR 9, K VE FORBRYDERNE, g VELOX NEB, d blank), potions (l emerald unknown, x CURSED confusion, H speed), rings (N fire res, Z LEVITATION, B regeneration), gems (S black, y 5 orange, z 4 violet, q white, e yellow, w + A yellowish brown, T amethyst). NEVER put an unidentified wand in it (cancellation = explosion). bag_take('r', 'pattern').
+- r BAG OF HOLDING (Soko4 prize, uncursed: bags of holding are generated uncursed). INSIDE: $1692, L MUMMY WRAPPING, 6 CANDLES (2 tallow + 4 wax, for the Candelabrum: 1 more needed), food (E cram, F candy bar), scrolls (s 2 EARTH, Q 2x NR 9, K VE FORBRYDERNE, g VELOX NEB, d blank), potions (l emerald unknown, x CURSED confusion, H speed), rings (N fire res, Z LEVITATION, B regeneration), gems (S black, y 5 orange, z 4 violet, q white, e yellow, w + A yellowish brown, T amethyst). NEVER put an unidentified wand in it (cancellation = explosion). bag_take('r', 'pattern').
 - Carried outside the bag: u 3 LIZARD CORPSES (stoning cure), o REMOVE CURSE, G 3 TELEPORTATION, I EXTRA HEALING, h blindfold (telepathy), f UNICORN HORN, v skeleton key, daggers t 2 elven + U elven (quiver) + b +0 dagger.
-- Wands (outside the bag): W copper = TELEPORTATION (5 charges used of 4-8: 0-3 left, maybe EMPTY; the 5th teleported the Soko4 ogre king T:12401); n DIGGING (0-4, maybe empty); C MAGIC MISSILE (from the ice troll; charges unknown, >=4 used); V probing (0:4); R secret door detection (unmasks mimics); i tin (= slow monster per my notes, not formally IDed); p WAND OF LIGHTNING (glass; engrave-IDed T:12377, 1 charge used); w wand of light (junk).
-- Gold: $3990 IN THE BAG (protection costs 400*XL = 5200 at XL13; D8 VAULT still holds gold).
+- Wands (outside the bag): W copper = TELEPORTATION (5 charges used of 4-8: 0-3 left, maybe EMPTY; the 5th teleported the Soko4 ogre king T:12401); n DIGGING (6 charges used of 4-8: 0-2 left, probably nearly EMPTY); C MAGIC MISSILE (from the ice troll; charges unknown, >=4 used); V probing (0:4); R secret door detection (unmasks mimics); i tin (= slow monster per my notes, not formally IDed); p WAND OF LIGHTNING (glass; engrave-IDed T:12377, 1 charge used); w wand of light (junk).
+- Gold: $1692 IN THE BAG. Protection bought T:12796 (5200); the next costs 400*XL again. D8 vault EMPTIED (T:12609).
 
 ## Identified appearances
 - scrolls: VENZAR BORGAVVE = SCARE MONSTER (Soko4 prize closet); ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
@@ -49,7 +49,7 @@
 | 5 | Dungeons | up (13,8), down (76,6); fountain (74,5); unlooted large box (6,8) |
 | 6 | Dungeons | up (8,6), down (9,16); "heard: shop" somewhere unexplored |
 | 7 | Dungeons | up (4,14), DOWN (72,4) (was under gold); spiked pit (22,4); boulder (40,3) |
-| 8 | Dungeons | up (17,6), down (70,10). **VAULT (2-3,17-18): ~$1650 of MINE + the vault's gold (~4x450)**: dig in with a pick-axe/wand of digging, grab it, leave in <30 turns. WEREWOLF (@) seen near (56,13). |
+| 8 | Dungeons | up (17,6), down (70,10). VAULT (2-3,17-18) EMPTIED T:12609 ($3045) through my tunnel from the NW room (3,9). |
 | 9 | Dungeons = ORACLE | up (61,8), down (19,3). Fountains (38-40,11-13). Monkey with my remove curse fled west. |
 | 17 | Dungeons | up (5,8), DOWN (69,3). SPOTTED JELLY (46,7) (sessile; travel passes next to it). Explored: 5 rooms, dead door (63,5), stuck boulder corridor (27,15). Empty large box (5,10). |
 | 24 | Dungeons (MAZE) | up (28,8), DOWN (21,12). T:11737 a CROWD at the up stairs: 2 MINOTAURS ((29,10) and (39,4)), PURPLE WORM (33,12), 2 fire ants, soldier ant, ogre lord, warhorse, owlbear, dog, 2 chickatrices, GIANT MIMIC (50,18). They don't move while I'm away. Wand (31,18), gold (24,8), armor (21,20). Castle is D25 or D26. |
@@ -72,7 +72,7 @@
 | 6 | SOKOBAN 4 (soko1-1 = Level 4a) | **SOLVED + ZOO CLEARED + PRIZE TAKEN (bag of holding) T:12368.** Down stairs (27,5). Zoo (44-48,14-20): all hostiles dead; PEACEFUL dwarf king + couatl remain (never attack). Left on the floor: ring of invisibility + potion of see invisible (42,19), elven cloak/darts/cookies/glass (47,20), elven boots + shields + weapons in the zoo, 4 cursed -1 daggers + 3 leather armors (33,8), potion of object detection (31,13) and (48,20). Spare boulders O (29,16), Q (35,16). **An OGRE KING with a WAND OF SLEEP roams Soko4 (teleported away T:12401): never go back up there without reflection/sleep resistance.** |
 | 5 | Mines 1 | up (28,3), down (60,13) |
 | 6 | Mines 2 | up (8,6), down (54,7) |
-| 7 | Mines 3 = MINETOWN | up (3,2); Temple of ODIN altar (33,4); Wonotobo's general store door (68,9); deli door (9,12); Stewe's tools door (58,15); Izchak's lighting door (26,19) (potions of oil? base 250 = too dear); fountains (52,10), (12,16) |
+| 7 | Mines 3 = MINETOWN (desmap: minetn-5 at offset (2,1)) | up (3,2); **DOWN STAIRS (48,4)** (from desmap.show(); not seen yet): desmap.walk's 17-step way goes through the LOCKED door (52,7) (north of (52,8)); other locked doors near it (42,6). Unlock ONLY while no watchman is in view (warning, then arrest), then travel(48,4). Secret door (71,15). Temple of ODIN altar (33,4) (protection bought T:12796). Wonotobo's general store door (68,9) (gems/potions only); deli door (9,12); Stewe's hardware door (58,15) (NO pick-axe: lock picks, oil lamps, crystal ball); Izchak's lighting door (26,19) (6 candles bought, only lamps left); fountains (52,10), (12,16), (68,19). East door (71,19) unlocked by me. |
 
 ## Pets
 - none
@@ -84,10 +84,12 @@
 - D14 morgue vampire (asleep), D17 spotted jelly, D18 anthole around its `>`, D20 giant beehive, D8 werewolf, D3 molds by the stairs.
 
 ## Objective and plan
-- DONE T:12368: Sokoban finished (bag of holding). NOW: (1) engrave-test p (glass wand). (2) Down Sokoban to D10: Odin temple altar (38,5) BUC-test O (elven mithril-coat) + X (elven leather helm); if not cursed, swap: splint mail M (400) -> O, rusty orcish helm m -> X; leave M and m. (3) Then Minetown for a PICK-AXE (Perseus' statue; D8 vault) — wear the MUMMY WRAPPING (bag) instead of cloak j to enter shops (I am permanently invisible).
-- Then: Minetown (D4 -> Mines 3 = D7): buy a PICK-AXE at Stewe's tools shop if stocked (Perseus' statue needs it); protection costs 5200 at XL13 ($3990 in the bag). Consider the D8 vault gold.
+- DONE shift 13: Sokoban finished (BAG OF HOLDING), armor -> elven mithril + elven leather helm, D8 vault emptied, protection AC -7, 6 candles.
+- NEXT SHIFT (in Minetown now): (1) Minetown's `>` is at (48,4): wait until no watchman is in view, unlock(52, 7), open it, travel(48, 4). (2) MINES' END (Mines levels below: ~D12-13) for the LUCKSTONE (gray stone: kick-test first; most Mines inhabitants are peaceful to me: never hit them; travel/explore side-step peacefuls). (3) Poison resistance is still missing: eat safe poison-res corpses when fresh (scorpion, killer bee, soldier ant; 'Ecch' costs 1-4 St); Medusa's hair/bite are poisonous (1/240 death per poisoned hit) — get poison res or kill her fast blindfolded.
+- PICK-AXE still wanted (Perseus' statue = 75% SHIELD OF REFLECTION; digging): none in Minetown's shops. Dwarves are peaceful to me. Other ways to break the statue: wand of striking / force bolt. Watch shops and loot for a pick-axe, mattock or striking.
+- MR is still missing (PLAYBOOK: no Castle/Gehennom without it). Reflection too (Sokoban prize was the bag).
 - Then back down: stairs to D21, then D22 Medusa's east island via D21's `>`; or a level teleport (quaff x = cursed confusion, read G with ring k; 80% random level at Luck 0 — raise Luck first). Perseus: see the Medusa plan.
-- XP: XL14 at 80000 (43365 now) for the quest (portal D16 (46,5); also piety 20).
+- XP: XL14 at 80000 (45686 now) for the quest (portal D16 (46,5); also piety 20).
 - MR is still missing: no Castle (D25/26) without MR or reflection (PLAYBOOK A1).
 - THE WAY BACK DOWN/UP PAST MEDUSA (worked out T:11740 from the 3.6.7 source):
   * Medusa (M3_WAITFORU, made by sp_lev with NO_MM_FLAGS) stays FROZEN in "wait for you" mode until she can SEE me (m_canseeu: impossible while I am INVISIBLE — she has no see-invisible) or is DAMAGED. While waiting, dochug returns before her gaze code (monmove.c 388-430): no gaze, no moves. So: cloak of invisibility ON = she never activates. Never zap or hit her unless Blind (a zap calls m_respond = her gaze; damage ends her wait).
@@ -95,7 +97,7 @@
   * Route A (stairs): at D23 `<` (8,8): blindfold ON, climb. I arrive on her `>` in one palace room ($place[0] of (4,8),(10,4),(10,8),(10,12) map coords; desmap gives screen coords); she is shoved next to me, frozen. Leave her alone. The palace doors are LOCKED (key v, works blind); the hall's exits are SECRET doors (19,3) NE and (13,14) S (map coords) -> land strip row 15 -> water east. Swap ring k -> Z (levitation; D22 is no-teleport anyway) and float east to the up stairs (east island, map x 67-74). Kraken sits in the palace's inner moat at map (7,7) (next to the west room); 2 giant eels + 2 jellyfish roam: telepathy shows them, stay 2+ squares away (a wrap drowns you even while levitating). Yellow dragon + babies ASLEEP at map (4-5,4-5) NW outside the palace (stealth keeps them asleep).
   * Route B (no Medusa at all): a CONFUSED (or cursed) read of a teleport scroll with ring k on = choose any level. A level teleport INTO D22 without the Amulet lands in the EAST region (TELEPORT_REGION down = map (64,1)-(74,17)), next to its up stairs. USED T:11738 from D23 (smoky potion = confusion, scroll p): arrived D10 — but 4 in 5 such reads go to a random level at Luck 0. All teleport scrolls now tested UNCURSED; x (cursed confusion potion) is the next confusion source.
   * Perseus' statue (medusa-4): in one of the 3 other palace rooms: 75% cursed +0 SHIELD OF REFLECTION, 25% levitation boots, 50% +2 scimitar, 50% sack. Breaking it needs a PICK-AXE/mattock applied at it (dig.c DIGTYP_STATUE), a wand of striking or force bolt. Crystal ball lies in the moat at map (7,8) (under water).
-- Carried escapes: G 3 uncursed scrolls of TELEPORTATION (not on no-teleport levels: Sokoban, Medusa, Castle), W wand of teleportation (0-4 charges, maybe EMPTY), wand of digging n (0-4, maybe empty), ring Z levitation, I extra healing, H potion of speed, unicorn horn f, prayer (timeout 0, never prayed; Luck ~0), 3 lizard corpses (u), stairs.
+- Carried escapes: G 3 uncursed scrolls of TELEPORTATION (not on no-teleport levels: Sokoban, Medusa, Castle), W wand of teleportation (0-3 charges, maybe EMPTY), wand of digging n (0-2, probably empty), p WAND OF LIGHTNING (attack), C magic missile, ring Z levitation (IN THE BAG), I extra healing, H potion of speed (in the bag), unicorn horn f, prayer (timeout 0, never prayed; Luck ~0), 3 lizard corpses (u), stairs.
 - Unknowns: scrolls K (VE FORBRYDERNE), Q 2x NR 9, g VELOX NEB (all uncursed); potion l emerald; gems S, e, q, w, y, z, A (T = amethyst).
 - Shops: TAKE OFF the cloak of invisibility (T j, W O) before entering.
 - Later: D24 wand (31,18) (crowd at its stairs), D21 graveyard boxes (67,4)/(69,6); D8 vault gold (dig in), D19 unfound vault, Mines' End luckstone, protection 400*XL at any temple.
