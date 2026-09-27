@@ -189,3 +189,11 @@ T:11859 SOKO4 (Level 6) — zapped W (teleportation, 4th charge used: W may be E
 T:11860 SOKO4 — telepathy_scan: ZOO (44-48,14-20) ~23 asleep: 2 Grey-elves, Elvenking, 2 carnivorous apes, 2 panthers, water nymph, xan, wererat, doppelganger, rust monster, rock mole, 2 bats, kitten, monkey, hobgoblin, centipede, SCORPION (corpse: poison res), PEACEFUL dwarf king (47,14) + PEACEFUL couatl (47,16). Zruty + bugbear awake on the east corridor (49-50,5-13).
 T:12151-12157 SOKO4 — an ICE TROLL zaps a BRASS wand = MAGIC MISSILE (3 hits, -5..-11). Boulder A (last one needed) is at (31,12) with pushes 'urrruuuluuurrrrrrrrrrrrrrr' left; the troll stands on its route near (34,10). Dropped 4 cursed -1 daggers (32,12) (pack over 600 blocked a diagonal gap).
 T:12158 SOKO4 — END OF SHIFT 12 at (31,14): HP 132/142, XL13 (Exp 43365), AC-7, $772, not hungry. One hole left: (48,5).
+
+## Shift 13
+T:12158 SOKO4 — board check: TWO holes were left ((47,5), (48,5)), not one: the teleported boulder L had plugged (49,5), the plan's LAST hole. So A and E (the plan's last two boulders) were both needed; O (29,16) and Q (35,16) are the spares.
+T:12161-12167 SOKO4 — the ice troll zapped magic missile diagonally from the gap (34,10) (-6). Pushed A once (opens room 3), hunt() killed the troll at (33,8) in 5 turns (no damage). Ate the whole corpse at once (no revival). Took C = its WAND OF MAGIC MISSILE; autopickup took s = 2 scrolls of EARTH (KIRJE) from its pile. 4 cursed -1 daggers + 3 leather armors left at (33,8).
+T:12199 SOKO4 — push_wiki(A): A plugged (47,5).
+T:12207-12233 SOKO4 — "It hits!" = an INVISIBLE STALKER. telepathy (blindfold) showed it; hunt() killed it in 3 turns. Ate the corpse WHILE INVISIBLE: "You feel hidden!" = PERMANENT INTRINSIC INVISIBILITY + SEE INVISIBLE. Stun cured by the unicorn horn (2 applies).
+T:12265 SOKO4 — push_wiki(E, full wiki string): E plugged (48,5). ALL HOLES FILLED.
+T:12267-12277 SOKO4 — killed the bugbear (50,6) and the ZRUTY (fight_until_clear at (50,5): it came up the corridor; -2 HP).
