@@ -3227,6 +3227,14 @@ def test_scan_watch_list_keeps_only_dangerous_hostiles(monkeypatch):
             {"id": 3, "desc": "minotaur"}, {"id": 4, "desc": "cockatrice"},
             {"id": 5, "desc": "peaceful dwarf", "peaceful": True}, {"id": None, "desc": "master lich"}]
     assert [m["id"] for m in survival._scan_watch_list(mons, s)] == [3, 4]
+    # p2 shift 32 #606: on a Wizard's Tower level the sealed tower keeps its monsters in (and others out) —
+    # but a covetous one teleports
+    g.desmap_ids = {"L": {"level": "wizard3", "ox": 24, "oy": 6}}
+    s2 = _snap({}, (10, 5), [])                       # outside the tower (x 25-50, y 7-17)
+    s2.status = s.status
+    inside = [{"id": 6, "desc": "minotaur", "x": 34, "y": 7}, {"id": 7, "desc": "arch-lich", "x": 40, "y": 10},
+              {"id": 8, "desc": "minotaur", "x": 12, "y": 5}]
+    assert [m["id"] for m in survival._scan_watch_list(inside, s2)] == [7, 8]
 
 
 def test_travel_walks_round_a_trap_nethacks_travel_stopped_in_front_of(monkeypatch):

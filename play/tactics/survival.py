@@ -503,16 +503,35 @@ _BLINDF_OK = [r"^You are now wearing ", r"^You can't see any more\.", r"^You wer
               r"^You sense a faint wave of psychic energy\.$"]
 
 
+def _tower_interior(s):
+    """(x1, y1, x2, y2) screen box inside the Wizard's Tower walls on wizard1-3 (yendor.des: a 28x13 walled
+    map, undiggable, no door out) when desmap has placed the level; else None."""
+    if s is None or not s.status.ok:
+        return None
+    v = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) or {}
+    if v.get("level") not in ("wizard1", "wizard2", "wizard3") or v.get("ambiguous"):
+        return None
+    ox, oy = v["ox"], v["oy"]
+    return ox + 1, oy + 1, ox + 26, oy + 11
+
+
 def _scan_watch_list(mons: list, s) -> list:
     """The census's monsters to watch ('approaching' pauses once they move within 6 squares): hostiles that are
     DANGEROUS for you now (threat_level) — p2 shift 30: a watch on every monster with any note paused for hill
-    giants and Green-elves."""
-    from nh.danger import threat_level
+    giants and Green-elves. On the Wizard's Tower levels, not those on the other side of its sealed walls
+    (p2 shift 32 #606: a white dragon inside while the hero was outside) — covetous ones teleport, so they stay."""
+    from nh.danger import covetous, threat_level
     xl = s.status.xl if s.status.ok else None
     hp = s.status.hp if s.status.ok else None
     res = getattr(ctx.game, "intrinsics", ()) or ()
+    box = _tower_interior(s)
+
+    def inside(c):
+        return box is not None and box[0] <= c[0] <= box[2] and box[1] <= c[1] <= box[3]
     return [m for m in mons if m.get("id") is not None and not m.get("tame") and not m.get("peaceful")
-            and m.get("desc") and threat_level(m["desc"], xl, hp, res) == "dangerous"]
+            and m.get("desc") and threat_level(m["desc"], xl, hp, res) == "dangerous"
+            and (box is None or s.hero is None or inside((m["x"], m["y"])) == inside(s.hero)
+                 or covetous(m["desc"]))]
 
 
 def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
