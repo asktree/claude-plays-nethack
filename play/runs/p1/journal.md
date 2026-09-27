@@ -324,3 +324,23 @@ T:18966 DL24 — FIRE ELEMENTAL next to me on arrival: killed in 2 blows; its fi
 T:18969–19121 — explore(): the east of DL24 is a corridor tangle with 6 dead ends and a boulder (68,18); no rooms, no stairs yet. Searched (58,4) x10: nothing.
 T:19139 — gelatinous cube at (63,8): wand C is EMPTY ("Nothing happens"; the cube touched me, no paralysis); stepped away and killed it with 4 force bolts from Y (T:19145).
 T:19145 DL24 — **SHIFT 20 ENDS** at (63,6) in the corridor: HP 137/137, XL12 (Exp 37557), AC -11, $0 (~$8894 bagged), not hungry, no monsters in view. Shift summary: DL21 court finished (2 dragons, fire giant, cockatrice), royal chest, AMULET OF REFLECTION, WAND OF COLD, wand of sleep/death, 2nd full healing; Medusa found on DL23; dug past her to DL24. Next: find DL24's `<` -> up into Medusa's hall.
+
+## Shift 21
+T:19146–19149 DL24 — a COCKATRICE came out of the "dead end" (64,8): one Excalibur blow (fight allow_passive), no hissing.
+T:19190–19232 — dart trap (51,18) missed; a QUANTUM MECHANIC's hits teleported me 3 times ((35,14), (20,19), (74,4)) — which showed me the west. DL24 is a CORRIDOR MAZE (mklev: levels below Medusa are mazes 4/5).
+T:19232–19368 — explore() wandered 136 turns in the NE: every route west crossed the dart trap (66,6). Crossed it with step_onto().
+T:19432 — WINTER WOLF (frost breath: cold res + reflection) killed. T:19440 — a black light exploded: hallucinating; unicorn horn cured it (2nd apply).
+T:19498 — MAGIC TRAP (43,20): blind + deaf, summoned a MOUNTAIN NYMPH (killed at once), kobold shaman, imp; telepathy showed a MINOTAUR and a CAPTAIN nearby. Horn cured the blindness.
+T:19513 — QM killed; the CAPTAIN hit me for 26 (HP 111), then ZAPPED A WAND OF DIGGING and fled down a hole (34,15) to DL25.
+T:19530–19534 — the MINOTAUR reached me (HP 98/137): zapped wand h west: "The sleep ray hits the minotaur" twice (bounce) = **h is SLEEP**; killed the sleeping minotaur in 4 blows, no damage.
+T:19639 — explore() looped at (34,18): the captain's hole cut the only link north. Took the PICK-AXE (j) out of the bag, dug (35,15) and stepped around the hole.
+T:19691–19694 — black pudding split twice: 3 killed (Excalibur rustproof). T:19785 — the bag holds 2850 gold, not ~8894 (old bookkeeping error). Lamp m nearly empty: lit W; W ran out T:19931 — NO LIGHT SOURCE now.
+T:19835–19853 — pushed/broke 2 boulders (26,12), (25,10) with the pick-axe: a closed pocket. Dug west from (24,6) into the unexplored maze (T:19892).
+T:19900 — wumpus killed; its square was a LEVEL TELEPORTER (23,4): "wrenching sensation" (MR). T:19925 — 2 more black puddings. T:19932 — python killed -> **XL13** (HP 145).
+T:19941 — **DL24 `<` found at (15,20)** (far SW).
+T:19942 DL23 — up onto Medusa's `>` (38,12), standing on Perseus's statue, Medusa asleep adjacent at (37,11). Hit her twice (Fy): "Medusa's gaze is reflected by your shield. Medusa is turned to stone! You kill Medusa!" (T:19944, Exp 40105 -> 40659, no damage).
+T:19947 — broke PERSEUS'S STATUE with the pick-axe from (39,12): 24 rocks, a (cursed) shield of reflection, a sack. No levitation boots. Left them.
+T:19950–20014 — back down to DL24; dug around the magic trap at (43,19); walked to the DL24 `>` (52,11).
+T:20015 **DL25** — arrived on `<` (2,20) (bottom-left, walled maze). Rust trap (4,20). "You hear a door open / crash open", "Kaablamm! explosion in the distance" = doors + land mines = almost certainly THE CASTLE.
+T:20019–20025 — plains centaur read CREATE MONSTER as it died: a WINGED GARGOYLE (HP 145->126) and 2 rothes, all killed from the stairs square.
+T:20025 DL25 — **SHIFT 21 ENDS** standing on the DL25 `<` (2,20): HP 128/145, XL13 (Exp 40965), AC -11, $0 (2850 bagged), not hungry, no monsters in view. Shift summary: DL24 maze solved (minotaur, captain fled, cockatrice, 5 puddings), MEDUSA KILLED by reflection, Perseus's statue broken, reached DL25 (Castle?). Next: confirm the Castle, cold + striking on the drawbridge.

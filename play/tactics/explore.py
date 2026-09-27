@@ -130,8 +130,11 @@ def _pick_target(skip, bad=frozenset(), why=None):
             continue
         if bad and hero is not None:
             av = frozenset(set(bad) - {c})
+            # (the second check lets the route cross '^': a frontier behind one known trap or hole
+            # is "reachable only across an avoided square", not "unknown" — NetHack's travel would
+            # otherwise guess toward it and wander)
             if (bfs_path(s, hero, c, avoid=av, allow_monsters=True) is None
-                    and bfs_path(s, hero, c, allow_monsters=True) is not None):
+                    and bfs_path(s, hero, c, allow_monsters=True, allow_traps=True) is not None):
                 skip.add(c)
                 why["avoided"].append(c)
                 continue
@@ -235,6 +238,7 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
 
     fights = 0
     idle, last_mark = 0, None
+    known0, stale, legs0 = -1, 0, 0    # map squares shown; legs in a row that showed nothing new
     while legs < max_legs:
         s = ctx.last()
         if s.state.kind != "command":
@@ -247,6 +251,18 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         if idle >= 6:
             return result(f"stuck: no move and no game time for {idle} rounds at {s.hero} "
                           f"(last messages: {s.messages}) — look at the screen and act by hand")
+        from nh.parse import MAP_BOTTOM as _MB, MAP_TOP as _MT
+        known = sum(1 for y in range(_MT + 1, _MB + 1) for ch in s.screen.row(y) if ch != " ")
+        if legs > legs0:                       # (only travel legs count; fights and door-opening don't)
+            stale = stale + 1 if known <= known0 else 0
+            legs0 = legs
+        known0 = max(known0, known)
+        if stale >= 12:
+            avoided = sorted(bad_squares())
+            return result(f"stuck: {stale} legs in a row showed nothing new — NetHack's travel is guessing "
+                          f"its way to frontiers it can't reach (frontiers: {frontiers()[:6]}; avoided squares on "
+                          f"the way: {avoided[:8]}): cross a trap/hole on purpose (step_onto), dig around it, "
+                          "or search for a hidden passage")
         if auto_fight and fights < 30:
             from .combat import fight_trivial
             fs = fight_trivial(s)

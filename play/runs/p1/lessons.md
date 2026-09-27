@@ -123,3 +123,10 @@
 - A dark throne room/zoo shows monsters only as remembered glyphs from telepathy/blindness: light the lamp (apply) before sweeping — the "big" court was only 11x4.
 - The royal chest of a throne room hides under corpses on some room square: step on every pile (here(): "a chest"); 3 negative #untrap checks bring the trap odds to ~1%. It held $961 + the AMULET OF REFLECTION.
 - An empty wand shows no (x:N) until identified: a "Nothing happens" zap means (0 charges) — write it down at once (C striking, T:19139) and switch wands BEFORE standing next to a gelatinous cube.
+- LEVELS BELOW MEDUSA ARE MAZES 4 times in 5 (mklev.c makelevel: rn2(5) && below Medusa -> makemaz("")); 1/3 of mazes are CORRIDOR mazes (rock walls, `#` paths on the even screen columns/rows). Stairs sit on random cells; 0-2 minotaurs, 2-11 boulders. Dead ends in a perfect maze are real: don't search them — dig through one wall square with the pick-axe (3-5 turns as a dwarf) into the unexplored side. Odd-x/odd-y squares are always rock: digging one lets you step diagonally around a hole/trap in the corridor.
+- MINOTAUR (ignores Elbereth, ~22 HP/round vs AC -11): zap the wand of sleep at it (MR 0, can't resist; ~78 turns), then 4 free Excalibur blows. Reflection makes a bounced sleep ray harmless to me.
+- MEDUSA with reflection took 2 blows and zero damage: hitting her wakes her; in 3.6.7 dochug() runs her gaze (m_respond) BEFORE her melee, so the reflected gaze stones her before her stoning bite can act. Arrive not invisible, not blind.
+- Perseus's statue sits on Medusa's `>`: break it from an adjacent square by applying the pick-axe toward it ("The statue shatters.") — no wand charge needed.
+- A monster can read a scroll of create monster as its last act (plains centaur -> winged gargoyle + 2 rothes). Fight next to the stairs when arriving on a new deep level.
+- Oil lamps burn out (~1500 turns each): both of mine died on DL24. Keep a light source for dark mazes (buy/wish a brass lantern or keep potions of oil).
+- Verify bag totals from the actual listing: my notes carried "~$8894" for many shifts while the bag held 2850.

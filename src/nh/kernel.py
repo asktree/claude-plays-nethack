@@ -100,6 +100,9 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^.+ points (?:at you, then curses|all around, then curses|and curses in your general direction)\.$",
     r"^You hear a mumbled curse\.$", r"^The air crackles around .+\.$",
     r"^You feel yourself slowing down a bit\.$",     # a temporary speed-up ended; intrinsic speed remains
+    # a light source burning down (timeout.c burn_object()); "has gone out" still pauses
+    r"^Your .+ flickers(?: considerably)?\.$", r"^Your .+ seems? about to go out\.$",
+    r"^Your .+ flames? flickers? low!$",
     # a lighter load (hack.c encumber_msg) is good news; a heavier one pauses on the status change
     r"^Your movements are (?:now unencumbered|only slowed slightly by your load)\.$",
     r"^You rebalance your load\.  ?Movement is still difficult\.$",

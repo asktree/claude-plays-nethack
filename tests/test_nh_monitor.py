@@ -658,13 +658,13 @@ def test_kernel_encumbrance_and_gas_cloud_rules():
 
 def test_wolf_in_gehennom_may_be_a_vampire_and_is_not_auto_fought():
     g = FakeGame()
-    g.level_key = lambda: "Gehennom / Level 33"
+    g.level_key = lambda st=None: "Gehennom / Level 33"
     t = MonsterTracker(g)
     g.truth = {(44, 10): "wolf"}
     m = t.update(snap({(44, 10): "d"}, 50, color=3))
     assert "VAMPIRE" in m[0]["note"]
     g2 = FakeGame()
-    g2.level_key = lambda: "The Dungeons of Doom / Level 7"
+    g2.level_key = lambda st=None: "The Dungeons of Doom / Level 7"
     t2 = MonsterTracker(g2)
     g2.truth = {(44, 10): "wolf"}
     m2 = t2.update(snap({(44, 10): "d"}, 50, color=3))

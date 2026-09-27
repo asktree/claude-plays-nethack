@@ -1315,7 +1315,7 @@ class Game:
         r"A little dart shoots out at you|bear trap closes on your|your magical energy drain away|"
         r"^You (fall|step|tumble|jump|land) into an? pit|on a set of sharp iron spikes|A board beneath you|"
         r"loose board below you|crease in the linoleum|spider web!|A cloud of gas puts you to sleep|"
-        r"You are enveloped in a cloud of gas|A gush of water hits|tower of flame|momentarily lethargic|"
+        r"You are enveloped in a cloud of gas|A gush of water hits (?:you|your)\b|tower of flame|momentarily lethargic|"
         r"momentarily blinded by a flash of light|You trigger a rolling boulder trap|triggered an? land mine|"
         r"You (step onto|float over|fly over|feel) an? polymorph trap|^You (float|fly) over an? )")
 

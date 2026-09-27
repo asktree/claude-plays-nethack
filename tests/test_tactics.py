@@ -1432,3 +1432,10 @@ def test_price_id_learns_a_lowballing_shopkeeper(monkeypatch):
     low = {b for _n, b in info.price_id("SCROLL_CLASS", sell=30, exclude_known=False)}
     assert low == {80}                                        # Wonotobo lowballs: base 80 only
 
+
+
+def test_monster_rust_trap_is_not_your_trap_and_monitor_uses_the_snapshots_level():
+    from nh.game import Game
+    assert not Game._TRAP_MSG.search("A gush of water hits the rothe on the head!")
+    assert Game._TRAP_MSG.search("A gush of water hits you on the head!")
+    assert Game._TRAP_MSG.search("A gush of water hits your left arm!")

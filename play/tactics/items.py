@@ -849,7 +849,8 @@ def pickup(pattern: str | None = None) -> list:
 
 _DIG_OK = [r"^You (?:are )?now wield", r"^You (?:start|continue) digging", r"^You dig a pit in the ",
            r"^You dig a hole through", r"^You make an opening", r"^You succeed in cutting away",
-           r"^You dig (?:upward|downward)", r"^There's a hole", r"^You fall through", r"^You hit the "]
+           r"^You dig (?:upward|downward)", r"^There's a hole", r"^You fall through", r"^You hit the ",
+           r"^The boulder falls apart\.$", r"^The statue shatters\.$"]
 
 
 def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> list:
@@ -892,7 +893,8 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
         if s.status.ok and s.status.ldesc != ldesc0:
             break                                   # fell through the hole
         if re.search(r"dig a hole through|make an opening|succeed in cutting away|too hard to dig|"
-                     r"cannot|can't|here is too hard|The .* here is too hard", text):
+                     r"cannot|can't|here is too hard|The .* here is too hard|boulder falls apart|"
+                     r"statue shatters", text):
             break
         if s.state.kind != "command":
             break
