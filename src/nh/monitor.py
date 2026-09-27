@@ -56,6 +56,14 @@ def killed_names(messages) -> list[str]:
     return out
 
 
+def _stationary(desc: str) -> bool:
+    """Monsters that never move (molds, lichens are slow but move): remember
+    them at their square for the whole visit to the level."""
+    from .danger import base_name, monster_record
+    rec = monster_record(base_name(desc)) if desc else None
+    return bool(rec) and rec.get("speed", 1) == 0
+
+
 def _cheb(a, b) -> int:
     return max(abs(a["x"] - b["x"]), abs(a["y"] - b["y"]))
 
@@ -203,9 +211,9 @@ class MonsterTracker:
         resight: dict[int, list[dict]] = {}      # id(m) -> candidate records
         for m in loners:
             recs = [r for i, r in self.recent.items()
-                    if i not in claimed and r["ch"] == m["ch"] and r["color"] == m["color"]
-                    and turn - r.get("turn", 0) <= RESEEN_TURNS and _cheb(m, r) <= RESEEN_DIST
-                    and r.get("desc")]
+                    if i not in claimed and r["ch"] == m["ch"] and r["color"] == m["color"] and r.get("desc")
+                    and ((turn - r.get("turn", 0) <= RESEEN_TURNS and _cheb(m, r) <= RESEEN_DIST)
+                         or (_stationary(r["desc"]) and (r["x"], r["y"]) == (m["x"], m["y"])))]
             if recs:
                 resight[id(m)] = recs
             descs = {r["desc"] for r in recs}
@@ -294,7 +302,8 @@ class MonsterTracker:
                             snap.hero)
         self.visible_ids = new_visible
         stale = [i for i, r in self.recent.items()
-                 if i not in self.visible_ids and turn - r.get("turn", 0) > RESEEN_TURNS]
+                 if i not in self.visible_ids and turn - r.get("turn", 0) > RESEEN_TURNS
+                 and not _stationary(r.get("desc", ""))]
         for i in stale:
             del self.recent[i]
         if len(self.recent) > 80:

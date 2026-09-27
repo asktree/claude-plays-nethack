@@ -38,6 +38,7 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You stop\. .* is in your way",
     r"^You move .* out of your way",
     r"^You see here ",
+    r"^Things that are here:",
     r"^You see no objects here",
     r"^There (is|are) (a|an|several|many|\d+) .* here\.?$",
     r"^You hear (some noises|a door open|the footsteps of a guard|bubbling water|water falling|the splashing|a gurgling|a slow drip|a chugging|someone counting money|the chime of a cash register|someone cursing shoplifters)",

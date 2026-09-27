@@ -269,7 +269,10 @@ def classify(scr: Screen) -> State:
     if pos is not None:
         x, y = pos
         before = scr.row(y)[x - 1] if x > 0 else " "
-        if before != " ":
+        # tty's more(): when the message ends at column >= CO-8, --More-- goes to
+        # column 0 of the next row — still a message, not a text window
+        wrapped = x == 0 and 1 <= y <= 4 and len(scr.row(y - 1).rstrip()) >= scr.width - 8
+        if before != " " or wrapped:
             # message-line --More--: text runs from row 0 to row y (long
             # messages wrap onto following rows)
             txt = " ".join(scr.row(r).rstrip() if r < y else scr.row(r)[:x].rstrip()

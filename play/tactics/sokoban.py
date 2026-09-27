@@ -221,6 +221,9 @@ def identify(s=None):
     return best if best and best["score"] >= 0.9 else None
 
 
+_ITEM_GLYPHS = set(")[%?/=!\"(*$`+")
+
+
 def _state(s, lv, ox, oy):
     """(boulders, traps, covered) in level coordinates; covered = squares a
     monster or the hero hides (they match anything)."""
@@ -234,8 +237,8 @@ def _state(s, lv, ox, oy):
                 boulders.add((x, y))
             elif c == "^":
                 traps.add((x, y))
-            elif c in MONSTER_CHARS:
-                covered.add((x, y))
+            elif c in MONSTER_CHARS or c in _ITEM_GLYPHS:
+                covered.add((x, y))       # a monster or an item lying there hides what's under it
     return boulders, traps, covered
 
 

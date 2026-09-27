@@ -382,3 +382,11 @@ def test_genocide_guard():
     with pytest.raises(PermissionError):
         g._guard(snap, b"h\r", force=False)
     g._guard(snap, b"L\r", force=False)
+
+
+def test_more_wrapped_to_column_zero():
+    msg = "Velkommen wizard, welcome to NetHack!  You are a lawful dwarven Valkyrie.xx"
+    s = mk({0: msg, 1: "--More--", 5: "      |..@..|", 22: STATUS1,
+            23: "Dlvl:1 $:0 HP:18(18) Pw:1(1) AC:6 Xp:1/0 T:1"}, cursor=(8, 1))
+    st = classify(s)
+    assert st.kind == "more" and "You are a lawful dwarven Valkyrie" in st.more_text

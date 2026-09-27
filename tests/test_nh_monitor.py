@@ -238,3 +238,14 @@ def test_unseen_and_mimic_markers():
     assert m[(45, 12)]["mimic"] and m[(45, 12)]["new"]
     m = by_pos(t.update(snap({(41, 10): "I", (45, 12): "]"}, 11)))
     assert not m[(45, 12)]["new"]
+
+
+def test_stationary_monster_remembered_long():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(50, 10): "yellow mold"}
+    t.update(snap({(50, 10): "F"}, 100, color=11))
+    t.update(snap({}, 101, color=11))
+    g.looked.clear()
+    m = t.update(snap({(50, 10): "F"}, 400, color=11))     # 300 turns later, same square
+    assert g.looked == [] and not m[0]["new"] and m[0]["desc"] == "yellow mold"
