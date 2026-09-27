@@ -111,9 +111,12 @@ def bad_squares(s=None) -> set:
               or (not m.get("tame") and not m.get("peaceful") and _stationary(m.get("desc") or ""))}
     mimics |= set(known_mimics(s))
     sessile = getattr(getattr(ctx.game, "tracker", None), "sessile", None) or {}
+    from .mapview import is_door
     for c, rec in (sessile.get(s.status.ldesc if s.status.ok else "") or {}).items():
-        if not (rec.get("statue") or c == s.hero):
-            mimics.add(c)                # a mold/jelly remembered out of view (p3 shift 10: travel beside one)
+        # a mold/jelly remembered out of view (p3 shift 10: travel beside one) — in rooms only: a stale
+        # record (a pet killed it unseen) must never close a corridor or doorway
+        if not (rec.get("statue") or c == s.hero) and s.screen.at(*c) != "#" and not is_door(s, *c):
+            mimics.add(c)
     zone = set(special_room_zone(s))
     return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics | zone
 
