@@ -112,7 +112,7 @@ def walk(keys: str):
                                                      for m in hostile) + " next to you — fight() it, then solve() "
                           "again (it resumes)")
                 return ctx.last()
-            s = ctx.do("s", ok=PUSH_OK)
+            s = ctx.do(".", ok=PUSH_OK)
             waited += 1
         if _occupied(s, *dest):
             ctx.pause(f"walk: {s.screen.at(*dest)!r} at {dest} is in the way (not attacking it)")
@@ -151,7 +151,7 @@ def push(bx: int, by: int, dirs: str):
                                                          for m in _hostiles_near(s))
                               + " next to you blocks the way — fight() it, then solve() again")
                     return ctx.last(), b
-                s = ctx.do("s", ok=PUSH_OK)      # a monster blocks the way: give it time to move
+                s = ctx.do(".", ok=PUSH_OK)      # a monster blocks the way: give it time to move
                 waited += 1
                 path = route(s, s.hero, stand)
             if path is None:
@@ -165,7 +165,7 @@ def push(bx: int, by: int, dirs: str):
         waits = 0
         while "behind the boulder" in text and waits < 6:
             # something (often the pet) is on the far side: wait and retry
-            ctx.do("s", ok=PUSH_OK)
+            ctx.do(".", ok=PUSH_OK)
             waits += 1
             s = ctx.do(d, ok=PUSH_OK)
             text = " ".join(s.messages)

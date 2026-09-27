@@ -202,7 +202,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in near[:4])
                 return out(f"{who} within {radius} but not coming for {idle} turns (trapped, slow or sessile?) "
                            "— go to it or leave it")
-            s = ctx.do("s", ok=ROUTINE)
+            s = ctx.do(".", ok=ROUTINE)
             kills += killed_names(s.messages)
     return out("max_turns")
 

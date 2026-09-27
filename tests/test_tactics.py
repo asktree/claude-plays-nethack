@@ -117,7 +117,7 @@ def test_wait_for_pet_at_stairs(monkeypatch):
         return frames[min(len(sent), len(frames) - 1)]
     monkeypatch.setattr(ctx, "do", fake_do)
     s = nav._wait_for_pet(frames[0], 6)
-    assert sent == ["s", "s"] and any(m["dist"] == 1 for m in s.monsters)
+    assert sent == [".", "."] and any(m["dist"] == 1 for m in s.monsters)
     # no pet in view: no waiting at all
     sent.clear()
     nav._wait_for_pet(_snap({}, (10, 5), []), 6)

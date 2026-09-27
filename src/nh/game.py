@@ -579,7 +579,7 @@ class Game:
                 if peace:
                     raise PermissionError(
                         f"refusing to walk into the {peace[0].get('desc')} at {tgt}: you can't swap places with "
-                        "peacefuls, so NetHack would ask 'Really attack?'. Wait a turn ('s') or go around. "
+                        "peacefuls, so NetHack would ask 'Really attack?'. Wait a turn ('.') or go around. "
                         "(If it turned hostile and is attacking you, force=True.)")
             if step in self._MOVE and snap.hero is not None and not conds & {"Lev", "Fly"}:
                 dx, dy = self._MOVE[step]
@@ -622,7 +622,7 @@ class Game:
                         "refusing to move while " + "/".join(sorted(conds & {"Conf", "Stun"})) + " next to "
                         + ", ".join(f"the {m.get('desc')} at ({m['x']},{m['y']})" for m in near)
                         + ": your step can go astray into it, and NetHack attacks without asking while you "
-                        "are confused/stunned. Wait ('s') until it wears off, or force=True.")
+                        "are confused/stunned. Wait ('.') until it wears off, or force=True.")
             if key in self._MOVE and snap.hero is not None and "Blind" not in conds:
                 dx, dy = self._MOVE[key]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy

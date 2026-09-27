@@ -274,14 +274,14 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 return result(f"blocked: hostile {_mdesc(hostile)} adjacent — travel never starts next to "
                               "one; fight() it or step away, then explore() again")
             if blk:
-                ctx.do("s", ok=BENIGN)            # a peaceful in the way: give it a turn
+                ctx.do(".", ok=BENIGN)            # a peaceful in the way: give it a turn
                 stuck += 1
                 if stuck > 3:
                     return result(f"blocked: {_mdesc(blk)} stays next to you; step around it, then explore()")
                 continue
         if "blocks your path" in text and "boulder" not in text:
             # a peaceful (e.g. shopkeeper) in the way: wait a turn and retry
-            ctx.do("s", ok=BENIGN)
+            ctx.do(".", ok=BENIGN)
             stuck += 1
             if stuck > 3:
                 skip.add(target)

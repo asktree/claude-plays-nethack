@@ -236,7 +236,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
             if s.hero == h0:
                 if _pet_in_way(s.messages) and waits < wait_peaceful + 2:
                     waits += 1
-                    s = ctx.do("s", ok=BENIGN)
+                    s = ctx.do(".", ok=BENIGN)
                     continue
                 hostile = [m for m in blockers(s) if not m.get("peaceful")]
                 raise NavError(f"travel to {(x, y)}: the last step from {h0} failed"
@@ -266,7 +266,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
             if blk and waits < wait_peaceful:
                 waits += 1
                 print(f"travel: waiting a turn for {_mdesc(blk)} to move")
-                s = ctx.do("s", ok=BENIGN)      # give the peaceful a turn to move off
+                s = ctx.do(".", ok=BENIGN)      # give the peaceful a turn to move off
                 continue
             if blk:
                 raise NavError(f"travel to {(x, y)} did not move: {_mdesc(blk)} stays next to you; "
@@ -277,7 +277,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
             if _pet_in_way(s.messages):
                 if waits < wait_peaceful + 2:
                     waits += 1
-                    s = ctx.do("s", ok=BENIGN)      # your pet is in the way (1/7 of swaps fail; never in shops)
+                    s = ctx.do(".", ok=BENIGN)      # your pet is in the way (1/7 of swaps fail; never in shops)
                     continue
                 raise NavError(f"travel to {(x, y)} did not move: your pet stays in the way ({s.messages}); "
                                "step around it by hand")
@@ -428,7 +428,7 @@ def _wait_for_pet(s, turns: int):
         if s.hostiles(2):
             print("stairs: a hostile is close — not waiting for the pet")
             return s
-        s = ctx.do("s", ok=BENIGN)
+        s = ctx.do(".", ok=BENIGN)
         if s.state.kind != "command":
             return s
         if any(m.get("dist") == 1 for m in pets(s)):
