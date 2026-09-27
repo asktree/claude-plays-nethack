@@ -888,6 +888,35 @@ def _reflected_note(before: list, s, s0=None) -> None:
         ctx.game.reflectors.setdefault(key, {})[m["id"]] = s.status.turn
 
 
+def _freeze_note(direction: str, s0, s) -> None:
+    """A cold ray over water: which squares froze (zap.c zap_over_floor(): each frozen square costs the ray 3 of
+    its range, and Norep() prints "The moat is bridged with ice!" once — p2 shift 34 #351/#418: 2-3 squares per
+    zap on wizard3's moat, blindfolded only "You hear a crackling sound."). Prints the frozen squares and the
+    water still ahead on that line."""
+    from .mapview import KEY_DIR
+    d = KEY_DIR.get(direction)
+    if d is None or s0 is None or s0.hero is None or s.state.kind != "command":
+        return
+    x, y = s0.hero
+    froze, left = [], []
+    for _ in range(20):
+        x, y = x + d[0], y + d[1]
+        if not (0 <= x < 80 and 1 <= y <= 21):
+            break
+        was, now = s0.screen.at(x, y), s.screen.at(x, y)
+        if was == "}" and now != "}":
+            froze.append((x, y))
+        elif was == "}" and now == "}":
+            left.append((x, y))
+        elif was in "|- " and s0.screen.color_at(x, y) != 3:
+            break
+    if froze:
+        print(f"zap: the ray FROZE {len(froze)} water square(s) {froze[:6]}"
+              + (f"; water still ahead on that line at {left[:4]} — each frozen square shortens a ray by 3: zap "
+                 "again from the new ice edge" if left else "")
+              + " (ice melts again after a while)")
+
+
 def _monsters_in_line(direction: str, maxlen: int = 13, s=None) -> list:
     """Monsters in view on the straight line from you (up to a wall or rock), nearest first."""
     from .mapview import KEY_DIR
@@ -1091,6 +1120,7 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             print("zap: " + ", ".join(f"the {m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in gone[:3])
                   + " is gone from that square — no message (teleported, turned invisible, or changed shape?)")
         _reflected_note(before, s, s0)
+        _freeze_note(direction, s0, s)
         return s
     if direction and not any(m.startswith("Nothing happens") for m in s.messages):
         # zap.c zapnodir(): no direction asked = a NODIR wand (light, secret door detection, create monster,

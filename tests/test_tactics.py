@@ -4405,3 +4405,33 @@ def test_force_box_pries_with_a_spare_blade_and_wields_the_weapon_again(monkeypa
     cur["s"] = base
     r = items.force_box()
     assert sent == ["#force<CR>", "y"] and r["reason"] == "forced"
+
+
+def test_zap_reports_frozen_water(monkeypatch, capsys):
+    # p2 shift 34 #351/#418: a cold ray froze only 2-3 moat squares per zap; zap() didn't say which
+    from nh.parse import State
+    from tactics import combat, ctx
+    g = _G()
+    g.inv_items = [{"letter": "R", "text": "a wand of cold (0:4)"}]
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    base = _snap({5: "          @.}}}}}}.."}, (10, 5), [])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to zap? [R or ?*]")
+    dirp = _snap({}, (10, 5), [])
+    dirp.state = State("direction", prompt="In what direction?")
+    after = _snap({5: "          @....}}}.."}, (10, 5), [])
+    after.messages = ["The moat is bridged with ice!"]
+    frames = {"z": obj, "R": dirp, "l": after}
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    monkeypatch.setattr(combat, "friendly_in_line", lambda d, ray=False: [])
+    combat.zap("R", "l")
+    out = capsys.readouterr().out
+    assert "FROZE 3 water square(s) [(12, 5), (13, 5), (14, 5)]" in out and "(15, 5)" in out
