@@ -198,8 +198,11 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   a unicorn horn, conflict off, free action. Identify the Riders: **never death-ray Death, never teleport a
   Rider**. Player-monsters there (`valkyrie called ...`) are level 15-30, often with artifacts. Before
   `#offer`: confirm the priest's god by farlook ("high priest of Tyr" — shown only from next to it; the obs
-  keeps it once seen), take off levitation,
-  step onto the altar, `:` should read "high altar to Tyr (lawful)". Then `#offer` the Amulet. (From afar
+  keeps it once seen; a priest standing on its altar is named in `features`), take off levitation,
+  step onto the altar, `:` should read "high altar to Tyr (lawful)". Then `ascend()`: it re-checks all of that (Astral Plane, on an altar, not
+  levitating, the `:` look names YOUR alignment — another god's altar ends the game without winning — and one
+  real Amulet in the pack) and offers it (verified in a wizard-mode run: "You ascend to the status of
+  Demigoddess..."). (From afar
   every Astral altar reads "aligned high altar"; the alignment shows only from an adjacent square — obs
   updates it then.)
 

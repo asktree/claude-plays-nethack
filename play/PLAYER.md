@@ -168,7 +168,8 @@ ENGULFED; `go_down()`/`go_up()` refuse while levitating and raise `NavError` if 
 squeaky board/hole/trap door` until looked at — the harness looks each new trap and altar up once, no game
 time: `trap door`, `lawful altar`; Astral altars read `aligned high altar` until you stand next to one),
 `raised drawbridge` / `lowered drawbridge` (never stand on it or in its gate), the `vibrating square` (then
-`invoke()` does the whole invocation with every check — PLAYBOOK F), and
+`invoke()` does the whole invocation with every check — PLAYBOOK F; on the Astral Plane `ascend()` offers
+the Amulet only on your own god's altar — PLAYBOOK G), and
 water/lava as a count. Remembered features the map doesn't show right now are listed too: `up stairs (under an
 object)`, `altar (under a monster)` (its priest), `magic portal (remembered)` (on the Planes of Air and Water the
 game keeps no map: the portal found by ^F / a crystal ball stays in `features`), `vibrating square (under you)`.

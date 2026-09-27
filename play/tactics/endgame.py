@@ -158,3 +158,62 @@ def invoke(force: bool = False) -> dict:
            if "amiss" in text else "a cursed item" if "invocation fails" in text
            else "the Book is cursed" if "scrambled" in text else f"messages: {s.messages}")
     return fail("read", why)
+
+
+_HIGH_ALTAR = re.compile(r"There is an? (?:high )?altar to (?P<god>.+?) \((?P<align>\w+)\) here", re.I)
+_AMULET = re.compile(r"\bAmulet of Yendor\b")
+
+
+def ascend(letter: str | None = None) -> dict:
+    """#offer the Amulet of Yendor on YOUR god's high altar (the Astral
+    Plane). Checks first and changes nothing if one fails: you are on the
+    Astral Plane, standing on an altar, not levitating; a ':' look says
+    "There is a high altar to <god> (<your alignment>) here." — offering on
+    another god's altar ENDS THE GAME WITHOUT WINNING ("escaped"); the Amulet
+    is in your pack (several "Amulet of Yendor"s — fakes look the same until
+    identified — need letter=). Returns {"ok", "messages"}; on success the
+    game is over (the kernel pauses on GAME OVER)."""
+    from .items import inventory
+    s = ctx.require_command("ascend()")
+    st = s.status
+    if not st.ok or st.ldesc != "Astral Plane":
+        raise RuntimeError(f"ascend(): this is {st.ldesc!r}, not the Astral Plane")
+    if "Lev" in st.conditions:
+        raise RuntimeError("ascend(): you are LEVITATING — you can't reach the altar: take the levitation off")
+    if getattr(s, "under", None) != "_":
+        raise RuntimeError("ascend(): you are not standing on an altar (step onto it; wait for its priest to move)")
+    with ctx.no_monster_pauses():
+        look = ctx.do(":", quiet=True)
+    text = " ".join(look.messages)
+    if look.state.kind != "command":
+        ctx.do("<Esc>", quiet=True)
+    m = _HIGH_ALTAR.search(text)
+    if not m:
+        raise RuntimeError(f"ascend(): ':' didn't describe an altar here: {look.messages}")
+    mine = (st.align or "").lower()
+    if not mine or m.group("align").lower() != mine:
+        raise RuntimeError(f"ascend(): this is the altar of {m.group('god')} ({m.group('align')}), and you are "
+                           f"{st.align or 'of unknown alignment'} — offering here ends the game WITHOUT winning. "
+                           "Find your own god's altar (the priest's label/farlook shows the god from next to it)")
+    inv = inventory()
+    amulets = [it for it in inv if _AMULET.search(it["text"]) and "imitation" not in it["text"]]
+    if letter:
+        amulets = [it for it in amulets if it["letter"] == letter]
+    if not amulets:
+        raise RuntimeError("ascend(): no Amulet of Yendor in your pack" + (f" at letter {letter!r}" if letter else ""))
+    if len(amulets) > 1:
+        raise RuntimeError("ascend(): several 'Amulet of Yendor' in your pack (fakes look the same until "
+                           f"identified): {[it['letter'] + ' - ' + it['text'] for it in amulets]} — pass letter= "
+                           "(the one from the Sanctum's high priest)")
+    am = amulets[0]
+    s = ctx.do("#offer<CR>", quiet=True)
+    msgs = list(s.messages)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        return {"ok": False, "why": f"#offer gave {s.state.kind}: {s.state.prompt!r}", "messages": msgs}
+    s = ctx.do(am["letter"], ok=[r"^You offer the Amulet of Yendor", r"invisible choir sings",
+                                 r"Mortal, thou hast done well", r"gift of Immortality", r"ascend to the status"])
+    msgs += s.messages
+    ok = any("ascend to the status" in x or "invisible choir" in x for x in msgs)
+    return {"ok": ok, "messages": msgs}

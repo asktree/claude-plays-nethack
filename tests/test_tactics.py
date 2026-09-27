@@ -792,3 +792,22 @@ def test_hunt_closes_in_then_fights(monkeypatch):
     monkeypatch.setattr(ctx, "pause", lambda r: None)
     r = combat.hunt("pyrolisk")
     assert sent == ["l", "l", "l", "Fl"] and r["reason"] == "killed" and r["kills"] == ["pyrolisk"]
+
+
+def test_ascend_refuses_a_cross_aligned_altar(monkeypatch):
+    import pytest
+    from tactics import ctx, endgame
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({11: "   ...@..."}, (6, 11), [])
+    s.status.ldesc, s.status.align, s.under = "Astral Plane", "Lawful", "_"
+    look = _snap({11: "   ...@..."}, (6, 11), [])
+    look.messages = ["There is a high altar to Loki (chaotic) here."]
+    sent = []
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or look)
+    with pytest.raises(RuntimeError, match="WITHOUT winning"):
+        endgame.ascend()
+    assert sent == [":"]                          # looked, offered nothing
+    s.under = None
+    with pytest.raises(RuntimeError, match="not standing on an altar"):
+        endgame.ascend()

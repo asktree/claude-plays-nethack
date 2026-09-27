@@ -214,6 +214,13 @@ def features_in_view(snap, hero=None) -> list[dict]:
         why = ("under a monster" if now in MONSTER_CHARS or now in "I@" else
                "under an object" if now in OBJECT_CLASSES else "remembered")
         name = fdesc.get((x, y)) if ch == "_" and fdesc.get((x, y)) else MEM_NAMES[ch]
+        if ch == "_":
+            # a temple priest standing on its altar names the altar's god ("high priest of Tyr")
+            import re as _re
+            pri = next((m.get("desc") for m in getattr(snap, "monsters", None) or []
+                        if (m["x"], m["y"]) == (x, y) and _re.search(r"priest(?:ess)? of ", m.get("desc") or "")), None)
+            if pri:
+                why += f": its priest ({pri.split(' of ', 1)[1]}'s) stands on it"
         d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
         out.append({"ch": ch, "x": x, "y": y, "name": f"{name} ({why})", "dist": d, "color": ""})
     out.sort(key=lambda e: (e["dist"] if e["dist"] is not None else 99, e["y"], e["x"]))

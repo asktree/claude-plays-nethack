@@ -46,4 +46,4 @@ from tactics.items import write_scroll  # noqa: E402,F401
 from tactics.survival import offer, prayer_verdict  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401
 from tactics.combat import auto_fightable, hunt  # noqa: E402,F401
-from tactics.endgame import invoke, on_vibrating_square  # noqa: E402,F401
+from tactics.endgame import ascend, invoke, on_vibrating_square  # noqa: E402,F401
