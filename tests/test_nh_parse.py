@@ -308,6 +308,29 @@ def test_feature_under_hero_remembered():
     assert s2.under is None
 
 
+def test_feature_under_object_remembered_from_look_message():
+    """Stairs/altar/throne under an object or statue don't show on the map;
+    look_here()'s "There is ... here." (also first line of a pile window) does."""
+    from nh.game import Game, Snap, Timing
+    from nh.parse import State, parse_status
+    g = Game(term=None, timing=Timing.local())
+    on = mk({5: "      |..@..|", 22: STATUS1, 23: "Dlvl:5 $:0 HP:10(10) Pw:1(1) AC:6 Xp:5/200 T:901"},
+            cursor=(9, 5))
+    for msg, ch in [("There is a staircase down here.", ">"), ("There is a ladder up here.", "<"),
+                    ("There is an opulent throne here.", "\\"),
+                    ("There is an altar to Tyr (lawful) here.", "_"),
+                    ("There is a high altar to Moloch (unaligned) here.", "_"),
+                    ("There is a staircase up here.\nThings that are here:\na statue of a newt", "<")]:
+        g.terrain_seen.clear()
+        s = Snap(screen=on, state=State("command"), status=parse_status(on))
+        g._remember_terrain(s, [msg])
+        assert s.under == ch, msg
+    g.terrain_seen.clear()
+    s = Snap(screen=on, state=State("command"), status=parse_status(on))
+    g._remember_terrain(s, ["There is a doorway here.", "There is a sink here."])
+    assert s.under is None
+
+
 def test_hostiles_exclude_unseen_and_hallucinated():
     from nh.game import Snap
     from nh.parse import State, Status

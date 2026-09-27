@@ -11,14 +11,26 @@ def search(n: int = 10):
     """Search n turns in place (count-prefixed 's'; interrupted by monsters).
     A monster fleeing from your Elbereth ("turns to flee") doesn't pause."""
     ctx.require_command("search()")
-    return ctx.do(f"{int(n)}s", ok=[r"turns to flee"])
+    return _counted(f"{int(n)}s", int(n), [r"turns to flee"])
 
 
 def rest(n: int = 20):
     """Rest n turns in place (count-prefixed '.'; needs !rest_on_space off: '.').
     A monster fleeing from your Elbereth ("turns to flee") doesn't pause."""
     ctx.require_command("rest()")
-    return ctx.do(f"{int(n)}.", ok=[r"turns to flee", r"^You stop searching"])
+    return _counted(f"{int(n)}.", int(n), [r"turns to flee", r"^You stop searching"])
+
+
+def _counted(keys: str, n: int, ok):
+    """Run a count-prefixed command; if it ran a single turn with nothing to
+    explain it (no message, no monster next to you) — NetHack sometimes drops
+    the count right after a travel — run it once more."""
+    t0 = ctx.last().status.turn or 0
+    s = ctx.do(keys, ok=ok)
+    t1 = s.status.turn or t0
+    if n > 2 and s.state.kind == "command" and t1 - t0 <= 1 and not s.messages and not s.adjacent_hostiles():
+        s = ctx.do(keys, ok=ok)
+    return s
 
 
 def _engrave_elbereth():

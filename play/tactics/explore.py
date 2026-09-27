@@ -172,9 +172,11 @@ def _explore(max_legs: int, skip: set):
         if bl:
             left.append(f"boulders {bl} in the way / next to unexplored space (travel never pushes: step into "
                         "one to push it if the square beyond is free; in Sokoban follow the solution)")
+        hint = _hidden_stairs_hint()
         if not left:
-            return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages")
-        return result("blocked: " + "; ".join(left))
+            return result("explored (no reachable frontier left) — search dead ends / closets for hidden passages"
+                          + hint)
+        return result("blocked: " + "; ".join(left) + hint)
 
     while legs < max_legs:
         s = ctx.last()
@@ -270,6 +272,22 @@ def _explore(max_legs: int, skip: set):
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+def _hidden_stairs_hint() -> str:
+    """If no down stairs are known on this level, name the object squares you
+    haven't stood on: stairs under an object or a statue don't show."""
+    from .nav import known_cells
+    s = ctx.last()
+    if known_cells(">", s):
+        return ""
+    visited = ctx.game.visited.get(ctx.game.level_key(s.status), set())
+    cands = [(o["x"], o["y"]) for o in s.objects if (o["x"], o["y"]) not in visited and o["ch"] not in "0`"]
+    cands += [(m["x"], m["y"]) for m in s.monsters if m.get("statue") and (m["x"], m["y"]) not in visited]
+    if not cands:
+        return " — no down stairs seen yet"
+    return (" — no down stairs seen yet: stairs can hide under objects and statues; step onto / here() these: "
+            + str(cands[:12]))
 
 
 def _boulder_leads(s=None) -> list:

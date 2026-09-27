@@ -271,9 +271,35 @@ def _matches(state, want) -> bool:
     return (boulders - covered == wb - covered) and (traps - covered == wt - covered)
 
 
+_DXY = {"u": (0, -1), "d": (0, 1), "l": (-1, 0), "r": (1, 0)}
+
+
+def _partials(lv, cur, only=None):
+    """Points part-way through a step (a pause between two pushes of the same
+    boulder) whose board matches `cur`: yields (i, j, pos, stand) = step
+    index, pushes already done, the boulder's position now, and the square to
+    stand on for its next push (level coordinates)."""
+    prev_b = set(map(tuple, lv["boulders"]))
+    prev_t = set(map(tuple, lv["traps"]))
+    for i, st in enumerate(lv["steps"]):
+        if only is None or i == only:
+            at = tuple(st["at"])
+            pos = at
+            for j in range(1, len(st["moves"])):
+                dx, dy = _DXY[st["moves"][j - 1]]
+                pos = (pos[0] + dx, pos[1] + dy)
+                if _matches(cur, ((prev_b - {at}) | {pos}, prev_t)):
+                    nx, ny = _DXY[st["moves"][j]]
+                    yield i, j, pos, (pos[0] - nx, pos[1] - ny)
+        prev_b = set(map(tuple, st["after"]["boulders"]))
+        prev_t = set(map(tuple, st["after"]["traps"]))
+
+
 def progress(s=None) -> dict:
     """Where are we in this level's solution? Returns {"level", "wiki", "ox",
-    "oy", "done": k (steps already done), "total", "next": step or None}.
+    "oy", "done": k (steps already done), "total", "next": step or None,
+    "partial": None or {"pushes_done", "boulder_at"} when step k+1 was
+    interrupted between two of its pushes (solve() resumes it)}.
     done is -1 if the board matches no point of the solution (boulders were
     moved differently: solve by hand from `board()` and the wiki page)."""
     s = s or ctx.last()
@@ -289,8 +315,28 @@ def progress(s=None) -> dict:
         if _matches(cur, states[k]):
             done = k
             break
+    ox, oy = ident["ox"], ident["oy"]
+
+    def reachable(p):
+        return s.hero is not None and route(s, s.hero, (p[3][0] + ox, p[3][1] + oy)) is not None
+
+    partial = None
+    if done < 0:
+        cands = list(_partials(lv, cur))
+        partial = next((p for p in cands if reachable(p)), cands[0] if cands else None)
+        if partial:
+            done = partial[0]
+    elif done < len(lv["steps"]):
+        # a step that brings its boulder back to its start part-way ('rl...': push it aside,
+        # walk around, push it back) leaves the board as it was before the step. If the hero
+        # can reach the next push from here, resume: replaying the whole step is often
+        # impossible by then (the first push's side is cut off).
+        partial = next((p for p in _partials(lv, cur, only=done) if reachable(p)), None)
     nxt = lv["steps"][done] if 0 <= done < len(lv["steps"]) else None
-    return dict(ident, done=done, total=len(lv["steps"]), next=nxt)
+    return dict(ident, done=done, total=len(lv["steps"]), next=nxt,
+                partial=({"pushes_done": partial[1], "boulder_at": (partial[2][0] + ident["ox"],
+                                                                    partial[2][1] + ident["oy"])}
+                         if partial else None))
 
 
 def solve(max_steps: int | None = None):
@@ -312,12 +358,18 @@ def solve(max_steps: int | None = None):
     ox, oy = p["ox"], p["oy"]
     print(f"sokoban: {p['wiki']} ({p['level']}), offset ({ox},{oy}), step {p['done']}/{p['total']}")
     n = 0
+    part = p.get("partial")
     for i in range(p["done"], len(lv["steps"])):
         if max_steps is not None and n >= max_steps:
             break
         st = lv["steps"][i]
         bx, by = st["at"][0] + ox, st["at"][1] + oy
         keys = "".join(_UDLR[c] for c in st["moves"])
+        if part and i == p["done"]:
+            # resume a step that was interrupted between two pushes
+            bx, by = part["boulder_at"]
+            keys = keys[part["pushes_done"]:]
+            print(f"  (resuming step {i + 1} after {part['pushes_done']} of its pushes)")
         print(f"  step {i + 1}/{len(lv['steps'])}: boulder {st['boulder']} at ({bx},{by}) {st['moves']}"
               + (" (fills a hole)" if st["fills"] else ""))
         s, pos = push(bx, by, keys)

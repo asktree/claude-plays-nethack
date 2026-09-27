@@ -294,6 +294,12 @@ class Game:
             self.terrain_seen.setdefault(new, {}).update(self.terrain_seen.pop(old))
 
     FEATURE_CHARS = "<>{_\\"
+    # look_here(): "There is %s here." with dfeature_at() (invent.c) — "an opulent throne",
+    # "an altar to Tyr (lawful)", "a high altar to ..." on Astral/Sanctum
+    _HERE_FEATURE = re.compile(r"^There is an? (?:high )?(staircase up|staircase down|ladder up|ladder down|"
+                               r"fountain|altar|opulent throne)\b.* here\.")
+    _HERE_CH = {"staircase up": "<", "staircase down": ">", "ladder up": "<", "ladder down": ">",
+                "fountain": "{", "altar": "_", "opulent throne": "\\"}
 
     def _remember_terrain(self, snap: Snap, messages: list[str]) -> None:
         """Remember stairs/fountains/altars/thrones per level so the one under
@@ -311,6 +317,12 @@ class Game:
                 del feats[c]           # e.g. a fountain that dried up
         if any("dries up" in m or "fountain disappears" in m for m in messages):
             feats.pop(snap.hero, None)
+        # "There is a staircase up here." etc. (':' look, or stepping onto a pile):
+        # the feature under the hero even when an object/statue covers it
+        for m in messages:
+            mm = self._HERE_FEATURE.search(m)
+            if mm:
+                feats[snap.hero] = self._HERE_CH[mm.group(1)]
         snap.under = feats.get(snap.hero)
 
     # ---- low level ---------------------------------------------------------

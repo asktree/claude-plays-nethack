@@ -47,3 +47,17 @@
 - T:1897–1899 DL4 — fourth yellow mold (30,18) killed with one thrown dagger (Exp 69). Picked up the high boots (E, BUC unknown, not worn) and a cyan potion (F) from (34,10).
 - T:1928–1931 DL4 — Hungry again (lichen only gave 200); ate a lembas wafer (A). 1 lembas + 1 ration + tin left.
 - SHIFT 2 END T:1931 DL4 — HP 40/40 XL3 (Exp 69) AC2 (scale mail), corridor (27,14), kitten adjacent, nothing in view, command prompt. D4 `>` not found yet (far west / SW / north dead end unexplored). Plan: find `>`, D5 for XP to XL5, Excalibur at the D4 fountain (22,17), then the Mines.
+
+## Shift 3
+- T:1959–1977 DL4 — killed a cave spider (far-west room) and a sewer rat; picked up a clear potion (H = water) and 6 gold. explore() then claimed the level was done although the seen corridor (14,12)->(9,15) led into unknown space.
+- T:2013 DL4 — searched the dead end (9,15): hidden passage west after 2 turns -> SW room (5-12,18-19) with the DOWNSTAIRS at (12,18), a statue of an orc zombie (9,18), a magenta potion (I) and 4 gold.
+- T:2036 DL4->DL5 — descended at (12,18) with the kitten adjacent; arrived D5 (9,5) on the upstairs, NW room; scroll at (9,6).
+- T:2037–2055 DL5 — picked up scroll DAIYEN FOOELS (J) by the upstairs; destroyed a fog cloud in one blow -> XL4 (HP 54). Tin opener (K) from the room at (9-14,12-16).
+- T:2085–2108 DL5 — corridor fight at (25,5): dagger throw missed the rock mole; killed the imp (Exp 107); the kitten killed the rock mole and GREW INTO A HOUSECAT. MISTAKE: threw the orcish dagger east at the homunculus while the housecat stood in the line of fire ("The orcish dagger hits the housecat") — still tame. Killed the homunculus in melee (no sleep). Imp drop: scroll KO BATE (M, = light) + murky potion (N).
+- T:2196–2222 DL5 — SE room (57-70,15-19): hexagonal amulet (O) at (69,15) (unknown, NOT worn); housecat killed a centipede hidden under a gem; killed a kobold lord (Exp 126): 12 darts (P), scroll ELBIB YLOH (Q), black gem (R), knife (S).
+- T:2239–2288 DL5 — kobold zombie, 2 orc zombies destroyed (Exp 137); a centipede was hidden under my thrown dagger b at (42,5) — 6 misses, housecat got it. Many plains centaur STATUES around (34-40,9-16): probably the ORACLE level.
+- T:2355–2361 DL5 — leprechaun fell into a pit at (14,15): dropped my gold at the doorway (17,16), stepped next to it, killed it in 2 blows -> XL5 (HP 63, Exp 171). Jumped into the pit for its 75 gold ($91), climbed out. HP 57/63.
+- T:2398–2418 DL5 — ORACLE LEVEL confirmed: centaur-statue room (34-44,8-16), Delphi subroom (38-40,11-13) with the peaceful Oracle at (39,12) and 4 fountains (39,11)/(38,12)/(40,12)/(39,13); doorless doorway (39,14) on its south wall; room doorways (33,10), (36,7), (39,7). The diagonal (30,7)->(31,8) is a tight squeeze ("carrying too much to get through").
+- T:2420 DL5 — dip #1 at (39,13): sword rusted, fountain dried up, AND the sword came out CURSED (the 1/30 curse case) — welded, minor trouble, no prayer.
+- T:2422 DL5 — dip #2 at (40,12): "From the murky depths, a hand reaches up to bless the sword" = EXCALIBUR (blessed rustproof +2, curse and rust gone); that fountain vanished. Two fountains left at Delphi: (39,11), (38,12). HP 63/63.
+- T:2422–2424 DL5 — read the scroll of identify (B): O = UNCURSED AMULET OF ESP (now worn: extrinsic telepathy, shows monsters within ~8 squares even unblind), E = uncursed +0 high boots (wearing them: AC 2 -> 0).
