@@ -455,6 +455,11 @@ def eel_level(s=None) -> str:
         return "this level's moat" if "castle" in flags else "Medusa's water"
     if key.startswith("Gehennom"):
         return "Gehennom's moats"
+    m = re.search(r"^The Dungeons of Doom / Level (\d+)$", key)
+    if m and int(m.group(1)) > 15:
+        # mklev.c: below depth 15 a special room can be a SWAMP (mkroom.c mkswamp(): a checkerboard of pools
+        # with giant eels, piranhas and electric eels in them, hidden)
+        return "a deep level (swamp rooms hide eels)"
     return ""
 
 
