@@ -97,6 +97,10 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     # armed monsters around you (the effects on you — HP, status, burnt items — pause by themselves; a
     # monster picking up a WAND still pauses, and so does one wielding a cockatrice corpse)
     r"^Boing!$", r"^You hear a nearby zap\.$",
+    # monsters using items in a melee: potions, create monster (the newcomers pause by themselves), weapons
+    r"^(?!You )(?:The |An? )?[\w' -]+ drinks (?:an? |the )[\w' -]+!$", r" (?:seems|looks) more experienced\.$",
+    r"^The .+ reads a scroll of create monster!$", r"^The .+ tries to wield ",
+    r"^It is (?:hit|missed)[.!]$",
     r"^The (?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|"
     r"fireball|cone of cold) (?:whizzes by you|bounces)!$",
     r"^The .+ wields (?:an? |the |\d+ )(?!.*\b(?:cockatrice|chickatrice) corpse).*!$",
@@ -392,11 +396,15 @@ class Kernel:
         # a ray you reflected (zap.c buzz(): "The sleep ray hits you!" + "But it reflects from your
         # shield!"): the hit and the monster's zap before it are news only without the reflection
         reflected = any(m.startswith("But it reflects from your ") for m in snap.messages)
+        # a poisoned bite/sting you resisted ("The quasit's sting was poisoned! | The poison doesn't seem to
+        # affect you.") is no news either
+        resisted = any(m.startswith("The poison doesn't seem to affect you") for m in snap.messages)
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
                 and not any(p.search(m) for p in extra)
                 and not any(p.search(m) for p in DEFAULT_BENIGN)
                 and not (reflected and _REFLECTED.search(m))
+                and not (resisted and re.search(r" was poisoned!$", m))
                 and not self._heard_before(m, snap)]
         if msgs and not quiet:
             reasons.append("message")
@@ -420,7 +428,8 @@ class Kernel:
             # a ghost/shade drawn as a blank, a hider) — the movement helpers never attack on purpose
             reasons.insert(0, "YOUR MOVE ATTACKED something you didn't see there (invisible? a hider? a ghost?) "
                               "— look before the next step (it may be peaceful)")
-        if any("position suddenly seems very uncertain" in m for m in snap.messages):
+        if any("position suddenly seems very uncertain" in m for m in snap.messages) \
+                and not any("prevents you from teleporting" in m for m in snap.messages):
             reasons.insert(0, f"TELEPORTED by a monster's hit (quantum mechanic) — you are now at {snap.hero}")
         brush = next((m for m in snap.messages if re.search(r"brushes against your (?:left |right )?\w+\.$", m)), None)
         if brush and not any(re.search(r" swings itself around you!$", m) for m in snap.messages):
@@ -537,7 +546,8 @@ class Kernel:
                 new = [m for m in new if m not in later]
                 if new:
                     reasons.append("new monster: " + ", ".join(
-                        f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))
+                        f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4])
+                        + (f" +{len(new) - 4} more (`bin/nh obs` lists all)" if len(new) > 4 else ""))
                 if self._deferred:
                     for i in [i for i, v in self._deferred.items() if v["level"] != level]:
                         del self._deferred[i]

@@ -808,3 +808,28 @@ def test_kernel_wrap_attempt_curse_and_filter_validation():
     assert killed_names(["The vampire lord is destroyed by the blast of fire!"]) == ["vampire lord"]
     from nh.danger import note_for
     assert ".;" not in note_for("Vlad the Impaler", 5)
+
+
+def test_kernel_blocked_teleport_resisted_poison_and_more_newcomers():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    s = snap({}, 11)
+    s.messages = ["Your position suddenly seems very uncertain!", "A mysterious force prevents you from teleporting!"]
+    k._check_events(snap({}, 10), s)
+    assert not any("TELEPORTED" in r for r in reasons)
+    reasons.clear()
+    s.messages = ["The quasit's sting was poisoned!", "The poison doesn't seem to affect you."]
+    k._check_events(snap({}, 10), s)
+    assert reasons == []
+    s.messages = ["The bone devil drinks a potion of gain level!", "The bone devil seems more experienced.",
+                  "The Grey-elf tries to wield an elven bow.", "It is missed."]
+    k._check_events(snap({}, 10), s)
+    assert reasons == []
+    after = snap({}, 12)
+    after.monsters = [{"ch": "Z", "x": 40 + i, "y": 10, "desc": f"zombie{i}", "new": True} for i in range(7)]
+    k._check_events(snap({}, 11), after)
+    assert reasons and "+3 more" in reasons[-1]

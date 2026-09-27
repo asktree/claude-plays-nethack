@@ -1816,3 +1816,36 @@ def test_mysterious_force_stops_the_script(monkeypatch):
     monkeypatch.setattr(ctx, "last", lambda: cur["s"])
     with pytest.raises(nav.NavError, match="MYSTERIOUS FORCE.*44 -> 47"):
         nav._use_stairs("<", wait_pet=0)
+
+
+def test_eat_pattern_picks_one_corpse_and_zero_nutrition_while_satiated(monkeypatch):
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    assert items._zero_nutrition("a wraith corpse") and not items._zero_nutrition("a jackal corpse")
+
+    def snap(kind="command", prompt=None, msgs=()):
+        s = _snap({}, (10, 5), [])
+        s.state = State(kind, prompt=prompt)
+        s.status.hunger = "Satiated"
+        s.messages = list(msgs)
+        return s
+    base = snap()
+    frames = [snap("yn", "There is a human corpse here; eat it? [ynq] (n)"),
+              snap("yn", "There is a wraith corpse here; eat it? [ynq] (n)"),
+              snap("yn", "You're having a hard time getting all of it down. Continue eating? [yn] (n)"),
+              snap(msgs=["You finish eating the wraith corpse.", "You feel that was a bad idea."])]
+    it = iter(frames)
+    sent = []
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        cur["s"] = next(it)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: base)
+    monkeypatch.setattr(items, "here", lambda: "Things that are here:\na human corpse\na wraith corpse")
+    items.eat(pattern="wraith corpse")
+    assert sent == [("e", True), ("n", False), ("y", False), ("y", True)]

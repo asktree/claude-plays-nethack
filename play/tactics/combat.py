@@ -246,6 +246,10 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                       + ") — they never move: step away instead (fight(x, y) to hit one on purpose)")
                 return s
         if x is not None:
+            if locked_on is None and any((m["x"], m["y"]) == (x, y) and m.get("statue") for m in s.monsters or []) \
+                    and not any((m["x"], m["y"]) == (x, y) and not m.get("statue") for m in s.monsters or []):
+                print(f"fight: ({x},{y}) holds a STATUE, not a monster — nothing to fight there")
+                return s
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]
             if not targets and s.screen.at(x, y) == "I" and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
                 # an unseen (invisible) monster you asked for by square: swing at it

@@ -759,27 +759,56 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
     return msgs
 
 
-def eat(letter: str | None = None) -> list:
+def _zero_nutrition(item: str) -> bool:
+    """A corpse with 0 nutrition (wraith, vortices, lights, elementals, paper/straw golems...): eating it
+    can't choke you, Satiated or not (eat.c lesshungry(0) adds nothing)."""
+    from nh.danger import monster_record
+    m = re.search(r"(?:^|\b)(?:an? |\d+ |the )?(?:partly eaten )?([a-z][\w' -]*?) corpses?\b", item or "")
+    rec = monster_record(m.group(1)) if m else None
+    return bool(rec) and rec.get("nutrition") == 0
+
+
+def eat(letter: str | None = None, pattern: str | None = None) -> list:
     """Eat inventory item `letter`, or (letter=None) the food on the floor
     here. NetHack first offers each floor corpse ("There is a jackal corpse
-    here; eat it?"): with a letter those are declined. The harness guards
-    still apply (deadly/old corpses, tins, Satiated). Returns the messages."""
+    here; eat it?"): with a letter those are declined; with `pattern` (a
+    regex, e.g. eat(pattern='wraith corpse')) only a matching one is eaten
+    (the others are declined). The harness guards still apply (deadly/old
+    corpses, tins, Satiated) — except that a corpse with 0 nutrition (a
+    wraith's) can't choke you, so it is eaten while Satiated too. Returns
+    the messages."""
     ctx.require_command("eat()")
-    s = ctx.do("e", quiet=True)
+    rx = re.compile(pattern, re.I) if pattern else None
+    zero_ok = False
+    if rx is not None and ctx.last().status.hunger == "Satiated":
+        floor = here()
+        hits = [t for t in re.split(r"\n|\s*\|\s*|(?<=\.)\s+", floor) if rx.search(t)]
+        zero_ok = bool(hits) and all(_zero_nutrition(t) for t in hits)
+    s = ctx.do("e", quiet=True, force=zero_ok)
     msgs = list(s.messages)
-    for _ in range(8):
+    current = ""
+    for _ in range(12):
         k, p = s.state.kind, s.state.prompt or ""
         if k == "command":
             break
         if k == "yn" and "here; eat" in p:
-            s = ctx.do("y" if letter is None else "n", quiet=True)
+            mm = re.search(r"There (?:is|are) (.+?) here; eat", p)
+            item = mm.group(1) if mm else p
+            take = letter is None and (rx is None or bool(rx.search(item)))
+            if take:
+                current = item
+            s = ctx.do("y" if take else "n", quiet=True)
         elif k == "object":
             if letter is None:
                 ctx.do("<Esc>", quiet=True)
-                raise RuntimeError("eat(): no food on the floor here — pass an inventory letter")
+                raise RuntimeError("eat(): no " + (f"floor food matching {pattern!r}" if pattern else "food on the floor")
+                                   + " here — pass an inventory letter")
             s = ctx.do(letter, quiet=True)
         elif k in ("yn", "getlin") and "Continue eating" in p:
-            s = ctx.do("n", quiet=True)          # starting Satiated: stop before choking
+            if _zero_nutrition(current):
+                s = ctx.do("y", quiet=True, force=True)   # 0 nutrition: nothing to choke on (a wraith: its level)
+            else:
+                s = ctx.do("n", quiet=True)          # starting Satiated: stop before choking
         else:
             ctx.pause(f"eat(): unexpected {k} {p!r}")
             s = ctx.last()
