@@ -40,6 +40,7 @@ def inventory():
     s = ctx.do("i", quiet=True)
     if s.state.kind == "menu":
         items, _ = _parse_menu_pages(s)
+        ctx.game.wielded = next((it["text"] for it in items if "weapon in hand" in it["text"]), "")
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
     return []

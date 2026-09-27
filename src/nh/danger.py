@@ -265,6 +265,34 @@ def passive_attacks(desc: str) -> list[tuple[str, str]]:
     return out
 
 
+# passives a dwarven Valkyrie shrugs off (intrinsic cold resistance)
+RESISTED_PASSIVES = ("AD_COLD",)
+_DAMAGING_PASSIVES = ("AD_ACID", "AD_ELEC", "AD_FIRE", "AD_COLD", "AD_PHYS", "AD_DRST")
+
+
+def passive_max(desc: str, extra_levels: int = 2) -> tuple[int, str]:
+    """Worst-case HP one of your hits can cost from the target's damaging
+    passive (uhitm.c passive(): damn d damd, or (monster level + 1) d damd
+    when damn is 0 — the level can be a few above the base, hence
+    extra_levels). Returns (max damage, what) or (0, '')."""
+    rec = monster_record(base_name(desc))
+    best = (0, "")
+    for a in (rec or {}).get("attacks", []):
+        if a.get("type") != "AT_NONE":
+            continue
+        dt = a.get("damage_type", "")
+        if dt not in _DAMAGING_PASSIVES or dt in RESISTED_PASSIVES:
+            continue
+        n, d = int(a.get("n") or 0), int(a.get("d") or 0)
+        if not d:
+            continue
+        dice = n if n else int(rec.get("level", 0)) + 1 + extra_levels
+        dmg = dice * d
+        if dmg > best[0]:
+            best = (dmg, f"{dt[3:].lower()} {dice}d{d}")
+    return best
+
+
 def max_hit(desc: str) -> int:
     """Rough worst-case damage this monster can do to you in one of your
     turns: sum of its active attacks' maxima (weapon attacks at least 12),

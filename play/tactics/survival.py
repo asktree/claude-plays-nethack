@@ -73,6 +73,15 @@ def elbereth(retries: int = 1):
       smudges it, and a scared monster you then attack makes you "feel like a
       hypocrite" (alignment penalty). Dust also decays at random over time.
     - While Blind you can engrave, but dust can't be felt: unverifiable."""
+    st = ctx.last().status
+    bad = {"Hallu", "Stun"} & set(st.conditions if st.ok else ())
+    if bad:
+        # engrave.c: each letter is garbled 1 time in 2 while hallucinating, 1 in 4 while stunned
+        ctx.pause(f"elbereth(): you are {'/'.join(sorted(bad))} — the engraving would come out garbled (Hallu 1/2, "
+                  "Stun 1/4 per letter). Wait it out, retreat, or pray if it's an emergency.")
+        return ctx.last()
+    if st.ok and "Conf" in st.conditions:
+        print("elbereth(): confused — each letter is garbled 1 time in 7; the read-back will tell")
     blind = "Blind" in ctx.last().status.conditions
     s = ctx.last()
     for attempt in range(retries + 1):

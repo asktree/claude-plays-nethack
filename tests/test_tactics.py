@@ -146,3 +146,16 @@ def test_pay_flow(monkeypatch):
     monkeypatch.setattr(ctx, "last", lambda: _snap({}, (10, 5), []))
     msgs = town.pay()
     assert sent == ["p", "n"] and msgs == ["You bought a food ration for 60 gold pieces."]
+
+
+def test_routine_flavour_messages():
+    import re
+    from tactics.combat import ROUTINE
+
+    def routine(m):
+        return any(re.search(p, m) for p in ROUTINE)
+    for m in ["The hill orc wields a dagger!", "The Grey-elf shoots 2 elven arrows!", "The winter wolf breathes frost!",
+              "You are hit by an elven arrow.", "The elven arrow misses you.", "The ogre swings her club."]:
+        assert routine(m), m
+    for m in ["The monkey stole a ring of fire resistance.", "You feel feverish."]:
+        assert not routine(m), m

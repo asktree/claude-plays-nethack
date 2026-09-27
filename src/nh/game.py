@@ -269,6 +269,7 @@ class Game:
         self.here_seen: dict[str, dict] = {}      # level key -> {(x, y): last "You see here"/pile text}
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
+        self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -531,6 +532,11 @@ class Game:
         if force or not unit:
             return
         k = snap.state.kind
+        if k == "command" and unit in (b"F", b"m", b"M", b"g", b"G"):
+            # cmd.c parse(): a prefix reads the next key silently (no prompt on screen) — the
+            # next thing you send would be taken as its direction
+            raise PermissionError(f"refusing to send the prefix {unit.decode()!r} on its own: NetHack silently "
+                                  f"waits for its direction key. Send both at once, e.g. do('{unit.decode()}h').")
         if k == "command":
             key = unit[1] if unit[:1] == b"F" and len(unit) > 1 else unit[0] if len(unit) == 1 else None
             step = unit[1] if unit[:1] == b"m" and len(unit) == 2 else unit[0] if len(unit) == 1 else None
@@ -852,6 +858,9 @@ class Game:
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
+                    if any(re.search(r"wield|empty.handed|slips from your|welded|disarm|wrested", m)
+                           for m in messages):
+                        self.wielded = None     # re-check the weapon next time it matters
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
                     if arrive and snap.under is None:
                         # took the stairs: you stand on the other end (the '@' hides it)

@@ -18,6 +18,9 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^You get zapped!$", r"^You are (?:stung|bitten|kicked|butted)",
            # weapon-wielding monsters announce each swing (mhitu.c); leg attacks (xan)
            r"^The .+ (?:swings|thrusts) (?:his|her|its) ", r" pricks your (?:left |right )?leg!$",
+           # ranged/weapon flavour (the damage, if any, is caught by the HP checks); thefts still pause
+           r"^The .+ wields (?:an? |the |\d+ )", r"^The .+ (?:throws|shoots|fires) ", r"^The .+ breathes ",
+           r"^You are hit by ", r"^The .+ misses you[.!]$",
            r"^The .+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
@@ -59,10 +62,20 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
             last.messages = seen + [m for m in last.messages if m not in seen]
 
 
+def _wielding() -> bool:
+    """Do you wield something? (cached by inventory(); asks once if unknown)"""
+    w = getattr(ctx.game, "wielded", None)
+    if w is None:
+        from .items import inventory
+        inventory()
+        w = getattr(ctx.game, "wielded", None)
+    return bool(w)
+
+
 def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
     """fight() body; `seen` collects every round's messages (so an early
     'You feel feverish' isn't lost behind later rounds)."""
-    from nh.danger import STOP_PASSIVES, max_hit, passive_attacks
+    from nh.danger import STOP_PASSIVES, max_hit, passive_attacks, passive_max
     s = ctx.last()
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
@@ -83,6 +96,11 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
         targets = s.adjacent_hostiles()
         if x is not None:
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]
+            if not targets and s.screen.at(x, y) == "I" and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
+                # an unseen (invisible) monster you asked for by square: swing at it
+                s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])], ok=ROUTINE)
+                seen.extend(s.messages)
+                continue
         if not targets:
             return s
         worst = sum(max_hit(m.get("desc") or "") for m in s.adjacent_hostiles())
@@ -95,12 +113,21 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
         m = targets[0]
         desc = m.get("desc") or ""
         pas = passive_attacks(desc) if desc else []
+        pdmg, pwhat = passive_max(desc) if desc else (0, "")
         if pas and desc not in _warned:
             _warned.add(desc)
-            print(f"fight: {desc} — passive: " + "; ".join(txt for _dt, txt in pas))
-        if not allow_passive and any(dt in STOP_PASSIVES for dt, _txt in pas):
+            print(f"fight: {desc} — passive: " + "; ".join(txt for _dt, txt in pas)
+                  + (f" | worst case {pdmg} HP per hit ({pwhat})" if pdmg else ""))
+        stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
+        if "AD_STON" in stops and _wielding():
+            stops.remove("AD_STON")     # uhitm.c: only a bare-handed (no weapon, no gloves) hit petrifies you
+        if not allow_passive and stops:
             ctx.pause(f"fight: not meleeing the {desc}: " + "; ".join(txt for _dt, txt in pas)
                       + ". Use ranged attacks or leave it (fight(..., allow_passive=True) to override).")
+            return ctx.last()
+        if not allow_passive and pdmg and st.ok and pdmg * 2 > st.hp:
+            ctx.pause(f"fight: one hit on the {desc} can cost you up to {pdmg} HP from its passive ({pwhat}) and "
+                      f"you have {st.hp}: rest first, fight it at range, or allow_passive=True.")
             return ctx.last()
         key = _key_toward(s.hero, m)
         if key is None:

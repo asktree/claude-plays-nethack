@@ -708,3 +708,14 @@ def test_default_benign_pet_kills_and_traps():
         assert benign(m), m
     for m in ["The soldier ant kills you!", "The large cat is killed!", "You feel feverish."]:
         assert not benign(m), m
+
+
+def test_guard_bare_prefix_key():
+    import pytest
+    g = _guard_game()
+    s = _cmd_snap([])
+    for k in (b"F", b"m", b"M", b"g", b"G"):
+        with pytest.raises(PermissionError):
+            g._guard(s, k, force=False)
+    g._guard(s, b"Fh", force=False)
+    g._guard(s, b"m<", force=False)
