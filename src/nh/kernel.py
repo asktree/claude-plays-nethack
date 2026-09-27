@@ -592,14 +592,21 @@ class Kernel:
                          and not m.get("peaceful")]
                 level = snap.status.ldesc if snap.status.ok else ""
 
+                blind = snap.status.ok and "Blind" in snap.status.conditions
+
                 def far(m):
                     d = m.get("dist")
-                    # (a sea monster ';' can't leave its water: far off it waits like any other, note or not)
-                    if d is None or (m.get("note") and m.get("ch") != ";"):
+                    # (a sea monster ';' can't leave its water: far off it waits like any other, note or not;
+                    # while you are BLIND telepathy shows the whole level: a noted monster far off waits too,
+                    # pausing as 'approaching' when it comes near — p1 shift 27: Orcus Town's vampire lords
+                    # 50 squares off paused every blow)
+                    if d is None or (m.get("note") and m.get("ch") != ";"
+                                     and not (blind and d > self.DEFER_NEAR)):
                         return False
                     # a big lit room reveals a crowd a few at a time; telepathy senses a whole level
                     # (a sleeping court 30 squares off): those are news only when they come near
-                    return (d > self.DEFER_NEAR and (len(crowd) > 8 or "[seen: telepathy" in (m.get("desc") or "")
+                    return (d > self.DEFER_NEAR and (len(crowd) > 8 or blind
+                                                     or "[seen: telepathy" in (m.get("desc") or "")
                                                      or "[seen: warned" in (m.get("desc") or ""))) \
                         or (self.defer_dist is not None and d > self.defer_dist)
                 later = [m for m in new if far(m)]

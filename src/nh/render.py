@@ -107,6 +107,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     gold_warn = getattr(snap, "gold_note", "")
     if gold_warn and snap.state.kind == "command":
         lines.append(f"!! {gold_warn}")
+    burn_warn = getattr(snap, "burn_note", "")
+    if burn_warn and snap.state.kind == "command":
+        lines.append(f"!! {burn_warn}")
     k = snap.state.kind
     if k != "command":
         if snap.state.prompt:

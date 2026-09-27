@@ -991,3 +991,48 @@ def test_gold_warning_with_a_leprechaun_on_the_level_even_without_a_bag():
     s.status.gold = 1932
     g._annotate(s)
     assert s.gold_note == ""
+
+
+def test_kernel_blind_defers_far_noted_monsters():
+    # p1 shift 27: blind with telepathy, far noted monsters (vampire lords 50 squares off) paused every blow
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    before = snap({}, 10)
+    far = snap({(70, 10): "V"}, 11)
+    far.status.conditions = ["Blind"]
+    lord = {"ch": "V", "x": 70, "y": 10, "desc": "vampire lord", "id": 3, "dist": 30, "new": True,
+            "note": "LEVEL DRAIN bite"}
+    far.monsters = [lord]
+    k._check_events(before, far)
+    assert not any("new monster" in r for r in reasons)
+    near = snap({(44, 10): "V"}, 15)
+    near.status.conditions = ["Blind"]
+    near.monsters = [dict(lord, x=44, dist=4, new=False)]
+    k._check_events(far, near)
+    assert reasons and "approaching" in reasons[-1]
+    # not blind: a noted newcomer pauses at once, far or not
+    reasons.clear()
+    k2 = Kernel(g)
+    k2._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    seen = snap({(70, 10): "V"}, 11)
+    seen.monsters = [dict(lord, id=9)]
+    k2._check_events(before, seen)
+    assert reasons and "new monster" in reasons[-1]
+
+
+def test_burnables_warning_in_gehennom():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    g.bags, g.loose_burnables = ["D"], ["a", "b"]
+    g.level_key = lambda status=None: "Gehennom / Level 34"
+    s = snap({}, 100)
+    g._annotate(s)
+    assert "FIRE TRAPS" in s.burn_note and "bag_put('D'" in s.burn_note
+    g.level_key = lambda status=None: "The Dungeons of Doom / Level 5"
+    s = snap({}, 100)
+    g._annotate(s)
+    assert s.burn_note == ""

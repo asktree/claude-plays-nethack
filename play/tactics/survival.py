@@ -564,11 +564,12 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
     hostile = [m for m in out if not m["desc"].startswith(("tame ", "peaceful "))]
     w = getattr(ctx, "watch_monsters", None)
     if w is not None and watched:
-        # seen now, they won't count as NEW when they come into view later: pause when one comes near
-        n = w([m for m in watched if (m.get("dist") or 0) > 6])
+        # seen now, they won't count as NEW when they come into view later: pause when one moves while within
+        # 6 squares (a minotaur 3 squares off behind a wall too: its first move in view pauses)
+        n = w(watched)
         if n:
-            print(f"telepathy_scan: watching {n} noted monster(s) — any of them moving to within 6 squares pauses "
-                  "('approaching')")
+            print(f"telepathy_scan: watching {n} noted monster(s) — any of them moving within 6 squares of you "
+                  "pauses ('approaching')")
     from nh.danger import base_name
     kinds: dict = {}
     for m in out:

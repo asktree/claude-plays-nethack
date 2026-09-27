@@ -2245,3 +2245,40 @@ def test_desmap_identifies_a_dark_level_from_a_few_squares(monkeypatch):
     r = desmap.identify(s=s, remember=False)
     assert r is not None and r["level"] == "juiblex" and r["index"] == 2 and (r["ox"], r["oy"]) == (14, 4)
     assert r.get("fixed") and not r.get("ambiguous")
+
+
+def test_travel_names_the_known_trap_on_the_only_route(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    g.traps = {"L": {(14, 5)}}
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {4: "        ---------------", 5: "        |.....^.......|", 6: "        ---------------"}
+    s = _snap(rows, (10, 5), [])
+    s.feature_desc = {(14, 5): "sleeping gas trap"}
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    with pytest.raises(nav.NavError, match="sleeping gas trap"):
+        nav._travel(20, 5, 40, None, 3, 0, False)
+    assert sent == []
+
+
+def test_desmap_skips_unique_levels_placed_elsewhere(monkeypatch):
+    from tactics import ctx, desmap
+    g = _G()
+    g.level_key = lambda status=None: "Gehennom / Level 34"
+    g.desmap_ids = {"Gehennom / Level 28": {"level": "asmodeus", "index": 0, "ox": 1, "oy": 1}}
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(desmap, "_MAPS", None)
+    seen_levels = []
+    real = desmap._identify_fixed
+
+    def spy(cands, seen):
+        seen_levels.extend(m["level"] for m in cands)
+        return real(cands, seen)
+    monkeypatch.setattr(desmap, "_identify_fixed", spy)
+    s = _snap({}, (10, 5), [])
+    desmap.identify(s=s, remember=False)
+    assert seen_levels and "asmodeus" not in seen_levels and "juiblex" in seen_levels

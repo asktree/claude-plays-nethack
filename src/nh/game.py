@@ -66,6 +66,7 @@ class Snap:
     flags: set = field(default_factory=set)       # this level's flags ("rogue", "castle", "medusa?", "medusa"...)
     medusa_risk: bool = False  # probably Medusa's level and you are neither blind nor known to reflect
     gold_note: str = ""        # loose gold while you carry a bag (leprechauns take the purse, not the bag)
+    burn_note: str = ""        # in Gehennom: scrolls/potions outside the bag (fire traps destroy them)
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
@@ -402,6 +403,7 @@ class Game:
         self.niches: dict[str, dict] = {}         # level key -> {(x, y) of a trapped closet: 'teleport'/'trapdoor'}
         self.mimics: dict[str, dict] = {}         # level key -> {(x, y): 'giant mimic'}: mimics seen unmasked,
                                                   # hiding again as objects there (MonsterTracker._note_mimics)
+        self.desmap_ids: dict[str, dict] = {}     # level key -> the fixed special-level map placed there (desmap)
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
         self.wielded_class: str | None = None     # inventory() class header of the wielded item ("Weapons")
@@ -446,7 +448,7 @@ class Game:
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
-                  self.niches, self.mimics):
+                  self.niches, self.mimics, self.desmap_ids):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -1473,7 +1475,10 @@ class Game:
         r"A little dart shoots out at you|bear trap closes on your|your magical energy drain away|"
         r"^You (fall|step|tumble|jump|land) into an? pit|on a set of sharp iron spikes|A board beneath you|"
         r"loose board below you|crease in the linoleum|spider web!|A cloud of gas puts you to sleep|"
-        r"You are enveloped in a cloud of gas|A gush of water hits (?:you|your)\b|tower of flame|momentarily lethargic|"
+        r"You are enveloped in a cloud of gas|A gush of water hits (?:you|your)\b|"
+        # trap.c dofiretrap(): yours is "A tower of flame erupts from the floor!"; a monster's has
+        # "... under <it>!" and an invisible one's "You see a tower of flame erupt ..." (p1 shift 27)
+        r"^A tower of flame (?:erupts|bursts) from (?!.*\bunder\b)|momentarily lethargic|"
         r"momentarily blinded by a flash of light|You trigger a rolling boulder trap|triggered an? land mine|"
         r"You (step onto|float over|fly over|feel) an? polymorph trap|^You (float|fly) over an? )")
 
@@ -1702,6 +1707,11 @@ class Game:
                       and not (r.get("desc") or "").startswith(("tame ", "peaceful "))
                       and turn - r.get("turn", 0) <= 500
                       for r in (getattr(self.tracker, "recent", None) or {}).values())
+        burn = getattr(self, "loose_burnables", None) or []
+        key0 = self.level_key(snap.status) if snap.status.ok else ""
+        snap.burn_note = (f"{len(burn)} scroll(s)/potion(s)/spellbook(s) in the open pack (per the last inventory(): "
+                          f"{''.join(burn[:12])}) — Gehennom's FIRE TRAPS burn scrolls and boil potions: "
+                          f"bag_put('{bags[0]}', ...) them" if burn and bags and key0.startswith("Gehennom") else "")
         if bags and gold >= 200:
             snap.gold_note = (f"${gold} loose in your purse — a leprechaun takes it all: bag_put('{bags[0]}', '$')"
                               + (" — and a LEPRECHAUN is on this level" if lep else ""))

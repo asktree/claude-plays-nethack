@@ -623,6 +623,13 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             print(f"travel: the only known way crosses the squeaky board(s) {on} — harmless (it squeaks and "
                   "wakes monsters nearby): walking over")
             return _walk_over(wide, boards)
+        if on:
+            # (NetHack's own travel won't cross a known trap either: it would just say "no known path")
+            fd = getattr(s, "feature_desc", None) or {}
+            what = ", ".join(f"{c} {fd.get(c) or 'trap'}" for c in on[:3])
+            raise NavError(f"travel to {(x, y)}: the only known way crosses the known trap(s) {what} — cross it "
+                           "on purpose (travel next to it, then step_onto(x, y): check what it does to you first), "
+                           "or dig / find another way")
     zone = {} if near_water or s.hero is None else {c: w for c, w in _eel_zone(s).items()
                                                     if c not in (s.hero, (x, y))}
     if zone:

@@ -166,3 +166,9 @@
 - "The sleep ray hits the <monster>" does not prove it sleeps: a minotaur attacked the next turn. Before walking up to melee a "sleeping" minotaur, watch one turn from where you are.
 - GELATINOUS CUBE next to another hostile: zap TELEPORTATION at it (no resistance roll on ordinary levels) or CANCELLATION (then melee is safe: no paralysis at all afterwards, confirmed). Never melee an uncancelled one near other monsters (passive paralysis d(7,4) turns).
 - Held by a grabber (ape, owlbear): attacks at any OTHER square fail with "You cannot escape from X!" — kill the holder first.
+- GEHENNOM FIRE TRAPS burn carried scrolls/potions even with fire resistance (T:22130: blessed genocide, 3 teleport scrolls, gain level lost in one step on an unseen trap). From the Valley on, keep EVERY scroll and potion in the bag of holding; only take one out when about to use it.
+- LIGHTNING FLASH BLINDS EVEN WHEN REFLECTED (zap.c buzz: flashburn() runs whenever the bolt passes your square): a monster with a wand of lightning (Nazgul) blinds you for up to ~150 turns per zap. Telepathy makes blind melee fine; kill the zapper first, then apply the unicorn horn.
+- 3.6.7 filler mazes can have WIDE corridors (mkmaze.c create_maze(rnd(4), ...)): 3-wide dark passages that look like rooms. Special-level matchers will misfire on them (desmap said "asmodeus").
+- ORCUS TOWN: Orcus is generated ON the `>` (map (33,15)) and waits until he sees you; the level is noteleport but NOT hardfloor — dig down from the west strip to skip him, like Asmodeus/Baalzebub.
+- Magic traps (Gehennom) summon up to 4 monsters around you with a flash + roar: after "a deafening roar", expect adjacent newcomers.
+- Storm giant corpse = 50% shock resistance (100% of the non-Str roll at level 16). Eat giants when not Satiated.

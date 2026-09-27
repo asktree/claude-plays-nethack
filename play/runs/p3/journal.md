@@ -122,3 +122,17 @@ T:7590 D12 — killed a leprechaun thief: got back $923 ($1007). D12 down stairs
 T:7710 D12 — ate a food ration: "Blecch! Rotten food!" -> Blind; the unicorn horn cured it on the 1st apply (it works: not cursed).
 T:7720 D13 — arrived (12,4) (fountain (15,5)); no quest message. Killed a pit viper (no bites landed) and a rope golem. LAWFUL ALTAR OF TYR (40,9) (no temple/priest): t elven daggers + u dark potion UNCURSED. Found x scroll of enchant weapon (uncursed): read it -> Excalibur +3.
 T:7764 D13 — end of shift 8 on the Tyr altar (40,9): HP 110/110, XL9 (Exp 4457), AC-6, $1173, no monsters in view.
+
+## Shift 9
+T:7914 DL13 — explore() found the `>` at (26,16). Killed 3 HILL GIANTS (one invisible: "It hits!", killed with fight() on the I square). Ate one corpse (no St gain, 50%), started a 2nd: "hard time getting it down" -> Satiated, stopped. Gems from the giants: y orange, z violet, A yellowish brown (+3 worthless green glass left).
+T:7975 DL13 — B silver ring at (72,14) (uncursed on the altar T:8074). A "Vlad was here" closet: one-time TRAP DOOR at (59,21) (behind a secret door (59,20)), avoided.
+T:8033 DL13 — killed a giant beetle, carried the corpse to Tyr's altar: four-leaf clover (Luck +1).
+T:8043 DL13 — an unseen winter wolf cub's FROST BREATH shattered 3 potions (dark u, object detection F, 1 of 2 EXTRA HEALING). Dropped the rest on a square where no line of fire reaches (52,13), explored on (cold res = immune without potions).
+T:8071 DL13 — killed the winter wolf cub next to the altar: XL10 (HP 118). Sacrificed it: another four-leaf clover (Luck ~2). Potions picked up again.
+T:8103 DL14 — arrived (65,8); no quest message. MORGUE (68-75,14-17), all asleep: with stealth killed 7 WRAITHS one by one (1 touch, no drain) — NO corpses (graveyard levels: undead leave a corpse only 1/3 as often -> 1/6 for wraiths), 5 ghosts (~180 exp each), 3 ghouls, zombies. A WERERAT (r) came: put on ring J (protection from shape changers) -> "The wererat changes into a human", and the "vampire bat" in the morgue turned into a VAMPIRE (68,17): left it ASLEEP. Killed wererat (@), a barrow wight (2 hits, no drain), a small mimic posing as a boulder (66,7).
+T:8159 DL14 — morgue large box (72,17) (locked, key): scroll of IDENTIFY, 2nd teleportation, light, VE FORBRYDERNE, thin spellbook. Read identify: N engagement ring = FIRE RESISTANCE.
+T:8291 DL14 — corridor squares touching only diagonally (pack >600 can't squeeze): searched once at (35,17) -> hidden corridor (35,16). West half explored: `>` (16,6).
+T:8361 DL14 — chaotic altar of Loki (41,17): BUC test — G 2 teleportation, Q 2x NR 9, K VE FORBRYDERNE, U thin spellbook, H milky potion UNCURSED; ZLORFIK (light) CURSED (dropped). NR 9 survived a 2nd pickup = not scare monster.
+T:8386 DL15 — ROGUE LEVEL ("older, more primitive world"); no quest message. Killed a hill giant. `>` (36,10). Scroll of IDENTIFY at (35,10): B silver = REGENERATION, Z topaz = LEVITATION, V probing (0:4). Quest portal = Oracle(D9)+6..7 -> should be D16.
+T:8457 DL16 — QUEST PORTAL LEVEL: 'You receive a faint telepathic message from the Norn: Your help is urgently needed at the Shrine of Destiny!' Arrived (4,5).
+T:8542 DL16 — MAGIC PORTAL (quest) at (46,5). Temple of Odin (peaceful priestess) altar (18,8). Booby-trapped door (52,7): KABOOM, stunned, unicorn horn fixed it. Killed a rothe and an OGRE KING (no damage).

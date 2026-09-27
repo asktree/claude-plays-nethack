@@ -96,6 +96,10 @@ class Tracker:
                 game.niches[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["niches"].items()}
             if lv.get("mimics") and isinstance(getattr(game, "mimics", None), dict):
                 game.mimics[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["mimics"].items()}
+            if lv.get("desmap"):
+                if getattr(game, "desmap_ids", None) is None:
+                    game.desmap_ids = {}
+                game.desmap_ids.setdefault(key, dict(lv["desmap"]))
             if lv.get("flags") and hasattr(game, "level_flags"):
                 game.level_flags.setdefault(key, set()).update(lv["flags"])
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
@@ -221,6 +225,9 @@ class Tracker:
             mi = getattr(self.game, "mimics", {}).get(key)
             if mi or lv.get("mimics"):
                 lv["mimics"] = {f"{c[0]},{c[1]}": k for c, k in (mi or {}).items()}
+            dm = (getattr(self.game, "desmap_ids", None) or {}).get(key)
+            if dm and not dm.get("ambiguous"):
+                lv["desmap"] = {k: dm[k] for k in ("level", "index", "ox", "oy") if k in dm}
             fl = getattr(self.game, "level_flags", {}).get(key)
             if fl:
                 lv["flags"] = sorted(fl)

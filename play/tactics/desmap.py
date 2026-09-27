@@ -214,6 +214,12 @@ def identify(names=None, s=None, min_score: int = 30, remember: bool = True) -> 
     best = None
     runner = -10 ** 9
     cands = _candidates(key, names)
+    if not names:
+        # each special level exists once: one already placed on ANOTHER level isn't this one (p1: a wide-
+        # corridor filler maze looked like Asmodeus's lair, met 6 levels up). Not for maps that repeat.
+        taken = {v["level"] for k, v in (getattr(ctx.game, "desmap_ids", None) or {}).items()
+                 if k != key and not v.get("ambiguous")}
+        cands = [m for m in cands if m["level"] not in taken or m["level"].startswith(("fakewiz", "bigrm"))]
     fixed = _identify_fixed(cands, seen)
     if fixed is not None:
         best = fixed

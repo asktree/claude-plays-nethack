@@ -65,6 +65,11 @@ def inventory():
         ctx.game.cursed_stones = [it["text"] for it in items if re.search(r"\bcursed (?:luck|load)stone", it["text"])]
         ctx.game.bags = [it["letter"] for it in items if re.search(r"\b(?:sack|bag)\b", it["text"])
                          and "tricks" not in it["text"]]
+        # trap.c dofiretrap() -> destroy_item(): Gehennom's fire traps burn scrolls/books and boil potions in
+        # the open pack (a bag protects them): the obs warns there
+        ctx.game.loose_burnables = [it["letter"] for it in items
+                                    if it["class"] in ("Scrolls", "Potions", "Spellbooks")
+                                    and not re.search(r"\bBook of the Dead\b", it["text"])]
         ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
