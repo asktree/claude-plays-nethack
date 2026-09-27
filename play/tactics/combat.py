@@ -578,6 +578,11 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             s = ctx.last()
             if s.state.kind != "command" or s.hero is None:
                 return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
+            if ctx.unwatch_monsters is not None:
+                # holding a square to fight what comes: monsters closing in within the radius are the plan,
+                # not an 'approaching' surprise (p2 shift 28: fire ants from the census watch list)
+                ctx.unwatch_monsters([m["id"] for m in s.monsters or [] if m.get("id") is not None
+                                      and m.get("dist") is not None and m["dist"] <= max(radius + 3, 5)])
             st = s.status
             if st.ok and st.hp < stop_hp * max(1, st.hpmax):
                 return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%} — Elbereth / retreat / pray if HP <= 1/7")

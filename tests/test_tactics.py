@@ -1114,6 +1114,19 @@ def test_prayer_check_counts_cursed_worn_items_and_stones(monkeypatch):
     assert survival.prayer_check()["trouble"] == "none"        # a loadstone counts only once Strained
     s.status.encumbrance = "Strained"
     assert survival.prayer_check()["trouble"] == "minor"
+    # p2 shift 28: punishment is pray.c's first minor trouble (TROUBLE_PUNISHED)
+    s.status.encumbrance = ""
+    g.cursed_stones = []
+    g.history = [(4000, "You are being punished for your misbehavior!")]
+    r = survival.prayer_check()
+    assert r["trouble"] == "minor" and "punished" in r["reasons"][0]
+    g.history.append((4100, "Your chain disappears."))
+    assert survival.prayer_check()["trouble"] == "none"
+    g.history, g.punished = [], True                             # (only the last inventory() tells)
+    assert survival.prayer_check()["trouble"] == "minor"
+    g.punished = False
+    s.status.conditions = ["Deaf"]
+    assert survival.prayer_check()["trouble"] == "minor"          # timed deafness counts like blindness
 
 
 def test_gold_note_only_with_a_bag_and_real_gold():
@@ -2598,3 +2611,28 @@ def test_trap_crossing_policy_and_trek(monkeypatch):
     calls.clear()
     nav.trek(13, 5)
     assert calls == [("travel", (11, 5)), ("step_onto", (12, 5)), ("travel", (13, 5))]
+
+
+def test_levitation_drowner_zone_stays_in_its_own_pool(monkeypatch):
+    # p2 shift 28: a kraken walled into Medusa's inner pool blocked levitate_to over the outer water
+    from tactics import ctx, nav
+    g = _G()
+
+    class _T:
+        def gone(self, turn):
+            return [{"x": 10, "y": 7, "desc": "kraken", "turn": turn - 10, "ch": ";"}]
+    g.tracker = _T()
+    monkeypatch.setattr(ctx, "game", g)
+    rows = {4: "  ---------------------",
+            5: "  |}}}}}}}}}}}}}}}}}}|",
+            6: "  |}}}}}|---|}}}}}}}}|",
+            7: "  |}}}}}|}}}|}}}}}}}}|",
+            8: "  |}}}}}|---|}}}}}}}}|",
+            9: "  |}}}}}}}}}}}}}}}}}}|",
+            10: "  ---------------------"}
+    s = _snap(rows, (4, 7), [])
+    s.status = Status(ok=True, ldesc="Dlvl:24", turn=200, conditions=["Lev"])
+    zone = nav._lev_drowner_zone(s)
+    assert "kraken" in zone[(10, 7)] and (10, 5) not in zone and (6, 7) not in zone
+    path = nav._lev_path(s, (4, 7), (18, 7), avoid=set(zone))
+    assert path and path[-1] == (18, 7) and not set(path) & set(zone)

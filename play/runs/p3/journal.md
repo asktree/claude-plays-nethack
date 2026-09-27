@@ -165,3 +165,13 @@ T:10504 DL22 — MEDUSA'S LEVEL (medusa-4: east island arrival (71,13); water, t
 T:10507 DL23 — landed (5,16) (corridor maze level with boulders and hidden pits). Killed a vampire, xorn, a statue-trap human mummy, rothe, large dog, imp. Real `<` (8,8); `>` (38,20). Pits (11,4), (34,8).
 T:10664 DL24 — `<` (28,8), `>` (21,12). Killed a water elemental, soldier ant. "You hear a distant zap" (a wand user). A MINOTAUR (+ imp, warhorse) came along the row-20 corridor: avoided it (plan was to zap W teleportation down the corridor), went back up.
 T:10711 DL23 — END OF SHIFT 11 on the down stairs (38,20): HP 142/142, XL13 (Exp 41397), AC-7, $452, not hungry, nothing in view.
+
+## Shift 12
+T:10712 DL23 — put on ring k (TELEPORT CONTROL, right hand) for maze traps (level teleporters/teleport traps become controlled).
+T:10806-10811 DL23 — boulder (26,12) stuck; pushed (28,4) east -> NE corridors. Maze level (corridor maze, walls 1-3 thick).
+T:10824 DL23 — a MINOTAUR adjacent (37,12): zapped W (teleportation) at it -> gone (3rd charge used; W started with 4-8, so >=1 left).
+T:10844 DL23 — rolling boulder trap (47,20) (no boulder). T:10847 teleport trap (49,14): ring k let me pick the landing square.
+T:10932 DL23 — Hungry: ate a food ration (D: 2 left).
+T:11013 DL23 — a yellow light exploded "at a spot in thin air" (invisible me: no blindness).
+T:11016-11018 DL23 — met a minotaur in the corridor (71,8) and meleed it at full HP: 4 hits killed it; it took 49 HP in 2 rounds (all 6 claws/butts hit despite my invisibility). HP 93/142.
+T:11024 DL23 — a SECOND minotaur (61,6) 2 squares away at HP 101: read G (teleportation, 2 left) with control -> (40,18); rested to full.

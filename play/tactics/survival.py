@@ -226,8 +226,8 @@ def prayer_check() -> dict:
     for c in st.conditions:
         if c in ("Stone", "Slime", "Strngl", "FoodPois", "TermIll"):
             reasons_major.append(c)
-        elif c in ("Blind", "Stun", "Conf", "Hallu"):
-            reasons_minor.append(c)
+        elif c in ("Blind", "Deaf", "Stun", "Conf", "Hallu"):
+            reasons_minor.append(c)      # (pray.c: timed deafness counts as TROUBLE_BLIND)
     if st.hunger in ("Weak", "Fainting", "Fainted"):
         reasons_major.append(st.hunger)
     elif st.hunger == "Hungry":
@@ -238,6 +238,14 @@ def prayer_check() -> dict:
     cured = max((i for i, m in enumerate(hist) if "You feel purified" in m), default=-1)
     if fever > cured:
         reasons_major.append("lycanthropy")
+    # pray.c in_trouble(): TROUBLE_PUNISHED is the first minor trouble (read.c punish: "You are being
+    # punished for your misbehavior!"; a prayer: "Your chain disappears."; a nymph can steal it)
+    pun = max((i for i, m in enumerate(hist) if "You are being punished for your misbehavior" in m), default=-1)
+    freed = max((i for i, m in enumerate(hist) if re.search(r"Your chain disappears|removed your chain|"
+                                                            r"You slip free of the buried ball", m)), default=-1)
+    punished = getattr(ctx.game, "punished", None)
+    if (pun > freed and punished is not False) or (punished and freed < 0):
+        reasons_minor.insert(0, "punished (ball and chain)")
     cw = getattr(ctx.game, "cursed_worn", None) or []
     if cw:
         # pray.c worst_cursed_item(): cursed worn armor/rings/amulet/blindfold or a welded weapon (known
@@ -275,8 +283,9 @@ def prayer_check() -> dict:
     if trouble == "none":
         advice.append("No trouble: prayer only helps if the timeout is exactly 0; don't pray.")
     elif trouble == "minor":
-        advice.append("Only MINOR trouble (" + ", ".join(reasons_minor) + "): cursed items, a welded weapon with "
-                      "a free off-hand, blindness, hunger(Hungry) are minor — rarely worth a prayer.")
+        advice.append("Only MINOR trouble (" + ", ".join(reasons_minor) + "): punishment, cursed items, a welded "
+                      "weapon with a free off-hand, blindness/deafness, hunger(Hungry) are minor — fixed by a "
+                      "prayer with the timeout under 100 and Luck > 0 (e.g. while carrying a luck item).")
     else:
         advice.append("MAJOR trouble: " + ", ".join(reasons_major) + ".")
     advice.append(f"Estimated chance the prayer timeout is low enough: {p_safe:.0%}"

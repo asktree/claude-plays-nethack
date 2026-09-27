@@ -397,24 +397,40 @@ def walk_path(path, ok=None):
     return s
 
 
-def _lev_drowner_zone(s) -> set:
-    """Squares (water or not) within reach of a drowner seen now or lately: while levitating over water an
-    eel/kraken next to you can still wrap and drown you (mhitu.c AD_WRAP checks only ITS square)."""
+def _lev_drowner_zone(s) -> dict:
+    """{(x, y): 'kraken at (x, y)'} squares (water or not) a drowner seen now or lately can reach: while
+    levitating over water an eel/kraken next to you can still wrap and drown you (mhitu.c AD_WRAP checks only
+    ITS square). Only the water connected to its own (a kraken walled into an inner pool can't come out:
+    p2 shift 28), within a few squares of where it was, plus the squares next to that water."""
     from nh.danger import base_name
     turn = s.status.turn if s.status.ok else None
-    seen = [(m["x"], m["y"], 0) for m in s.monsters or [] if not (m.get("tame") or m.get("peaceful"))
-            and base_name(m.get("desc") or "") in DROWNERS]
+    seen = [(m["x"], m["y"], 0, base_name(m.get("desc") or "")) for m in s.monsters or []
+            if not (m.get("tame") or m.get("peaceful")) and base_name(m.get("desc") or "") in DROWNERS]
     tr = getattr(ctx.game, "tracker", None)
     if tr is not None and hasattr(tr, "gone") and turn is not None:
         for r in tr.gone(turn):
             d = r.get("desc") or ""
             ago = turn - r.get("turn", turn)
             if base_name(d) in DROWNERS and 0 <= ago <= EEL_MEMORY and not d.startswith(("tame ", "peaceful ")):
-                seen.append((r["x"], r["y"], ago))
-    out = set()
-    for ex, ey, ago in seen:
-        reach = 1 + (0 if ago == 0 else min(6, 1 + ago // 2))
-        out |= {(ex + dx, ey + dy) for dx in range(-reach, reach + 1) for dy in range(-reach, reach + 1)}
+                seen.append((r["x"], r["y"], ago, base_name(d)))
+    out: dict = {}
+    for ex, ey, ago, name in seen:
+        reach = 2 + (0 if ago == 0 else min(6, 1 + ago // 2))
+        # its water body (8-connected '}' from its square), within `reach`
+        body, q = {(ex, ey)}, [(ex, ey)]
+        while q:
+            cx, cy = q.pop()
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    n = (cx + dx, cy + dy)
+                    if n not in body and s.screen.at(*n) == "}" and max(abs(n[0] - ex), abs(n[1] - ey)) <= reach:
+                        body.add(n)
+                        q.append(n)
+        why = f"{name} at ({ex},{ey})" + (f", {ago} turns ago" if ago else "")
+        for (wx, wy) in body:
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    out.setdefault((wx + dx, wy + dy), why)
     return out
 
 
@@ -494,14 +510,16 @@ def levitate_to(x: int, y: int, max_steps: int = 300, near_water: bool = False, 
         if not conds & {"Lev", "Fly"}:
             raise NavError(f"levitate_to{goal}: you are not levitating or flying now (at {s.hero}) — put the "
                            "ring/boots on or quaff first; on water that means you just fell in")
-        zone = set() if near_water else (_lev_drowner_zone(s) - {s.hero, goal})
+        zmap = {} if near_water else {c: w for c, w in _lev_drowner_zone(s).items() if c not in (s.hero, goal)}
+        zone = set(zmap)
         path = _lev_path(s, s.hero, goal, unknown_cost, avoid=zone)
         if path is None and zone:
             wet = _lev_path(s, s.hero, goal, unknown_cost)
             if wet is not None:
-                raise NavError(f"levitate_to{goal}: the only way passes next to a drowning monster "
-                               f"({sorted(zone & set(wet))[:3]}): its wrap drowns you even while levitating. Kill "
-                               "it, wait for it to move off, or levitate_to(..., near_water=True)")
+                hit = [c for c in wet if c in zone]
+                raise NavError(f"levitate_to{goal}: the only way passes {hit[0]}, within reach of the "
+                               f"{zmap[hit[0]]} (its wrap drowns you even while levitating). Kill it, wait "
+                               "for it to move off, or levitate_to(..., near_water=True)")
         if path is None:
             raise NavError(f"levitate_to{goal}: no way from {s.hero} over the known map (walls, closed doors, "
                            "boulders, traps and monsters block; unseen squares count as open)")

@@ -74,6 +74,7 @@ def inventory():
                                     if it["class"] in ("Scrolls", "Potions", "Spellbooks")
                                     and not re.search(r"\bBook of the Dead\b", it["text"])]
         ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
+        ctx.game.punished = any("(chained to you)" in it["text"] for it in items)   # objnam.c: ball and chain
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
     return []
