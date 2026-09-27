@@ -51,6 +51,9 @@ def inventory():
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         ctx.game.reflecting = any("(being worn)" in it["text"] and _REFLECT.search(it["text"]) for it in items)
+        ctx.game.magic_res = any(("(being worn)" in it["text"] and _MR_WORN.search(it["text"]))
+                                 or (re.search(r"\bMagicbane\b", it["text"]) and _wielded(it["text"]))
+                                 for it in items)
         empty = getattr(ctx.game, "empty_wands", None)
         if empty:           # a letter that isn't a wand any more (dropped, recharged: "(x:N)" with N > 0)
             wands = {it["letter"]: it["text"] for it in items if re.search(r"\bwand\b", it["text"])}
@@ -75,6 +78,9 @@ def inventory():
     # "Not carrying anything." or a tiny inventory shown on the message line
     return []
 
+
+# worn magic resistance (extrinsic): gray dragon scales/scale mail, a cloak of magic resistance; Magicbane wielded
+_MR_WORN = re.compile(r"\b(?:gray dragon scale mail|gray dragon scales|cloak of magic resistance)\b")
 
 # worn reflection, by identified name (or the shield of reflection's own look): an unidentified amulet
 # of reflection can't be told apart — the player passes medusa_ok=True then
@@ -694,6 +700,7 @@ def bag_put(bag: str, letters: str, one_move: bool = True, force: bool = False) 
             msgs += s.messages
             if s.state.kind != "command":
                 ctx.pause(f"bag_put({letter!r}): unexpected {s.state.kind} {s.state.prompt!r}")
+        _stashed(letters, msgs)
         return msgs
     # pickup.c menu_loot(put_in): a class menu ("Put in what type of objects?": never 'A', which puts in
     # EVERYTHING), then "Put in what?" listing your items under their own inventory letters (invlet_constant)
@@ -731,8 +738,19 @@ def bag_put(bag: str, letters: str, one_move: bool = True, force: bool = False) 
     left = [c for c in letters if c not in chosen]
     if left:
         print(f"bag_put: {left} not offered by the menu (worn/wielded items can't go in) — still in your pack")
+    _stashed("".join(chosen), msgs)
     _enc_note("bag_put", enc0)
     return msgs
+
+
+def _stashed(letters: str, msgs) -> None:
+    """Items put into a bag leave the open pack: the Gehennom burn warning (per the last inventory())
+    must not keep naming them (p1 shift 29)."""
+    if not any(re.search(r"^You put .* into ", m) for m in msgs or []):
+        return
+    lb = getattr(ctx.game, "loose_burnables", None)
+    if lb:
+        ctx.game.loose_burnables = [c for c in lb if c not in letters]
 
 
 _DISCO_LINE = re.compile(r"^\*?\s*(?P<name>\S.*?) \((?P<app>[^()]+)\)$")

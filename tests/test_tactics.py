@@ -2546,3 +2546,55 @@ def test_bag_of_holding_explosion_guard():
     assert _boh_risk("an oilskin sack", "an oak wand") == ""                          # not a bag of holding
     assert _boh_risk("a sack", "a bag of holding") == ""
     assert _boh_risk("a bag of holding", "3 uncursed potions of healing") == ""
+
+
+def test_trap_crossing_policy_and_trek(monkeypatch):
+    # p1 shift 29: explore/travel never crossed known minor traps; trek() (p1's helper, built in) does
+    from tactics import ctx, nav
+    g = _G()
+    g.intrinsics = {"cold"}
+    g.magic_res = False
+    g.feature_desc = {"L": {(12, 5): "dart trap", (14, 5): "magic trap"}}
+    g.traps = {"L": {(12, 5), (14, 5)}}
+    monkeypatch.setattr(ctx, "game", g)
+    st = Status(ok=True, hp=100, hpmax=100)
+    assert nav.trap_crossable("squeaky board", st) and nav.trap_crossable("arrow trap", st)
+    assert not nav.trap_crossable("dart trap", st)                  # no poison resistance: 1/180 death per hit
+    assert not nav.trap_crossable("level teleporter", st) and not nav.trap_crossable("magic trap", st)
+    g.intrinsics.add("poison")
+    g.magic_res = True
+    assert nav.trap_crossable("dart trap", st) and nav.trap_crossable("level teleporter", st)
+    assert not nav.trap_crossable("fire trap", st) and not nav.trap_crossable("land mine", st)
+    assert not nav.trap_crossable("rolling boulder trap", Status(ok=True, hp=30, hpmax=100))
+    rows = {4: "        ----------",
+            5: "        |..^.^..|",
+            6: "        ----------"}
+    cur = {"s": _snap(rows, (10, 5), [])}
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: cur["s"])
+    calls = []
+
+    def move(x, y):
+        s = _snap(rows, (x, y), [])
+        s.status = cur["s"].status
+        cur["s"] = s
+        return s
+
+    def fake_travel(x, y, **kw):
+        calls.append(("travel", (x, y)))
+        return move(x, y)
+
+    def fake_step_onto(x, y, **kw):
+        calls.append(("step_onto", (x, y)))
+        return move(x, y)
+    monkeypatch.setattr(nav, "travel", fake_travel)
+    monkeypatch.setattr(nav, "step_onto", fake_step_onto)
+    import pytest
+    with pytest.raises(nav.NavError, match="magic trap"):
+        nav.trek(15, 5)                                               # the magic trap is never crossed
+    cur["s"] = _snap(rows, (10, 5), [])
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    calls.clear()
+    nav.trek(13, 5)
+    assert calls == [("travel", (11, 5)), ("step_onto", (12, 5)), ("travel", (13, 5))]

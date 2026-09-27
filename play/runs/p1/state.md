@@ -3,13 +3,13 @@
 ## Character
 - Name/role: P1 — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
 - **T:25359 / DL38 (Gehennom 13) = wizard2, standing ON THE VLAD'S TOWER BRANCH `<` (62,4)** (found under a brass ring). HP 165/165, not hungry, no hostile in view. DL38 `>` (19,8), level `<` (13,10) (-> DL37 `>`).
-- **XL15** (Exp 179231; XL16 at 200000) / HP 165/165 / Pw 30/30 / **AC -8** (cloak THOROUGHLY burnt, gloves burnt: DL36 fire traps) / VERY FAST / not Burdened / Satiated (storm giant T:22543). $171.
+- **XL15** (Exp 186570; XL16 at 200000) / HP 165/165 / Pw 30/30 / **AC -8** (cloak THOROUGHLY burnt, gloves burnt: DL36 fire traps) / VERY FAST / not Burdened / not hungry (Satiated wore off ~T:25300; eat when Hungry: J 2 food rations, B, O, y 5 royal jelly). $171.
 - **MR (GDSM) + REFLECTION (shield b) + LIFE SAVING (amulet L, worn).** Liches GENOCIDED. Medusa dead. Castle done.
 - NEW shift 29: **R = crystal wand = speed monster (junk; drop when a letter is needed)**; **Y = SHINY RING (unknown)**, **s = BRASS RING (unknown; brass suspected = invisibility)** — never put on untested; old R/Y/s (empty cold/striking/sleep wands) DROPPED on DL38; 51 letters used. **w = SLOW MONSTER (steel wand, engrave-tested)**; **K = jeweled wand: no engrave effect** (opening/locking/probing/undead turning/secret door detection or empty); **k = OCTAGONAL AMULET (unknown, not worn)**; scroll called remove curse (blessed, from the wish) is back IN bag D (take it out before fighting the Wizard: his curse-items spell can curse the bag); magenta potion = INVISIBILITY (identified). Wand G teleportation used once more (T:24294, minotaur).
 - Rings worn: f prot. from shape changers (RIGHT), u slow digestion (LEFT). Unknown rings coral, granite, tiger eye, black onyx are IN BAG D (do not put on untested).
-- Attributes: St 18/11, Dx 16, Co 20, In 10, Wi 11, Ch 7. Intrinsics: cold res, stealth, infravision, Fast (+speed boots = Very fast), POISON RES, FIRE RES, **SHOCK RES (storm giant corpse T:22543: 'Your health currently feels amplified!')**, TELEPATHY (blind only: blindfold l), MR, REFLECTION. **NO sleep res, NO free action.**
+- Attributes: St 18/11, Dx 15 (exercise loss T:24275), Co 20, In 10, Wi 11, Ch 7. Intrinsics: cold res, stealth, infravision, Fast (+speed boots = Very fast), POISON RES, FIRE RES, **SHOCK RES (storm giant corpse T:22543: 'Your health currently feels amplified!')**, TELEPATHY (blind only: blindfold l), MR, REFLECTION. **NO sleep res, NO free action.**
 - Luck >= 0. Alignment: no hypocrisy, no peacefuls hurt. Quest XL requirement (14) now MET; piety still unchecked (`piety()`).
-- Pack is near full (45 letters used after dropping junk): bag junk before looting more.
+- Pack: 51 of 52 letters used (T:25359): drop R (speed monster) / bag junk before looting more.
 
 ## WISHES — all 5 used (T:20563-20619); the wand of wishing is DUST
 1. "2 blessed scrolls of charging" -> 1 (the wand had only 1 charge: this wish, then "Nothing happens"); read on the wand at (0:0) -> (1:3).

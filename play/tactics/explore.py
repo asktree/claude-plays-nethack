@@ -152,26 +152,55 @@ def _pick_target(skip, bad=frozenset(), why=None):
     return None
 
 
-def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = True, medusa_ok: bool = False):
+def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = True, medusa_ok: bool = False,
+            cross_traps=False):
     """(skip: extra squares never to target; known traps and avoid() squares
     are always skipped. auto_fight: fight adjacent hostiles that are all
     trivial for you (combat.auto_fightable: newts, rats, jackals...) on the
     spot, and don't pause when such a monster comes into view; anything
-    else still pauses / stops as before.)"""
+    else still pauses / stops as before. cross_traps=True: when the only
+    frontiers left lie behind known traps, trek() to them across the ones
+    trap_crossable() allows for you (squeaky boards, arrow traps, pits...;
+    or a list of trap names), then explore on.)"""
     import contextlib
     from .nav import bad_squares
     ctx.require_command("explore()")
     from .nav import _medusa_check, engulfed_check
     engulfed_check(ctx.last(), "explore()")
     _medusa_check(ctx.last(), (-1, -1), "explore()", medusa_ok)
-    skip = set(skip or ()) | bad_squares()
+    skip0 = set(skip or ())
+    skip = skip0 | bad_squares()
     if auto_fight and ctx.monster_filter:
         from .combat import not_auto_fightable
         guard = ctx.monster_filter(not_auto_fightable)
     else:
         guard = contextlib.nullcontext()
     with guard:
-        return _explore(max_legs, skip, auto_fight)
+        r = _explore(max_legs, skip, auto_fight)
+        tried: set = set()
+        for _round in range(4):
+            if not cross_traps or not r.get("avoided") or not r["reason"].startswith(("blocked", "explored")):
+                break
+            from .nav import trek
+            from .mapview import dist as _d
+            s = ctx.last()
+            if s.state.kind != "command" or s.hero is None:
+                break
+            moved = False
+            for c in sorted((c for c in r["avoided"] if c not in tried), key=lambda c: _d(c, s.hero))[:3]:
+                tried.add(c)
+                try:
+                    s2 = trek(*c, cross_traps=cross_traps)
+                except NavError as e:
+                    print(f"explore: no crossing toward {c}: {e}")
+                    continue
+                if s2.state.kind != "command" or s2.hero != s.hero:
+                    moved = True
+                    break
+            if not moved or ctx.last().state.kind != "command":
+                break
+            r = _explore(max_legs, skip0 | bad_squares(), auto_fight)
+        return r
 
 
 def _explore(max_legs: int, skip: set, auto_fight: bool = False):
@@ -190,6 +219,7 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
     unreachable, locked = [], []
     why = {"avoided": [], "squeeze": []}
     boulders_hit: list = []
+    cleared: set = set()             # 'I' markers explore already tried to clear (once each)
     stuck = 0
 
     def result(reason):
@@ -322,7 +352,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             skip.add(tgt)
             try:
                 s = travel(*tgt)
-            except NavError:
+            except NavError as e:
+                if _cleared_I(tgt, e, cleared):
+                    skip.discard(tgt)
+                    continue
                 unreachable.append(tgt)
                 continue
             legs += 1
@@ -336,7 +369,9 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             ctx.do("<Esc>", quiet=True)          # close the travel prompt; walk a detour instead
             try:
                 s = travel(*target)
-            except NavError:
+            except NavError as e:
+                if _cleared_I(target, e, cleared):
+                    continue
                 skip.add(target)
                 unreachable.append(target)
                 continue
@@ -468,6 +503,20 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+def _cleared_I(target, err, tried: set) -> bool:
+    """travel() refused a target holding a remembered 'I' (p1 shift 29: explore stalled on stale markers
+    from a telepathy scan): search next to it once (clear_I) — True when it is gone and the target is free."""
+    if "holds an 'I'" not in str(err) or target in tried:
+        return False
+    tried.add(target)
+    from .nav import clear_I
+    try:
+        return clear_I(*target)
+    except NavError as e:
+        print(f"explore: couldn't clear the 'I' at {target}: {e}")
+        return False
 
 
 def _trap_frontiers(s, bad) -> list:

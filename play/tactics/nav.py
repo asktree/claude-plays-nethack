@@ -570,6 +570,125 @@ def push_boulder(direction: str, n: int = 1):
     return ctx.last()
 
 
+def clear_I(x: int, y: int) -> bool:
+    """Clear a remembered-unseen-monster marker 'I' at (x, y) the safe way:
+    walk next to it and search once — detect.c dosearch0() erases an 'I'
+    with nothing under it (unmap_invisible) and only FEELS a real invisible
+    monster there, never attacking it (a step or F there would attack even a
+    peaceful). One game turn. Returns True when the marker is gone."""
+    s = ctx.require_command("clear_I()")
+    if s.screen.at(x, y) != "I":
+        return True
+    if "Blind" in (s.status.conditions if s.status.ok else ()):
+        raise NavError(f"clear_I{(x, y)}: you are Blind — searching doesn't clear markers then")
+    h = s.hero
+    if h is None:
+        return False
+    if max(abs(h[0] - x), abs(h[1] - y)) > 1:
+        from .mapview import is_walkable
+        spots = sorted(((x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy),
+                       key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
+        spots = [c for c in spots if is_walkable(s, *c, allow_monsters=False) and s.screen.at(*c) != "I"
+                 and bfs_path(s, h, c, avoid=frozenset(bad_squares(s) - {c}), allow_pets=True) is not None]
+        if not spots:
+            raise NavError(f"clear_I{(x, y)}: no reachable square next to it")
+        s = travel(*spots[0])
+        if s.hero is None or max(abs(s.hero[0] - x), abs(s.hero[1] - y)) > 1:
+            return False
+    s = ctx.do("s", ok=BENIGN + [r"^You feel an unseen monster", r"^You find "])
+    gone = s.screen.at(x, y) != "I"
+    print(f"clear_I{(x, y)}: " + ("the marker was stale — gone" if gone else
+                                  "still 'I' after a search: something invisible IS there (maybe peaceful) — "
+                                  "look before attacking"))
+    return gone
+
+
+# trap.c: what stepping on a known trap costs you, by type — trek()/explore(cross_traps=True) cross only these
+def trap_crossable(name: str, st=None) -> bool:
+    """May trek() step on a known trap of this type? Harmless or minor for you now: a squeaky board, an
+    arrow trap, an anti-magic field, a pit; a falling rock / rolling boulder trap with HP to spare; a dart
+    trap or spiked pit only with poison resistance (a poisoned hit can kill outright); teleport/level
+    teleporter/polymorph traps only with magic resistance (worn/wielded, per inventory()); a sleeping gas
+    trap only with sleep resistance. Never: magic trap, fire trap, land mine, bear trap, web, rust trap,
+    hole, trap door, magic portal, statue trap."""
+    n = (name or "").lower().strip()
+    res = getattr(ctx.game, "intrinsics", None) or set()
+    mr = bool(getattr(ctx.game, "magic_res", False))
+    st = st or ctx.last().status
+    hp = st.hp if st is not None and st.ok else 0
+    if n in ("squeaky board", "arrow trap", "anti-magic field", "pit"):
+        return True
+    if n == "falling rock trap":
+        return hp >= 20
+    if n == "rolling boulder trap":
+        return hp >= 40
+    if n in ("dart trap", "spiked pit"):
+        return "poison" in res
+    if n in ("teleportation trap", "level teleporter", "polymorph trap"):
+        return mr
+    if n == "sleeping gas trap":
+        return "sleep" in res
+    return False
+
+
+def _trap_names(s) -> dict:
+    """{(x, y): 'dart trap'} known trap types on this level (farlook / #terrain descriptions)."""
+    fd = getattr(ctx.game, "feature_desc", {}) or {}
+    key = ctx.game.level_key(s.status) if s.status.ok else None
+    return {c: d for c, d in (fd.get(key) or {}).items() if re.search(r"\btrap\b|\bboard\b|\bpit\b|field", d or "")}
+
+
+def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
+    """travel() to (x, y) that may CROSS known traps when no way around
+    them is known: travel to the square before each one, then step onto it
+    (step_onto). cross_traps=True: the types trap_crossable() allows for you
+    now; or a list of trap names ('dart trap', 'rust trap'...) to allow. A
+    route around the traps is always preferred. Returns the final Snap;
+    NavError when even crossing the allowed traps finds no way."""
+    goal = (x, y)
+    s = ctx.require_command("trek()")
+
+    def ok(c, names, st):
+        d = names.get(c)
+        return d is not None and (trap_crossable(d, st) if cross_traps is True else d in tuple(cross_traps or ()))
+
+    def finish(s):
+        # (a crossable trap as the goal itself — a frontier behind nothing but it: step onto it at the end)
+        names = _trap_names(s)
+        if s.hero is not None and s.hero != goal and max(abs(s.hero[0] - x), abs(s.hero[1] - y)) == 1 \
+                and ok(goal, names, s.status):
+            print(f"trek: stepping onto the {names[goal]} at {goal}")
+            s = step_onto(x, y)
+        return s
+    for _ in range(max_legs):
+        s = ctx.last()
+        if s.state.kind != "command" or s.hero is None or s.hero == goal:
+            return s
+        bad = bad_squares(s) - {goal}
+        names = _trap_names(s)
+        allow = {c for c in bad if ok(c, names, s.status)}
+        around = bfs_path(s, s.hero, goal, avoid=frozenset(bad), allow_pets=True)
+        if around is not None:
+            return finish(travel(x, y))
+        path = bfs_path(s, s.hero, goal, avoid=frozenset(bad - allow), allow_traps=True, allow_pets=True)
+        if path is None:
+            blocking = sorted(c for c in bad if c in names)
+            raise NavError(f"trek{goal}: no way even across the traps you may cross; known traps: "
+                           + ", ".join(f"{c} {names[c]}" for c in blocking[:6])
+                           + " (trap_crossable() says which are allowed; cross_traps=['...'] adds more)")
+        idx = next((i for i, c in enumerate(path) if c in allow), None)
+        if idx is None:
+            return finish(travel(x, y))
+        if idx == 0:
+            print(f"trek: stepping onto the {names[path[0]]} at {path[0]}")
+            s = step_onto(*path[0])
+            continue
+        s = travel(*path[idx - 1])
+        if s.hero != path[idx - 1]:
+            return s                  # stopped short (a monster, a message): the caller looks
+    return ctx.last()
+
+
 def blockers(s=None) -> list:
     """Non-tame monsters next to the hero. NetHack's travel/run never starts
     beside one (lookaround() stops before the first step, silently)."""
@@ -935,8 +1054,8 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     if occ and s.hero != (x, y):
         if all(m.get("unseen") or m["ch"] == "I" for m in occ):
             raise NavError(f"travel target {(x, y)} holds an 'I' — a REMEMBERED unseen monster, maybe long gone: "
-                           "go next to it and fight(x, y, force=True) once (\"You attack thin air\" clears a "
-                           "stale marker; a real invisible monster gets hit), then travel again")
+                           f"clear_I({x}, {y}) walks next to it and searches once (a stale marker vanishes; a real "
+                           "invisible monster is only felt, never attacked), then travel again")
         raise NavError(f"travel target {(x, y)} is occupied by {_mdesc(occ)} (travelling there would bump "
                        "into it and waste a turn)")
     if max_dist is not None and s.hero is not None:
