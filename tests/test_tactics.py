@@ -1949,3 +1949,38 @@ def test_throw_refuses_non_weapons_at_monsters(monkeypatch):
     sent.clear()
     combat.throw("d", "l")                      # daggers: thrown
     assert not any("ALWAYS miss" in p for p in paused) and sent[:1] == ["t"]
+
+
+def test_desmap_walk_fights_trivial_neighbours(monkeypatch):
+    from tactics import combat, ctx, desmap, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    newt = {"x": 23, "y": 7, "ch": ":", "desc": "newt", "dist": 1}
+    cur = {"s": _snap({}, (22, 7), [newt])}
+    cur["s"].hostiles = lambda radius=None: [newt] if cur["s"].monsters else []
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    fought, walked = [], []
+
+    def fake_fight_trivial(s=None):
+        fought.append(1)
+        cur["s"] = _snap({}, (22, 7), [])
+        cur["s"].hostiles = lambda radius=None: []
+        return cur["s"]
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        cur["s"] = _snap({}, tuple(cells[-1]), [])
+        cur["s"].hostiles = lambda radius=None: []
+        return cur["s"]
+    monkeypatch.setattr(combat, "fight_trivial", fake_fight_trivial)
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    monkeypatch.setattr(desmap, "route", lambda x, y, **kw: {"path": [(23, 7), (24, 7)], "secret": [], "traps": []})
+    s = desmap.walk(24, 7)
+    assert fought == [1] and walked == [[(23, 7), (24, 7)]] and s.hero == (24, 7)
+    # fight=False: never fights
+    fought.clear()
+    walked.clear()
+    cur["s"] = _snap({}, (22, 7), [newt])
+    cur["s"].hostiles = lambda radius=None: [newt]
+    desmap.walk(24, 7, fight=False)
+    assert fought == [] and walked

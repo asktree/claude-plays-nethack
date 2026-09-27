@@ -30,6 +30,20 @@ from .parse import MAP_BOTTOM, MAP_TOP, MONSTER_CHARS, HUNGER, ENCUMBRANCE
 
 _HUNGER_RANK = {"": 0, "Satiated": 0, "Hungry": 1, "Weak": 2, "Fainting": 3, "Fainted": 4}
 _ENC_RANK = {"": 0, "Burdened": 1, "Stressed": 2, "Strained": 3, "Overtaxed": 4, "Overloaded": 5}
+# what cures the deadly conditions (3.6.7: potion.c healup(), eat.c, pray.c fix_worst_trouble())
+COND_HINTS = {
+    "TermIll": "deadly illness (dies in ~10-30 turns): apply a unicorn horn, eat a eucalyptus leaf, quaff blessed "
+               "healing / non-cursed extra or full healing, or pray if prayer is safe. If an engulfer or attacker "
+               "keeps re-infecting you (Juiblex, Demogorgon, Pestilence), kill it first when a few blows will do "
+               "(from inside an engulfer every blow hits), then cure",
+    "FoodPois": "deadly food poisoning: apply a unicorn horn, eat a eucalyptus leaf, quaff blessed healing / "
+                "non-cursed extra or full healing, or pray if prayer is safe",
+    "Stone": "TURNING TO STONE (5 turns): eat a lizard corpse or an acidic corpse, quaff acid, cast stone to "
+             "flesh, or pray if prayer is safe",
+    "Slime": "TURNING INTO SLIME (10 turns): burn it (zap fire at yourself, read fire, step into a fire trap), "
+             "or pray if prayer is safe (a unicorn horn does NOT help)",
+    "Strngl": "STRANGLED (dies in 6 turns): remove the amulet (R) at once, or pray if prayer is safe",
+}
 
 
 # Messages that never need a human look by themselves (pets, routine
@@ -256,7 +270,8 @@ class Kernel:
             ok=[regex,...]: messages matching any of these don't pause (this
             step only), on top of the exec's autocontinue list.
             expect=("level",): this step is meant to change level (no
-            level-change pause; everything else still pauses)."""
+            level-change pause; everything else still pauses); "blind": it
+            puts on a blindfold on purpose (no pause for +Blind)."""
             return k._do(keys, force=force, quiet=quiet, ok=ok, multi=multi, secret=secret, expect=expect)
 
         def look() -> Snap:
@@ -497,9 +512,11 @@ class Kernel:
                     if big_hit or low:
                         reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}")
             new_conds = [c for c in a.conditions if c not in b.conditions
-                         and not (c == "Blind" and in_cloud and not cloud_news and self._poison_res())]
+                         and not (c == "Blind" and in_cloud and not cloud_news and self._poison_res())
+                         and not (c == "Blind" and "blind" in expect)]
             if new_conds:
-                reasons.append("status: +" + ",".join(new_conds))
+                reasons.append("status: +" + ",".join(new_conds)
+                               + "".join(f" — {COND_HINTS[c]}" for c in new_conds if c in COND_HINTS))
             if _HUNGER_RANK.get(a.hunger, 0) > _HUNGER_RANK.get(b.hunger, 0):
                 reasons.append(f"hunger: {a.hunger}")
             if _ENC_RANK.get(a.encumbrance or "", 0) > _ENC_RANK.get(b.encumbrance or "", 0) \

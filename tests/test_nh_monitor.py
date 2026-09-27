@@ -874,3 +874,31 @@ def test_hiding_mimic_next_to_you_stays_remembered():
     g.truth = {(41, 11): "jackal"}
     t.update(snap({(41, 11): "d"}, 210))          # another monster stands there: the mimic is gone
     assert g.mimics == {}
+
+
+def test_kernel_blind_on_purpose_and_deadly_condition_hints():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    a, b = snap({}, 10), snap({}, 11)
+    b.status.conditions = ["Blind"]
+    k._check_events(a, b, expect=("blind",))
+    assert reasons == []
+    k._check_events(a, b)
+    assert reasons and "status: +Blind" in reasons[-1]
+    reasons.clear()
+    c = snap({}, 12)
+    c.status.conditions = ["TermIll"]
+    k._check_events(a, c, expect=("blind",))      # "blind" never hides a deadly condition
+    assert reasons and "+TermIll" in reasons[-1] and "unicorn horn" in reasons[-1] and "kill it first" in reasons[-1]
+
+
+def test_covetous_monsters_get_a_note():
+    from nh.danger import covetous, note_for
+    assert covetous("Juiblex") and covetous("master lich") and covetous("Vlad the Impaler")
+    assert not covetous("jackal") and not covetous("minotaur")
+    assert "COVETOUS" in note_for("Asmodeus", 14)
+    assert "COVETOUS" not in note_for("peaceful Asmodeus", 14)

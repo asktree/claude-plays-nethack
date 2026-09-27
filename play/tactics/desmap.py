@@ -278,18 +278,24 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
     return {"path": path, "secret": secret, "traps": [c for c in path if c in traps]}
 
 
-def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = False):
+def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = False, fight: bool = True):
     """Walk the route() to (x, y) one checked step at a time (walk_path: never onto a monster), re-planning as
     the map fills in. Stops next to an undiscovered secret door on the way (search there: search(10)), before
     a trap it would have to cross (step_onto() it on purpose), at a locked door (unlock()), or when something
-    happens. Returns the final snap."""
+    happens. fight=True: trivial hostiles next to you (combat.auto_fightable: 'trivial' threat, no passive
+    attack, no danger note) are fought on the way; anything else stops the walk. Returns the final snap."""
     from .nav import NavError, walk_path
+    from .combat import fight_trivial
     s = ctx.last()
-    steps = 0
+    steps = fights = 0
     while steps < max_steps:
         s = ctx.last()
         if s.state.kind != "command" or s.hero == (x, y):
             return s
+        if fight and fights < 12 and s.adjacent_hostiles():
+            if fight_trivial(s) is not None:
+                fights += 1
+                continue
         r = route(x, y, s=s, names=names, allow_water=allow_water)
         path = r["path"]
         stop = len(path)
@@ -308,6 +314,10 @@ def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = Fa
         try:
             s = walk_path(chunk)
         except NavError as e:
+            s = ctx.last()
+            if fight and fights < 12 and s.adjacent_hostiles() and fight_trivial(s) is not None:
+                fights += 1
+                continue
             print(f"desmap.walk: stopped — {e}")
             return ctx.last()
         steps += len(chunk)

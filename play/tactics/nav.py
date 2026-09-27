@@ -123,6 +123,19 @@ def known_mimics(s=None) -> dict:
     return dict(mem)
 
 
+def remember_mimic(x: int, y: int, name: str = "giant mimic") -> dict:
+    """Record a mimic you know hides at (x, y) on this level (from your notes: a daemon restart before
+    this memory existed lost it). Returns known_mimics()."""
+    s = ctx.last()
+    store = getattr(ctx.game, "mimics", None)
+    if not isinstance(store, dict) or not s.status.ok:
+        raise NavError("remember_mimic(): this daemon has no mimic memory (restart it)")
+    store.setdefault(ctx.game.level_key(s.status), {})[(x, y)] = name
+    if isinstance(getattr(s, "mimic_mem", None), dict):
+        s.mimic_mem[(x, y)] = name
+    return known_mimics(s)
+
+
 def forget_mimic(x: int, y: int) -> bool:
     """Drop a remembered mimic at (x, y) on this level (you know it's gone). Returns whether one was there."""
     s = ctx.last()

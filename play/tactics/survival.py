@@ -484,3 +484,88 @@ def rest_on_elbereth(turns: int = 100, until_hp: int | None = None, burst: int =
         s = rest(burst)
         done += burst
     return ctx.last()
+
+
+# do_wear.c Blindf_on()/Blindf_off(), on_msg()/off_msg()
+_BLINDF_OK = [r"^You are now wearing ", r"^You can't see any more\.", r"^You were wearing ",
+              r"^You can see again\.", r"^You still cannot see\.", r"^You can see!"]
+
+
+def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
+    """One call: put on your blindfold/towel (P), read every monster your telepathy shows on the level,
+    take it off again (R): 2 turns. No pause for the Blind you asked for or for the monsters it reveals;
+    anything else (HP loss, an attack) still pauses. Needs intrinsic telepathy (a floating eye corpse).
+    letter: which blindfold/towel (default: the first one). Returns [{"desc", "ch", "x", "y", "dist",
+    "note"}] nearest first (pets and peacefuls included, marked in desc) and prints them."""
+    from .items import inventory
+    s = ctx.require_command("telepathy_scan()")
+    if "telepathy" not in (getattr(ctx.game, "intrinsics", None) or ()):
+        print("telepathy_scan: no intrinsic telepathy known (eat a floating eye corpse) — blind you may see "
+              "nothing")
+    already = s.status.ok and "Blind" in s.status.conditions
+    put_on = None
+    if not already:
+        cands = [i for i in inventory() if re.search(r"\b(?:blindfold|towel)\b", i["text"])
+                 and "(being worn)" not in i["text"] and (letter is None or i["letter"] == letter)]
+        if not cands:
+            raise ValueError("telepathy_scan(): no blindfold or towel to put on" + (f" (letter {letter!r})"
+                                                                                    if letter else ""))
+        put_on = cands[0]["letter"]
+    out: list = []
+    with ctx.no_monster_pauses():
+        if put_on:
+            s = ctx.do("P", quiet=True)
+            if s.state.kind != "object":
+                if s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                ctx.pause(f"telepathy_scan: 'P' didn't ask what to put on ({s.state.kind}: {s.state.prompt!r})")
+                return out
+            s = ctx.do(put_on, ok=_BLINDF_OK, expect=("blind",))
+            if not (s.status.ok and "Blind" in s.status.conditions):
+                ctx.pause(f"telepathy_scan: putting on {put_on} didn't blind you ({s.messages or s.state.kind})")
+                return out
+        s = ctx.last()
+        mons = [m for m in s.monsters or [] if not m.get("engulfer") and m["ch"] != "I"]   # (I: old markers)
+        if describe:
+            need = [(m["x"], m["y"]) for m in mons if not m.get("desc") and m["ch"] not in "I"]
+            if need:
+                try:
+                    got = ctx.game.describe_cells(need[:150])
+                except Exception:  # noqa: BLE001
+                    got = {}
+                for m in mons:
+                    if not m.get("desc") and (m["x"], m["y"]) in got:
+                        m["desc"] = got[(m["x"], m["y"])]
+        h = s.hero
+        from nh.danger import note_for
+        xl = s.status.xl if s.status.ok else None
+        for m in mons:
+            d = m.get("dist")
+            if d is None and h is not None:
+                d = max(abs(m["x"] - h[0]), abs(m["y"] - h[1]))
+            note = m.get("note") or (note_for(m.get("desc") or "", xl, getattr(ctx.game, "intrinsics", ()))
+                                     if m.get("desc") else "")
+            out.append({"desc": m.get("desc") or "", "ch": m["ch"], "x": m["x"], "y": m["y"], "dist": d,
+                        "note": note})
+        if put_on:
+            s = ctx.do("R", quiet=True)
+            if s.state.kind == "object":
+                s = ctx.do(put_on, ok=_BLINDF_OK)
+            elif s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            s = ctx.last()
+            if s.status.ok and "Blind" in s.status.conditions:
+                print(f"telepathy_scan: !! still Blind after taking {put_on} off ({s.messages}) — check inventory()")
+    out.sort(key=lambda m: (m["dist"] if m["dist"] is not None else 999))
+    hostile = [m for m in out if not m["desc"].startswith(("tame ", "peaceful "))]
+    from nh.danger import base_name
+    kinds: dict = {}
+    for m in out:
+        k = base_name(m["desc"]) or "?"
+        kinds[k] = kinds.get(k, 0) + 1
+    print(f"telepathy_scan: {len(out)} monster(s), {len(hostile)} not tame/peaceful — "
+          + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
+          + ("".join(f"\n  {m['ch']} {m['desc'] or '?'} at ({m['x']},{m['y']}) d={m['dist']}"
+                     + (f"  !! {m['note']}" if m['note'] else "") for m in out[:30]))
+          + (f"\n  ... {len(out) - 30} more" if len(out) > 30 else ""))
+    return out

@@ -265,7 +265,7 @@ def base_name(desc: str) -> str:
     d = re.sub(r",? called .*$", "", d)
     d = re.sub(r"\s+named .*$", "", d)
     d = re.sub(r"\b(coyote) - .+$", r"\1", d)       # pager.c coyotename(): "coyote - Eatius-Slobbius"
-    d = re.sub(r"^.+'s ghost$", "ghost", d)            # a bones ghost: "Jay's ghost"
+    d = re.sub(r"^.+'s? ghost$", "ghost", d)           # a bones ghost: "Jay's ghost", "Andries' ghost"
     d = _STRIP.sub("", d)
     d = re.sub(r"^(?:a|an|the) ", "", d)
     d = _STRIP.sub("", d.strip())          # "the invisible high priest ..."
@@ -323,6 +323,19 @@ def risky_lookalike(ch: str, color: str, desc: str) -> bool:
     return any(n != name and NOTES.get(n) for n in _lookalikes().get((ch, color), ()))
 
 
+# monst.h M3_COVETOUS: wizard.c tactics() — with nothing to go for it "harasses": 1 turn in 5 it teleports next to
+# you (mnexto(): even where teleporting is blocked); badly hurt it teleports to the up stairs to heal
+COVETOUS_FLAGS = ("M3_WANTSAMUL", "M3_WANTSBELL", "M3_WANTSBOOK", "M3_WANTSCAND", "M3_WANTSARTI")
+COVETOUS_NOTE = ("COVETOUS: once it has noticed you it keeps teleporting next to you (about 1 turn in 5, even on "
+                 "no-teleport levels) and heals on the up stairs when badly hurt — distance and resting on the "
+                 "stairs are no refuge: be ready to fight it anywhere")
+
+
+def covetous(name: str) -> bool:
+    rec = monster_record(base_name(name or ""))
+    return bool(rec) and any(f in COVETOUS_FLAGS for f in rec.get("flags3", []))
+
+
 def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
     """Short danger note for a farlook description ('' if nothing notable).
     resists: your resistances — a poison note shrinks when you resist it."""
@@ -352,6 +365,8 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
     if n:
         bits.append(n.rstrip(". ") if len(n) > 1 else n)     # (joined with "; " below: no ".;")
     rec = monster_record(name)
+    if rec and not desc.startswith("peaceful ") and any(f in COVETOUS_FLAGS for f in rec.get("flags3", [])):
+        bits.append(COVETOUS_NOTE)
     if rec and hero_xl is not None and not desc.startswith("peaceful "):
         diff = rec.get("difficulty", 0)
         if diff >= hero_xl + 4:
