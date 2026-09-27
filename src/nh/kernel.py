@@ -307,6 +307,10 @@ class Kernel:
     def _maybe_pause(self, reason: str, snap: Snap, force: bool = False, sent: bool = True) -> None:
         if not self.in_worker():
             return
+        try:
+            snap.paused = reason       # helpers: the player has seen this step (don't stop again for it)
+        except Exception:  # noqa: BLE001
+            pass
         where = _user_frames()
         self.events.put(("paused", PauseInfo(reason=reason, snap=snap, where=where)))
         self.resume.clear()

@@ -328,8 +328,11 @@ class MonsterTracker:
                 del self.recent[i]
         self.known = [m for m in mons if m.get("desc")]
         self.last_turn = turn
+        pets = [m for m in mons if m.get("tame") or m.get("pet")]
         for m in special:
             m["id"] = self._new_id()
+            if m.get("mimic") and any(_cheb(m, p) <= 1 for p in pets):
+                m["note"] += " — YOUR PET IS NEXT TO IT and may attack it, waking it beside you: step away"
         return mons + special
 
     def _apply_growth(self, messages) -> None:

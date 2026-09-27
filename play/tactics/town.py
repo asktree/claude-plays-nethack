@@ -57,3 +57,34 @@ def buy_protection() -> dict:
     ac1 = ctx.last().status.ac
     print(f"buy_protection: offered {amount}: {outcome}; AC {ac0} -> {ac1}")
     return {"outcome": outcome, "offered": amount, "messages": msgs, "ac_before": ac0, "ac_after": ac1}
+
+
+def pay(x: int | None = None, y: int | None = None) -> list:
+    """Pay the shopkeeper for everything you picked up ('p', "Itemized
+    billing?" -> n). With several shopkeepers in range the game asks "Pay
+    whom?" with a cursor: pass the shopkeeper's square (x, y). Returns the
+    messages."""
+    from .nav import cursor_to
+    ctx.require_command("pay()")
+    s = ctx.do("p", quiet=True)
+    msgs = list(s.messages)
+    for _ in range(6):
+        k, p = s.state.kind, s.state.prompt or ""
+        if k == "command":
+            break
+        if k == "getpos":
+            if x is None:
+                ctx.do("<Esc>", quiet=True)
+                raise RuntimeError("pay(): 'Pay whom?' — several shopkeepers in range: call pay(x, y) with the "
+                                   "square of the one you owe")
+            cursor_to(x, y)
+            s = ctx.do(".", quiet=True)
+        elif k == "yn" and "Itemized billing" in p:
+            s = ctx.do("n", quiet=True)
+        elif k == "yn" and re.search(r"\bPay\?", p):
+            s = ctx.do("y", quiet=True)
+        else:
+            ctx.pause(f"pay(): unexpected {k} {p!r}")
+            s = ctx.last()
+        msgs += s.messages
+    return msgs

@@ -231,6 +231,95 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
     return {"outcome": outcome, "messages": msgs, "before": before, "after": after}
 
 
+def _menu_pick(s, pattern: str):
+    """Select (by text, on any page) the first item of the open menu matching
+    `pattern`; returns the snap after the key, or None if there is none."""
+    rx = re.compile(pattern, re.I)
+    for _page in range(8):
+        items = [it for it in s.state.menu.selectable() if rx.search(it.text)] if s.state.menu else []
+        if items:
+            return ctx.do(items[0].letter, quiet=True)
+        if s.state.menu and s.state.menu.page < s.state.menu.pages:
+            s = ctx.do(">", quiet=True)
+        else:
+            return None
+    return None
+
+
+def _apply_container(bag: str, action: str):
+    """'a' + bag, then pick `action` ('take something out' / 'stash one item')
+    in the pick-one "Do what with ...?" menu. Returns the snap."""
+    ctx.require_command("bag helper")
+    s = ctx.do("a", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"bag: expected 'What do you want to use or apply?', got {s.state.kind} {s.state.prompt!r}")
+    s = ctx.do(bag, quiet=True)
+    if s.state.kind != "menu" or "Do what with" not in (s.state.prompt or ""):
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"bag: {bag!r} didn't open as a container (got {s.state.kind} {s.state.prompt!r}; "
+                           f"messages {s.messages}) — a bag of tricks bites; check what it is first")
+    nxt = _menu_pick(s, action)
+    if nxt is None:
+        ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"bag: no {action!r} choice (empty bag?) in {[i.text for i in s.state.menu.selectable()]}")
+    return nxt
+
+
+def bag_put(bag: str, letters: str) -> list:
+    """Put the inventory items `letters` (e.g. 'mq') into the carried
+    container `bag`, one "stash one item" at a time. Returns the messages."""
+    msgs = []
+    for letter in letters:
+        s = _apply_container(bag, r"stash one item")
+        msgs += s.messages
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"bag_put: expected the stash prompt, got {s.state.kind} {s.state.prompt!r}")
+        s = ctx.do(letter, quiet=True)
+        msgs += s.messages
+        if s.state.kind != "command":
+            ctx.pause(f"bag_put({letter!r}): unexpected {s.state.kind} {s.state.prompt!r}")
+    return msgs
+
+
+def bag_take(bag: str, pattern: str | None = None) -> list:
+    """Take items out of the carried container `bag`: those whose menu text
+    matches `pattern` (regex, case-insensitive), or everything if None.
+    Returns the messages."""
+    s = _apply_container(bag, r"take something out")
+    msgs = list(s.messages)
+    for _ in range(6):
+        k, p = s.state.kind, s.state.prompt or ""
+        if k == "command":
+            break
+        if k == "menu" and "what type of objects" in p:
+            nxt = _menu_pick(s, r"^All types")
+            if nxt is None:
+                ctx.do("<Esc>", quiet=True)
+                raise RuntimeError(f"bag_take: no 'All types' in {[i.text for i in s.state.menu.selectable()]}")
+            s = ctx.do("<CR>", quiet=True)
+        elif k == "menu":
+            rx = re.compile(pattern, re.I) if pattern else None
+            for _page in range(8):
+                for it in s.state.menu.selectable():
+                    if not it.selected and (rx is None or rx.search(it.text)):
+                        s = ctx.do(it.letter, quiet=True)
+                if s.state.menu and s.state.menu.page < s.state.menu.pages:
+                    s = ctx.do(">", quiet=True)
+                else:
+                    break
+            s = ctx.do("<CR>", quiet=True)
+        else:
+            ctx.pause(f"bag_take(): unexpected {k} {p!r}")
+            s = ctx.last()
+        msgs += s.messages
+    return msgs
+
+
 def loot_all() -> list:
     """Take everything out of the (single) container on your square with
     #loot: confirms, picks "take something out" in the pick-one "Do what?"

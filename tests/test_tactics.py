@@ -127,3 +127,22 @@ def test_wait_for_pet_at_stairs(monkeypatch):
     jackal = {"x": 11, "y": 6, "ch": "d", "desc": "jackal", "dist": 1}
     nav._wait_for_pet(_snap({}, (10, 5), [cat_far, jackal]), 6)
     assert sent == []
+
+
+def test_pay_flow(monkeypatch):
+    from nh.parse import State
+    from tactics import ctx, town
+    bill = _snap({}, (10, 5), [])
+    bill.state = State("yn", prompt="Itemized billing? [ynq] (q)")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["You bought a food ration for 60 gold pieces."]
+    script = {"p": bill, "n": done}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return script[keys]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: _snap({}, (10, 5), []))
+    msgs = town.pay()
+    assert sent == ["p", "n"] and msgs == ["You bought a food ration for 60 gold pieces."]

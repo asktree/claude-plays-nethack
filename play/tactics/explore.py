@@ -263,6 +263,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             locked.append(target)
             skip.add(target)
             continue
+        if "outside?" in text and ("leave your" in text.lower() or "leave the" in text.lower()):
+            # shk.c: "Will you please leave your pick-axe outside?" — the shopkeeper blocks the door
+            return result("blocked: a shopkeeper won't let you in with a digging tool — bag_put() it or drop it "
+                          "outside the door, then explore() again (or skip the shop)")
         if s.hero == hero and not text:
             blk = blockers(s)
             hostile = [m for m in blk if not m.get("peaceful")]

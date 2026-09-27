@@ -53,6 +53,7 @@ class Snap:
     monsters: list = field(default_factory=list)   # set by the MonsterTracker (command state)
     under: str | None = None   # remembered map feature under the hero ('<', '>', '{', '_', '\\')
     engulfed: bool = False     # the hero is inside a monster (the /-\\ ring is drawn around '@')
+    paused: str = ""           # set when the exec paused on this step and the player resumed it
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"

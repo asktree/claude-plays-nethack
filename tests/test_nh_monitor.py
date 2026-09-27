@@ -343,3 +343,13 @@ def test_were_change_is_relooked_not_renamed():
     assert (41, 10) in g.looked
     # the grow-up rename must not have touched it
     assert all(k.get("desc") != "jackal" or (k["x"], k["y"]) == (45, 10) for k in t.known)
+
+
+def test_mimic_next_to_pet_gets_a_warning():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(46, 12): "tame kitten"}
+    m = by_pos(t.update(snap({(45, 12): "]", (46, 12): "f"}, 10, pets={(46, 12)})))
+    assert "PET IS NEXT TO IT" in m[(45, 12)]["note"]
+    m = by_pos(t.update(snap({(45, 12): "]", (48, 14): "f"}, 11, pets={(48, 14)})))
+    assert "PET" not in m[(45, 12)]["note"]

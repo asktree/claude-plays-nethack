@@ -283,8 +283,9 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
                                "step around it by hand")
             raise NavError(f"travel to {(x, y)} did not move (no known path?)"
                            + (f"; messages: {s.messages}" if s.messages else ""))
-        if _notable(s.messages):
-            return s   # something happened en route; let the caller look
+        if _notable(s.messages) and not s.paused:
+            return s   # something happened en route; let the caller look (unless the exec
+                       # already paused on it and the player chose to go on)
     return s
 
 
@@ -403,8 +404,8 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0):
         if s.state.kind != "command":
             return s                     # a prompt interrupted: let the caller look
         s = ctx.last()
-        if _notable(s.messages) and s.hero != target:
-            return s                     # something happened on the way
+        if _notable(s.messages) and s.hero != target and not s.paused:
+            return s                     # something happened on the way (not already seen in a pause)
     if s.hero != target:
         raise NavError(f"did not reach the {ch} at {target} (you are at {s.hero}); nothing pressed")
     if wait_pet:
