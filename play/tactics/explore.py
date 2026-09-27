@@ -198,8 +198,13 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
 
     def finished():
         left = []
-        if locked:
-            left.append(f"locked doors {locked} (unlock(x, y) with a key/lock pick/credit card, or "
+        now = ctx.last()
+        # a locked door only blocks while unseen ground lies next to it (p3: the room behind one was
+        # explored through its other doorways, yet the verdict still blamed the door)
+        live = [d for d in locked if any(now.screen.at(d[0] + dx, d[1] + dy) == " "
+                                         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
+        if live:
+            left.append(f"locked doors {live} (unlock(x, y) with a key/lock pick/credit card, or "
                         "kick_door(x, y) from an orthogonally adjacent square — never a shop door ('Closed for "
                         "inventory'), and no kicking anywhere in Minetown)")
         niches = dict(getattr(ctx.last(), "niche_mem", None) or {})
