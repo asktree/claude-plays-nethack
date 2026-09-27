@@ -76,6 +76,13 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You are in full health\.",                      # a counted search/rest stops at full HP
     r"^You drop (?!.*\b(?:loadstone)\b).*\.$",          # result of your own drop command
     r"^Your (?!wielded ).*\b(corpse|corpses|egg|eggs)\b.* rots? away\.$",   # carried food rotting
+    # the floor listing of a feature square with a pile ("There is an altar ... here." + the list window)
+    r"^There (?:is|are) [^\n]* here\.\nThings that are here:",
+    # siege noise (castle garrisons, archers): the HP and new-monster checks still pause
+    r"^You hear a door crash open", r"^(?:An? |The )[\w' -]+ misses you[.!]$", r"^You are almost hit by ",
+    r"^The [\w' -]+ (?:throws|shoots|fires) ", r" welds itself to the [\w' -]+'s hand!$",
+    r"^You stop at the edge of the (?:water|lava)\.",
+    r"^A board beneath (?:the |an? )[\w' -]+ squeaks",
 )]
 
 
@@ -393,8 +400,17 @@ class Kernel:
         return self.worker is not None and self.worker.is_alive()
 
     def start_exec(self, code: str, autocontinue: list[str] | None = None,
-                   monsters: bool = True, hp_pause: float | None = None) -> dict:
-        self.drop()
+                   monsters: bool = True, hp_pause: float | None = None, at_prompt: bool = False) -> dict:
+        cur = self.game.last
+        if cur is not None and cur.state.kind not in ("command", "gameover", "dgl", "unknown") and not at_prompt:
+            # a script's first command key would be typed into the open prompt ("What do you want to
+            # drop?" + 's' drops item s); a paused exec there stays paused
+            where = " — an exec is PAUSED there: answer with `nh cont --reply KEYS`" if self.busy() else \
+                " — answer or <Esc> it with `nh do KEYS`"
+            return {"status": "error", "stdout": "",
+                    "error": f"the game is at a {cur.state.kind} prompt ({cur.state.prompt!r}){where}, then "
+                             "exec again (or `exec --at-prompt` if your script answers it first)"}
+        dropped = self.drop()
         self.autocontinue = [re.compile(p) for p in (autocontinue or [])]
         self.pause_on_monsters = monsters
         self.new_monster_filter = None
@@ -419,6 +435,9 @@ class Kernel:
         self._steps = 0
         self._t0 = time.monotonic()
         buf = io.StringIO()
+        if dropped:
+            buf.write("(note: the paused exec was dropped — whatever it had left to do, e.g. a helper's "
+                      "re-wield, won't happen)\n")
 
         def run():
             self._stdout.buffers[threading.get_ident()] = buf

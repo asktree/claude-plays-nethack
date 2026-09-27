@@ -71,3 +71,9 @@
 - explore()/travel stuck repeating "That door is closed." = a LOCKED door that travel keeps bumping: open it by hand (`o` + dir), read "This door is locked.", then unlock(x, y).
 - Monsters use the items they carry: a leprechaun read THARR (= create monster, identified), a nymph zapped her own wand of teleportation (identified my short wands). Watch their messages for free identifications.
 - At AC -10 a nymph's seduction mostly misses ("pretends to be friendly" = a missed theft); step in and hit her at once.
+- The quest portal is placed in an ordinary room WITHOUT stairs (mklev.c find_branch_room): walking every square of those rooms (kernel `sweep_room`) with Excalibur's auto-search found it in ~200 turns ("You find a magic portal.").
+- Writing a scroll type you have only NAMED: type its LABEL at the marker prompt (`write_scroll('XOR OTA')`) — dowrite() matches the real name first ("remove curse" -> unknown -> fails 14/15), while the label goes through label_known(), which accepts a user-assigned name.
+- "You hear a sound reminiscent of a seal barking / an elephant stepping on a peanut" = the level has a ZOO (sounds.c). Plan a doorway chokepoint before opening unexplored rooms.
+- Eat wraith corpses the moment they drop (+1 XL, 0 nutrition, never rot issues if fresh). Excalibur's drain resistance makes wraiths/vampires harmless XP.
+- A rotten ration that knocks you out is split off as its own "partly eaten" item; the rest of the stack is unaffected (the partly eaten one stays flagged rotten).
+- Monsters drink potions in view and the game identifies them: "looks better" = healing (swirly here).

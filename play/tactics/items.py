@@ -42,9 +42,10 @@ def _wielded(text: str) -> bool:
 def inventory():
     """Return the hero's inventory as a list of {letter, text, class, buc}."""
     ctx.require_command("inventory()")
-    s = ctx.do("i", quiet=True)
-    if s.state.kind == "menu":
-        items, _ = _parse_menu_pages(s)
+    with ctx.no_monster_pauses():
+        s = ctx.do("i", quiet=True)
+        items = _parse_menu_pages(s)[0] if s.state.kind == "menu" else None
+    if items is not None:
         ctx.game.wielded = next((it["text"] for it in items if _wielded(it["text"])), "")
         ctx.game.wielded_class = next((it["class"] for it in items if _wielded(it["text"])), "")
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
@@ -76,7 +77,8 @@ def find_item(pattern: str, inv=None):
 def here():
     """What's on the floor here (':' look). Takes no game time."""
     ctx.require_command("here()")
-    s = ctx.do(":", quiet=True)
+    with ctx.no_monster_pauses():
+        s = ctx.do(":", quiet=True)
     return " | ".join(s.messages)
 
 
@@ -550,7 +552,8 @@ def discoveries() -> list:
     'scroll labeled KIRJE'), ('magic lamp', 'lamp'). Identified and named
     types are shown by that name everywhere (inventory, bags, the floor)."""
     ctx.require_command("discoveries()")
-    s = ctx.do("\\", quiet=True)
+    with ctx.no_monster_pauses():
+        s = ctx.do("\\", quiet=True)
     return parse_discoveries(s.messages)
 
 

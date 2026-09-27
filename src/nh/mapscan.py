@@ -16,6 +16,14 @@ FEATURES = {
 }
 BROWN = 3
 NO_OVERLAY = ("command", "yn", "direction", "object", "getlin", "extcmd", "count", "getpos")
+# drawing.c defsyms: what a '^' of each colour can be
+TRAP_BY_COLOR = {
+    6: "arrow/dart/bear trap", 7: "falling rock/rolling boulder/statue trap", 3: "squeaky board/hole/trap door",
+    1: "land mine", 12: "sleeping gas/magic trap/anti-magic field", 4: "rust trap", 9: "fire trap",
+    0: "pit/spiked pit", 8: "pit/spiked pit", 5: "teleportation trap/level teleporter", 13: "magic portal",
+    10: "polymorph trap",
+}
+VIBRATING_SQUARE_COLOR = 5     # a magenta '~' (a long worm's tail is brown)
 
 
 _ON_FLOOR = set(".") | set(OBJECT_CLASSES) | set(MONSTER_CHARS) | {"@"}
@@ -29,9 +37,13 @@ def _door_like(scr, x, y) -> bool:
     corridor end whose walls you haven't seen yet ('#' / blank beside it)
     stays a door (p2 shift 4: that one was taken for a book and explore()
     kept bumping into it)."""
+    wall = "|-+"
+    if (scr.at(x - 1, y) in wall and scr.at(x + 1, y) in wall) or \
+            (scr.at(x, y - 1) in wall and scr.at(x, y + 1) in wall):
+        return True              # in a wall line (a book in a room corner has walls on two ADJACENT sides)
     floorish = sum(1 for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1))
                    if scr.at(x + dx, y + dy) in _ON_FLOOR and not (dx == dy == 0))
-    return floorish <= 2
+    return floorish <= 1
 
 
 def _hero(snap, hero):
@@ -59,6 +71,8 @@ def monsters_in_view(snap, radius: int | None = None, hero=None) -> list[dict]:
                 continue
             if hero and (x, y) == hero:
                 continue
+            if ch == "~" and scr.color_at(x, y) == VIBRATING_SQUARE_COLOR:
+                continue          # the vibrating square, not a worm tail
             d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
             if radius is not None and d is not None and d > radius:
                 continue
@@ -124,10 +138,23 @@ def features_in_view(snap, hero=None) -> list[dict]:
                     name = "tree"
                 elif ch == "#" and col == 6:
                     name = "iron bars"
+                elif ch == "#" and col == BROWN:
+                    name = "raised drawbridge"
+                elif ch == "." and col == BROWN:
+                    name = "lowered drawbridge (never stand on it or in its gate when it may be raised)"
+                elif ch == "~" and col == VIBRATING_SQUARE_COLOR:
+                    name = "vibrating square"
                 else:
                     continue
             if ch == "}":
                 name = "lava" if col in (1, 9) else "water"
+            if ch == "^":
+                name = TRAP_BY_COLOR.get(col, "trap")
+                if col not in (1, 4, 9, 10, 13):
+                    name = "trap: " + name
+            desc = (getattr(snap, "feature_desc", None) or {}).get((x, y))
+            if desc and ch in "^_\"":
+                name = desc
             d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
             out.append({"ch": ch, "x": x, "y": y, "name": name, "dist": d,
                         "color": COLOR_NAMES[col] if 0 <= col < 16 else str(col)})

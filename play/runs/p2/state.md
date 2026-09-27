@@ -2,46 +2,43 @@
 
 ## Character
 - Name/role: p2 — local practice game, seed 202 (lawful female dwarven Valkyrie, god: Tyr)
-- Turn / Dlvl / XL / HP / Pw / AC: **T:6886 / Dlvl 13** / **XL9** (Exp 3050; XL10 at 5120) / 109/113 / 7/14 / **AC -5** (3 points of divine protection T:4517 + orcish helm + elven cloak) / $0 on me, 83 gold in the sack n. Last meals: warhorse corpse T:6150 + floating eye T:6650 (tiny) → expect Hungry ~T:7000–7200 (food: ration l, lichen k, tin f).
-- Position at shift-9 end: **D13 (18,18), one step EAST of the LAWFUL ALTAR to Tyr (17,18)** in the SW altar room (9-24,16-20; door (19,16) N closed, E doorway (24,18) — its booby-trapped door already exploded). No monsters in view. My junk (scroll of destroy armor, knife, 7 elven arrows) lies on (18,18). NO PET (djinni left on D11).
-- Attributes (T:3483): St:17 Dx:12 Co:19 In:11 Wi:8 Ch:9 (Cha 9 → shop buy prices ×4/3; carry cap 950). "You feel wise!" T:6027.
-- Skills: long sword **EXPERT** (T:3719 Skilled, T:6231 Expert = the Valkyrie maximum); #enhance other skills when "more confident" appears.
-- Intrinsics (source, turn): cold res (Valk), stealth (Valk + elven cloak), infravision (dwarf), SPEED (XL7, T:4212); EXTRINSIC telepathy from the amulet of ESP (worn T:2424) + **INTRINSIC TELEPATHY (floating eye corpse, T:6650)** → the amulet slot is free for life saving/reflection when found; Excalibur gives automatic searching. NO poison resistance. **NO magic resistance, NO reflection** (the lamp wish failed → plan B needed).
-- Luck notes: nothing done to Luck (no peacefuls killed by me).
-- Alignment: "Tyr is well-pleased" at T:6110 = alignment record >= 14 (quest entry needs >= 20 and XL14).
+- Turn / Dlvl / XL / HP / Pw / AC: **T:7248 / Dlvl 13** / **XL9** (Exp 3885; XL10 at 5120) / 107/113 / 14/14 / **AC -5** / $0 on me, 83 gold in the sack n. Last meal: FOOD RATION at T:7248 (ate at Hungry) → next Hungry ~T:8000. Food left: lichen corpse k (never rots), tripe ration T (50% vomit for a dwarf), tin f. NO rations left — eat fresh corpses (poison resistant now: kobolds etc. are fine).
+- Position at shift-10 end: **ON the LAWFUL ALTAR to Tyr, D13 (17,18)**, SW altar room (9-24,16-20). A PEACEFUL WHITE UNICORN (co-aligned: NEVER attack; throw gems at it when lined up = +1 Luck per real gem) wanders the room. No hostiles in view.
+- Attributes: **St:14** (was 17; -3 from the scorpion corpse T:7135 — restore ability / golden-glow prayer boon restores it) Dx:12 Co:19 In:11 Wi:9 Ch:9. Carry cap now ~875 and I am CLOSE TO IT (a 40-wt corpse made me Burdened at St 17): keep the pack light.
+- Skills: long sword **EXPERT**; #enhance other skills when "more confident" appears.
+- Intrinsics (source, turn): cold res (Valk), stealth (Valk + elven cloak), infravision (dwarf), SPEED (XL7), EXTRINSIC telepathy (amulet of ESP O) + INTRINSIC TELEPATHY (floating eye, T:6650), **POISON RESISTANCE (scorpion corpse, T:7135: "You feel healthy")**. Excalibur autosearch. **NO magic resistance, NO reflection.**
+- Luck: **positive, >= +2** (two sacrifices T:7124/T:7128 each gave "You think something brushed your foot" = Luck +1). No luckstone → it decays 1 per 600 turns.
+- Alignment: "Tyr is well-pleased" at T:6110 (record >= 14); many hostile kills since.
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
-| T:6107–6110 | DELIBERATE no-trouble prayer standing on the lawful altar D11 (44,6) with 2 potions of water on it (pray(force=True) after prayer_check p_safe 1.0) | SUCCESS: "shimmering light ... The potions on the altar glow light blue ... Tyr is well-pleased" → 2 holy water (both used on the lamp). Prayer timeout RESET at T:6110 (rnz(350): median ~350, long tail). Next emergency prayer: run prayer_check(); ~92% safe at T:6900, 95% at T:7110, 98% at T:7610. The D13 altar (17,18) is CO-ALIGNED: a no-trouble prayer there once the timeout is 0 blesses water on it. |
+| T:6107–6110 | deliberate no-trouble prayer on the D11 lawful altar with 2 waters | SUCCESS, 2 holy water, timeout reset |
+| — | **T:7124: the raven sacrifice gave Luck (not "hopeful feeling") ⇒ PRAYER TIMEOUT WAS ALREADY 0 (verified).** It stays 0 until I pray. prayer_check() still says ~88–90% (it doesn't know) — trust the sacrifice evidence: an emergency prayer is SAFE now (Luck > 0, god not angry). A no-trouble prayer on this altar with waters on it = holy water; with Luck 2–3 the pat-on-head boon is 1/4 golden glow (+5 max HP AND Str restored to 17). |
 
 ## Equipment worn/wielded (letter: item)
-- a: EXCALIBUR — blessed rustproof **+6** (wielded). NEVER read another enchant weapon on it. NOTE: applying the pick-axe or #rubbing a lamp WIELDS that tool — always `w`,`a` afterwards.
-- c: uncursed +3 small shield (worn, iron: rust monsters can rust it); DIVINE PROTECTION 3 points
-- y: +0 scale mail (worn) [seen]; **q: uncursed +0 ELVEN CLOAK ("faded pall", worn T:6298; altar-tested; it absorbs rust-monster touches aimed at the suit)**; E: uncursed +0 high boots (worn); O: uncursed AMULET OF ESP (worn); **j: uncursed +0 orcish helm (worn, altar-tested T:5930)**
+- a: EXCALIBUR — blessed rustproof **+6** (wielded). NEVER read enchant weapon on it. Applying a pick-axe or #rubbing a lamp WIELDS that tool — `w`,`a` afterwards.
+- c: uncursed +3 small shield; y: +0 scale mail; q: uncursed +0 elven cloak; E: uncursed +0 high boots; O: uncursed amulet of ESP; j: uncursed +0 orcish helm. Divine protection 3 points.
 
-## Key inventory (letters) — BUC [seen] from altars unless marked
-- b: blessed +0 dagger (quivered); **C: uncursed dagger (+1 by shop price 19 zm)**, **D: uncursed dagger**, **F: uncursed elven dagger** — throwing daggers (Valkyrie dagger skill can reach Expert); P: 12 BLESSED darts. NEVER THROW INSIDE A SHOP (auto-sold).
-- PICK-AXE: inside bag s (uncursed bag = holding or oilskin) — `bag_take('s','pick-axe')` before `dig('>')`; keep it bagged near shops.
-- d: **blessed OIL LAMP**; e: uncursed oil lamp; A: uncursed brass lantern; CANDLES: w (6 uncursed) + z (1 uncursed) = 7 (for the Candelabrum — never burn them)
-- n: uncursed SACK: 83 gold + a MURKY potion (base 100). s: uncursed BAG (holding/oilskin) holding the pick-axe.
-- SCROLLS: **J: 2 uncursed TELEPORTATION** (escape); i: uncursed KO BATE (= light); m: uncursed unlabeled (blank).
-- POTIONS: **L: uncursed OBJECT DETECTION** (golden); N: uncursed MAGENTA (base 100); murky (base 100) in the sack.
-- p: uncursed CLOTH SPELLBOOK (unknown; Valkyrie casting is poor — low priority)
-- WANDS: x = SLEEP (uncursed) [2–6 charges left]; g = FIRE (uncursed; 6d6 ray, bounces; bag burnables first if it can hit me); V = LIGHT; r = SLOW MONSTER (uncursed); o = CREATE MONSTER; **M = MAKE INVISIBLE (0:3)**; **I = UNDEAD TURNING (0:3)**
-- RINGS: **H: CURSED ring of TELEPORTATION** (never wear; bought 267 zm); B: CURSED ring of shock resistance (never wear)
-- TOOLS: **Q: uncursed CAN OF GREASE**; u: uncursed key (skeleton key: apply, direction `.` for a box here); t: uncursed whistle (tin or magic, untested)
-- FOOD: l: uncursed food ration; k: uncursed lichen corpse (never rots); f: uncursed tin (tin opener lost track: open with `apply`/eat).
-- Gems (all uncursed, unidentified): R black, X 2 black (other type), Y 2 red, Z yellow, W yellowish brown
-- Inventory count 46/52 after dropping junk (a full pack stops bag_take: "Your knapsack cannot accommodate any more items").
-- Escape items: 2 scrolls of teleportation J; wand of sleep x (and fire g); Elbereth; `dig('>')` (pick-axe in bag s); upstairs; prayer per the log.
-- Healing: none. Emergency cures: none (no lizard, no unicorn horn).
+## Key inventory (letters) — 41 items
+- THROWING: **e: blessed +0 dagger (at the ready)**, C: uncursed dagger (+1 by price), D: uncursed dagger, F: uncursed elven dagger; P: 12 blessed darts. NEVER THROW INSIDE A SHOP.
+- BAG s (uncursed; very likely a BAG OF HOLDING — weight arithmetic): pick-axe, N magenta potion (base 100), b murky potion (unknown BUC, from a kobold lord), L 2 uncursed potions of object detection (= holy-water stock: dilute twice at a fountain). `bag_take('s', ...)`.
+- SACK n: 83 gold + a murky potion (base 100).
+- SCROLLS: **J: 2 uncursed TELEPORTATION** (escape); **U: uncursed VERR YED HORRE (unknown, new)**; m: uncursed unlabeled (blank).
+- WANDS: x SLEEP [2–6 charges]; g FIRE; V LIGHT; r SLOW MONSTER (balsa); o CREATE MONSTER (**~10 zaps used this shift; few charges left?**); M MAKE INVISIBLE (0:3); I UNDEAD TURNING (0:3); **v: uncursed STRIKING (ebony, engrave-tested T:7091)**.
+- RINGS: H: CURSED ring of teleportation (never wear).
+- TOOLS: Q can of grease; u key (unlock box: apply, `.`, y); t whistle (untested); A brass lantern; d blessed oil lamp; CANDLES w (6) + z (1) = 7 for the Candelabrum.
+- FOOD: k lichen corpse, T tripe ration, f tin.
+- Gems (uncursed, unidentified): R black, X 2 black, Y 2 red, Z yellow, W yellowish brown — good unicorn gifts for Luck.
+- Dropped at D13 (18,17) T:7133: cloth spellbook, oil lamp, scroll of light, cursed ring of shock resistance, tin opener. On the altar: cursed copper ring, Uruk-hai shield, orcish helm, 7 elven arrows. (18,18): oil lamp, knife, scroll of destroy armor.
+- Escape items: 2 scrolls of teleportation J; wand of sleep x; wand of striking v; Elbereth (not on the altar square); `dig('>')` (pick-axe in bag s); upstairs; PRAYER (timeout 0 verified).
+- Healing: none. Emergency cures: stoning → prayer only (no lizard/acid blob corpse).
 
 ## Identified appearances (appearance -> identity)
 - YUM YUM -> enchant weapon; ANDOVA BEGARIN -> identify; ELAM EBOW -> scare monster (lost); unlabeled -> blank paper; KO BATE -> light; DAIYEN FOOELS -> TELEPORTATION
-- KERNOD WEL -> base 80 (enchant armor / remove curse); **ELBIB YLOH -> DESTROY ARMOR**; HAPAX LEGOMENON -> base 100 group; scroll of identify: type known
-- uranium wand -> create monster; curved wand -> SLEEP; balsa wand -> slow monster; jeweled wand -> FIRE; pine wand -> LIGHT; **iron wand -> MAKE INVISIBLE; forked wand -> UNDEAD TURNING**
-- silver ring -> regeneration; agate ring -> base 100 group; steel ring -> shock resistance; **twisted ring -> TELEPORTATION**
+- KERNOD WEL -> base 80 (enchant armor / remove curse); VERR YED HORRE -> unknown (U); **ELBIB YLOH -> DESTROY ARMOR**; HAPAX LEGOMENON -> base 100 group; scroll of identify: type known
+- uranium wand -> create monster; **ebony wand -> STRIKING**; curved wand -> SLEEP; balsa wand -> slow monster; jeweled wand -> FIRE; pine wand -> LIGHT; **iron wand -> MAKE INVISIBLE; forked wand -> UNDEAD TURNING**
+- silver ring -> regeneration; copper ring -> unknown (a cursed one left on the D13 altar); agate ring -> base 100 group; steel ring -> shock resistance; **twisted ring -> TELEPORTATION**
 - puce potion -> base 150; murky potion -> base 100; magenta -> base 100; YELLOW -> SPEED; cyan -> GAIN LEVEL; clear -> water (type named "water"; "blessed clear potion" = HOLY WATER); WHITE -> PARALYSIS (formally identified); **EFFERVESCENT -> FULL HEALING** (a hill orc quaffed one T:5915: "looks completely healed"); **golden -> OBJECT DETECTION**; potion of speed = yellow (shop D12)
 - hexagonal amulet -> ESP; oval amulet -> unchanging
 - lamp (plain) -> magic lamp (used up); oil lamp identified; "bag" -> sack identified (n); the other "bag" (s) = holding/oilskin
@@ -63,13 +60,13 @@
 | 10 | Dungeons | **BIG ROOM** (irregular variant: wall fragments, trees, fountains (11,11), (65,11)); up (16,8); `>` (4,16) far W; loot: spellbooks (15,6), (20,11), scrolls (22,15), (26,10), (48,17), potion (29,17); **DANGER: KILLER BEE HIVE + giant spider + pyrolisk + mountain centaur + ghoul near the `<`** — never linger |
 | 11 | Dungeons (**QUEST PORTAL LEVEL**, the Norn's plea on every arrival; portal NOT found — probably the unexplored SE corner) | **`<` (48,19)** and **FOUNTAIN (52,19)** (active) in the SW room (47-54,15-20; ape statue (53,16); E door (54,18) → corridor E toward the nymph area); **`>` (14,19)** in the W room (11-24,16-19; E door (24,19) closed, N doorway (20,16)); **LAWFUL ALTAR (44,6)** in the N-centre room (32-45,5-10; hill orc statue (41,6); doors (30,6) W closed, (46,8) E doorway, (39,10) S; a cursed elven leather helm lies on the altar); NE room (51-55,3-8): doorways (55,4) E, (50,3)/(50,8) W; scimitar + orcish dagger (56,5), gremlin corpse (56,6) (poisonous); E room (69-73,4-10) doors (69,7) open, (69,9) closed, **ICE BOX (71,7)**; NW closet (15-19,6-10) door (19,10): studded leather armor (16,9); S room (33-41,16-19) doors (33,17) W doorway, (33,19) W open, (41,17) E doorway, (41,19) E closed; corridor chokepoint (30,19) (rock on all diagonals) between the S room and the W room's door (24,19); YELLOW MOLD (28,13) (avoid); boulders (48,9), (28,16) (the latter blocks the corridor west of the bee junction); hidden passage near (24,9). **DANGERS T:6385–6389: KILLER BEE SWARM (9+ bees) at the corridor junction (27-32,12-16) north of the S room; a RUST MONSTER in the S room/corridor (31,19); the WOOD NYMPH awake in the SE (last (68,18) T:6084)** |
 | 12 | Dungeons | `<` (48,3) in a tiny room (46-49,3-5): **LAND MINE (47,4)** (avoided), doors (49,2) N, (50,5) E, (45,4) W, doorway (46,6); **CARIGNAN'S ANTIQUE WEAPONS OUTLET** (57-66,3-7), door (56,3) (4 small mimics killed; stock: long swords 20, daggers 5, silver spear, shuriken, bronze plate mail 533, potion of speed 267 at (57,6)); NW room (10-19,2-6): **FOUNTAIN (12,3)**, **`>` (13,4)**, gold (17,5); middle room (25-37,10-17), LOCKED door (37,16) (travel routes through it — waypoint (38,12)); SE room (44-57,12-18): hidden PIT (48,13), emptied large box (53,17), doors (52,12) N, (50,18) S (dead end (50,19) searched 15); corridor dead end (49,1) unsearched; east strip x>67 unknown. A leprechaun roams (NW room). |
-| 13 | Dungeons | **`<` (74,7)** in the NE room (70-77,4-8), hidden door (70,6) (found); **`>` (66,16)** in the SE room (~64-72,12-18); **LAWFUL ALTAR to Tyr (17,18)** in the SW room (9-24,16-20), door (19,16) closed N, E doorway (24,18) (booby trap spent), hill orc statue (12,19); middle room (40-55,7-12) doors (39,11) W, (46,12) S; NW-middle room (24-35,3-9) with an ANTI-MAGIC FIELD (27,7) (drains Pw only), boulder (21,6). Unexplored: x<9, the south-middle (x 26-63, rows 13-21), the north strip. |
+| 13 | Dungeons | **`<` (74,7)** NE room (70-77,4-8), hidden door (70,6); **`>` (66,16)** SE room (~64-72,12-18); **LAWFUL ALTAR to Tyr (17,18)** in the SW room (9-24,16-20): doors (13,16) N, (19,16) N (dead-end stub (19,15) searched 12), E doorway (24,18), **HIDDEN DOOR (19,20) in the S wall (found T:7125, closed, unexplored beyond → the south-middle)**; hill orc statue (12,19); NW room (3-15,4-8) (chest (6,5) looted: scroll U + copper ring), door (9,8); middle room (40-55,7-12); NW-middle room (24-35,3-9) with an ANTI-MAGIC FIELD (27,7); boulder (21,6) (corridor spur, blocked); dead end (41,6) unsearched. Unexplored: south-middle (x 26-63, rows 13-21) via (19,20), north strip. Wood nymph killed T:6931 (her corpse (14,5)). |
 
 ## Pets
-- TAME DJINNI (from the lamp T:6114) — **LEFT ON D11** at T:6399 (last seen (29,19) T:6389, between the rust monster and the bee swarm). Lvl 7, AC 4, flies, weapon 2d8, poison resistant. Its tameness (5) drops by 1 per ~150 turns apart; after ~700 turns it goes peaceful/untame (≈T:7070) — NOT fetched in shift 9 (bee swarm next to D11's `>`). Fetching it means facing the swarm level again; only with Elbereth ready and the corridor chokepoint plan. It cannot be stolen from; it followed me on 4-square waypoints but lost me on 8-square travel legs twice.
+- None. The tame djinni was left on D11 (T:6399) and has surely gone untame by now (≈T:7070) — forget it.
 
 ## Threats / known dangers
-- **No poison resistance**: killer bees (D10 hive, D11 swarm), soldier ants, giant spiders, snakes, quasits, spiked pits → each poisonous hit = 1/8 × 1/30 death. Fight them one at a time in 1-wide corridors (rock on the diagonals), with Elbereth, or the fire wand along a line; never a swarm in a room.
+- **POISON RESISTANT since T:7135**: killer bees/soldier ants/spiders are now ordinary melee (still fight swarms at chokepoints — damage adds up). Poisonous corpses are safe food now.
 - **No magic resistance / no reflection**: no Castle, no lingering on D20+ near soldiers; avoid unknown wand zappers at range. Plan B for MR: cloak of magic resistance (shops/monsters), gray dragon scales (D20+), the Castle wand (needs MR first...), reconsider the Sokoban prize via D6 (4,15) once XL is higher.
 - Yellow lights: NEVER melee (explode → blind). Pyrolisk: kill fast or break line of sight; bag burnables first.
 - Gremlins at NIGHT (real clock 22:00–06:00 in the game's timezone, UTC here): curse claw steals intrinsics — sleep-ray them or fight by day.
@@ -84,17 +81,17 @@
 - Mines' End luckstone only at XL10+.
 
 ## Objective and plan
-- DONE shift 9: D12 explored (weapon shop, fountain, `>`); 4 shop mimics, chickatrice, energy vortex, large dog, floating eye, violet fungus, gnome mummy, monkey, leprechaun (fled) → **XL9** (Exp 2404 → 3050); **INTRINSIC TELEPATHY**; 3 throwing daggers bought; identify ×2 (6 items known: teleportation ring, make invisible, undead turning, object detection, destroy armor); 2nd teleport scroll; grease; D13: `<`, `>`, **co-aligned LAWFUL ALTAR (17,18)**, everything BUC-tested uncursed.
-- NEXT (shift 10):
-  1. D13: finish exploring (west x<9, south-middle, north strip) with the altar room as the base; kill things near the altar and SACRIFICE fresh corpses there (`#offer`, corpses < 50 turns old: Luck, prayer-timeout reduction, gift chance ~1/10 per sacrifice at Luck ≥ 0 — a random LAWFUL or unaligned artifact; Mjollnir is neutral and cannot be my gift). Never sacrifice my own race (dwarves) or pets; never engrave on the altar.
-  2. HOLY WATER: dilute junk potions (magenta N, murky in the sack; the D12 fountain (12,3) is 9 squares from D12's `>` (13,4)) into water, drop them on the D13 altar and pray (no trouble) once prayer_check() says the timeout is surely 0 (≥ ~1000 turns after T:6110 is still not a guarantee — rnz(350) can be large; only pray without trouble if p_safe is 1.0).
-  3. XP toward XL10 (5120): D13–D14 at full HP; poison-resistance still missing (killer bees/soldier ants in corridors only).
-  4. MR plan B: cloak of magic resistance (shops/monster drops), gray dragon scales; reflection: Sokoban prize (D6 `<` (4,15)) is a candidate once strong enough for a long detour.
-  5. The djinni on D11 goes untame ≈T:7070: forget it unless the swarm is gone.
-- Emergency plan: HP < 40% → Elbereth / upstairs / scroll J / sleep wand x (never toward an adjacent wall); prayer only if prayer_check() says the odds are good (last prayer T:6110).
+- DONE shift 10: D13 NW room + chest; jaguar (eaten), wood nymph (asleep, 1 blow), yellow light, pony, quantum mechanic; create-monster altar camping: fire elemental, 3 Uruk-hai, spotted jelly, iguana, paper golem, acid blob, kobold lord, a 1/23 GROUP (3 wolves, scorpion, raven, imp + a peaceful white unicorn) → Exp 3050 → 3885; POISON RESISTANCE; Luck +2; prayer timeout verified 0; wand of striking; hidden door (19,20).
+- NEXT (shift 11):
+  1. Rest to full on the altar. Then more create-monster rounds from the altar ONLY at >= 95% HP (a 1/23 zap makes 2–8 monsters; a fire elemental cost 27 HP). Sacrifice LIGHT fresh corpses (< 50 turns): carry them onto the altar and `#offer` (see the offer_carried() pattern in harness notes). Each sacrifice now = Luck +1..+2 and a 1/10 gift chance. Monsters that die ON the altar square can be offered from the floor whatever their weight.
+  2. Explore south through the hidden door (19,20) (explore() should now path through it) — the unexplored south-middle.
+  3. Throw the 7 unidentified gems at the co-aligned white unicorn whenever it is in a straight line within range (+1 Luck per real gem; `throw(letter, dir, force=True)` because the harness refuses peacefuls in line).
+  4. HOLY WATER: the 2 object-detection potions (bag s) → dilute twice at the D12 fountain (12,3) (next to D12's `>` (13,4), i.e. up from D13 `<` (74,7)) → drop the waters on this altar → pray with no trouble (timeout 0 verified; do it only if no sacrifice/prayer has reset it). Maybe first price-ID/read-test U.
+  5. XL10 (1235 Exp to go), then descend D14+ at full HP. MR/reflection still missing: Sokoban prize (D6 `<` (4,15)) remains the most reachable reflection source.
+- Emergency plan: HP < 40% → Elbereth (step off the altar first) / upstairs / scroll J / sleep wand x; PRAYER IS SAFE NOW (timeout verified 0, Luck > 0) — use it for major trouble (HP < 1/6 max = 18).
 
 ## Harness/helper calibration notes
 - Verified shift 9: walk_path()/step() refuse to walk into monsters (shopkeeper), farlook shows shop prices, pay(), eat() of shop corpse + pay(), engrave_test(), identify menus via obs.menu pages, altar D/X/. drop + ,/. pickup, fight() inside an engulfer.
 - Verified shift 8: `zap()` down a corridor, `fight()` on a sleeper, `fight_until_clear()` in corridors/doorways (radius matters: 4 reported "clear" with orcs at 5–7), `explore()` (hidden passage, stairs, fountain), `avoid()`, altar drop test, `dip()` on a fountain (x2), `pray(force=True)` no-trouble prayer, `cont --reply` for the "Call a clear potion:" prompt, `bag_take` by identified name, `pickup(pattern)`, `#enhance` menu, `go_down(wait_pet=0)` under pressure.
-- GAPS (details in harness_notes.md Shift 9): FALSE '!! you WIELD ... Excalibur — not a weapon' warning on every obs since the shift-9 daemon restart (ignore it while inventory shows 'a - ... Excalibur (weapon in hand)'); engulf border read as 'trap at <my square>' in pause text; throw() doesn't refuse inside shops (auto-sell); travel() keeps routing through known locked doors (use waypoints); bag_take stops silently on a full pack.
+- Verified shift 10: the false Excalibur wield warning is GONE; fight() passive refusal (fire elemental, allow_passive=True for one blow), fight_until_clear() vs a 6-monster group from the altar, throw() in a line, loot_all() auto-unlocking a chest, engrave_test() (striking), bag_put() of 3 potion stacks, eat() of a poisonous corpse, farlook while blind (remembered objects).
 - Earlier notes still valid: never call `inventory()`/`here()` unless `obs.kind == 'command'`; `travel()` never autopicks up; pick-one menus close on the letter alone; `obs.menu` lists only the current page.

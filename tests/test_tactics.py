@@ -444,3 +444,123 @@ def test_write_scroll_flow_and_unknown_type(monkeypatch):
     with pytest.raises(PermissionError, match="isn't identified"):
         items.write_scroll("genocide")
     assert sent == []
+
+
+class _G:
+    """A minimal ctx.game for helpers that consult level memory."""
+    def __init__(self):
+        self.traps, self.avoid, self.visited, self.kills = {}, {}, {}, {}
+        self.locked_doors, self.feature_desc, self.intrinsics = {}, {}, {"cold"}
+        self.tracker = None
+        self.hero_pos = None
+
+    def level_key(self, status=None):
+        return "L"
+
+    def corpse_age(self, name, cell, turn):
+        return None
+
+
+def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    row = {5: "        ........."}
+    vortex = {"x": 11, "y": 5, "ch": "v", "desc": "dust vortex", "dist": 1}
+    s = _snap(row, (10, 5), [vortex])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    with pytest.raises(nav.NavError, match="dust vortex"):
+        nav._travel(12, 5, 40, None, 3, None, False)
+    assert sent == []              # no '_' travel to the adjacent square ("You move right into ...")
+
+
+def test_engulfed_helpers_refuse(monkeypatch):
+    import pytest
+    from tactics import ctx, explore, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({}, (10, 5), [])
+    s.engulfed = True
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    for fn in (lambda: nav._travel(20, 5, 40, None, 3, None, False), lambda: explore.head_to(20, 5),
+               lambda: nav.go_down()):
+        with pytest.raises(nav.NavError, match="ENGULFED"):
+            fn()
+
+
+def test_go_down_refuses_while_levitating_and_checks_the_level(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({5: "        .>."}, (9, 5), [])
+    s.status.conditions = ["Lev"]
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    with pytest.raises(nav.NavError, match="LEVITATING"):
+        nav.go_down()
+    # pressed '>' but still on the same level (e.g. a prompt interrupted): NavError, not a silent return
+    s.status.conditions, s.status.ldesc = [], "Dlvl:5"
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [(9, 5)])
+    s2 = _snap({5: "        .@."}, (9, 5), [])
+    s2.status.ldesc = "Dlvl:5"
+    s2.messages = ["You are floating high above the stairs."]
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: s2)
+    monkeypatch.setattr(ctx, "last", lambda: s if not hasattr(ctx, "_sent") else s2)
+    ctx._sent = True
+    try:
+        with pytest.raises(nav.NavError, match="still on Dlvl:5"):
+            nav._use_stairs(">", wait_pet=0)
+    finally:
+        del ctx._sent
+
+
+def test_auto_fight_stops_for_a_nontrivial_newcomer(monkeypatch):
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    snake = {"x": 11, "y": 5, "ch": "S", "desc": "snake", "dist": 1}
+    python = {"x": 11, "y": 5, "ch": "S", "desc": "python", "dist": 1, "note": "crushes."}
+    s1 = _snap({}, (10, 5), [snake])
+    s1.status.xl, s1.status.hp, s1.status.hpmax = 30, 300, 300
+    s2 = _snap({}, (10, 5), [python])       # the snake died, a python stepped in
+    s2.status.xl, s2.status.hp, s2.status.hpmax = 30, 300, 300
+    frames = iter([s2, s2, s2])
+    cur = {"s": s1}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = next(frames)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(combat, "_wielding", lambda: True)
+    combat.fight(only=lambda m: m["desc"] == "snake")
+    assert sent == ["Fl"]                     # one blow at the snake, none at the python
+    cur["s"], sent[:] = s1, []
+    frames = iter([s2, s2])
+    combat.fight(11, 5)                      # fight(x, y): sticks to the species first found there
+    assert sent == ["Fl"]
+
+
+def test_offer_skips_own_race_and_records_outcome(monkeypatch):
+    from nh.parse import State
+    from tactics import ctx, survival
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    base = _snap({}, (10, 5), [])
+    base.under = "_"
+    base.feature_desc = {(10, 5): "lawful altar (Tyr)"}
+    q1 = _snap({}, (10, 5), [])
+    q1.state = State("yn", prompt="There is a dwarf corpse here; sacrifice it? [ynq] (q)")
+    q2 = _snap({}, (10, 5), [])
+    q2.state = State("yn", prompt="There is a jackal corpse here; sacrifice it? [ynq] (q)")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["Your sacrifice is consumed in a flash of light!", "You glimpse a four-leaf clover at your feet."]
+    seq = iter([q1, q2, done])
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or next(seq))
+    monkeypatch.setattr(ctx, "last", lambda: base)
+    r = survival.offer()
+    assert sent == ["#offer<CR>", "n", "y"] and r["offered"] == "jackal"
+    assert "prayer timeout is 0" in r["outcome"]

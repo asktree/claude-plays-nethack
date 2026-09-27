@@ -476,6 +476,13 @@ def test_brown_plus_door_vs_spellbook():
     doors = [(f["x"], f["y"]) for f in features_in_view(snap) if f["name"] == "closed door"]
     books = [(o["x"], o["y"]) for o in objects_in_view(snap) if o["ch"] == "+"]
     assert doors == [(12, 4)] and books == [(12, 6)]
+    # a book in a room CORNER (walls on two adjacent sides) is no door (p1 shift 13)
+    s2 = mk({4: "      |-----------|", 5: "      |+..........|", 6: "      |......@....|",
+             22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}, cursor=(13, 6))
+    s2.fg[5][7] = 3
+    snap2 = Snap(screen=s2, state=State("command"), status=Status(ok=True))
+    assert not [f for f in features_in_view(snap2) if f["name"] == "closed door"]
+    assert [(o["x"], o["y"]) for o in objects_in_view(snap2) if o["ch"] == "+"] == [(7, 5)]
 
 
 def test_default_benign_monster_vs_monster_melee():
@@ -902,3 +909,81 @@ def test_shop_tracking_and_guards():
     g.hero_pos = (7, 9)
     out = Snap(screen=mk(rows, cursor=(7, 9)), state=State("command"), status=s.status, monsters=[])
     g._guard(out, b"t", force=False)
+
+
+def test_trap_colours_drawbridge_vibrating_square_and_feature_summary():
+    from nh.game import Snap
+    from nh.mapscan import features_in_view, monsters_in_view
+    from nh.parse import State
+    from nh.render import render
+    s = mk({5: "  .^.^.^.#.~..}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}>", 22: STATUS1,
+            23: "Dlvl:30 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}, cursor=(2, 5))
+    s.fg[5][3] = 13     # bright magenta ^: magic portal
+    s.fg[5][5] = 3      # brown ^: squeaky board / hole / trap door
+    s.fg[5][7] = 10     # bright green ^: polymorph trap
+    s.fg[5][9] = 3      # brown #: raised drawbridge
+    s.fg[5][11] = 5     # magenta ~: the vibrating square (a worm tail is brown)
+    for x in range(14, 50):
+        s.fg[5][x] = 4
+    snap = Snap(screen=s, state=State("command"), status=parse_status(s))
+    names = {(f["x"], f["y"]): f["name"] for f in features_in_view(snap)}
+    assert names[(3, 5)] == "magic portal" and names[(7, 5)] == "polymorph trap"
+    assert names[(5, 5)] == "trap: squeaky board/hole/trap door" and names[(9, 5)] == "raised drawbridge"
+    assert names[(11, 5)] == "vibrating square"
+    assert not [m for m in monsters_in_view(snap) if (m["x"], m["y"]) == (11, 5)]
+    snap.feature_desc = {(5, 5): "trap door"}
+    assert {(f["x"], f["y"]): f["name"] for f in features_in_view(snap)}[(5, 5)] == "trap door"
+    out = render(snap, mode="full")
+    line = next(l for l in out.splitlines() if l.startswith("features:"))
+    assert line.index("down stairs") < line.index("water x")      # stairs first, water summarized
+    assert "water x35" in line
+
+
+def test_intrinsics_from_messages_and_resisted_passives():
+    from nh.danger import passive_max
+    g = _guard_game()
+    assert "cold" in g.intrinsics and "fire" not in g.intrinsics
+    g._note_intrinsics(["You feel a momentary chill."])
+    assert "fire" in g.intrinsics
+    assert passive_max("fire vortex")[0] > 0 and passive_max("fire vortex", resists=g.intrinsics)[0] == 0
+    g._note_intrinsics(["You feel warmer."])            # a gremlin stole it
+    assert "fire" not in g.intrinsics
+
+
+def test_default_benign_siege_noise_and_altar_pile():
+    from nh.kernel import DEFAULT_BENIGN
+
+    def benign(m):
+        return any(p.search(m) for p in DEFAULT_BENIGN)
+    for m in ["You hear a door crash open.", "A spear misses you.", "The soldier throws a spear!",
+              "You stop at the edge of the water.", "A board beneath the gnome squeaks a B note loudly.",
+              "There is an altar to Tyr (lawful) here.\nThings that are here:\na jaguar corpse"]:
+        assert benign(m), m
+    for m in ["The soldier ant bites!", "You are hit by an arrow.", "A board beneath you squeaks loudly."]:
+        assert not benign(m), m
+
+
+def test_kernel_refuses_exec_at_an_open_prompt():
+    from nh.game import Game, Snap, Timing
+    from nh.kernel import Kernel
+    from nh.parse import State
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    g.last = Snap(screen=mk({}), state=State("object", prompt="What do you want to drop? [a-z or ?*]"),
+                  status=parse_status(mk({22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"})))
+    out = k.start_exec("print('hi')")
+    assert out["status"] == "error" and "prompt" in out["error"] and "drop" in out["error"]
+
+
+def test_sacrifice_evidence_recorded(tmp_path):
+    from nh.game import Snap
+    from nh.parse import State
+    from nh.tracker import Tracker
+    g = _guard_game()
+    t = Tracker(g, tmp_path / "hs.json")
+    t.need_overview = False
+    scr = mk({22: STATUS1, 23: "Dlvl:13 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:7100"}, cursor=(10, 5))
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr),
+             messages=["Your sacrifice is consumed in a flash of light!", "You glimpse a four-leaf clover at your feet."])
+    t.on_step(s)
+    assert t.state["prayer_evidence"] == [{"turn": 7100, "kind": "zero"}]

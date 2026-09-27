@@ -58,6 +58,7 @@ class Snap:
     wield_note: str = ""       # set when you are known to wield a non-weapon / nothing (Game.wield_note)
     shop: str = ""             # the shop you stand in ("Carignan's antique weapons outlet"), if known
     last_pos: tuple | None = None   # the hero's last known square (set while a prompt hides the cursor)
+    feature_desc: dict = field(default_factory=dict)   # {(x, y): "trap door"} looked up on this level
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -338,6 +339,8 @@ class Game:
         self.wielded_class: str | None = None     # inventory() class header of the wielded item ("Weapons")
         self.shops: dict[str, list] = {}          # level key -> [[x1, y1, x2, y2, "Name's shop type"]] interiors
         self.locked_doors: dict[str, set] = {}    # level key -> doors found locked (travel walks around them)
+        self.feature_desc: dict[str, dict] = {}   # level key -> {(x, y): "trap door" / "lawful altar"} (farlook)
+        self.intrinsics: set = {"cold", "stealth"}   # Valkyrie start; more learned from messages (_note_intrinsics)
         self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -364,7 +367,7 @@ class Game:
         for d in (self.traps, self.avoid, self.visited, self.locked_doors):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
-        for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links):
+        for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -484,6 +487,30 @@ class Game:
             if re.search(r"\b(?:gloves|gauntlets)\b", m):
                 self.gloves = None      # put on / taken off / stolen / destroyed: re-check
 
+    # eat.c givit() / attrib.c attrcurse() / level-up messages -> (intrinsic, gained?)
+    _INTRINSIC_MSGS = [
+        (r"^You feel a momentary chill\.|^You be chillin'", "fire", True),
+        (r"^You feel full of hot air\.", "cold", True),
+        (r"^You feel wide awake\.", "sleep", True),
+        (r"^You feel very firm\.|^You feel totally together", "disintegration", True),
+        (r"^Your health currently feels amplified!|^You feel grounded in reality", "shock", True),
+        (r"^You feel (?:especially )?healthy\.", "poison", True),
+        (r"^You feel very jumpy\.|^You feel diffuse", "teleportitis", True),
+        (r"^You feel in control of yourself\.|^You feel centered in your personal space", "teleport control", True),
+        (r"^You feel a strange mental acuity\.|^You feel in touch with the cosmos", "telepathy", True),
+        (r"^You feel quick!", "speed", True),
+        (r"^You feel warmer\.", "fire", False), (r"^You feel cooler\.", "cold", False),
+        (r"^You feel a little sick!", "poison", False), (r"^You feel less jumpy\.", "teleportitis", False),
+        (r"^Your senses fail!", "telepathy", False), (r"^You feel slower\.", "speed", False),
+        (r"^You feel clumsy\.", "stealth", False),
+    ]
+
+    def _note_intrinsics(self, messages: list[str]) -> None:
+        for m in messages:
+            for pat, name, gained in self._INTRINSIC_MSGS:
+                if re.search(pat, m):
+                    (self.intrinsics.add if gained else self.intrinsics.discard)(name)
+
     def wield_note(self) -> str:
         """A warning when you are known to wield something that isn't a
         weapon (a lamp after #rub, nothing at all), else ''."""
@@ -582,6 +609,10 @@ class Game:
             mm = self._HERE_FEATURE.search(m)
             if mm:
                 feats[snap.hero] = self._HERE_CH[mm.group(1)]
+            ma = re.search(r"^There is an? (?:high )?altar to (.+?) \((\w+)\) here", m)
+            if ma:
+                self.feature_desc.setdefault(self.level_key(snap.status), {})[snap.hero] = \
+                    f"{ma.group(2)} altar ({ma.group(1)})"
         snap.under = feats.get(snap.hero)
 
     # ---- low level ---------------------------------------------------------
@@ -1112,6 +1143,7 @@ class Game:
                         # moves or erases the engraving here without a word (zap.c)
                         self.engr_seen.get(self.level_key(snap.status), {}).pop(snap.hero, None)
                     self._note_wield(messages)
+                    self._note_intrinsics(messages)
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
                     if arrive:
                         # only a real staircase: not a hole you dug ('>' answered the dig
@@ -1135,6 +1167,8 @@ class Game:
             snap.wield_note = self.wield_note()
             snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
             snap.last_pos = snap.hero or self.hero_pos
+            snap.feature_desc = self.feature_desc.setdefault(self.level_key(snap.status), {}) \
+                if snap.status.ok else {}
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -1387,6 +1421,8 @@ class Game:
             snap.wield_note = self.wield_note()
             snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
             snap.last_pos = snap.hero or self.hero_pos
+            snap.feature_desc = self.feature_desc.setdefault(self.level_key(snap.status), {}) \
+                if snap.status.ok else {}
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)

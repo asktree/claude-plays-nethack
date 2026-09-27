@@ -218,6 +218,18 @@ def prayer_check() -> dict:
         bad = any(k in (last.get("outcome") or "") for k in ("displeased", "You feel guilty"))
         wish_after = sum(99 for w in wishes if (w.get("turn") or 0) >= (last.get("turn") or 0))
         p_safe = _p_timeout_below(limit - wish_after, since, st.xl) if not bad else 0.0
+    # sacrifice evidence (pray.c dosacrifice): "four-leaf clover" / "feeling of reconciliation" = the
+    # timeout WAS 0 then; only a prayer, a wish or a gift ("An object appears at your feet") raises it
+    last_raise = max([p.get("turn") or 0 for p in prayers] + [w.get("turn") or 0 for w in wishes]
+                     + [e["turn"] for e in hs.get("prayer_evidence", []) if e.get("kind") == "reset"] + [-1])
+    zero = [e for e in hs.get("prayer_evidence", []) if e.get("kind") == "zero" and (e.get("turn") or 0) > last_raise]
+    proven = ""
+    if zero:
+        p_safe = 1.0
+        proven = f" (proven: a sacrifice at T:{zero[-1]['turn']} showed the timeout at 0, nothing raised it since)"
+    elif any(e.get("kind") == "reset" and (e.get("turn") or 0) >= last_raise for e in hs.get("prayer_evidence", [])):
+        since_gift = turn - last_raise
+        p_safe = min(p_safe, _p_timeout_below(limit, since_gift, st.xl))
     where = hs.get("current_branch") or ""
     advice = []
     if where == "Gehennom":
@@ -232,7 +244,7 @@ def prayer_check() -> dict:
         advice.append("MAJOR trouble: " + ", ".join(reasons_major) + ".")
     advice.append(f"Estimated chance the prayer timeout is low enough: {p_safe:.0%}"
                   + (f" ({since} turns since the last prayer)" if since is not None else " (no prayer yet)")
-                  + ". Luck must also be >= 0 and your god not angry.")
+                  + proven + ". Luck must also be >= 0 and your god not angry.")
     return {"trouble": trouble, "reasons": reasons_major or reasons_minor, "since_last": since,
             "p_safe": round(p_safe, 3), "advice": " ".join(advice)}
 
@@ -319,6 +331,76 @@ def prayer_verdict(msgs) -> str:
     if gift:
         bits.append("GIFT: " + gift.group(0))
     return "; ".join(bits) or ("no verdict message seen: " + joined[-200:])
+
+
+_OFFER_OUTCOMES = [
+    (r"An object appears at your feet|Use my gift wisely", "GIFT: an artifact at your feet (pick it up, check it; "
+                                                           "the prayer timeout was reset by the gift)"),
+    (r"four-leaf clover|brushed your (?:foot|feet)", "Luck +1 or more — and your prayer timeout is 0 (prayer is "
+                                                     "safe if Luck >= 0 and your god isn't angry)"),
+    (r"feeling of reconciliation", "the prayer timeout is now 0"),
+    (r"hopeful feeling", "the prayer timeout went down (not yet 0) — or your god's anger lessened"),
+    (r"partially absolved", "your alignment improved (it was negative)"),
+    (r"insult to|infamous offense|repay loyalty|You feel guilty", "BAD: an offense (-alignment/-Luck)"),
+    (r"^Nothing happens", "nothing: the corpse was too old (more than 50 turns) or worthless"),
+    (r"is consumed in a (?:flash of light|burst of flame)", "accepted, no visible effect (Luck already high?)"),
+]
+_OWN_RACE = ("dwarf", "dwarf lord", "dwarf king", "dwarf mummy", "dwarf zombie")    # M2_DWARF: our race
+_UNICORN_ALIGN = {"white unicorn": "lawful", "gray unicorn": "neutral", "black unicorn": "chaotic"}
+
+
+def offer(pattern: str | None = None, max_age: int = 50) -> dict:
+    """#offer a corpse lying here, on the altar you stand on: the first one
+    (or the first matching `pattern`) that is safe to offer. Refuses corpses
+    of your own race (dwarves: -5 Luck, the altar is desecrated) and a
+    unicorn of the altar's alignment (an insult); skips corpses the harness
+    knows died more than `max_age` turns ago (worthless after 50). Prints and
+    returns the outcome: Luck up / prayer timeout 0 (recorded for
+    prayer_check()), gift, or nothing. Kill on or next to the altar, or carry
+    light fresh corpses there."""
+    ctx.require_command("offer()")
+    from nh.danger import base_name
+    s = ctx.last()
+    if s.under != "_":
+        raise RuntimeError("offer(): you are not standing on an altar")
+    altar = (getattr(s, "feature_desc", None) or {}).get(s.hero, "")
+    rx = re.compile(pattern, re.I) if pattern else None
+    s = ctx.do("#offer<CR>", quiet=True)
+    msgs = list(s.messages)
+    offered = None
+    for _ in range(12):
+        p = s.state.prompt or ""
+        if s.state.kind != "yn":
+            break
+        mm = re.search(r"There (?:is|are) (?:an? |\d+ )?(.+?) corpses? here; sacrifice", p)
+        if not mm:
+            s = ctx.do("n", quiet=True)
+            msgs += s.messages
+            continue
+        name = base_name(mm.group(1).replace("partly eaten ", ""))
+        age = ctx.game.corpse_age(name, s.last_pos, s.status.turn if s.status.ok else None) \
+            if hasattr(ctx.game, "corpse_age") else None
+        why = ("your own race (a dwarf)" if name in _OWN_RACE else
+               "a unicorn of the altar's alignment (an insult)" if name in _UNICORN_ALIGN
+               and (not altar or _UNICORN_ALIGN[name] in altar) else
+               f"{age} turns old (worthless after {max_age})" if age is not None and age > max_age else
+               "not the one asked for" if rx is not None and not rx.search(mm.group(1)) else "")
+        if why or offered:
+            if why and not offered:
+                print(f"offer(): skipping the {name} corpse: {why}")
+            s = ctx.do("n", quiet=True)
+        else:
+            offered = name
+            s = ctx.do("y", ok=[p for p, _ in _OFFER_OUTCOMES])
+        msgs += s.messages
+    if s.state.kind != "command":
+        ctx.do("<Esc>", quiet=True)
+    joined = " | ".join(msgs)
+    outcome = next((o for pat, o in _OFFER_OUTCOMES if re.search(pat, joined)), "")
+    if not offered:
+        outcome = "nothing offered" + (f" ({msgs[-1]})" if msgs else "")
+    print(f"offer(): {offered or '-'}: {outcome}")
+    return {"offered": offered, "outcome": outcome, "messages": msgs}
 
 
 def rest_on_elbereth(turns: int = 100, until_hp: int | None = None, burst: int = 10):

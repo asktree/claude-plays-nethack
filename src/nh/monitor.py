@@ -29,7 +29,7 @@ import re
 from .danger import note_for, risky_lookalike
 from .mapscan import monsters_in_view
 
-MAX_LOOKS_PER_UPDATE = 8
+MAX_LOOKS_PER_UPDATE = 12
 RESEEN_TURNS = 150     # a hostile re-entering view this soon and this near keeps its label...
 RESEEN_DIST = 12       # ...unless a dangerous species looks just like it (danger.risky_lookalike)
 SAME_SQUARE_TURNS = 2000   # ...and one back on the very square it was last seen on, for this long
@@ -399,6 +399,22 @@ class MonsterTracker:
             r = self.recent.pop(cands[0][0])
             if record is not None and cands[0][0] in vanished:
                 record(name, (r["x"], r["y"]), turn)
+
+    def relabel(self, x: int, y: int, raw: str) -> str | None:
+        """An explicit farlook at (x, y) said `raw`: the monster tracked there
+        now carries that label (a resurfaced snake, a look-alike). Returns the
+        new label, or None if no tracked monster stands there."""
+        d = _clean(raw or "")
+        if not d or "statue of" in d:
+            return None
+        for m in self.known:
+            if (m["x"], m["y"]) == (x, y):
+                m["desc"] = d
+                rec = self.recent.get(m.get("id"))
+                if rec is not None:
+                    rec["desc"] = d
+                return d
+        return None
 
     def _describe(self, cells: list[tuple[int, int]]) -> dict:
         fn = getattr(self.game, "describe_cells", None)

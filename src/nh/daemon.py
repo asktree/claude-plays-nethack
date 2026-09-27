@@ -128,7 +128,8 @@ class Daemon:
             return {"ok": True, "text": self.render(snap, mode=mode)}
         if op == "exec":
             out = self.kernel.start_exec(req["code"], autocontinue=req.get("autocontinue"),
-                                         monsters=req.get("monsters", True), hp_pause=req.get("hp_pause"))
+                                         monsters=req.get("monsters", True), hp_pause=req.get("hp_pause"),
+                                         at_prompt=req.get("at_prompt", False))
             return {"ok": out["status"] in ("done", "paused"), "text": _fmt_exec(out, mode, self.render)}
         if op == "cont":
             out = self.kernel.cont(reply=req.get("reply"), autocontinue=req.get("autocontinue"))

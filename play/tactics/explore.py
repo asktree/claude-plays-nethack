@@ -60,6 +60,14 @@ def frontiers(limit: int = 12):
     return spots + [c for c in object_frontiers() if c not in spots]
 
 
+def _on_known_ground(s, x, y) -> bool:
+    """Next to map you know (a walkable square, wall or door): detected gold
+    or objects shown by magic inside solid rock / a closed vault aren't."""
+    from .mapview import is_walkable
+    return any(is_walkable(s, x + dx, y + dy, allow_monsters=True) or s.screen.at(x + dx, y + dy) in "|-+"
+               for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+
+
 def object_frontiers(s=None):
     """Object-covered squares bordering blank (maybe unexplored) space that
     we haven't stood next to — NetHack's own finder can't see these."""
@@ -75,7 +83,7 @@ def object_frontiers(s=None):
     out = []
     for o in s.objects:
         x, y = o["x"], o["y"]
-        if o["ch"] in "0`" or (x, y) in near or (x, y) in bad:
+        if o["ch"] in "0`" or (x, y) in near or (x, y) in bad or not _on_known_ground(s, x, y):
             continue
         if any(s.screen.at(x + dx, y + dy) == " " for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))):
             out.append((x, y))
@@ -139,6 +147,8 @@ def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = Tru
     import contextlib
     from .nav import bad_squares
     ctx.require_command("explore()")
+    from .nav import engulfed_check
+    engulfed_check(ctx.last(), "explore()")
     skip = set(skip or ()) | bad_squares()
     if auto_fight and ctx.monster_filter:
         from .combat import not_auto_fightable
@@ -188,8 +198,11 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                         "(or dig / find another way)")
         bl = boulders_hit + [b for b in _boulder_leads() if b not in boulders_hit]
         if bl:
-            left.append(f"boulders {bl} in the way / next to unexplored space (travel never pushes: step into "
-                        "one to push it if the square beyond is free; in Sokoban follow the solution)")
+            lev = "Lev" in (ctx.last().status.conditions if ctx.last().status.ok else ())
+            left.append(f"boulders {bl} in the way / next to unexplored space ("
+                        + ("you are LEVITATING: you can't push boulders now" if lev else
+                           "travel never pushes: step into one to push it if the square beyond is free; in "
+                           "Sokoban follow the solution") + ")")
         hint = _hidden_stairs_hint()
         if not left:
             de = dead_ends()
@@ -226,7 +239,25 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         bad = bad_squares()
         target = _pick_target(skip, bad, why)
         if target is None:
-            return finished()
+            # NetHack's own finder skips squares with objects on them and misses some dark-maze edges:
+            # try the screen frontiers (walkable squares beside never-seen space) before giving up
+            from .mapview import bfs_path as _bfs, dist as _dist
+            cur = ctx.last()
+            extra = [c for c in screen_frontiers(cur) if c not in skip and c not in bad and c != cur.hero
+                     and cur.hero is not None and _bfs(cur, cur.hero, c, allow_monsters=True) is not None]
+            if not extra:
+                return finished()
+            tgt = min(extra, key=lambda c: _dist(c, cur.hero))
+            skip.add(tgt)
+            try:
+                s = travel(*tgt)
+            except NavError:
+                unreachable.append(tgt)
+                continue
+            legs += 1
+            if s.state.kind != "command":
+                return result(f"stopped: {s.state.kind} {s.state.prompt!r}")
+            continue
         bad = bad - {target}
         cur = ctx.last()
         direct = bfs_path(cur, hero, target, allow_monsters=True) if (bad and hero) else None
@@ -379,10 +410,11 @@ def head_to(x: int, y: int, max_legs: int = 30):
     and the never-attack rules as usual). Returns the final snap; NavError when
     no reachable frontier is left or after max_legs."""
     from .mapview import bfs_path, dist
-    from .nav import travel
+    from .nav import engulfed_check, travel
     target = (x, y)
     tried: set = set()
     s = ctx.last()
+    engulfed_check(s, f"head_to{target}")
     for _leg in range(max_legs):
         s = ctx.last()
         if s.state.kind != "command" or s.hero is None:
@@ -437,7 +469,8 @@ def _hidden_stairs_hint() -> str:
     if known_cells(">", s):
         return ""
     visited = ctx.game.visited.get(ctx.game.level_key(s.status), set())
-    cands = [(o["x"], o["y"]) for o in s.objects if (o["x"], o["y"]) not in visited and o["ch"] not in "0`"]
+    cands = [(o["x"], o["y"]) for o in s.objects if (o["x"], o["y"]) not in visited and o["ch"] not in "0`"
+             and _on_known_ground(s, o["x"], o["y"])]
     cands += [(m["x"], m["y"]) for m in s.monsters if m.get("statue") and (m["x"], m["y"]) not in visited]
     if not cands:
         return " — no down stairs seen yet"

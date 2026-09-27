@@ -41,5 +41,5 @@ from tactics.town import buy_protection, pay  # noqa: E402,F401
 from tactics.items import bag_put, bag_take, dig, eat, pickup  # noqa: E402,F401
 from tactics.items import dip_into, discoveries, read_identify, rub, unlock, with_looks  # noqa: E402,F401
 from tactics.items import write_scroll  # noqa: E402,F401
-from tactics.survival import prayer_verdict  # noqa: E402,F401
+from tactics.survival import offer, prayer_verdict  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401

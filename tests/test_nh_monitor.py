@@ -418,3 +418,16 @@ def test_kernel_expected_level_change_does_not_pause():
     assert reasons == []
     k._check_events(a, b)
     assert reasons and "level: Dlvl:10 -> Dlvl:11" in reasons[-1]
+
+
+def test_explicit_farlook_relabels_a_lookalike():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(46, 2): "cobra"}
+    t.update(snap({(46, 2): "S"}, 10))
+    assert t.relabel(46, 2, "S       a snake (pit viper)") == "pit viper"
+    g.truth = {(46, 2): "cobra"}          # the automatic look would say cobra again...
+    g.looked.clear()
+    m = by_pos(t.update(snap({(46, 2): "S"}, 11)))
+    assert m[(46, 2)]["desc"] == "pit viper"   # ...but the unambiguous re-sighting keeps the explicit label
+    assert t.relabel(50, 5, "a doorway") is None

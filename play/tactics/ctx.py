@@ -19,6 +19,14 @@ def activity(text: str = "") -> None:
         _set_activity(text)
 
 
+def no_monster_pauses():
+    """A block of no-time keystrokes (farlook, inventory, discoveries): a
+    monster labelled for the first time there isn't news — no game time
+    passes, so nothing moved."""
+    import contextlib
+    return monster_filter(lambda m: False) if monster_filter is not None else contextlib.nullcontext()
+
+
 def last():
     """Most recent snapshot (captures one if none yet)."""
     s = game.last

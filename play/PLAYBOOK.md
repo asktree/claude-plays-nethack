@@ -148,7 +148,12 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   Never put a wand of cancellation into a bag of holding.
 
 ## F. Gehennom (MR mandatory; prayer doesn't work)
-- Valley of the Dead via the Castle trapdoors. Temple of Moloch — don't anger its priest.
+- Valley of the Dead via the Castle trapdoors (the Castle has no down stairs; its trap doors are the way —
+  obs names them `trap door` once looked at). Temple of Moloch — don't anger its priest; its altar is
+  UNALIGNED: never pray or #offer there.
+- Incubi/succubi (`&`, from the Valley on): they take off your armor and RINGS — a levitation ring over water
+  or lava is then death. Kill them at range, answer n to "remove your ...?"; vampires hide as fog clouds,
+  vampire bats and wolves (killing the shape makes the vampire rise).
 - Juiblex (swamp; engulf → illness), Orcus (town; wand of death), Asmodeus, Baalzebub.
 - **Vlad's Tower branch is 9–13 levels below the Valley** — search there. Vlad has the **Candelabrum**;
   attach 7 candles.
@@ -166,7 +171,9 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 - **Astral**: arrive at full HP with life saving worn, a death wand with verified charges, full healing,
   a unicorn horn, conflict off, free action. Identify the Riders: **never death-ray Death, never teleport a
   Rider**. Before `#offer`: confirm the priest's god by farlook ("high priest of Tyr"), take off levitation,
-  step onto the altar, `:` should read "high altar to Tyr (lawful)". Then `#offer` the Amulet.
+  step onto the altar, `:` should read "high altar to Tyr (lawful)". Then `#offer` the Amulet. (From afar
+  every Astral altar reads "aligned high altar"; the alignment shows only from an adjacent square — obs
+  updates it then.)
 
 ## H. Habits
 - Farlook every ambiguous glyph (the harness does it for new monsters; statues look like monsters).

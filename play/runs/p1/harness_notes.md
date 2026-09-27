@@ -384,3 +384,18 @@ Format: step `#N` — command — expected — what happened.
 3. dig('>') yields the level-change pause before re-wielding the weapon — `#648`.
 4. travel() through-boulder plans ("A boulder blocks your path.") not falling back to path_to — `#359`.
 5. obs.hero None during a getlin prompt — `#2128`.
+
+## Shift 13 (T:11997 -> 13184; DL13 -> DL15; daemon restarted before the shift, step numbers from #0)
+- `#242`/`#250` — obs.features listed a SPELLBOOK lying inside a room as `closed door (30,10)` (farlook: "a spellbook or a closed door (a light brown spellbook)"). Any `+` seems to be taken for a door. Suggest: a `+` that is not in a wall line (floor on both sides, E-W and N-S) is an object, or confirm with the farlook text.
+- `#685`, `#2037` — after reading GOLD DETECTION, explore() reported every detected gold square (in rock, in a closed vault, in unexplored pockets) as "frontiers travel couldn't reach" AND in "stairs can hide under objects: step onto these". Noisy and misleading (a vault is never reachable). Suggest: skip remembered-object squares whose terrain was never seen.
+- `#2395` — fight() on a fire elemental printed "passive: burns you | worst case 44 HP per hit (fire 11d4)" and the passive's "You feel mildly warm." paused the fight, although I was fire resistant (ring, and intrinsic later). Suggest: discount passives the hero resists and make "You feel mildly warm." routine.
+- `#475` — when auto-search revealed the magic portal on the NEXT square of my scripted walk, the trap guard raised PermissionError from inside travel() (good: it stopped me entering the quest portal by accident). A NavError subclass would let scripts that catch NavError continue with the next target.
+- `#2587` — travel(43,16) (outside a locked door) walked round through another doorway into the room at (43,18), then raised "the door at (43,17) is locked (known)". The message is right but it left me on the other side of the door without saying so; include the final position in the error.
+- `#1502` — "It hits!" + `I` marker: the monster list note says "could be anything, even a peaceful"; after it has just hit you it is hostile — the note could say so (fight(x,y) on the `I` worked).
+- Missing helper (written in the kernel): `sweep_room(x0, y0, x1, y1)` — visit every square of a room interior serpentine-style, skipping known traps (found the quest portal). Worth a tactics version for portal / hidden-trap hunting.
+- Worked well: explore() reported locked doors once each (no loops) and unlock() opened 3 doors first try; no false "not a weapon" line all shift; eat() of fresh floor corpses with kill-age records (tiger, wraith, pyrolisk); corpse() benefits; fight() on the `I`; fight_until_clear() for single approaching monsters; the "Call a scroll" getlin pause; the level-up pause mid-eat.
+
+### Shift 13 — ranked summary
+1. Spellbook `+` inside a room shown as a closed door in features — `#242`.
+2. Gold-detection squares pollute explore()'s unreachable/stairs-hint lists — `#685`, `#2037`.
+3. fight()'s passive warning ignores the hero's resistances (fire elemental) and pauses on "mildly warm" — `#2395`.

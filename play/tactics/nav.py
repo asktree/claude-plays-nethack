@@ -64,6 +64,11 @@ def cursor_to(tx, ty, rounds=5):
 
 def farlook(x, y) -> str:
     """Describe what's displayed at (x, y) using ';' (takes no game time)."""
+    with ctx.no_monster_pauses():
+        return _farlook(x, y)
+
+
+def _farlook(x, y) -> str:
     s = ctx.do(";", quiet=True)
     if s.state.kind != "getpos":
         if s.state.kind != "command":
@@ -75,6 +80,17 @@ def farlook(x, y) -> str:
     if s.state.kind not in ("command",):
         # e.g. a lingering prompt; get back to the map
         ctx.do("<Esc>", quiet=True)
+    tr = getattr(ctx.game, "tracker", None)
+    lab = tr.relabel(x, y, txt) if tr is not None and hasattr(tr, "relabel") else None
+    if lab:
+        # the obs shows it at once (an explicit look beats a label inherited from a look-alike)
+        from nh.danger import note_for
+        cur = ctx.last()
+        xl = cur.status.xl if cur.status.ok else None
+        for m in cur.monsters or []:
+            if (m["x"], m["y"]) == (x, y):
+                m.update(desc=lab, note=note_for(lab, xl), tame=lab.startswith("tame "),
+                         peaceful=lab.startswith("peaceful "))
     return txt
 
 
@@ -248,8 +264,15 @@ def _keep_pet(s, budget: list):
     return s
 
 
+def engulfed_check(s, who: str):
+    if getattr(s, "engulfed", False):
+        raise NavError(f"{who}: you are ENGULFED — nothing to walk to; fight() hits the engulfer from inside "
+                       "(or wait to be expelled)")
+
+
 def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget=None):
     s = ctx.last()
+    engulfed_check(s, f"travel{(x, y)}")
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
            and not m.get("pet") and not m.get("statue")]
     if occ and s.hero != (x, y):
@@ -315,6 +338,17 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             path = bfs_path(s, h0, (x, y), allow_monsters=True)
             if path and len(path) >= 2:
                 tx, ty = path[-2]          # stop one short; the last step is a plain move
+        if h0 is not None and dist((tx, ty), h0) == 1:
+            # findtravelpath(): "if travel to adjacent, just go there" — a plain move with travel's
+            # nopick flag: a monster there gets "You move right into it" (a wasted turn; an engulfer
+            # engulfs you). Step there ourselves, checked
+            s = _final_step(s, (tx, ty))
+            if s.state.kind != "command" or s.hero == (x, y):
+                return s
+            if s.hero == h0:
+                raise NavError(f"travel to {(x, y)}: the step to {(tx, ty)} failed"
+                               + (f"; messages: {s.messages}" if s.messages else ""))
+            continue
         s = ctx.do("_", quiet=True)
         if s.state.kind != "getpos":
             return s
@@ -408,6 +442,13 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     return s
                 if s.hero != h0:
                     continue
+            over_traps = bfs_path(s, h0, (x, y), allow_monsters=True, allow_traps=True)
+            traps_on = [c for c in (over_traps or []) if s.screen.at(*c) == "^"]
+            if bfs_path(s, h0, (x, y), allow_monsters=True) is None and traps_on:
+                raise NavError(f"travel to {(x, y)}: the only known route crosses the known trap(s) at {traps_on} "
+                               "(travel never steps on a known trap) — farlook() them: step over one on purpose "
+                               "with do(dir, force=True) if it's harmless for you (e.g. levitating over a trap "
+                               "door), or find another way")
             raise NavError(f"travel to {(x, y)} did not move (no known path?"
                            + (" — the map you know doesn't connect to it: explore() to find the way, or "
                               f"head_to({x}, {y}) across the unexplored part)"
@@ -599,9 +640,18 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
 
 def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None, with_pet=None):
     s = ctx.last()
+    engulfed_check(s, "go_down()" if ch == ">" else "go_up()")
+    if s.status.ok and "Lev" in s.status.conditions:
+        raise NavError("you are LEVITATING: you can't reach the stairs (\"You are floating high above the "
+                       "stairs\") — remove the ring/boots of levitation or wait for it to wear off")
     cells = known_cells(ch, s, rescan=True)
     if not cells:
         raise NavError(f"no {ch!r} known on this level")
+    if s.hero is not None and len(cells) > 1:
+        # unreachable ones last (a ladder inside the sealed Wizard's Tower, stairs behind water)
+        reach = [c for c in cells if c == s.hero or bfs_path(s, s.hero, c, allow_monsters=True) is not None]
+        if reach:
+            cells = reach + [c for c in cells if c not in reach]
     target, note = _pick_stairs(ch, cells, to, s)
     if note:
         print(f"stairs: using the {ch} at {target}: {note}")
@@ -635,7 +685,13 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
     if had_pet and not any(m.get("dist") == 1 for m in _pets(s)):
         print(f"stairs: your pet ({had_pet[0].get('desc') or had_pet[0]['ch']}) is not next to you — "
               f"taking the {ch} without it (it stays on this level)")
-    return ctx.do(ch)
+    ld0 = s.status.ldesc if s.status.ok else None
+    s = ctx.do(ch)
+    cur = ctx.last()
+    if cur.state.kind == "command" and ld0 is not None and cur.status.ok and cur.status.ldesc == ld0:
+        raise NavError(f"pressed {ch!r} at {target} but you are still on {ld0}"
+                       + (f": {cur.messages}" if cur.messages else "") + " — look at why before going on")
+    return s
 
 
 def _wait_for_pet(s, turns: int):

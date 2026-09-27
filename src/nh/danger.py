@@ -78,7 +78,26 @@ NOTES = {
     "fire vortex": "engulf: fire, burns items.",
     "ice vortex": "engulf: cold (you resist).",
     "dust vortex": "engulf: blindness.",
-    "fog cloud": "engulf; mostly harmless.",
+    "fog cloud": "engulf; harmless by itself — BUT a vampire can take this shape (3.6): killing it makes it "
+                 "rise as a VAMPIRE (level drain). Around vampires / Vlad's / Gehennom treat it as one.",
+    "vampire bat": "poisonous bite — and a vampire can take this shape (3.6): killing it makes it rise as a "
+                   "VAMPIRE (level drain). Around vampires / Vlad's / Gehennom treat it as one.",
+    "incubus": "SEDUCES: takes off your armor/cloak/rings — a ring of LEVITATION over water/lava = death — "
+               "can take gold, drain levels/attributes. Kill it at range or before it reaches you; answer n "
+               "to 'remove your ...?' prompts.",
+    "succubus": "SEDUCES: takes off your armor/cloak/rings — a ring of LEVITATION over water/lava = death — "
+                "can take gold, drain levels/attributes. Kill it at range or before it reaches you; answer n "
+                "to 'remove your ...?' prompts.",
+    "umber hulk": "CONFUSING gaze (you stumble at random — deadly next to water/lava/traps); digs through "
+                  "walls. Fight it away from water/lava, or blindfolded.",
+    "couatl": "grabs and crushes; poisonous bite; flies.",
+    "horned devil": "hits hard (4 attacks).",
+    "Elvenking": "fast elven lord, often with a strong weapon; sleep resistant; hits hard.",
+    "nalfeshnee": "spellcaster; hits hard.",
+    "pit fiend": "strong: grabs; spellcaster.",
+    "balrog": "very strong; bullwhip + broadsword; flies.",
+    "ice devil": "cold (you resist) + slowing sting.",
+    "barbed devil": "grabs; hits hard.",
     "cockatrice corpse": "never touch without gloves.",
     "Death": "RIDER. Touch of death. Avoid.",
     "Pestilence": "RIDER. Illness. Avoid.",
@@ -136,7 +155,7 @@ NOTES = {
 # notes that inform but don't by themselves make a monster 'dangerous' in threat_level() (packs,
 # nuisances, thieves, slow hard hitters): its level and worst-case damage vs you decide
 INFO_NOTES = {"hill orc", "Uruk-hai", "dwarf", "dwarf lord", "leprechaun", "chameleon", "tengu", "cave spider",
-              "fog cloud", "ghost", "xorn", "hill giant", "stone giant", "giant beetle", "owlbear", "leocrotta",
+              "ghost", "xorn", "hill giant", "stone giant", "giant beetle", "owlbear", "leocrotta",
               "ettin", "troll", "rock troll", "ice troll", "water troll", "Olog-hai", "python", "rust monster",
               "blue jelly", "nurse", "rotting corpse", "master of thieves", "water moccasin", "centipede",
               "scorpion", "pit viper", "large mimic", "giant mimic", "ice vortex", "dust vortex"}
@@ -191,6 +210,12 @@ def _lookalikes() -> dict:
     return out
 
 
+def noted_lookalikes(ch: str, color: str) -> list[str]:
+    """Species drawn as this glyph/colour that carry a danger note (for a
+    monster not looked at yet)."""
+    return sorted(n for n in _lookalikes().get((ch, color), ()) if NOTES.get(n) and n not in INFO_NOTES)
+
+
 def risky_lookalike(ch: str, color: str, desc: str) -> bool:
     """Does another species with a danger note look exactly like this one
     (same glyph and colour: a werejackal's 'd' next to jackals)? Then a
@@ -235,9 +260,15 @@ def monster_summary(name: str) -> str:
                       "M2_STRONG", "M2_NASTY", "M1_TPORT_CNTRL", "M3_INFRAVISIBLE", "M2_WERE",
                       "M1_UNSOLID", "M2_STALK")]
     note = NOTES.get(rec["name"], "")
+    if "G_NOCORPSE" in (rec.get("geno") or {}).get("flags", []):
+        body = "leaves NO corpse"
+    else:
+        w = rec.get("weight") or 0
+        body = (f"corpse wt {w}" + (" (heavy: carrying capacity is 25*(St+Con)+50, at most 1000)" if w >= 600 else "")
+                + f", nutrition {rec.get('nutrition')}, conveys: {conv}")
     return (f"{rec['name']} ({rec['symbol']} {rec['color']}): lvl {rec['level']} diff {rec['difficulty']} "
-            f"spd {rec['speed']} AC {rec['ac']} MR {rec['mr']} | attacks: {atk or '-'} | resists: {res} | "
-            f"corpse conveys: {conv} | {' '.join(f[3:].lower() for f in flags)}"
+            f"spd {rec['speed']} AC {rec['ac']} MR {rec['mr']} align {rec.get('alignment')} | attacks: "
+            f"{atk or '-'} | resists: {res} | {body} | {' '.join(f[3:].lower() for f in flags)}"
             + (f"\n  NOTE: {note}" if note else ""))
 
 
@@ -294,18 +325,24 @@ RESISTED_PASSIVES = ("AD_COLD",)
 _DAMAGING_PASSIVES = ("AD_ACID", "AD_ELEC", "AD_FIRE", "AD_COLD", "AD_PHYS", "AD_DRST")
 
 
-def passive_max(desc: str, extra_levels: int = 2) -> tuple[int, str]:
+# intrinsic name (Game.intrinsics) -> the passive damage type it makes harmless
+RESIST_AD = {"fire": "AD_FIRE", "cold": "AD_COLD", "shock": "AD_ELEC", "poison": "AD_DRST", "acid": "AD_ACID"}
+
+
+def passive_max(desc: str, extra_levels: int = 2, resists=()) -> tuple[int, str]:
     """Worst-case HP one of your hits can cost from the target's damaging
     passive (uhitm.c passive(): damn d damd, or (monster level + 1) d damd
     when damn is 0 — the level can be a few above the base, hence
-    extra_levels). Returns (max damage, what) or (0, '')."""
+    extra_levels). resists: your resistances ('fire', 'shock', ...) — those
+    passives do no HP damage. Returns (max damage, what) or (0, '')."""
     rec = monster_record(base_name(desc))
     best = (0, "")
+    immune = {RESIST_AD[r] for r in resists if r in RESIST_AD}
     for a in (rec or {}).get("attacks", []):
         if a.get("type") != "AT_NONE":
             continue
         dt = a.get("damage_type", "")
-        if dt not in _DAMAGING_PASSIVES or dt in RESISTED_PASSIVES:
+        if dt not in _DAMAGING_PASSIVES or dt in RESISTED_PASSIVES or dt in immune:
             continue
         n, d = int(a.get("n") or 0), int(a.get("d") or 0)
         if not d:

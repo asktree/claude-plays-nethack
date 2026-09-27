@@ -55,16 +55,25 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
     statues = [m for m in mons if m.get("statue")]
     mons = [m for m in mons if not m.get("statue")]
     for m in mons:
+        note_txt = m.get("note") or ""
         if m.get("desc"):
             who = m["desc"]
         else:
             tag = " PET?" if m["pet"] else ""
-            maybe = f" ~{'/'.join(m['maybe'])}" if m.get("maybe") else ""
-            who = f"{m['color']}{tag}{maybe}"
+            who = f"unidentified {m['color']} {m['ch']}{tag} (not looked at yet)"
+            if not note_txt and not m["pet"]:
+                try:
+                    from .danger import noted_lookalikes
+                    risky = noted_lookalikes(m["ch"], m["color"])
+                except Exception:  # noqa: BLE001
+                    risky = []
+                if risky:
+                    note_txt = (f"could be {', '.join(risky[:4])}{' ...' if len(risky) > 4 else ''} — "
+                                f"farlook({m['x']}, {m['y']}) before engaging")
         adj = "  <-- ADJACENT" if m["dist"] == 1 else ""
         if m.get("new"):
             adj += "  (NEW)"
-        note = f"\n      !! {m['note']}" if m.get("note") else ""
+        note = f"\n      !! {note_txt}" if note_txt else ""
         parts.append(f"  {m['ch']} {who} at ({m['x']},{m['y']}) d={m['dist']}{adj}{note}")
     if statues:
         # statues look like monsters but never move: one line for all of them
@@ -133,11 +142,26 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append("objects: " + "; ".join(
             f"{o['ch']} {o['kind']}{' (pile)' if o['pile'] else ''} ({o['x']},{o['y']})" for o in objs[:14])
             + (f"; ... {len(objs) - 14} more" if len(objs) > 14 else ""))
-    feats = [f for f in snap.features if lim is None or (f["dist"] is not None and f["dist"] <= lim)
-             or f["name"] in ("up stairs", "down stairs")]
-    if feats:
-        lines.append("features: " + "; ".join(f"{f['name']} ({f['x']},{f['y']})" for f in feats[:16])
-                     + (f"; ... {len(feats) - 16} more" if len(feats) > 16 else ""))
+    allf = snap.features
+    liquid = [f for f in allf if f["name"] in ("water", "lava")]
+    feats = [f for f in allf if f["name"] not in ("water", "lava")
+             and (lim is None or (f["dist"] is not None and f["dist"] <= lim)
+                  or f["name"].startswith(("up stairs", "down stairs", "magic portal", "vibrating"))
+                  or "altar" in f["name"])]
+    # stairs, altars, portals first (a water level would otherwise bury them)
+    key = {"up stairs": 0, "down stairs": 0, "magic portal": 0, "vibrating square": 0}
+    feats.sort(key=lambda f: (key.get(f["name"].split(" (")[0], 1 if "altar" in f["name"] else 2),
+                              f["dist"] if f["dist"] is not None else 99))
+    bits = [f"{f['name']} ({f['x']},{f['y']})" for f in feats[:16]]
+    if len(feats) > 16:
+        bits.append(f"... {len(feats) - 16} more")
+    for nm in ("water", "lava"):
+        sq = [f for f in liquid if f["name"] == nm]
+        if sq:
+            near = min(sq, key=lambda f: f["dist"] if f["dist"] is not None else 99)
+            bits.append(f"{nm} x{len(sq)} (nearest ({near['x']},{near['y']}))")
+    if bits:
+        lines.append("features: " + "; ".join(bits))
     return "\n".join(lines)
 
 

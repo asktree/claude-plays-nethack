@@ -27,7 +27,9 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^You are laden with moisture", r"^The air around you crackles with electricity",
            r"^You seem unhurt\.", r"^You feel mildly (?:chilly|hot)\.", r"^You are freezing to death",
            r"^You are burning to a crisp", r"^You are covered (?:with a seemingly harmless goo|in slime)",
-           r"^You can't see in here", r"^You are jolted with electricity", r"^You are suddenly very (?:hot|cold)"]
+           r"^You can't see in here", r"^You are jolted with electricity", r"^You are suddenly very (?:hot|cold)",
+           # a passive you resist (uhitm.c passive(): Fire_resistance "mildly warm", ...)
+           r"^You feel mildly (?:warm|chilly)\.", r"^You are (?:splashed|covered) by .* but it doesn't",]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
@@ -45,7 +47,7 @@ def _key_toward(hero, m):
 
 
 def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max_blows: int = 25,
-          allow_passive: bool = False):
+          allow_passive: bool = False, only=None):
     """Melee an adjacent hostile (the one at (x, y) if given) until it's gone,
     it moves out of reach, or HP falls below stop_hp * max (then pauses).
     Returns the final Snap.
@@ -57,11 +59,15 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
     - Below stop_hp it keeps swinging only while the adjacent hostiles'
       worst-case damage per turn is under a third of your HP (a newt can't
       threaten 21 HP); otherwise it pauses.
+    - fight(x, y) sticks to the monster that was there: if another species
+      steps into the square after the kill, it stops and says so.
+    - only=predicate: stop as soon as an adjacent hostile fails it (auto-fight
+      uses auto_fightable, so a python joining a snake fight isn't meleed).
     - Exec tip: run fights with `bin/nh exec --hp-pause 0.4` so ordinary
       bites below 70% HP don't pause every round."""
     seen: list[str] = []
     try:
-        return _fight(x, y, stop_hp, max_blows, allow_passive, seen)
+        return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only)
     finally:
         last = ctx.last()
         if seen and last is not None:
@@ -78,11 +84,12 @@ def _wielding() -> bool:
     return bool(w)
 
 
-def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
+def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None):
     """fight() body; `seen` collects every round's messages (so an early
     'You feel feverish' isn't lost behind later rounds)."""
-    from nh.danger import STOP_PASSIVES, explodes_at_you, max_hit, passive_attacks, passive_max
+    from nh.danger import STOP_PASSIVES, base_name, explodes_at_you, max_hit, passive_attacks, passive_max
     s = ctx.last()
+    locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
             return s
@@ -119,6 +126,21 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
                 continue
         if not targets:
             return s
+        if only is not None:
+            bad = [t for t in s.adjacent_hostiles() if not t.get("statue") and not only(t)]
+            if bad:
+                print("fight: stopped — " + ", ".join(f"{t.get('desc') or t['ch']} at ({t['x']},{t['y']})"
+                                                      for t in bad)
+                      + " is next to you now and isn't a trivial target; your call")
+                return s
+        if x is not None:
+            nm = base_name(targets[0].get("desc") or "")
+            if locked_on is None:
+                locked_on = nm
+            elif nm and locked_on and nm != locked_on:
+                print(f"fight: the {locked_on} at ({x},{y}) is gone — a {nm} is there now; stopped (fight({x}, "
+                      f"{y}) again to attack it)")
+                return s
         worst = sum(max_hit(m.get("desc") or "") for m in s.adjacent_hostiles())
         if st.ok and st.hp < stop_hp * max(1, st.hpmax) and worst * 3 >= st.hp:
             ctx.pause(f"fight: HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} and the adjacent hostiles can "
@@ -129,7 +151,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen):
         m = targets[0]
         desc = m.get("desc") or ""
         pas = passive_attacks(desc) if desc else []
-        pdmg, pwhat = passive_max(desc) if desc else (0, "")
+        pdmg, pwhat = passive_max(desc, resists=getattr(ctx.game, "intrinsics", ())) if desc else (0, "")
         if pas and desc not in _warned:
             _warned.add(desc)
             print(f"fight: {desc} — passive: " + "; ".join(txt for _dt, txt in pas)
@@ -192,7 +214,7 @@ def fight_trivial(s=None):
     if hasattr(ctx.game, "on_elbereth") and ctx.game.on_elbereth(s):
         return None          # attacking from Elbereth erases it and costs alignment: leave that to the player
     print("auto-fight: " + ", ".join(f"{m.get('desc')} at ({m['x']},{m['y']})" for m in adj))
-    return fight()
+    return fight(only=lambda m: auto_fightable(m))
 
 
 def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6) -> dict:

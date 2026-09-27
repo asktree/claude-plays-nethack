@@ -127,10 +127,11 @@ def neighbors(x, y, diag=True):
             yield nx, ny
 
 
-def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False):
+def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False):
     """Shortest 8-connected path over known-walkable cells (doors: no diagonal
     moves into/out of doorways, per NetHack rules). Returns list of cells
-    excluding start, or None."""
+    excluding start, or None. allow_traps=True also crosses '^' squares (to
+    tell "the only way is over a trap" from "no known way")."""
     from collections import deque
     if start == goal:
         return []
@@ -142,7 +143,8 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False):
             nxt = (nx, ny)
             if nxt in prev or nxt in avoid:
                 continue
-            if nxt != goal and not is_walkable(s, nx, ny, allow_monsters=allow_monsters):
+            if nxt != goal and not is_walkable(s, nx, ny, allow_monsters=allow_monsters) \
+                    and not (allow_traps and cell(s, nx, ny) == "^"):
                 continue
             if nxt == goal and not (is_walkable(s, nx, ny, allow_monsters=True) or cell(s, nx, ny) == " "):
                 continue

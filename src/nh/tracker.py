@@ -64,6 +64,8 @@ class Tracker:
         self.need_overview = True
         self._refreshing = False
         self.scanned: set[str] = set()     # level keys whose traps were read via #terrain this session
+        if self.state.get("intrinsics") is not None and hasattr(game, "intrinsics"):
+            game.intrinsics = set(self.state["intrinsics"])
         # restore level identity and per-level trap/avoid memory
         if self.state.get("current_level") and self.state.get("current_ldesc"):
             game.level_name = self.state["current_level"]
@@ -82,6 +84,9 @@ class Tracker:
                 game.kills[key] = [(n, (x, y), t) for n, x, y, t in lv["kills"]]
             if lv.get("shops") and hasattr(game, "shops"):
                 game.shops[key] = [list(e) for e in lv["shops"]]
+            if lv.get("feature_desc") and hasattr(game, "feature_desc"):
+                game.feature_desc[key] = {tuple(int(v) for v in c.split(",")): d
+                                          for c, d in lv["feature_desc"].items()}
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
                 game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
                                          for c, dest in lv["stairs_to"].items()}
@@ -107,6 +112,15 @@ class Tracker:
                                         "You are surrounded by a shimmering light", "You feel as if")):
                     self.state["prayers"][-1]["outcome"] = m
                     changed = True
+        for m in snap.messages:
+            # pray.c dosacrifice(): what a sacrifice says about the prayer timeout
+            kind = ("zero" if re.search(r"four-leaf clover|brushed your (?:foot|feet)|feeling of reconciliation", m)
+                    else "reset" if re.search(r"^An object appears at your feet|Use my gift wisely", m)
+                    else "reduced" if re.search(r"^You have a hopeful feeling", m) else None)
+            if kind and not (self.state.get("prayer_evidence")
+                             and self.state["prayer_evidence"][-1] == {"turn": st.turn, "kind": kind}):
+                self.state.setdefault("prayer_evidence", []).append({"turn": st.turn, "kind": kind})
+                changed = True
         if "For what do you wish?" in (snap.state.prompt or "") and \
                 (not self.state.get("wishes") or self.state["wishes"][-1].get("turn") != st.turn):
             self.state.setdefault("wishes", []).append({"turn": st.turn})
@@ -124,6 +138,11 @@ class Tracker:
                 self.refresh_overview()
             except Exception as e:  # noqa: BLE001
                 self.game.log_event({"ev": "overview_error", "err": repr(e)})
+        if snap.state.kind == "command" and st.ok and not self._refreshing:
+            try:
+                self._describe_features(snap)
+            except Exception as e:  # noqa: BLE001
+                self.game.log_event({"ev": "feature_desc_error", "err": repr(e)})
         if snap.state.kind == "command" and st.ok:
             key = self.game.level_key(st)
             lv = self.state["levels"].setdefault(key, {"first_turn": st.turn})
@@ -158,13 +177,68 @@ class Tracker:
             shops = getattr(self.game, "shops", {}).get(key)
             if shops:
                 lv["shops"] = [list(e) for e in shops]
+            fd = getattr(self.game, "feature_desc", {}).get(key)
+            if fd:
+                lv["feature_desc"] = {f"{c[0]},{c[1]}": d for c, d in fd.items()}
             for lk, links in getattr(self.game, "stair_links", {}).items():
                 if links:
                     self.state["levels"].setdefault(lk, {})["stairs_to"] = {f"{c[0]},{c[1]}": d
                                                                            for c, d in links.items()}
             changed = True
+        intr = sorted(getattr(self.game, "intrinsics", ()))
+        if intr != self.state.get("intrinsics"):
+            self.state["intrinsics"] = intr
+            changed = True
         if changed:
             self.save()
+
+    # a '^' of these colours can only be one trap type (mapscan.TRAP_BY_COLOR); others get looked at
+    _ONE_TRAP_COLOR = (1, 4, 9, 10, 13)
+
+    def _describe_features(self, snap, limit: int = 6) -> None:
+        """Look once (';', no game time) at traps whose colour leaves several
+        types, and at altars (alignment): game.feature_desc[level]."""
+        st = snap.status
+        if "Hallu" in st.conditions or getattr(snap, "engulfed", False) or not hasattr(self.game, "feature_desc"):
+            return
+        from .game import feature_at
+        key = self.game.level_key(st)
+        known = self.game.feature_desc.setdefault(key, {})
+        todo = []
+        for y in range(MAP_TOP + 1 + snap.state.msg_rows, MAP_BOTTOM + 1):
+            row = snap.screen.row(y)
+            for x, ch in enumerate(row):
+                if (x, y) == snap.hero:
+                    continue
+                if (x, y) in known:
+                    # the Astral Plane's high altars show their alignment only from next to them
+                    h = snap.hero
+                    if not (known[(x, y)].startswith("aligned") and h
+                            and max(abs(x - h[0]), abs(y - h[1])) <= 1):
+                        continue
+                if ch == "^" and snap.screen.color_at(x, y) not in self._ONE_TRAP_COLOR:
+                    todo.append((x, y))
+                elif ch == "_" and feature_at(snap.screen, x, y):
+                    todo.append((x, y))
+        if not todo:
+            return
+        h = snap.hero
+        todo.sort(key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])) if h else 0)
+        self._refreshing = True
+        saved = self.game.last
+        n_hist = len(self.game.history)
+        try:
+            raw = self.game.describe_cells(todo[:limit])
+        finally:
+            del self.game.history[n_hist:]
+            self.game.last = saved
+            self._refreshing = False
+        from .monitor import _clean
+        for c, d in raw.items():
+            d = _clean(d or "")
+            if d and (("trap" in d or "pit" in d or "hole" in d or "board" in d or "portal" in d
+                       or "web" in d or "field" in d or "mine" in d) or "altar" in d):
+                known[c] = d
 
     def refresh_overview(self):
         """Run ^O (no game time) and record branch/level; on a level not yet

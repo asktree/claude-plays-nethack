@@ -384,6 +384,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--no-monsters", action="store_true", help="don't pause on new monsters")
     p.add_argument("--hp-pause", type=float, default=None,
                    help="pause on HP loss only below this fraction of max HP (default 0.7; big hits always pause)")
+    p.add_argument("--at-prompt", action="store_true",
+                   help="start even though a prompt/menu is open (your script answers it first)")
     p.add_argument("--full", action="store_true")
     p.add_argument("--brief", action="store_true")
 
@@ -443,7 +445,7 @@ def main(argv: list[str] | None = None) -> int:
         code = _read_code(a.code)
         return _print(request(name, {"op": "exec", "code": code, "autocontinue": a.autocontinue,
                                      "monsters": not a.no_monsters, "hp_pause": a.hp_pause,
-                                     "mode": mode_of(a)}))
+                                     "at_prompt": a.at_prompt, "mode": mode_of(a)}))
     if a.cmd == "cont":
         return _print(request(name, {"op": "cont", "reply": a.reply, "autocontinue": a.autocontinue,
                                      "mode": mode_of(a)}))
