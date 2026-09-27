@@ -175,3 +175,9 @@ T:10932 DL23 — Hungry: ate a food ration (D: 2 left).
 T:11013 DL23 — a yellow light exploded "at a spot in thin air" (invisible me: no blindness).
 T:11016-11018 DL23 — met a minotaur in the corridor (71,8) and meleed it at full HP: 4 hits killed it; it took 49 HP in 2 rounds (all 6 claws/butts hit despite my invisibility). HP 93/142.
 T:11024 DL23 — a SECOND minotaur (61,6) 2 squares away at HP 101: read G (teleportation, 2 left) with control -> (40,18); rested to full.
+T:11149-11151 DL23 — an invisible monster at (62,8) hit me: killed it with fight() on the I square; it dropped a SCROLL OF TELEPORTATION (p, BUC unknown). The 2nd minotaur came adjacent (HP 114): 1 hit then -42 in one round -> read G (1 left) -> (40,18); rested on the `>`.
+T:11289-11291 DL23 — the wounded minotaur came adjacent while I was at full HP: 3 more hits killed it (HP 142->77). Both D23 minotaurs dead. Minotaur rounds seen: 18, 31, 28, 42, 36, 29 (all attacks landed; invisibility didn't help in corridors).
+T:11373 DL23 — rust trap (71,20) (cloak only). Auto-fought a straw golem and a LIZARD (3rd lizard corpse -> Y x2 + u).
+T:11589-11594 DL23 — FLOATING EYE (33,6): killed with 3 thrown elven daggers, ate the corpse: "You feel a strange mental acuity" = TELEPATHY. Another scroll of teleportation lay there (X now x2, BUC unknown).
+T:11600 DL23 — gems: q white, w yellowish brown. Visored helmet (7,18) left (could be opposite alignment). Hungry T:11647: ate food ration C.
+T:11666 DL23 — telepathy_scan: python (18,12), LURKER ABOVE (25,18) (avoid), large dog, 2nd floating eye (43,8), titanothere, hill giant. No more minotaurs.
