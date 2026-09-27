@@ -3856,3 +3856,68 @@ def test_hunt_closes_in_on_a_monster_a_telepathy_scan_sensed_in_the_dark(monkeyp
     g.last_scan = None
     frames["s"] = mk((9, 5))
     assert combat.hunt((13, 5))["reason"].startswith("no hostile")           # no scan: as before
+
+
+def test_tunnel_steps_digs_and_rewields(monkeypatch):
+    # p2 shift 33 #120: a straight pick-axe tunnel (step when open, else dig), weapon wielded again at the end
+    from nh.parse import State
+    from tactics import ctx, items
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "require_command", lambda what: world["s"])
+    monkeypatch.setattr(items, "inventory", lambda: [{"letter": "a", "text": "a +2 long sword (weapon in hand)",
+                                                      "class": "Weapons"},
+                                                     {"letter": "x", "text": "a pick-axe", "class": "Tools"}])
+    # corridor floor at x 10-11, rock beyond; the goal is (14, 5)
+    world = {"open": {10, 11}, "hero": 10}
+
+    def mk():
+        row = "".join("#" if x in world["open"] else " " for x in range(20))
+        return _snap({5: row}, (world["hero"], 5), [])
+    world["s"] = mk()
+    sent = []
+
+    def do(keys, **kw):
+        sent.append(keys)
+        s = world["s"]
+        if keys == "a":
+            nxt = mk()
+            nxt.state = State("object", prompt="What do you want to use or apply? [ax or ?*]")
+        elif keys == "x":
+            nxt = mk()
+            nxt.state = State("direction", prompt="In what direction do you want to dig?")
+            nxt.messages = ["You are now wielding the pick-axe."]
+        elif keys == "l" and s.state.kind == "direction":
+            world["open"].add(world["hero"] + 1)
+            nxt = mk()
+            nxt.messages = ["You dig through the rock.", "You succeed in cutting away some rock."]
+        elif keys == "l":
+            if world["hero"] + 1 in world["open"]:
+                world["hero"] += 1
+            nxt = mk()
+        elif keys == "wa":
+            nxt = mk()
+            nxt.messages = ["a - a +2 long sword (weapon in hand)."]
+        else:
+            nxt = mk()
+        world["s"] = nxt
+        return nxt
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: world["s"])
+    r = items.tunnel(14, 5)
+    assert r["reason"] == "arrived" and r["at"] == (14, 5) and r["digs"] == 3
+    assert sent.count("x") == 3 and sent[-1] == "wa"          # the pick stays in hand between digs
+    # a hostile next to you that isn't trivial stops it (after re-wielding)
+    world.update(open={10, 11}, hero=10)
+    world["s"] = mk()
+    sent.clear()
+    troll = {"x": 10, "y": 4, "ch": "T", "desc": "troll", "dist": 1, "id": 9}
+    base_mk = mk
+
+    def mk2():
+        s = base_mk()
+        s.monsters = [troll]
+        return s
+    world["s"] = mk2()
+    r = items.tunnel(14, 5)
+    assert r["reason"].startswith("hostile next to you") and sent == []
