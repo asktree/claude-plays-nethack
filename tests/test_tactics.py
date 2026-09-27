@@ -3475,3 +3475,65 @@ def test_a_changed_trap_is_looked_at_again(tmp_path, monkeypatch):
     tr._describe_features(s2)
     tr._describe_features(s2)
     assert g.looked == [(16, 5)] and g.feature_desc["L"][(16, 5)] == "dart trap"
+
+
+def test_dig_through_one_square_joins_a_cut_off_frontier(monkeypatch):
+    # p2 shift 31 #1653: explore said "frontiers only reachable across avoided squares"; a one-square pick-axe
+    # tunnel from the dead end (18,8) to the corridor (18,10) was the cheap way
+    from tactics import ctx, explore
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {7: "            |.....|",
+            8: "            |.....|",
+            9: "            ---.---",
+            10: "            .......##",
+            11: "                   "}
+    rows[9] = "            -------"                     # a wall row between the two parts
+    s = _snap(rows, (15, 8), [])
+    digs = explore.dig_throughs(s, targets=[(13, 10)], bad=set())
+    walls = [w for w, a, t in digs]
+    assert digs and all(w[1] == 9 for w in walls) and all(t == (13, 10) for w, a, t in digs)
+    assert digs[0][1] in {(14, 8), (15, 8), (16, 8)}           # dug from next to you
+    assert explore.dig_throughs(s, targets=[(15, 7)], bad=set()) == []    # reachable already: nothing to dig
+
+
+def test_kick_test_tells_a_loadstone_from_a_stone_that_slides(monkeypatch):
+    # p3 shift 14 #2588: a kicked gray stone slid silently; the pickup guard still refused it afterwards
+    import pytest
+    from nh.game import Game, Timing
+    from nh.parse import State
+    from tactics import ctx, items, nav
+    g = Game(term=None, timing=Timing.local())
+    monkeypatch.setattr(ctx, "game", g)
+    row = "        ..@*......"
+    s = _snap({5: row}, (10, 5), [])
+    s.status = Status(ok=True, ldesc="Dlvl:4", turn=90)
+    monkeypatch.setattr(ctx, "require_command", lambda what: s)
+    frames = {}
+
+    def fake_do(keys, **kw):
+        f = frames[keys]
+        return f
+    d = _snap({5: row}, (10, 5), [])
+    d.state = State("direction", prompt="In what direction?")
+    after = _snap({5: "        ..@....*..."}, (10, 5), [])
+    after.status = s.status
+    frames.update({"<C-d>": d, "l": after})
+    monkeypatch.setattr(ctx, "do", fake_do)
+    r = items.kick_test(11, 5)
+    assert r["to"] == (15, 5) and "NOT a loadstone" in r["verdict"]
+    assert (15, 5) in g.kicked_stones[g.level_key(s.status)]
+    thump = _snap({5: row}, (10, 5), [])
+    thump.messages = ["Thump!"]
+    frames["l"] = thump
+    assert "LOADSTONE" in items.kick_test(11, 5)["verdict"]
+    with pytest.raises(nav.NavError, match="beyond"):
+        items.kick_test(11, 4)                  # its far side (12,3) is rock: any stone would 'Thump!'
+    # the pickup guard: an unknown gray stone is refused, unless kick_test() saw this one slide
+    s2 = _snap({5: "        ...@"}, (11, 5), [])
+    s2.status = s.status
+    key = g.level_key(s.status)
+    g.here_seen.setdefault(key, {})[(11, 5)] = "You see here a gray stone."
+    with pytest.raises(PermissionError, match="LOADSTONE"):
+        g._guard(s2, b",", False)
+    g.kicked_stones[key].add((11, 5))
+    g._guard(s2, b",", False)                   # no refusal now

@@ -950,6 +950,52 @@ def eat(letter: str | None = None, pattern: str | None = None) -> list:
     return msgs
 
 
+def kick_test(x: int, y: int) -> dict:
+    """Is the gray stone on the ADJACENT square (x, y) a loadstone? Kick it (dokick.c really_kick_object(): the
+    range is Str/2 - weight/40, so a loadstone (500) never moves — "Thump!" — while a luckstone, touchstone or
+    flint (10) slides away). The square beyond it must be open floor (a wall, rock or closed door there makes
+    any stone go "Thump!"), and the stone must be the top object there (a kick moves the top one). Returns
+    {'verdict', 'to': where it landed or None, 'messages'}; a stone that slid into view is marked, so pickup()
+    takes it on that square without force (game.kicked_stones). Not in a shop, not while levitating."""
+    from .mapview import DIR_KEY, is_walkable
+    from .nav import NavError
+    s = ctx.require_command("kick_test()")
+    h = s.hero
+    if h is None or max(abs(x - h[0]), abs(y - h[1])) != 1:
+        raise NavError(f"kick_test: {(x, y)} is not next to you at {h} — stand next to the stone")
+    dx, dy = x - h[0], y - h[1]
+    beyond = (x + dx, y + dy)
+    if not is_walkable(s, *beyond, allow_monsters=False):
+        raise NavError(f"kick_test: the square beyond the stone, {beyond}, isn't open floor — any stone goes "
+                       "'Thump!' against it; kick from the opposite side")
+    if s.status.ok and "Lev" in s.status.conditions:
+        raise NavError("kick_test: you are levitating — no floor to brace a kick on")
+    shop = ctx.game.shop_at(h, s.status) if hasattr(ctx.game, "shop_at") and s.status.ok else None
+    if shop:
+        raise NavError(f"kick_test: you are in {shop} — kicking things around a shop angers the shopkeeper")
+    line = [(x + dx * k, y + dy * k) for k in range(0, 13)]     # the stone square first
+    was = {c: s.screen.at(*c) for c in line}
+    s = ctx.do("<C-d>", quiet=True)
+    if s.state.kind != "direction":
+        return {"verdict": "unclear: no kick (" + (" ".join(s.messages) or s.state.kind) + ")", "to": None,
+                "messages": list(s.messages)}
+    s = ctx.do(DIR_KEY[(dx, dy)], ok=[r"^Thump!$"])
+    msgs = list(s.messages)
+    if any(m.startswith("Thump!") for m in msgs):
+        return {"verdict": "THUMP: it didn't move — a LOADSTONE (leave it be)", "to": None, "messages": msgs}
+    if s.screen.at(x, y) == was[(x, y)] == "*":
+        return {"verdict": "unclear: it is still there without a 'Thump!' (was it the top object?)", "to": None,
+                "messages": msgs}
+    to = next((c for c in line[1:] if s.screen.at(*c) == "*" and was[c] != "*"), None)
+    if to is not None and s.status.ok:
+        store = getattr(ctx.game, "kicked_stones", None)
+        if store is not None:
+            store.setdefault(ctx.game.level_key(s.status), set()).add(to)
+    return {"verdict": "slid: NOT a loadstone" + (f" — it lies at {to} (pickup() takes it there)" if to else
+                                                  " — it landed out of sight along that line"),
+            "to": to, "messages": msgs}
+
+
 def pickup(pattern: str | None = None) -> list:
     """Pick up the objects here whose text matches `pattern` (regex,
     case-insensitive), or everything if None. Looks first (no game time), so

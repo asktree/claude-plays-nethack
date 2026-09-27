@@ -281,6 +281,11 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                             f"(e.g. {in_room[:3]}): kept out while its monsters live — forget_room() to go in")
         if unreachable:
             left.append(f"frontiers {unreachable} travel couldn't reach")
+        cut = [c for c in (why["avoided"] or []) + unreachable if c not in niches]
+        digs = dig_throughs(now, cut) if cut and not _no_dig_level(now) else []
+        if digs:
+            left.append("or DIG one square through: " + ", ".join(f"{w} from {a} (joins {t})" for w, a, t in digs)
+                        + " — apply a pick-axe toward it / zap digging, if this level's walls can be dug")
         if why["squeeze"]:
             left.append(f"the known routes squeeze diagonally between rock at {sorted(set(why['squeeze']))[:6]}: "
                         "NetHack refuses that while your inventory weighs more than 600 — drop heavy things "
@@ -739,6 +744,49 @@ def head_to(x: int, y: int, max_legs: int = 30):
         if s.state.kind != "command":
             return s
     raise NavError(f"head_to{target}: not there after {max_legs} legs (at {ctx.last().hero})")
+
+
+def _no_dig_level(s) -> bool:
+    """Levels whose walls can't be dug at all (Sokoban; the Wizard's and Vlad's towers are only partly so)."""
+    key = ctx.game.level_key(s.status) if s.status.ok else ""
+    return key.startswith(("Sokoban", "Vlad's Tower")) or s.status.ldesc in getattr(ctx.game, "ENDGAME", ())
+
+
+def dig_throughs(s=None, targets=(), bad=None, limit: int = 3) -> list:
+    """One-square digs that would join the part of the map you can reach to a target square it can't (p2 shift
+    31 #1653: a one-square pick-axe tunnel from a dead end to the corridor beyond two traps saved the detour):
+    [(wall, from, target)], nearest to you first. A wall or unseen/rock square touching both parts — never a
+    door, water or a boulder. Whether the level lets you dig there is yours to know (Sokoban, the Wizard's and
+    Vlad's towers, some special levels don't)."""
+    from .mapview import _bfs_dist, in_map, is_door, is_walkable, neighbors
+    from .nav import bad_squares
+    s = s or ctx.last()
+    h = s.hero
+    if h is None or not targets:
+        return []
+    bad = set(bad_squares(s) if bad is None else bad)
+
+    def passable(c):
+        return c not in bad and is_walkable(s, *c, allow_monsters=True)
+    mine = _bfs_dist(s, h, passable)
+    out, used = [], set()
+    for t in targets:
+        t = tuple(t)
+        if t in mine or not passable(t):
+            continue
+        theirs = _bfs_dist(s, t, passable)
+        for b in theirs:
+            for w in neighbors(*b):
+                if w in used or w in mine or w in theirs or w in bad or not 1 <= w[1] <= 21 or not in_map(*w):
+                    continue
+                if s.screen.at(*w) not in " -|" or is_door(s, *w):
+                    continue
+                a = min((c for c in neighbors(*w) if c in mine), key=lambda c: mine[c], default=None)
+                if a is not None:
+                    used.add(w)
+                    out.append((w, a, t))
+    out.sort(key=lambda r: mine[r[1]])
+    return out[:limit]
 
 
 def dead_ends(s=None, limit: int = 8) -> list:

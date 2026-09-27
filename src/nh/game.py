@@ -449,6 +449,7 @@ class Game:
         self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
         self.wand_users: dict[str, dict] = {}    # level -> {monster name: {"kind", "wand", "turn"}} (_note_wand_zaps)
         self.held_trap = ""                       # "bear trap" while it holds you (_note_held)
+        self.kicked_stones: dict[str, set] = {}   # level -> squares where a gray stone kick_test() slid landed
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -473,7 +474,7 @@ class Game:
         if old == new:
             return
         for d in (self.traps, self.avoid, self.visited, self.locked_doors, self.level_flags, self.floor_seen,
-                  self.solid, self.water_seen):
+                  self.solid, self.water_seen, self.kicked_stones):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
@@ -1243,11 +1244,13 @@ class Game:
                         "refusing to pick up here: the only object on this square is a cockatrice/chickatrice "
                         "corpse, and ',' takes it without a menu — touching it bare-handed is instant stoning. "
                         "force=True only if you wear gloves.")
-                if self.GRAY_STONE.search(txt) and "Things that" not in txt and not self._KNOWN_SAFE_BUC.search(txt):
+                kicked = (getattr(self, "kicked_stones", None) or {}).get(self.level_key(snap.status), ())
+                if self.GRAY_STONE.search(txt) and "Things that" not in txt and not self._KNOWN_SAFE_BUC.search(txt) \
+                        and snap.hero not in kicked:        # (kick_test() saw this one slide: not a loadstone)
                     raise PermissionError(
                         "refusing to pick up the gray stone: it may be a LOADSTONE (cursed ones can't be dropped; "
                         "500 weight). Step off and kick it first: a loadstone doesn't budge ('Thump!'), a "
-                        "luckstone/touchstone/flint slides. force=True once you know.")
+                        "luckstone/touchstone/flint slides — kick_test(x, y) does that. force=True once you know.")
             if step in self._MOVE and snap.hero is not None and "Blind" in conds:
                 dx, dy = self._MOVE[step]
                 if self.COCKATRICE_CORPSE.search(self._here_text(snap, (snap.hero[0] + dx, snap.hero[1] + dy))):
