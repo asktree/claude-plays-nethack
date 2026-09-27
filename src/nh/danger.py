@@ -58,7 +58,9 @@ NOTES = {
     "gremlin": "AT NIGHT (game clock 22:00-05:59, the server's local time) its claw can STEAL AN INTRINSIC "
                "(speed, poison/fire/cold res, telepathy...): kill it asleep or at range. Multiplies in water "
                "and fountains.",
-    "gelatinous cube": "passive PARALYSIS if you hit it; engulfs. Don't melee without free action.",
+    "gelatinous cube": "PARALYSING touch (2d4 turns) and passive PARALYSIS if you hit it in melee; eats "
+                       "objects off the floor. Kill it at range (or with free action); never melee it with "
+                       "hostiles around.",
     "blue jelly": "passive cold (you are cold resistant).",
     "spotted jelly": "passive acid corrodes weapon.",
     "ochre jelly": "passive/active acid.",

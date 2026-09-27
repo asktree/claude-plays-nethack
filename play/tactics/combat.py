@@ -595,12 +595,13 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
     from nh.monitor import killed_names
     from .benign import BENIGN
     from .mapview import DIR_KEY, bfs_path
-    from .nav import _check_free, bad_squares
+    from .nav import NavError, _check_free, bad_squares
     s = ctx.require_command("hunt()")
     t0 = s.status.turn or 0
     kills: list = []
     want = species = None
     warned_others = False
+    tried: set = set()                 # frontier squares already tried on the way to a far target
 
     def out(reason):
         return {"reason": reason, "turns": (ctx.last().status.turn or t0) - t0, "kills": kills}
@@ -665,18 +666,39 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                     # far off, just past the edge of the map you know: go to the frontier nearest to it
                     from .explore import screen_frontiers
                     from .mapview import dist as _d
-                    fr = [c for c in screen_frontiers(s) if _d(c, goal) <= 3 and c != s.hero
-                          and bfs_path(s, s.hero, c, allow_monsters=False) is not None]
-                    if not fr:
-                        return out(f"no route to the {species or target} at {goal} on the map you know (across "
-                                   "water, behind a wall or other monsters): travel near it, or wait for it")
                     from .nav import travel
-                    best = min(fr, key=lambda c: _d(c, goal))
-                    s = travel(*best)
-                    kills += killed_names(s.messages)
+                    here_d = _d(s.hero, goal)
+                    fr = sorted((c for c in screen_frontiers(s) if _d(c, goal) < here_d and c != s.hero
+                                 and c not in tried and bfs_path(s, s.hero, c, allow_monsters=False,
+                                                                 allow_pets=True) is not None),
+                                key=lambda c: (_d(c, goal), _d(c, s.hero)))
+                    moved = False
+                    for c in fr[:4]:
+                        tried.add(c)
+                        try:
+                            s = travel(*c)
+                        except NavError as e:
+                            print(f"hunt: couldn't get to the frontier {c} ({str(e)[:90]}) — trying another")
+                            s = ctx.last()
+                            continue
+                        kills += killed_names(s.messages)
+                        moved = True
+                        break
+                    if not moved:
+                        return out(f"no route to the {species or target} at {goal} on the map you know (across "
+                                   "water, behind a wall or other monsters): travel near it, head_to() it, or "
+                                   "wait for it")
                     continue
                 path = [nxt, goal]           # a step into unexplored dark floor toward it
-            _check_free(s, path[0], "hunt()")
+            try:
+                _check_free(s, path[0], "hunt()")
+            except NavError as e:
+                # a peaceful (or another monster) on the next square: a way around it, else say so
+                alt = bfs_path(s, s.hero, goal, avoid=frozenset((bad_squares(s) | {path[0]}) - {goal}),
+                               allow_monsters=False, allow_pets=True)
+                if not alt or len(alt) < 2:
+                    return out(f"blocked: {e}")
+                path = alt
             h0 = s.hero
             s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])],
                        ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])

@@ -1439,3 +1439,29 @@ def test_monster_rust_trap_is_not_your_trap_and_monitor_uses_the_snapshots_level
     assert not Game._TRAP_MSG.search("A gush of water hits the rothe on the head!")
     assert Game._TRAP_MSG.search("A gush of water hits you on the head!")
     assert Game._TRAP_MSG.search("A gush of water hits your left arm!")
+
+
+def test_hunt_steps_around_a_peaceful_in_the_way(monkeypatch):
+    from tactics import combat, ctx
+    g = _G()
+    g.wielded = "a +2 long sword (weapon in hand)"
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    rows = {4: "        ..........", 5: "        ..........", 6: "        .........."}
+    gnome = {"x": 10, "y": 5, "ch": "G", "desc": "peaceful gnome lord", "peaceful": True, "dist": 1, "id": 9}
+    troll = {"x": 13, "y": 5, "ch": "T", "desc": "troll", "dist": 4, "id": 3}
+    s = _snap(rows, (9, 5), [gnome, troll])
+    s.status.hp, s.status.hpmax, s.status.turn = 90, 90, 100
+    sent = []
+
+    def do(keys, **kw):
+        sent.append(keys)
+        raise RuntimeError("stop")          # one step is enough to see which way it went
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "pause", lambda r: None)
+    try:
+        combat.hunt("troll")
+    except RuntimeError:
+        pass
+    assert sent and sent[0] in ("u", "n")        # around the gnome lord (diagonally), not into it

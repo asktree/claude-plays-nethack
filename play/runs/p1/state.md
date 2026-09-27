@@ -69,9 +69,17 @@
 - Soldiers (@) ignore Elbereth; MR + reflection cover wand death rays; they hit hard in groups — fight in corridors/doorways; zap SLEEP (h) down a line of them.
 - Fire elementals/fire breath destroy potions/scrolls. Quantum mechanics teleport (not on the Castle). Gelatinous cubes: force bolt from range.
 
-## Objective and plan (after shift 21)
-1. **Confirm DL25 is the Castle**: explore east from (2,20) through the west maze; the moat `}` and the castle's west wall with the DRAWBRIDGE (middle row) appear. If it is a filler maze instead: find `>` (dig through maze walls with the pick-axe j rather than searching).
-2. **Drawbridge (3.6.7 zap.c, checked)**: stand in the drawbridge's row, 2+ squares west of the moat edge (eels), nothing friendly in line. (a) `zap('R','l')` COLD east: the moat under the raised bridge turns to ice (DB_ICE). (b) `zap('Y','l')` (or c) STRIKING east: the force bolt passes the span and hits the portcullis -> destroy_drawbridge: the span becomes ICE (walkable), the portcullis a doorway. Order matters (cold first, else the span becomes open moat). Never stand on the drawbridge/portcullis squares before it's destroyed.
-3. Then fight the soldiers at the gate one line at a time (sleep ray h first), heal with the potions, retreat to the west maze / `<` if HP < 60%. Check all 4 corner towers for the wishing chest.
-4. Wishes (PLAYBOOK E): 2 blessed scrolls of charging (recharge the wand once), blessed +2 speed boots, 2 blessed scrolls of genocide, blessed magic marker, blessed potions of gain level (XL14 for the quest), blessed amulet of life saving.
-5. XL14 (80000 Exp) + piety for the quest (DL13 portal).
+## Objective and plan (shift 22: THE CASTLE — confirmed by blindfold telepathy T:20026)
+Castle MAP (63x17) sits at screen x = mapx+8, y = mapy+4. Key screen squares:
+- West courtyard (lit) x 8-12, y 10-14; moat column x=13 (y 9-15), moat rows y=9 and y=15 (x 8-13). Maze exit into the courtyard at (7,14)/(8,14) (mazewalk from map (0,10)).
+- DRAWBRIDGE span (13,12) (raised), portcullis (14,12). Antechamber x 15-22, y 9-15 (fountain (18,12)); door (23,12) -> corridor y=12 -> door (34,12) -> throne room x 35-45, y 9-15. Barracks x 24-33, y 9-10 and 14-15 (FULL of soldiers; locked doors (34,9),(34,15) into the throne room).
+- Throne-room doors to the long halls: (40,8) top, (40,16) bottom (locked; key d). Halls y=7 and y=17, x 16-62. Tower doors (15,7) NW, (63,7) NE, (15,17) SW, (63,17) SE.
+- WISHING CHEST candidates: NW (12,6), NE (66,6), SW (12,18), SE (66,18) (burned Elbereth + CURSED scare monster scroll there: leave the scroll).
+- Trap doors (48,12),(52,12),(56,12),(60,12),(63,12) in the east corridor y=12 = the way to the Valley. Dragons (55,9),(55,10),(55,14),(55,15) (white, white, green, blue/black).
+Telepathy T:20026: captain (6,8) in the west maze; yeti/rothes near the `<`; horse+imp in the courtyard; W eels (8,17),(12,9), sharks (10,9),(9,15) (they MOVE); 9 soldiers incl. a lieutenant massed just inside the portcullis (15-17, 10-15); NW/SW tower soldiers in their towers; xorns in walls (24,13),(33,18).
+Plan:
+1. Reach the courtyard (head_to through the dark maze). Stand only on squares 2+ from water (x<=11, y 11-13) while eels are in the water.
+2. Eels: blindfold (l) shows them; SLEEP ray (h) at them (they can't resist; 6d25 turns helpless, hitting doesn't wake), then kill with Excalibur. Or freeze their squares with cold R.
+3. From (11,12): zap cold R east (freezes under the bridge: "bridged with ice"/DB_ICE), then striking Y/c east -> "The drawbridge disintegrates!" (wakes everything within ~22 squares, barracks included — but barracks doors are locked).
+4. Fight the garrison one at a time at the gateway: me at (13,12) (ice) or (12,12) — only after the eels are dead/asleep. Sleep ray east down row 12 at a queue. Retreat west to the maze if HP < 60%.
+5. Throne room (stealth sweep of sleepers) -> locked door (40,8)/(40,16) -> halls -> towers; loot_all() the chest; wish (see PLAYBOOK E).

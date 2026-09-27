@@ -60,3 +60,13 @@ T:4420 DL5 (main) — new level. Booby-trapped door exploded at (72,6) (stunned 
 T:4564 DL6 (main) — killed kobold, iguana, giant beetle (2 hits, no damage), pony. Down stairs (9,16). Not the Oracle. A potion and gem shown in the stairs room were gone when I got there.
 T:4671 DL7 (main) — V: scroll of REMOVE CURSE and X: scroll of IDENTIFY picked up; $904. Garter snake nest auto-fought. Hungry T:4691: Elbereth (garbled twice) then ate a food ration (fine).
 T:4718 DL7 — end of shift 4: HP 73/73, AC-3, XL6, very fast, safe (no hostiles), near the up stairs (4,14).
+
+## Shift 5
+T:4732 DL7 — destroyed a gold golem (2 hits, +$139). Scroll Y (DAIYEN FOOELS) at (18,12). Killed a yellow mold blocking the door (43,14).
+T:4880 DL7 — explore() found no `>`; the #terrain view (known map without objects) showed it under the gold at (72,4). Down to DL8.
+T:4917 DL8 — "David's treasure zoo" at (2-4,5-9), all asleep (stealth keeps them asleep). Killed beetle, fox, ooze, then the barrow wight (it woke, cast STUN; swung while stunned: no level lost), rothe. Yellow light: put on the blindfold, hit it: "It explodes! You seem unaffected" (Blind = immune). Yeti + ice vortex woke: killed both -> XL7 (T:4938, "You feel quick!" = intrinsic speed). Zoo gold ~$600.
+T:4953-4966 DL8 — killed owlbear, jaguar, ettin zombie at the corridor chokepoints (HP never below 80/88).
+T:4972 DL8 — explore() stepped on the one-time VAULT TELEPORTER (dead end (21,8)): landed in the vault (2-3,17-18). Guard came at T:5001; answered my name, DROPPED ALL $1651, followed him out (his corridor went north into the zoo room). ~$1650 + vault gold (~4x450) now lies in the D8 vault: dig in later with a pick-axe (<30 turns inside = no guard).
+T:5012 DL8 — a bugbear read MAPIRO MAHAMA DIROMAT and vanished = SCROLL OF TELEPORTATION (auto-identified). Killed it later.
+T:5057 DL8 — large box (24,19): Q food ration, Z fortune cookie, d tan spellbook. f: scroll ZELGO MER (57,10). D8 down stairs (70,10). A WEREWOLF (@ form) on DL8 near (56,13): avoided it.
+T:5174 DL9 — arrived at up stairs (61,8).
