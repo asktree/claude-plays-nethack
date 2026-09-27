@@ -64,6 +64,7 @@
 - Yellow lights: blindfold ON before hitting one (Blind = immune to the flash).
 
 ## Objective and plan
+- SHIFT 6 PLAN (T:5447): (1) search the (22,15) dead end to ~25 total, then the other dead ends / walls facing the unexplored west; (2) the locked door (71,14) (unlock with key v); (3) if still nothing: consider identifying the unknown scrolls (magic mapping?) with an identify. Then go_up(to='Sokoban') + sokoban.solve().
 - NEXT: find the D10 Sokoban up staircase. Ideas in order: (1) search the (22,15) dead end more (only 9 turns) and the corridor bends along row 15-16; (2) search room walls facing the unexplored west (room (50-62,9-15) west wall; the corridor (40,13) end once more); (3) kick/unlock the locked door (71,14) (probably just joins known corridors). overview() will say "Stairs up to Sokoban" once seen; then go_up(to='Sokoban') and sokoban.solve().
 - Sokoban: rings/wands on level 1; identify z (agate ring) + j (opera cloak) + Soko finds with X/y (y and X differ in BUC — read one, see if it IDs several).
 - Later: D8 vault gold (needs digging) + Minetown protection (400*XL = 2800 at XL7, 3200 at XL8).

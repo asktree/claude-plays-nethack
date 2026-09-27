@@ -63,6 +63,13 @@
 - Soldiers (@) ignore Elbereth; MR + reflection cover wand death rays; they hit hard in groups — fight in corridors/doorways; zap SLEEP (h) down a line of them.
 - Fire elementals/fire breath destroy potions/scrolls. Quantum mechanics teleport (not on the Castle). Gelatinous cubes: force bolt from range.
 
+## Shift 23 plan (written at T:20376 before acting)
+Route facts (castle.des, screen = map+(8,4)): the bottom hall (row 17, x16-62) is reachable ONLY through the throne room's locked door (40,16) (castle walls undiggable). SE tower = x64-68 y17-18, door (63,17) (closed, not locked); 2 tower soldiers start at (65,18)/(67,18); chest + burned Elbereth + cursed scare monster at (66,18) — standing there, even soldiers won't melee (scroll works on @).
+1. Eat the rest of the ice troll corpse under me (no revival behind me), rest at (32,12) behind the sleeping lieutenant plug to ~85%+.
+2. Kill the lieutenant from (33,12), hold (33,12) (only the door square reaches me) vs soldiers/giants/ogre lords/troll one at a time.
+3. Cross the throne room to (40,15) (peaceful black naga: never attack), unlock (40,16) with key d, hall east to (62,17), open (63,17), kill the 2 soldiers, stand on (66,18), loot_all().
+4. Wishes: first "2 blessed scrolls of charging"? NO — order decided at the chest after seeing the charge count (never engrave-test). Default: 1) 2 blessed scrolls of remove curse? -> see journal for the final order.
+
 ## Objective and plan (after shift 22)
 Castle geometry: screen x = mapx+8, y = mapy+4. Towers NW (12,6), NE (66,6), SW (12,18), **SE (66,18) = the chest**. Tower doors (15,7), (63,7), (15,17), **(63,17)**. Throne-room doors to the halls: (40,8) top, **(40,16) bottom (locked; key d / unlock())**. Halls y=7 / y=17.
 1. Recover HP (97/145) in the corridor chokepoint (32,12)/(33,12): only (34,12) [door] and (31,12) can reach me. Finish eating the troll corpse or keep killing it when it revives. Kill the lieutenant plug when ready and fight the throne room one at a time at the door (hold loop: fight_until_clear radius 1 + unseen-I handling). Sleep wands h/s down row 12 when a queue forms.
