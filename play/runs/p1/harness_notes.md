@@ -587,3 +587,23 @@ Format: step `#N` — command — expected — what happened.
 1. Scan-seen dangerous monsters within 6 squares aren't watched (#483): a minotaur at d=3 could walk up without a pause.
 2. Blind + telepathy: far noted monsters pause every fight() blow (#2643); travel() doesn't name the known trap blocking the only route (#2662).
 3. Monster trap messages attributed to the hero's square (#1128); desmap matched a wide filler maze to an already-visited unique lair (#897).
+
+## Shift 28 (T:22977 -> 24189; DL35 Orcus Town -> DL36; step numbers from #1)
+1. **#1-#5 (SAFETY): abbreviated status conditions are not parsed.** The raw status line was
+   `Dlvl:35 $:171 HP:165(165) Pw:30(30) AC:-9 Xp:15/170978 T:22977 Satiated Bl Df` (I was Blind + Deaf from the
+   magic trap), but the obs header showed only `Satiated` and `obs.status.conditions == []`. The 3.6.7 tty port
+   shortens conditions when the bottom line gets long (wintty.c condition table: Stone/Ston/Sto, Slime/Slim/Slm,
+   Strngl/Stngl/Str, FoodPois/Fpois/Poi, TermIll/Ill, Blind/Blnd/Bl, Deaf/Def/Df, Stun/St, Conf/Cnf/Cf,
+   Hallu/Hal/Hl, Lev/Lv, Fly/Fl, Ride/Rid/Ri). With a 6-digit Exp and 5-digit turn counter the line is already
+   long: a `Sto`/`Slm`/`Poi`/`Ill` would be MISSED (no Stone/Slime pause). Please map all abbreviations in
+   parse.py (careful: `St` also prefixes `St:` on line 1 only; on line 2 it is Stun). Workaround: I read the raw
+   line 23 myself for now.
+2. **#259, #1767-#1768 (SWALLOWED pause while already out):** "The purple worm engulfs you! | You get regurgitated! | Obviously the purple worm doesn't like your taste." paused as `SWALLOWED ... it DIGESTS you — death when its timer runs out` although the same step already expelled me, and I wear a ring of SLOW DIGESTION (engulfers with AD_DGST expel you at once). The pause can't be autocontinued (-a), so a trapper cost 3 extra calls (I finished it with plain `do Fh`). Suggest: no SWALLOWED pause when the step's messages contain "You get regurgitated/expelled" or obs.engulfed is False; mention slow digestion in the note.
+3. **#1445 explore() said 'explored (no reachable frontier left)' on DL36 while the only way into the east half crossed the known sleeping gas trap (48,13)** (the frontier WAS the trap square). Later calls correctly said "blocked: frontiers [...] only reachable across avoided squares". Please report the trap-guarded frontier in the first case too.
+4. Worked well: travel() naming the trap on the only route (#1752: "the only known way crosses the known trap(s) (60, 7)") — the shift-27 fix works. telepathy_scan() "watching N noted monsters" + `approaching:` pauses (mastodon at d=3, chickatrices). zap() empty-wand detection (s). dig() re-wielding Excalibur before the fire-vortex engulf. The 'COCKATRICE HISS' guard was not triggered (no hiss).
+5. Minor: travel() stops on "You hear a crunching sound." even with `-a '^You hear'` on the exec (travel's own message stop, #2166, #2288, #2307): noises could be BENIGN for travel.
+
+### Shift 28 — ranked summary
+1. (SAFETY) Abbreviated status conditions (`Bl`, `Df`, and by the same code `Sto`/`Slm`/`Ill`/`Poi`/`Str`) are not parsed (#1): a Stone/Slime could go unnoticed on a long status line.
+2. SWALLOWED pause fires after "You get regurgitated!" (slow digestion) and can't be autocontinued (#259, #1767).
+3. explore() reports "explored" when the last frontier is a known trap square (#1445); travel() stops on "You hear ..." noises despite -a (#2166).

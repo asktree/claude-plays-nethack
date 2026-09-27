@@ -63,3 +63,12 @@
 - "Not Satiated" after a meal does not mean low nutrition (Satiated starts at 1000): a 2nd hill giant corpse gave "You're having a hard time getting all of it down" (>=1500). Stop there; never eat big corpses back to back.
 - Corridor squares that touch only DIAGONALLY hide an orthogonal secret corridor square (mklev dig_corridor never steps diagonally; 1 corridor square in 100 is secret): search next to the gap (D14: found on the 1st search). With a pack >600 NetHack refuses diagonal squeezes between rock ("You are carrying too much to get through").
 - Booby-trapped doors (KABOOM, stun): the unicorn horn cures the stun at once.
+- ZOOS/ANTHOLES/BEEHIVES have more than one entrance: after "You enter an anthole!", avoid() the WHOLE room interior plus every doorway, not just the door you closed — explore() walked straight back in through the second, doorless doorway (D18).
+- Sleeping soldier ants with stealth: 8 killed one blow each (fight() also takes the sleeping ones next to you), one bite+sting landed in all. Clear only the squares on your path; leave the rest asleep.
+- Wand of digging horizontal beam: range rn1(18,8); each square costs 1, rock +1, a wall +2. From 9 squares away (wall+7 rock+vault wall) one zap reaches the vault only 44% of the time; walk to the tunnel end and zap again (guaranteed from 4 away). A vault emptied in 5 turns brings no guard (he comes after 30 turns inside).
+- Magic mapping shows vaults (closed 2x2 rooms): dig in with a wand of digging, take the 4 piles, walk out. D18 vault = $2781 -> one protection point.
+- The diagonal-squeeze limit (>600) counts WORN armor and the wielded weapon: splint mail+shield+helm+boots+cloak+Excalibur ~530, so only ~70 of loose items may be carried. Drop the rest (one D menu), squeeze, and to get back THROW spare items onto the far square (a thrown object stops before rock).
+- Antholes put random food on 1/3 of their squares (a food ration and a candy bar on the path).
+- A snake hiding under an item: "It snaps wildly and misses! / It strikes at thin air!" with nothing in view = a hidden/invisible attacker: one search (s) reveals an adjacent hider.
+- A MUMAK butts for up to 48 (33 seen): don't let it get a free round; it has ~22 HP (one Excalibur blow).
+- A temple priest takes a donation from an invisible hero (T:9418); standing on the temple altar afterwards is a free BUC test.

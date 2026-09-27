@@ -27,12 +27,23 @@ ENCUMBRANCE = ("Burdened", "Stressed", "Strained", "Overtaxed", "Overloaded")
 CONDITIONS = ("Stone", "Slime", "Strngl", "FoodPois", "TermIll", "Blind", "Deaf",
               "Stun", "Conf", "Hallu", "Lev", "Fly", "Ride")
 DEADLY_CONDITIONS = ("Stone", "Slime", "Strngl", "FoodPois", "TermIll")
+# win/tty/wintty.c make_things_fit(): a bottom line too long for the terminal first shows shorter condition
+# words (conditions[].text[1], then [2]), then a shorter encumbrance word (encvals[1..2]), then "Dl:" for
+# "Dlvl:", and as a last resort cuts the line (the deadly conditions come first, so they're cut last)
+_COND_SHORT = {"Stone": ("Ston", "Sto"), "Slime": ("Slim", "Slm"), "Strngl": ("Stngl", "Str"),
+               "FoodPois": ("Fpois", "Poi"), "TermIll": ("Ill",), "Blind": ("Blnd", "Bl"), "Deaf": ("Def", "Df"),
+               "Stun": ("St",), "Conf": ("Cnf", "Cf"), "Hallu": ("Hal", "Hl"), "Lev": ("Lv",), "Fly": ("Fl",),
+               "Ride": ("Rid", "Rd")}
+COND_WORDS = {w: c for c, short in _COND_SHORT.items() for w in (c,) + short}
+_ENC_SHORT = {"Burdened": ("Burden", "Brd"), "Stressed": ("Stress", "Strs"), "Strained": ("Strain", "Strn"),
+              "Overtaxed": ("Overtax", "Ovtx"), "Overloaded": ("Overload", "Ovld")}
+ENC_WORDS = {w: e for e, short in _ENC_SHORT.items() for w in (e,) + short}
 
 _ST1 = re.compile(
     r"^(?P<title>.*?)\s+St:(?P<st>[0-9/*]+)\s+Dx:(?P<dx>\d+)\s+Co:(?P<co>\d+)\s+"
     r"In:(?P<in>\d+)\s+Wi:(?P<wi>\d+)\s+Ch:(?P<ch>\d+)\s*(?P<align>Lawful|Neutral|Chaotic|Unaligned)?"
     r"(?:\s+S:(?P<score>\d+))?")
-_LDESC = re.compile(r"^(?P<ldesc>Dlvl:\s*(?P<dlvl>-?\d+)|Home\s+(?P<home>\d+)|Fort Ludios|"
+_LDESC = re.compile(r"^(?P<ldesc>(?:Dlvl|Dl):\s*(?P<dlvl>-?\d+)|Home\s+(?P<home>\d+)|Fort Ludios|"
                     r"Astral Plane|End Game|Plane of \w+|[A-Z][A-Za-z' ]+?)\s+")
 _GOLD = re.compile(r"(?:^|\s)\S:(?P<gold>\d+)")
 _HP = re.compile(r"HP:(?P<hp>-?\d+)\((?P<hpmax>\d+)\)")
@@ -70,7 +81,9 @@ class Status:
     turn: int | None = None
     hunger: str = ""
     encumbrance: str = ""
-    conditions: list[str] = field(default_factory=list)
+    conditions: list[str] = field(default_factory=list)   # full names ("Blind"), also when shown short ("Bl")
+    cut: str = ""            # the bottom line reached the last column the tty writes: this last word may be cut
+    #                          short and conditions after it hidden (wintty.c truncates when nothing else fits)
     ok: bool = False         # both lines parsed
 
     def as_dict(self) -> dict:
@@ -90,6 +103,9 @@ class Status:
         extra = [s for s in (self.hunger, self.encumbrance) if s] + self.conditions
         if extra:
             bits.append(" ".join(extra))
+        if self.cut:
+            bits.append(f"[STATUS LINE FULL: '{self.cut}' may be cut short and later conditions hidden; "
+                        f"^X lists them]")
         return " ".join(bits)
 
 
@@ -119,9 +135,10 @@ def parse_status(scr: Screen) -> Status:
             s.ldesc = ml.group("ldesc").replace("Dlvl: ", "Dlvl:").strip()
             if ml.group("dlvl"):
                 s.dlvl = int(ml.group("dlvl"))
+                s.ldesc = f"Dlvl:{s.dlvl}"          # (also when a long line shows it as "Dl:")
             elif ml.group("home"):
                 s.dlvl = int(ml.group("home"))
-        mg = _GOLD.search(head[len(s.ldesc):] if s.ldesc else head)
+        mg = _GOLD.search(head[ml.end():] if ml else head)
         if mg:
             s.gold = int(mg.group("gold"))
         mp = _PW.search(l2)
@@ -146,10 +163,14 @@ def parse_status(scr: Screen) -> Status:
         for w in words:
             if w in HUNGER:
                 s.hunger = w
-            elif w in ENCUMBRANCE:
-                s.encumbrance = w
-            elif w in CONDITIONS:
-                s.conditions.append(w)
+            elif w in ENC_WORDS:
+                s.encumbrance = ENC_WORDS[w]
+            elif w in COND_WORDS:
+                s.conditions.append(COND_WORDS[w])
+        # (tty_putstatusfield never writes the terminal's last column: a line reaching the one before it
+        # may have been cut there, a word like "St" being Stun or a cut "Sto"ne / "Str"ngl)
+        if words and len(l2) >= scr.width - 1:
+            s.cut = words[-1]
     s.ok = ok1 and ok2
     return s
 

@@ -330,6 +330,7 @@ class MonsterTracker:
                 if d:
                     m["desc"] = d
                     m["statue"] = "statue of" in d
+                    m["looked"] = True       # this update's label comes from a look (fight() trusts it)
                     looked.add(id(m))
 
         if rogue:
@@ -602,9 +603,12 @@ class MonsterTracker:
             if (m["x"], m["y"]) == (x, y):
                 d = _richer(m.get("desc", ""), d)
                 m["desc"] = d
+                m["looked"] = True
                 rec = self.recent.get(m.get("id"))
                 if rec is not None:
                     rec["desc"] = d
+                # (a peaceful seen among hostile look-alikes: their labels are never inherited again)
+                self.mixed.setdefault((m["ch"], m["color"]), set()).add("friendly" if _friendly(d) else "hostile")
                 return d
         return None
 

@@ -157,6 +157,17 @@ def test_melee_guard_blocks_floating_eye():
     g._guard(_cmd_snap([{"x": 11, "y": 5, "desc": "jackal"}]), b"l", force=False)
 
 
+def test_f_blow_guard_refuses_a_peaceful_label():
+    # uhitm.c attack_checks(): an F blow never asks "Really attack?" (p2 shift 26)
+    import pytest
+    g = _guard_game()
+    snap = _cmd_snap([{"x": 11, "y": 5, "desc": "peaceful black naga", "peaceful": True}])
+    with pytest.raises(PermissionError, match="never asks"):
+        g._guard(snap, b"Fl", force=False)
+    g._guard(snap, b"Fl", force=True)
+    g._guard(_cmd_snap([{"x": 11, "y": 5, "desc": "black naga hatchling"}]), b"Fl", force=False)
+
+
 def test_corpse_guard():
     import pytest
     from nh.game import Snap
@@ -1190,3 +1201,34 @@ def test_clairvoyance_browse_cursor_is_left_by_the_step():
     s = g.step("s")
     assert s.state.kind == "command" and sent[-1] == b"\x1b"
     assert any("sense your surroundings" in m for m in s.messages)
+
+
+def test_status_short_forms_from_a_long_line():
+    # wintty.c make_things_fit: a long bottom line shows short condition/encumbrance words and "Dl:"
+    s = mk({22: STATUS1, 23: "Dlvl:36 $:0 HP:165(165) Pw:41(41) AC:-8 Xp:15/43210 T:24189 Hungry Bl Df"})
+    st = parse_status(s)
+    assert st.ok and st.conditions == ["Blind", "Deaf"] and st.hunger == "Hungry" and not st.cut
+    s = mk({22: STATUS1, 23: "Dl:36 $:1234 HP:165(165) Pw:41(41) AC:-8 Xp:15 T:24189 Weak Ovld Sto Slm Str"})
+    st = parse_status(s)
+    assert st.ok and (st.ldesc, st.dlvl, st.gold) == ("Dlvl:36", 36, 1234) and not st.cut
+    assert st.encumbrance == "Overloaded" and st.conditions == ["Stone", "Slime", "Strngl"]
+    for words, conds in (("Ston Slim Stngl Fpois Ill Blnd Def", ["Stone", "Slime", "Strngl", "FoodPois",
+                                                                  "TermIll", "Blind", "Deaf"]),
+                         ("Poi Ill St Cf Hl Lv Fl Rd", ["FoodPois", "TermIll", "Stun", "Conf", "Hallu", "Lev", "Fly",
+                                                        "Ride"]),
+                         ("Burden Stun Cnf Hal Lev Fly Rid", ["Stun", "Conf", "Hallu", "Lev", "Fly", "Ride"])):
+        st = parse_status(mk({22: STATUS1, 23: f"Dlvl:3 $:0 HP:17(21) Pw:1(1) AC:6 Xp:2 T:512 {words}"}))
+        assert st.ok and st.conditions == conds, words
+    st = parse_status(mk({22: STATUS1, 23: "Dlvl:3 $:0 HP:17(21) Pw:1(1) AC:6 Xp:2 T:512 Strs"}))
+    assert st.encumbrance == "Stressed" and st.conditions == []
+    st = parse_status(mk({22: STATUS1, 23: "Dlvl:3 $:0 HP:17(21) Pw:1(1) AC:6 Xp:2 T:512 Strain Str"}))
+    assert st.encumbrance == "Strained" and st.conditions == ["Strngl"]
+
+
+def test_status_line_full_flags_a_possibly_cut_word():
+    line = "Dl:48 $:12345 HP:250(250) Pw:120(120) AC:-25 Xp:25/9876543 T:55000 Satiated Brd Sto St"
+    line = line[:79]
+    st = parse_status(mk({22: STATUS1, 23: line}))
+    assert st.ok and st.cut == line.split()[-1] and "STATUS LINE FULL" in st.short()
+    st = parse_status(mk({22: STATUS1, 23: "Dlvl:3 $:0 HP:17(21) Pw:1(1) AC:6 Xp:2 T:512 Blind"}))
+    assert not st.cut and "STATUS LINE FULL" not in st.short()

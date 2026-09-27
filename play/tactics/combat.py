@@ -157,7 +157,7 @@ def _key_toward(hero, m):
 
 
 def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max_blows: int = 25,
-          allow_passive: bool = False, only=None, force: bool = False):
+          allow_passive: bool = False, only=None, force: bool = False, attack_peaceful: bool = False):
     """Melee an adjacent hostile (the one at (x, y) if given) until it's gone,
     it moves out of reach, or HP falls below stop_hp * max (then pauses).
     Returns the final Snap.
@@ -182,13 +182,19 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
       hypocrisy, but the blow smudges dust — re-engrave after.
     - HP pauses inside it follow the fight rules (kernel hp_rules): below
       stop_hp, a loss that would take you there in two more rounds, or a
-      quarter of max HP in one step — not every blow below 70%."""
+      quarter of max HP in one step — not every blow below 70%.
+    - An F blow NEVER asks "Really attack?" (uhitm.c attack_checks returns
+      before the peaceful check), so before the first blow at each monster it
+      looks at it (';', no game time) unless its label came from a look this
+      turn; a peaceful/tame one pauses instead (a peaceful adult black naga
+      labeled like the hostile hatchlings next to it). attack_peaceful=True
+      hits it anyway (angering a peaceful costs alignment; killing one, more)."""
     import contextlib
     seen: list[str] = []
     rules = getattr(ctx, "hp_rules", None)
     try:
         with (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
-            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only, force)
+            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only, force, attack_peaceful)
     finally:
         last = ctx.last()
         if seen and last is not None:
@@ -214,12 +220,23 @@ def _wielding() -> bool:
     return bool(w)
 
 
-def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False):
+def _check_target(m) -> tuple:
+    """Look at the monster about to get an F blow (no game time). Returns (snap, fresh monster dict at
+    that square or None when nothing is there now)."""
+    from .nav import farlook
+    farlook(m["x"], m["y"])
+    s = ctx.last()
+    return s, next((t for t in s.monsters or [] if (t["x"], t["y"]) == (m["x"], m["y"])
+                    and not t.get("statue")), None)
+
+
+def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False, attack_peaceful=False):
     """fight() body; `seen` collects every round's messages (so an early
     'You feel feverish' isn't lost behind later rounds)."""
     from nh.danger import STOP_PASSIVES, base_name, explodes_at_you, max_hit, passive_attacks, passive_max
     s = ctx.last()
     locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
+    checked: set = set()             # (id, x, y) of targets looked at before their first blow
     engulf_warned = False
     inside = False                   # swung from inside an engulfer during this call
     seen_notes: set = set()
@@ -323,16 +340,20 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 seen.extend(s.messages)
                 continue
             if not targets and locked_on:
-                again = [m for m in s.adjacent_hostiles() if base_name(m.get("desc") or "") == locked_on]
+                recent = [m for t, m in list(getattr(ctx.game, "history", []))[-40:] if t is None or t >= t_first]
+                killed = re.compile(r"^You (?:kill|destroy) (?:it\b|(?:the |an? |poor )?" + re.escape(locked_on) + ")")
+                was_killed = any(re.search(r"^You (?:kill|destroy) ", m) for m in seen) \
+                    or any(killed.search(m) for m in recent)
+                again = [m for m in s.adjacent_hostiles() if base_name(m.get("desc") or "") == locked_on] \
+                    if not was_killed else []
                 if again:
-                    # a covetous monster teleports next to you again (monmove.c: mnexto): same fight
+                    # it stepped to another square next to you, or a covetous one teleported back next to you
+                    # (monmove.c: mnexto): same fight. (Not after the kill: another of its kind next to you —
+                    # a sleeping soldier ant you meant to leave alone — is not this fight; p3 shift 10)
                     x, y = again[0]["x"], again[0]["y"]
                     print(f"fight: the {locked_on} is next to you again at ({x},{y}) — fighting it there")
                     continue
-                recent = [m for t, m in list(getattr(ctx.game, "history", []))[-40:] if t is None or t >= t_first]
-                killed = re.compile(r"^You (?:kill|destroy) (?:it\b|(?:the |an? |poor )?" + re.escape(locked_on) + ")")
-                if not any(re.search(r"^You (?:kill|destroy) ", m) for m in seen) \
-                        and not any(killed.search(m) for m in recent):
+                if not was_killed:
                     moved = [m for m in s.monsters or [] if base_name(m.get("desc") or "") == locked_on
                              and not m.get("tame") and not m.get("statue")]
                     if moved:
@@ -426,10 +447,38 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
             ctx.pause(f"fight: one hit on the {desc} can cost you up to {pdmg} HP from its passive ({pwhat}) and "
                       f"you have {st.hp}: rest first, fight it at range, or allow_passive=True.")
             return ctx.last()
+        mk = (m.get("id"), m["x"], m["y"])
+        if mk not in checked and not m.get("looked") and not m.get("unseen") and m["ch"] != "I":
+            # uhitm.c attack_checks(): `if (context.forcefight) return FALSE;` comes BEFORE the "Really attack?"
+            # question, so an F blow hits a peaceful without asking — and a label inherited from a look-alike
+            # can be wrong (p2 shift 26: a peaceful black naga labeled as the hostile hatchlings beside it)
+            checked.add(mk)
+            old = desc
+            from .nav import NavError
+            try:
+                s, m2 = _check_target(m)
+            except NavError as e:
+                ctx.pause(f"fight: couldn't look at the {old or m['ch']} at ({m['x']},{m['y']}) before hitting it "
+                          f"({e}) — an F blow never asks 'Really attack?': check it with farlook() first")
+                return ctx.last()
+            if m2 is None or s.state.kind != "command" or s.hero is None:
+                continue                          # it moved off (or a prompt came up): look again next round
+            if (m2.get("peaceful") or m2.get("tame")) and not attack_peaceful:
+                ctx.pause(f"fight: a look at ({m['x']},{m['y']}) shows a {m2.get('desc')}"
+                          + (f" (its label said '{old}')" if old and old != m2.get("desc") else "")
+                          + " — NOT attacking: an F blow never asks 'Really attack?'. Leave it be (or "
+                            "fight(x, y, attack_peaceful=True) to anger it on purpose: -alignment, and "
+                            "killing a peaceful costs more)")
+                return ctx.last()
+            checked.add((m2.get("id"), m2["x"], m2["y"]))
+            if (m2.get("desc") or "") != old:
+                print(f"fight: a look at ({m['x']},{m['y']}) shows a {m2.get('desc')} (was labeled '{old}')")
+                continue                          # re-pick with the corrected label (passive/danger checks)
+            m = m2
         key = _key_toward(s.hero, m)
         if key is None:
             return s
-        s = ctx.do("F" + key, ok=ROUTINE, force=force)
+        s = ctx.do("F" + key, ok=ROUTINE, force=force or (attack_peaceful and bool(m.get("peaceful"))))
         seen.extend(s.messages)
     return s
 

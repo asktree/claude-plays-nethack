@@ -571,6 +571,11 @@ def test_far_telepathic_and_deferred_newcomers_pause_when_they_approach():
     assert "ape" in step(30, [dict(ape, id=10)])                    # outside the block it pauses at once
 
 
+def _water_beside_hero(s):
+    row = s.screen.chars[HERO[1]]
+    s.screen.chars[HERO[1]] = row[:HERO[0] + 1] + "}" + row[HERO[0] + 2:]
+
+
 def test_kernel_held_move_attack_and_teleport_reasons():
     from nh.game import Game, Timing
     from nh.kernel import Kernel
@@ -579,6 +584,7 @@ def test_kernel_held_move_attack_and_teleport_reasons():
     k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
     a, b = snap({}, 10), snap({}, 11)
     b.messages = ["The giant eel bites!", "The giant eel swings itself around you!"]
+    _water_beside_hero(b)
     k._check_events(a, b)
     assert reasons[-1].startswith("HELD") and "Elbereth" in reasons[-1]
     k._last_keys = b"h"
@@ -798,10 +804,17 @@ def test_kernel_wrap_attempt_curse_and_filter_validation():
     reasons = []
     k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
     s = snap({}, 11)
+    # p2 shift 26: only a holder standing in water drowns you — no water next to you, no drowning attempt
+    s.messages = ["The python brushes against your leg."]
+    k._check_events(snap({}, 10), s)
+    assert not any(r.startswith("DROWNING ATTEMPT") for r in reasons)
+    reasons.clear()
     s.messages = ["It bites!", "It brushes against your leg."]
+    _water_beside_hero(s)
     k._check_events(snap({}, 10), s)
     assert reasons and reasons[-1].startswith("DROWNING ATTEMPT")
     reasons.clear()
+    s = snap({}, 11)
     s.messages = ["The Wizard of Yendor casts a spell!", "You feel as if you need some help."]
     k._check_events(snap({}, 10), s)
     assert reasons and reasons[-1].startswith("CURSED ITEMS")
@@ -962,6 +975,15 @@ def test_kernel_named_pauses_for_digestion_and_mimic_sticking():
     b.messages = ["The fog cloud engulfs you!"]
     k._check_events(a, b)
     assert not any("SWALLOWED" in r for r in reasons)
+    reasons.clear()
+    # p1 shift 28: with slow digestion the same turn spits you out again
+    b.messages = ["The trapper engulfs you!", "You get expelled!", "Obviously the trapper doesn't like your taste."]
+    k._check_events(a, b)
+    assert not any("SWALLOWED" in r for r in reasons)
+    reasons.clear()
+    b.messages = ["You get regurgitated!", "The purple worm engulfs you!"]    # out, then swallowed again
+    k._check_events(a, b)
+    assert reasons and "SWALLOWED" in reasons[-1]
     reasons.clear()
     b.messages = ["The purple worm utterly digests you!"]
     k._check_events(a, b)

@@ -1024,6 +1024,14 @@ class Game:
                         f"refusing to attack the remembered unseen monster 'I' at {(tx, ty)} while blind: it may be "
                         "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
                         "it. force=True if it is attacking you.")
+                peace = [m for m in snap.monsters or [] if (m["x"], m["y"]) == (tx, ty) and m.get("peaceful")
+                         and not m.get("tame") and not m.get("statue")] if unit[:1] == b"F" else []
+                if peace:
+                    # uhitm.c attack_checks(): context.forcefight returns before the "Really attack?" question
+                    raise PermissionError(
+                        f"refusing to F-attack the {peace[0].get('desc')} at {(tx, ty)}: it is PEACEFUL and an F blow "
+                        "never asks 'Really attack?' (angering it costs alignment; killing it, more). force=True "
+                        "if you mean it.")
             if snap.hero is not None and self.on_elbereth(snap):
                 # throws/zaps/kicks are checked at their direction prompt (only hitting a monster counts)
                 attack = unit[:1] == b"F" or unit.startswith(b"#force")

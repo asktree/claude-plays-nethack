@@ -371,3 +371,18 @@
 - T:16566 read blessed charging on U: "glows blue" = 3 charges (recharged once — never again).
 - **WISH 4 T:16568 "blessed +2 speed boots" → +0 speed boots (o, riding boots) — worn, Very fast**; dropped the rusted iron shoes. AC -8.
 - SHIFT 25 END T:16573 D28 on the SE-tower scare-monster square (66,18), HP 139/139, XL12 (Exp 39110, +6335), AC -8, MR + reflection + life saving + very fast. Wand of wishing U: 2 charges. No prayer (4 wishes: prayer unreliable until ~T:17100).
+
+## Shift 26 (last wishes, leaving the Castle)
+- T:16573 D28 SE tower (66,18), HP 139/139. Put on/removed the unknown uncursed rings I (copper) and b (iron): no message → neither is levitation.
+- **WISH 5 T:16575 "blessed ring of levitation" → w (coral ring, named "levitation")**: needed to cross Medusa's water going up (protection at D24, the quest) and again with the Amulet; also the Wizard's moat, the invocation moat, the Plane of Air.
+- **WISH 6 T:16576 "2 blessed potions of gain level" → only 1 (K)** (the count roll: 2 < rnd(6) fails 1/3).
+- **T:16576-16587 wrested the last charge in 23 zaps on the scare square. WISH 7 T:16587 "2 blessed potions of gain level" → 2 (K = 3 potions of gain level, in bag s).** The wand of wishing turned to dust. Plan: buy protection at D24 at XL12 FIRST (4800; I have 5110), then quaff → XL15 → quest.
+- T:16589 engrave-tests: M = fire (burned Elbereth at (67,18)); **z = DIGGING (auto-identified) → A (aluminum) is digging too** (engraved Elbereth at (68,17)).
+- T:16592 read the blessed CHARGING on the fire wand M: "glows briefly" → M has 4-7 charges (the Gehennom sliming cure).
+- T:16601-16622 D28 leaving the tower: killed LICH #2 (invisible, 3 blows, no damage) in the south hall, 2 soldiers, the rock troll at the throne-room door (it revived later), AIR ELEMENTAL (engulfed me, killed from inside), WATER ELEMENTAL — **XL13 at T:16619** (protection now 5200). Lich pile: scroll of identify (m), 2 create monster (U).
+- T:16630 throne-room royal chest (45,12): unlocked with the key → **254 gold (5364 total)**, pear, 2 spellbooks + wand of light (dropped); Excalibur's autosearch found the SECRET DOOR (46,12) to the trap-door corridor. Dropped the empty wands g/y/N/S there.
+- T:16659-16674 west maze: rock piercer, disenchanter (all armor +0: nothing to drain). The hostile STORM GIANT showed at (4,9) and left. On the `<`: greased the cloak H (can of grease S).
+- T:16675 **D27 Medusa's island**: towel census (32 monsters: kraken in the palace pool, 2 eels, 5 pythons, cobras, giant spider, yellow dragon + 4 babies, black nagas). Unlocked the W door (10,13), put on the levitation ring (identified), Hungry → ate the K-ration. NetHack's travel wouldn't plan over unseen squares → my own levitation walker (lev_plan/lev_walk2/cross2 in the kernel). "The python grabs you, but cannot hold onto your greased faded pall!" — the grease works.
+- **T:16706 MISTAKE: F-attacked a PEACEFUL black naga the monitor had relabeled "black naga hatchling" (`F` skips NetHack's "Really attack?" — uhitm.c). "The black naga screams!" = angered: -1 alignment; killed it as a hostile.** Farlook before every blow from then on.
+- T:16740 on Medusa's `<` (75,9); landed at (73,17) for a ZINC WAND (g, unknown; trap door (72,17) next to it); unknown ring `=` left at (53,8). T:16753 **climbed to D26** `>` (20,19). Telepathy: long worm + snake only.
+- SHIFT 26 END T:16754 D26 on the `>` (20,19), HP 147/147, XL13 (Exp 41618, +2508), AC -8. No prayer (0% until ~T:17200-17400). Wand of wishing used up: GDSM, charging x2, life saving, speed boots, LEVITATION, 3 GAIN LEVEL (bag s).

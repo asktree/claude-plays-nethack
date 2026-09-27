@@ -172,3 +172,8 @@
 - ORCUS TOWN: Orcus is generated ON the `>` (map (33,15)) and waits until he sees you; the level is noteleport but NOT hardfloor — dig down from the west strip to skip him, like Asmodeus/Baalzebub.
 - Magic traps (Gehennom) summon up to 4 monsters around you with a flash + roar: after "a deafening roar", expect adjacent newcomers.
 - Storm giant corpse = 50% shock resistance (100% of the non-Str roll at level 16). Eat giants when not Satiated.
+- SLOW DIGESTION = immunity to digesters: purple worms and trappers engulf and at once "regurgitate" you ("Obviously the X doesn't like your taste", mhitu.c gulpmu AD_DGST). Keep ring u on in Gehennom; the harness's SWALLOWED pause still fires.
+- Checking a special level for a branch: read the des file's BRANCH levregion (orcus.des: x1-12 = screen x0-11), see every square there, then `game.rescan_terrain()` (#terrain shows stairs under objects on seen squares). DL35 done in ~80 turns this way.
+- explore() can report "explored" while the only way on crosses a KNOWN trap square (DL36 sleeping gas (48,13)): compare the explored extent with the level size (a filler maze spans x1-77) and dig one wall beside the trap to go on.
+- Green slime in a dark corridor: fire rays from 2+ squares (3 zaps of 6d6 killed it; the last one blind up the corridor: "You kill it!"). Never melee (harness refuses anyway).
+- A trap with no effect on you (fire trap with fire res and nothing burnable in the pack, level teleporter with MR) is a free crossing: step_onto() it rather than digging around.

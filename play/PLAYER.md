@@ -41,7 +41,7 @@ message line, rows 22–23 are the status lines. The rulers above the map give t
 **Reading the output.** The `#N` in the header counts harness steps (keys sent), not game turns — quote it
 when reporting harness problems. Game time is `T:`.
 ```
-#12 T:345 Dlvl:3 HP:21/28 Pw:5/5 AC:4 XL:4 Exp:95 $12 Hungry [command]
+#12 T:345 Dlvl:3 HP:21/28 Pw:5/5 AC:4 XL:4 $12 Hungry [command]
 msgs: You hit the jackal. | The jackal is killed!
 <map with column rulers and row numbers>
 you @ (34,10)
@@ -70,7 +70,9 @@ monsters:
   difficulty is well above your XL). Take those notes seriously.
 - Status: `HP:cur/max`, `Pw`, `AC` (lower is better), `XL` experience level, `T:` game turn, then hunger
   (`Hungry`, `Weak`, `Fainting` — act!), encumbrance (`Burdened`...), conditions (`Blind`, `Conf`, `Stun`,
-  `Hallu`, and the deadly ones: `Stone`, `Slime`, `Strngl`, `FoodPois`, `TermIll`).
+  `Hallu`, and the deadly ones: `Stone`, `Slime`, `Strngl`, `FoodPois`, `TermIll`). The harness always gives
+  the full names, also when a long raw bottom line shows NetHack's short forms (`Bl Df`, `Sto`, `Brd`, `Dl:`).
+  `[STATUS LINE FULL ...]` means the raw line hit the edge: a condition may be cut off there — `do '^X'`.
 
 ## 2. The kernel (`bin/nh exec`)
 

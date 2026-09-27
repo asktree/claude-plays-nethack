@@ -167,7 +167,8 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_trap
                     and not (allow_water and cell(s, nx, ny) == "}") \
                     and not (allow_boulders and cell(s, nx, ny) in "0`"):
                 continue
-            if nxt == goal and not (is_walkable(s, nx, ny, allow_monsters=True) or cell(s, nx, ny) == " "):
+            if nxt == goal and not (is_walkable(s, nx, ny, allow_monsters=True) or cell(s, nx, ny) == " "
+                                    or (allow_traps and cell(s, nx, ny) == "^")):
                 continue
             diag = nx != cur[0] and ny != cur[1]
             if diag and (is_door(s, *cur) or is_door(s, nx, ny)):

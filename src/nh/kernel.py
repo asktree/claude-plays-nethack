@@ -158,6 +158,7 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:the tones of courtly conversation|a sceptre pounded|Queen Beruthiel)",
     r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
     r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
+    r"^You hear a crunching sound\.",                    # mon.c meatmetal(): a metal-eater (rust monster, xorn)
     # hack.c check_special_room(): every entry says it again while the room keeps its monsters
     r"^You enter an opulent throne room!", r"^You enter a leprechaun hall!", r"^You enter a giant beehive!",
     r"^You enter a disgusting nest!", r"^You enter an anthole!", r"^You enter a military barracks!",
@@ -373,9 +374,18 @@ class Kernel:
                 n += 1
             return n
 
+        def quiet_messages(messages) -> list:
+            """Which of these messages would NOT pause an exec now: the exec's autocontinue (-a) patterns,
+            the default benign list, level sounds already paused for on this level. No side effects."""
+            snap = k.game.last
+            level = snap.status.ldesc if snap is not None and snap.status.ok else ""
+            return [m for m in messages or []
+                    if any(p.search(m) for p in k.autocontinue) or any(p.search(m) for p in DEFAULT_BENIGN)
+                    or any(p.search(m) and (level, i) in k._heard for i, p in enumerate(ONCE_PER_LEVEL))]
+
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
                        set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task,
-                       watch_monsters=watch_monsters)
+                       watch_monsters=watch_monsters, quiet_messages=quiet_messages)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -478,20 +488,31 @@ class Kernel:
                 and not any("prevents you from teleporting" in m for m in snap.messages):
             reasons.insert(0, f"TELEPORTED by a monster's hit (quantum mechanic) — you are now at {snap.hero}")
         brush = next((m for m in snap.messages if re.search(r"brushes against your (?:left |right )?\w+\.$", m)), None)
-        if brush and not any(re.search(r" swings itself around you!$", m) for m in snap.messages):
+        # mhitu.c AD_WRAP drowns only when the holder stands in water (is_pool at ITS square): with no water next
+        # to you, a python's wrap only crushes (p2 shift 26: a python on land paused as a drowning attempt)
+        wet = snap.hero is None or any(snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) == "}"
+                                       for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
+        if brush and wet and not any(re.search(r" swings itself around you!$", m) for m in snap.messages):
             # mhitu.c AD_WRAP: a failed wrap — the next one can hold you, and a hold in water drowns you
             reasons.insert(0, f"DROWNING ATTEMPT — {brush!r}: a sea monster (eel/kraken, maybe hidden under the "
                               "water) tried to wrap you. Step AWAY from the water now (to a square with no water "
                               "next to it); fight it only from there or at range")
         grab = next((m for m in snap.messages if re.search(r" swings itself around you!$", m)), None)
-        if grab:
+        if grab and wet:
             # mhitu.c AD_WRAP: held by an eel/kraken in water, its next wrap hit drowns you outright
             reasons.insert(0, f"HELD — {grab!r}: if it is in water, its NEXT hit DROWNS you (levitation does NOT "
                               "help). This turn: engrave Elbereth (E - Elbereth: it flees and lets go; impossible "
                               "while levitating), or kill it, or teleport away (not on the Castle)")
-        gulp = next((re.match(r"^(?:The |An? )?(.+?) engulfs you!$", m) for m in snap.messages
-                     if re.match(r"^(?:The |An? )?(.+?) engulfs you!$", m)), None)
-        if gulp and re.sub(r"^(?:invisible |tame |peaceful )+", "", gulp.group(1).lower()) in DIGESTERS:
+        gulps = [(i, re.match(r"^(?:The |An? )?(.+?) engulfs you!$", m)) for i, m in enumerate(snap.messages)]
+        gulp_i, gulp = next(((i, g) for i, g in reversed(gulps) if g), (None, None))
+        # mhitu.c gulpmu(): with slow digestion (or a huge form) the same turn ends "You get regurgitated!"
+        # (/expelled) — out again, nothing to do (p1 shift 28: a trapper vs a ring of slow digestion)
+        spat_out = gulp is not None and any(
+            re.match(r"^You get (?:regurgitated|expelled)", m) or re.search(r" very hurriedly (?:regurgitates|"
+                                                                            r"expels) you!$", m)
+            for m in snap.messages[gulp_i + 1:])
+        if gulp and not spat_out \
+                and re.sub(r"^(?:invisible |tame |peaceful )+", "", gulp.group(1).lower()) in DIGESTERS:
             # mhitu.c gulpmu() AD_DGST: total digestion when u.uswldtim runs out (~25 - its level, halved,
             # + 10 - your AC turns); a wand of digging zapped from inside tears it open (zap.c zap_dig)
             hell = (self.game.level_key(snap.status) if snap.status.ok else "").startswith("Gehennom")
@@ -581,6 +602,9 @@ class Kernel:
             if new_conds:
                 reasons.append("status: +" + ",".join(new_conds)
                                + "".join(f" — {COND_HINTS[c]}" for c in new_conds if c in COND_HINTS))
+            if a.cut and a.cut != b.cut:
+                reasons.append(f"status line full: its last word '{a.cut}' may be cut short and a condition after "
+                               f"it hidden (Stone/Slime/Strngl come first, so they show) — `do '^X'` lists them all")
             if _HUNGER_RANK.get(a.hunger, 0) > _HUNGER_RANK.get(b.hunger, 0):
                 reasons.append(f"hunger: {a.hunger}")
             if _ENC_RANK.get(a.encumbrance or "", 0) > _ENC_RANK.get(b.encumbrance or "", 0) \

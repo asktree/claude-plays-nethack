@@ -122,11 +122,12 @@ def _pick_target(skip, bad=frozenset(), why=None):
         if c == hero or c in seen:
             break
         seen.append(c)
-        if c in skip:
-            continue
         if c in bad:
             skip.add(c)                  # the frontier itself is an avoided square
-            why["avoided"].append(c)
+            if c not in why["avoided"]:
+                why["avoided"].append(c)
+            continue
+        if c in skip:
             continue
         if bad and hero is not None:
             av = frozenset(set(bad) - {c})
@@ -207,6 +208,11 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             left.append(f"locked doors {live} (unlock(x, y) with a key/lock pick/credit card, or "
                         "kick_door(x, y) from an orthogonally adjacent square — never a shop door ('Closed for "
                         "inventory'), and no kicking anywhere in Minetown)")
+        for c in _trap_frontiers(now, bad_squares()):
+            # a known trap with unseen ground beyond it (p1 shift 28: the sleeping gas trap (48,13) was the
+            # only way east): NetHack's frontier finder never offers a trap square, so name it here
+            if c not in why["avoided"]:
+                why["avoided"].append(c)
         niches = dict(getattr(ctx.last(), "niche_mem", None) or {})
         if niches:
             # a trapped closet is one square with nothing behind it: not a frontier worth reporting
@@ -437,6 +443,31 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             continue
         stuck = 0
     return result("max_legs reached")
+
+
+def _trap_frontiers(s, bad) -> list:
+    """Avoided squares (known traps, avoid() squares) that border never-seen
+    ground and that you can reach (crossing only known traps): the way on may
+    lie across one of them. (Blanks next to a square you stood on are seen
+    rock, as for screen_frontiers.)"""
+    from nh.parse import MAP_BOTTOM, MAP_TOP
+    from .mapview import bfs_path
+    if s is None or s.hero is None:
+        return []
+    near = {(vx + dx, vy + dy) for (vx, vy) in ctx.game.visited.get(ctx.game.level_key(s.status), set())
+            for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    mem = getattr(s, "floor_mem", ())
+    out = []
+    for c in sorted(bad):
+        x, y = c
+        if c == s.hero or not any(s.screen.at(x + dx, y + dy) == " " and s.screen.color_at(x + dx, y + dy) != 6
+                                  and (x + dx, y + dy) not in near and (x + dx, y + dy) not in mem
+                                  and MAP_TOP < y + dy <= MAP_BOTTOM and 0 < x + dx < 79
+                                  for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))):
+            continue
+        if bfs_path(s, s.hero, c, allow_monsters=True, allow_traps=True) is not None:
+            out.append(c)
+    return out
 
 
 def screen_frontiers(s=None) -> list:

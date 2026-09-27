@@ -7,9 +7,28 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "play"))
 sys.path.insert(0, str(ROOT / "src"))
 
+import pytest  # noqa: E402
+
 from nh.game import Snap  # noqa: E402
 from nh.parse import State, Status  # noqa: E402
 from nh.screen import Screen  # noqa: E402
+
+
+from tactics import combat as _combat  # noqa: E402
+
+_REAL_CHECK_TARGET = _combat._check_target
+
+
+@pytest.fixture(autouse=True)
+def _looks_confirm_labels(monkeypatch):
+    """fight() looks at each target before its first blow; the fake games here draw no getpos cursor,
+    so that look confirms the label (test_fight_looks_before_the_first_blow tests the look itself)."""
+    from tactics import combat, ctx
+
+    def confirm(m):
+        s = ctx.last()
+        return s, next((t for t in s.monsters or [] if (t["x"], t["y"]) == (m["x"], m["y"])), None)
+    monkeypatch.setattr(combat, "_check_target", confirm)
 
 
 def _snap(rows: dict, hero, monsters, colors=None):
@@ -2370,3 +2389,78 @@ def test_hunt_keeps_away_from_eel_water(monkeypatch):
     monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
     r = combat.hunt("troll", max_turns=2)
     assert r["reason"].startswith("blocked: the only way") and "giant eel" in r["reason"] and sent == []
+
+
+def test_fight_looks_before_the_first_blow(monkeypatch):
+    # p2 shift 26 #411: an F blow never asks "Really attack?" (uhitm.c attack_checks) — a peaceful black naga
+    # labeled like the hostile hatchlings beside it was hit. fight() now looks first.
+    from tactics import combat, ctx, nav
+    monkeypatch.setattr(combat, "_check_target", _REAL_CHECK_TARGET)
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    monkeypatch.setattr(combat, "_wielding", lambda: True)
+    naga = {"x": 11, "y": 5, "ch": "N", "desc": "black naga hatchling", "dist": 1, "id": 7}
+    s = _snap({}, (10, 5), [naga])
+    s.status.hp, s.status.hpmax, s.status.xl = 100, 100, 13
+    cur = {"s": s}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    looks, sent, paused = [], [], []
+
+    def look(x, y):
+        looks.append((x, y))
+        for m in cur["s"].monsters:
+            if (m["x"], m["y"]) == (x, y):
+                m.update(desc="peaceful black naga", peaceful=True, looked=True)
+        return "N   a naga (peaceful black naga) [seen: normal vision]"
+    monkeypatch.setattr(nav, "farlook", look)
+    monkeypatch.setattr(ctx, "pause", lambda msg: paused.append(msg))
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    combat.fight(11, 5)
+    assert looks == [(11, 5)] and sent == []
+    assert paused and "NOT attacking" in paused[0] and "black naga hatchling" in paused[0]
+    # a hostile confirmed by the look gets its blows; a label from this turn's look needs no second look
+    looks.clear()
+    paused.clear()
+    naga2 = {"x": 11, "y": 5, "ch": "N", "desc": "black naga hatchling", "dist": 1, "id": 8}
+    s2 = _snap({}, (10, 5), [naga2])
+    s2.status.hp, s2.status.hpmax, s2.status.xl = 100, 100, 13
+    dead = _snap({}, (10, 5), [])
+    dead.messages = ["You kill the black naga hatchling!"]
+    dead.status.hp, dead.status.hpmax, dead.status.xl = 100, 100, 13
+    cur["s"] = s2
+    monkeypatch.setattr(nav, "farlook", lambda x, y: looks.append((x, y)) or "N  (black naga hatchling)")
+
+    def blow(keys, **kw):
+        sent.append(keys)
+        cur["s"] = dead
+        return dead
+    monkeypatch.setattr(ctx, "do", blow)
+    combat.fight(11, 5)
+    assert looks == [(11, 5)] and sent == ["Fl"] and not paused
+    sent.clear()
+    looks.clear()
+    fresh = dict(naga2, looked=True)
+    cur["s"] = _snap({}, (10, 5), [fresh])
+    cur["s"].status.hp, cur["s"].status.hpmax, cur["s"].status.xl = 100, 100, 13
+    combat.fight(11, 5)
+    assert looks == [] and sent == ["Fl"]
+
+
+def test_explore_verdict_names_a_trap_with_unseen_ground_beyond(monkeypatch):
+    # p1 shift 28 #1445: the only way east crossed the known sleeping gas trap; explore() said "explored"
+    from tactics import ctx, explore
+    g = _G()
+    g.visited = {}
+    monkeypatch.setattr(ctx, "game", g)
+    rows = {5: "        |......^   ",
+            4: "        --------   ",
+            6: "        --------   "}
+    s = _snap(rows, (10, 5), [])
+    assert explore._trap_frontiers(s, {(15, 5)}) == [(15, 5)]
+    assert explore._trap_frontiers(s, {(12, 5)}) == []          # nothing unseen next to it
+    g.visited = {g.level_key(s.status): {(16, 4)}}               # stood next to that blank: seen rock
+    assert explore._trap_frontiers(s, {(15, 5)}) == []

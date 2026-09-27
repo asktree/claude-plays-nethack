@@ -91,8 +91,8 @@ def _farlook(x, y) -> str:
         xl = cur.status.xl if cur.status.ok else None
         for m in cur.monsters or []:
             if (m["x"], m["y"]) == (x, y):
-                m.update(desc=lab, note=note_for(lab, xl), tame=lab.startswith("tame "),
-                         peaceful=lab.startswith("peaceful "))
+                m.update(desc=lab, note=note_for(lab, xl, getattr(ctx.game, "intrinsics", ())),
+                         tame=lab.startswith("tame "), peaceful=lab.startswith("peaceful "), looked=True)
     return txt
 
 
@@ -1080,12 +1080,15 @@ def _open_door_toward(s, target):
 
 def _notable(messages) -> list:
     """Messages that aren't routine for walking around (BENIGN + the kernel's
-    DEFAULT_BENIGN): anything left deserves the caller's attention."""
+    DEFAULT_BENIGN, and what the running exec autocontinues (-a) or a level
+    sound already paused for on this level): anything left deserves the
+    caller's attention."""
     import re
     from nh.kernel import DEFAULT_BENIGN
     pats = [re.compile(p) for p in BENIGN]
+    quiet = set(ctx.quiet_messages(messages)) if ctx.quiet_messages is not None else set()
     return [m for m in messages or [] if not any(p.search(m) for p in pats)
-            and not any(p.search(m) for p in DEFAULT_BENIGN)]
+            and not any(p.search(m) for p in DEFAULT_BENIGN) and m not in quiet]
 
 
 def known_cells(ch: str, s=None, rescan: bool = False) -> list:

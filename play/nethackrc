@@ -6,7 +6,8 @@ OPTIONS=windowtype:tty
 OPTIONS=number_pad:0
 OPTIONS=color,use_inverse,hilite_pet,hilite_pile
 OPTIONS=menu_headings:inverse
-OPTIONS=time,showexp,!showscore
+# !showexp: a long bottom line makes the tty shorten the condition words and, at worst, cut the line
+OPTIONS=time,!showexp,!showscore
 OPTIONS=autopickup,pickup_types:$,pickup_thrown
 OPTIONS=!rest_on_space
 OPTIONS=runmode:teleport
