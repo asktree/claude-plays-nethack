@@ -162,3 +162,31 @@ Top 3 (ranked):
 1. Record traps found by search ("You find a <trap>.") even when an object hides the `^`, so travel/step guards refuse them (#551).
 2. Route planning should avoid rock-rock diagonal squeezes while the pack is over 600 (#601-#608).
 3. desmap.show() KeyError 'good' on an identified Minetown (#1076); and relabel a monster after a thrown item silently tames it (#1163).
+
+## Shift 16
+
+1. #582, #641 (MEDIUM) `levitate_to()` on Medusa's level plans over never-seen squares as open, although `desmap.identify()` had placed medusa-4 (744 good / 0 bad). #582: "It's a wall." at (11,15) (a palace wall in the fixed map). #641: from the SW palace room (13,13), `levitate_to(71,13)` stepped east into the iron bars (14,14): "You cannot pass through the bars." Expected: when desmap has placed the level, use its fixed map for unseen squares (walls, and iron bars impassable for a normal-sized hero). Workaround: a waypoint south of the palace, `levitate_to(16, 20)`, then east.
+2. #524, #525, #528 (MEDIUM) Medusa's level, blind with telepathy, about 30 sensed monsters. `levitate_to` paused at almost every 4-step leg with "approaching: X at d=6" (black naga hatchling, jellyfish). With `with defer_far(3):` it still paused at #528 with "approaching: snake ... (61,12) d=5, snake at (58,10) d=6". Expected (PLAYER.md): `defer_far(n)` defers everything farther than n, so no pauses at d=5-6. The telepathy-sensed rule seems to bypass it. Workaround that worked: `monster_filter(lambda m: any(d in m['desc'] for d in ('eel','kraken','python','Medusa','dragon')))` plus defer_far.
+3. #614 (LOW-MEDIUM) `dig('l')` at Perseus' statue (blind) paused after 5 turns because a snake bit me. The pause said "messages: You start chipping the statue. — your weapon (a) is wielded again; dig() again to go on digging". But the statue had already shattered: the square showed a rock pile, and `here()` then listed 61 stones plus the contents. "The statue shatters." was never reported (unverified: `history 200` no longer reached T:15533). Expected: report the shatter, or re-check the target square before suggesting to dig again.
+4. #930 (LOW, doc) The `unlock()` note says "a booby-trapped door can still explode when you OPEN it". It exploded on the UNLOCK itself: "You succeed in unlocking the door. | KABOOM!! | The door was booby-trapped!", stunned, -6. In lock.c a trapped door blows up when the lock is picked. Expected: warn before unlocking too (full HP, unicorn horn ready).
+5. #824 (LOW) `step_onto(32, 21, risky=True)` at the D19 "trapped closet" gave "It's solid stone.": the niche square was an undiscovered hidden passage. 5 searches from the door gave "You find a hidden passage. You find a level teleporter.", and the obs then named it correctly (teleportation trap/level teleporter). Suggestion: the trapped-closet note could say "may be a hidden passage: search from the door square first".
+6. #966, #1023 (LOW, unresolved) I threw 3 elven daggers north at a cockatrice; all hit. The obs then listed `) weapon (8,13)`, and later `(8,12)`. `pickup('dagger')` on (8,13), and `here()` plus `pickup` on (8,12), both said "You see no objects here." I never found the daggers. Either the `)` coordinates were off, or something unseen took them.
+7. #1340 (LOW) `travel(64, 6)` from a square with 7 SLEEPING graveyard monsters adjacent raised NavError. The `pass_hostile=True` it suggested worked. Monsters that haven't moved for many turns while I stood next to them could count as asleep by default, which would save a call.
+8. #1 (LOW) `bin/nh history 30` at shift start again printed "(no messages yet)". At the end, `history 200` reached back only to T:15541, about 400 turns.
+9. Good:
+   - `desmap.identify()` placed Medusa's level at once, with its doors, secret doors and fixed monsters.
+   - Blind telepathy lists covered the whole level.
+   - `levitate_to` with monster_filter + defer_far got me across Medusa's level and back with no eel contact.
+   - `dig('>')` on D18: fell through and re-wielded Excalibur before the D19 pause.
+   - `dig('l')` at a statue while blind.
+   - `loot_all(check_traps=3)` unlocked 4 locked boxes by itself.
+   - `read_identify` with regex priorities hit the intended item twice.
+   - `telepathy_scan()`.
+   - `fight()` looked at every target before its first blow.
+   - `travel(pass_hostile=True)` got me out of a sleeping crowd.
+   - The searched-trap re-read named the level teleporter.
+
+Top 3 (ranked):
+1. `levitate_to()` should use the identified desmap's fixed map (walls, iron bars) for unseen squares (#582, #641).
+2. `defer_far(n)` should also defer telepathy-sensed "approaching" pauses; crowded telepathy levels pause almost every leg (#524, #525, #528).
+3. `dig()` at a statue should detect or report "The statue shatters." and not suggest digging on (#614). Also fix the `unlock()` booby-trap note: it can explode on unlock (#930).
