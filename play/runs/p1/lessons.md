@@ -137,3 +137,10 @@
 - Object detection shows the scroll pile on the Castle's wishing-chest square: quaff it early to pick the right tower.
 - A sleeping monster in a doorway is a plug: nothing behind it can pass (sleep ray down the queue).
 - travel() will happily route along a moat edge (7,14) next to a known shark/eel: near eels walk with explicit step() paths.
+- WAND OF WISHING WITH UNKNOWN CHARGES: wish for "2 blessed scrolls of charging" FIRST. The Castle wand had ONE charge (2nd zap: "Nothing happens"); the blessed charging read at (0:0) -> "glows blue" = 3 charges; after those, wresting took 63 zaps (1/121 each) in one scripted loop (do('z'); do('w', ok=['^Nothing happens'])) and the wand turned to dust after the wish. Never recharge twice (explodes).
+- Wished "+2" armor came out +0 TWICE (shield, speed boots): plan AC with +0.
+- Each wish adds 50-149 to the prayer timeout: 5 wishes = up to ~750 turns without safe prayer. Take a full healing potion out of the bag BEFORE wishing sprees.
+- The wishing-chest square (burned Elbereth + scare monster) is the Castle's safe room: monsters (soldiers too) won't melee you there, but attacking FROM it = hypocrite (-5 alignment, engraving deleted). Step off to fight.
+- Castle halls/towers connect ONLY through the throne room's doors (40,8)/(40,16) (castle.des): clear the throne room at its west door (34,12) chokepoint first, then unlock (40,16) with a key.
+- Trolls: an invisible troll's corpse ("You kill it!") is unknown to the harness's kill log: eat it with force=True on the square you just killed it; eat EVERY troll corpse at once, they revive within turns (this one rose mid-meal).
+- pickup('ring') also matches "ring mail" (substring): name the exact item ("coral ring").

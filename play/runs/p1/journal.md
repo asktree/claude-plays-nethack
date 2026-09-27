@@ -355,3 +355,23 @@ T:20213 — travel(11,12) walked me along the moat edge (7,14) next to a shark: 
 T:20268 — telepathy: eels at (8,8)/(8,9), none near the gate -> crossed the ice into the castle; killed a sleeping ice troll; ate royal jelly (Hungry).
 T:20282–20363 — corridor y=12: killed soldier + lieutenant (sleep ray from a lieutenant reflected), throne room entered (peaceful black naga at (35,13)); held (33,12) outside the throne-room door: soldiers, sergeant, a 3rd invisible lich (shattered object detection + fruit juice; **its curse-items CURSED THE BAG OF HOLDING D and the amulet I** -> Burdened), the ice troll REVIVED and hit hard (HP 78/145): sleep ray east put the lieutenant (in the doorway) + a soldier to sleep, killed the troll (sleep resisted).
 T:20376 DL25 — **SHIFT 22 ENDS** at (32,12) on the partly eaten ice troll corpse, HP 97/145, XL13 (Exp 51631, +10.7k this shift), AC -10, Burdened (cursed bag), no hostile adjacent (lieutenant asleep on the door (34,12), soldiers behind it). Next: heal, clear the throne room at the door, unlock (40,16), SE tower chest -> wishes (remove curse for the bag first).
+
+## Shift 23 — THE CASTLE, part 2 (wand of wishing)
+T:20383 DL25 — finished the ice troll corpse (no revival). Held (32,12)/(33,12): killed the sleeping lieutenant on the door (34,12), then soldiers x5, a sergeant as they came single file (a soldier's magic missiles kept hitting its own lieutenant). HP back to 145.
+T:20455–20502 — throne room: killed soldiers x3; slept the hostile FIRE GIANT with wand s (row 10), then 2 OGRE LORDS, the TROLL (twice: it revived under me), the fire giant. A second fire giant is PEACEFUL (lawful) — left alone; peaceful black naga left alone. A ring dropped at (35,14) (not picked up yet); royal chest (45,12) not looted.
+T:20508 — unlocked the throne room's bottom door (40,16) with key d; killed 3 soldiers at that doorway. Walked the dark south hall (row 17) east to the SE tower (door (63,17) open, tower empty — its soldiers were the ones killed in the hall).
+T:20563 — (66,18): burned Elbereth + cursed scare monster (left on the floor) + chest: locked -> unlocked with key d -> **w - spiked wand = WAND OF WISHING**.
+T:20563 — WISH 1 (wand, charges unknown): "2 blessed scrolls of charging" -> got ONE (F, DAIYEN FOOELS). T:20565 zap #2: "Nothing happens" = the wand had only 1 charge (0:0).
+T:20566 — read blessed charging F on w: "Your wand of wishing glows blue for a moment." = (1:3). NEVER recharge it again (explodes).
+T:20567 — WISH 2: "2 blessed scrolls of remove curse" -> K x2. Read one: "You feel like someone is helping you." — bag D, amulet I, scrolls k, wand Z all uncursed; no longer Burdened.
+T:20568 — WISH 3: "blessed amulet of life saving" -> L (pyramidal amulet). Took off I (uncursed amulet of reflection; the shield still reflects), put on L.
+T:20571 — WISH 4: "2 blessed scrolls of genocide" -> M x2 (JUYED AWK YACC). Read one: class L — "Wiped out all liches/demiliches/master liches/arch-liches." One blessed genocide M kept in reserve.
+Prayer timeout: 4 wishes added 200-600 -> prayer NOT safe until ~T:21000+ (check prayer_check()).
+T:20568–20571 — (see wish lines above) swapped amulets: L life saving worn, I reflection -> bag.
+T:20571–20618 — WRESTED the empty wand from the scare-monster square: 63 zaps ("You wrest one last charge from the worn-out wand.") -> WISH 5: "blessed fireproof +2 speed boots" -> N mud boots, came out +0 (1-in-5 reset again). "The wand of wishing turns to dust." Took off the +0 low boots z (dropped), wore N: "You feel yourself speed up a bit more." = VERY FAST.
+T:20625 — a soldier cornered in the tower: stepped off the scare square (no hypocrisy) and killed it.
+T:20626 — took w = potion of FULL HEALING out of the (uncursed) bag; bagged the spare amulet of reflection.
+T:20636–20679 — a revived troll quaffed a cursed potion of INVISIBILITY ("You feel aggravated at the invisible troll"); killed it at an `I` (F-dir), it rose again mid-meal, killed again and ATE it (Satiated; no more revivals). Killed a hostile nurse.
+T:20684 — picked up Q = coral ring (unknown) at (35,14) (pickup('ring') also grabbed a ring mail — dropped it).
+T:20688 — killed an invisible spear/magic-missile user ("It") at (37,15) when I bumped into it.
+T:20706 DL25 — **SHIFT 23 ENDS** on the scare-monster square (66,18) in the SE tower: HP 145/145, XL13 (Exp 55392, +3761 this shift), AC -10, Very fast, Satiated, not Burdened, no hostile in view. Shift summary: throne room cleared, WAND OF WISHING found and used for 5 wishes (charging, remove curse x2, life saving, genocide x2 -> L, speed boots). Next: royal chest, then the Valley via a trap door.

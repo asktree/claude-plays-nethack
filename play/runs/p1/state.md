@@ -1,20 +1,21 @@
 # p1 — current state (rewrite as things change)
 
 ## Character
-- Name/role: P1 the Woman-at-arms — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
-- Turn / Dlvl / XL / HP / Pw / AC: **T:20376 / DL25 = THE CASTLE (inside!)**, standing at **(32,12)** in the corridor between the antechamber and the throne room (on a partly eaten ICE TROLL corpse — trolls revive; a wand of digging lies here too) / **XL13** (Exp 51631; XL14 at 80000) / **97/145** / 28/28 / **AC -10** (orcish helm now very rusty) / **Burdened** (the cursed bag doubles its contents' weight).
-- A LIEUTENANT lies ASLEEP (sleep ray T:20359, 6d25 turns) ON the throne-room door (34,12) = a plug; awake soldiers behind it (one zaps a wand of STRIKING — MR says Boing). Throne room still has 2 fire giants (one sped up), 2 ogre lords, a troll, soldiers, and a PEACEFUL black naga (35,13) — never attack it.
-- **MAGIC RESISTANCE (GDSM) + REFLECTION x2 (shield b + amulet I).** MEDUSA DEAD (T:19944).
-- Rings worn: f prot. from shape changers (RIGHT), u slow digestion (LEFT). Amulet I = amulet of reflection, now **CURSED** (can't remove; harmless).
-- Food: ate royal jelly T:20274 + part of an ice troll T:20376. Carried: J 2 food rations, B C-ration, O K-ration, y 5 royal jelly.
-- Attributes: St 18/xx (royal jelly "You feel strong!"), Dx 16, Co20 In10 Wi11 Ch7.
-- Intrinsics: cold res, stealth, infravision, speed (Fast), POISON RES, FIRE RES, TELEPATHY (blind only — the BLINDFOLD l shows every minded monster on the level: used 4x this shift), MR (GDSM), REFLECTION. NO sleep/shock res.
-- Luck >= 0. Alignment record high; no peacefuls killed.
+- Name/role: P1 — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
+- **T:20706 / DL25 = THE CASTLE**, standing at **(66,18)** in the SE tower ON the wishing-chest square (burned Elbereth + CURSED scare monster scroll on the floor: nothing can melee me here; never pick the scroll up — it turns to dust; never attack FROM this square: "hypocrite" -5 alignment + the engraving is deleted — step off first).
+- XL13 (Exp 55392; XL14 at 80000) / HP 145/145 / Pw 28/28 / **AC -10** / **VERY FAST** (speed boots) / not Burdened / Satiated (T:20679).
+- **MR (GDSM) + REFLECTION (shield b) + LIFE SAVING (amulet L, worn).** Liches GENOCIDED. Medusa dead.
+- Rings worn: f prot. from shape changers (RIGHT), u slow digestion (LEFT). Q = coral ring (UNKNOWN, from a dead soldier's pile — do not put on untested).
+- Attributes: St 18/xx, Dx 16, Co20 In10 Wi11 Ch7. Intrinsics: cold res, stealth, infravision, Fast (+speed boots = Very fast), POISON RES, FIRE RES, TELEPATHY (blind only: blindfold l), MR, REFLECTION. NO sleep/shock res.
+- Luck >= 0 (wishes came out blessed). Alignment: no hypocrisy, no peacefuls hurt.
 
-## !!! CURSED BAG OF HOLDING (T:~20334, an invisible lich's curse-items spell)
-- **D "BoH prize" is CURSED: DO NOT OPEN IT** (#loot/apply/bag_take/bag_put: each opening makes every item inside vanish with 1/13 chance). It holds 2850 gold, the LAST FULL HEALING (w), swirly HEALING, rings (regeneration, polymorph control, shock res...), wands (magic missile, lightning 0:2, create monster), scrolls (enchant weapon, 3 fire...), can of grease, etc. Fix FIRST: blessed scroll of remove curse (read -> uncurses the whole pack) or holy water (#dip the bag). -> plan the first wish accordingly.
-- Also cursed now: k 6 scrolls of teleportation (cursed = random LEVEL teleport), Z wand of teleportation.
-- Potions LOST to lich cold touches (destroy_item works through cold resistance): t blessed full healing, M healing, murky N, fruit juice, the 2nd black potion. The 1st black potion was quaffed = **OBJECT DETECTION** (identified). **No healing potion outside the bag: prayer is the emergency heal.**
+## WISHES — all 5 used (T:20563-20619); the wand of wishing is DUST
+1. "2 blessed scrolls of charging" -> 1 (the wand had only 1 charge: this wish, then "Nothing happens"); read on the wand at (0:0) -> (1:3).
+2. "2 blessed scrolls of remove curse" -> 2 (K). Read one: bag D, amulet I, scrolls k, wand Z uncursed.
+3. "blessed amulet of life saving" -> L (pyramidal amulet), WORN.
+4. "2 blessed scrolls of genocide" -> 2 (M). Read one: class L (all liches). **1 blessed genocide M left** (a whole class; NEVER h or @).
+5. Wrested after 63 zaps: "blessed fireproof +2 speed boots" -> N, came out **+0** (the 1-in-5 reset, like the shield).
+- **PRAYER TIMEOUT: 5 wishes added 250-745 (T:20563-20619) on top of ~0 -> prayer for major trouble is NOT safe until ~T:21200 (worst case).** Emergency heal = w potion of full healing (main pack) + Elbereth + life saving. Never pray in Gehennom anyway.
 
 ## Prayer log
 | turn | reason | result |
@@ -23,18 +24,21 @@
 | T:2016 | lycanthropy (MAJOR) | CURED |
 | T:3401 | Weak from hunger (MAJOR) | fixed |
 | **T:18211** | **no trouble, timeout 0, on the DL15 co-aligned altar with plain water on it** | **"Tyr is well-pleased"; the water became HOLY WATER** |
-- Lamp wish T:18215 added 50-149. ~2165 turns since the last prayer: prayer_check() ~98% for MAJOR trouble (HP <= 145/6 = 24 at XL13). NOT prayed this shift.
+- Lamp wish T:18215 + 5 wand wishes T:20563-20619 each added 50-149: **prayer UNSAFE until ~T:21200** (was ~98% before the wishes). Run prayer_check() and discount it.
 - Escapes: the DL25 `<` (2,20) far west (through the courtyard + my dug maze passages); the Castle is NO-TELEPORT. Soldiers ignore Elbereth.
 - **Stoning cure: S = uncursed LIZARD CORPSE.**
 
 ## Equipment worn/wielded
-- a: blessed rustproof +6 EXCALIBUR (immune to disenchanters: DRLI defence, checked in zap.c drain_item). b: +0 SHIELD OF REFLECTION. x: blessed +2 GDSM. n: very rusty +0 orcish helm. V: +0 elven cloak. r: blessed +0 leather gloves. z: +0 low boots. f+u rings. I: CURSED amulet of reflection. H: elven dagger (quivered).
+- a: blessed rustproof +6 EXCALIBUR. b: +0 SHIELD OF REFLECTION. x: blessed +2 GDSM. n: very rusty +0 orcish helm. V: +0 elven cloak (faded pall). r: blessed +0 leather gloves. **N: +0 speed boots (mud boots)**. f+u rings. **L: amulet of life saving (pyramidal)**. H: elven dagger (quivered).
 
-## Key inventory (T:20376)
-- Wands: **R COLD** (4 used: 1 engrave + 3 zaps; 0-4 left), **h SLEEP** (3 used), **s SLEEP** (new, from a soldier, 1 used), **p MAGIC MISSILE** (new), Y striking (5 used: 0-3 left), c striking (4 used), C striking EMPTY, e CANCELLATION (never in a bag), o FIRE, E lightning (0:3), g DIGGING (1 used), G/Z teleportation (useless here).
-- l BLINDFOLD (telepathy scans), A UNICORN HORN, S LIZARD CORPSE, d KEY (for the wishing chest + locked doors), j PICK-AXE, T MAGIC MARKER (0:13), q 4 blank scrolls, m/W empty lamps, v uncursed gray stone.
+## Key inventory (T:20706)
+- Scrolls: **K 1 blessed remove curse**, **M 1 blessed genocide**, k 6 uncursed teleportation (no-teleport here), q 4 blank. Potion: **w full healing** (from the bag).
+- Wands: R COLD (0-4 left), h SLEEP (3 used), s SLEEP (2 used), p magic missile, Y/C/c striking (C EMPTY), e CANCELLATION (never in a bag; never at self), o FIRE, E lightning (0:3), g DIGGING, G/Z teleportation.
+- Tools: D bag of holding (UNCURSED now; 36 items: 2850 gold, healing potion, rings regeneration/polymorph control/shock res..., wands lightning 0:2/create monster/magic missile, scrolls enchant weapon/3 fire..., can of grease, uncursed AMULET OF REFLECTION I (spare)), l BLINDFOLD, A UNICORN HORN, S LIZARD CORPSE (stoning cure), d KEY, j PICK-AXE, T MAGIC MARKER (0:13), m/W empty lamps, v uncursed gray stone.
+- Food: J 2 food rations, B C-ration, O K-ration, y 5 royal jelly.
 
 ## Identified appearances
+- NEW (T:20563-20623): DAIYEN FOOELS = charging, JUYED AWK YACC = genocide, pyramidal amulet = LIFE SAVING, spiked wand = wishing, mud boots = SPEED BOOTS.
 - Scrolls: ZELGO MER identify, EIRIS SAZUN IDISI amnesia, GARVEN DEH light, HACKEM MUCHE fire, TEMOV teleportation, FOOBIE BLETCH enchant weapon, KERNOD WEL scare monster, THARR create monster, ZLORFIK gold detection, XOR OTA = REMOVE CURSE (named). NR 9 (200) = earth or taming. ELAM EBOW (100) unknown.
 - Potions: yellow sickness, brilliant blue blindness, cyan oil, pink GAIN LEVEL, swirly HEALING, golden SPEED, ruby FULL HEALING, dark MONSTER DETECTION, orange BOOZE, sky blue CONFUSION, dark green FRUIT JUICE, clear WATER, **black OBJECT DETECTION**; cloudy = PARALYSIS? (a soldier's thrown cloudy potion: "Something seems to be holding you") .
 - Wands: marble lightning, iridium striking, oak magic missile, crystal speed monster, short TELEPORTATION, zinc nothing, ebony CREATE MONSTER, balsa FIRE, platinum DIGGING, glass CANCELLATION, uranium COLD, aluminum SLEEP.
@@ -57,23 +61,20 @@
 | Mines | Mines | Minetown = Mines 3 (DL6): temple of Odin (neutral), shops. Mines' End DL11. |
 | Sokoban | | ALL SOLVED. |
 
+## Castle geometry (castle.des; screen = map + (8,4))
+- Throne room x35-45 y9-15 (throne (44,12), ROYAL CHEST (45,12) NOT LOOTED — #untrap first: electric trap destroys wands/rings; secret door (46,12) east of the chest -> back corridor row 12 x47-63 with TRAP DOORS at (48,12),(52,12),(56,12),(60,12),(63,12) = the way down to the Valley).
+- Doors: west (34,12) (armor/food piles on it), south (40,16) UNLOCKED+open (pile on it), north (40,8) locked. Halls row 7 / row 17 (unlit), reachable ONLY from the throne room. Towers: SE (64-68,17-18) door (63,17) open — the wishing square (66,18). NE/NW/SW towers unvisited (2 soldiers each at start; some already dead).
+- Barracks x24-33 y9-10 and y14-15 (locked doors (34,9),(34,15) into the throne room; sleeping soldiers?). Storerooms (gems/weapons north, food/armor south) only via the dragon alcoves on the trap-door corridor.
+- Peacefuls here: a FIRE GIANT and the BLACK NAGA wander the throne room — never attack (F on an `I` there only when it just attacked you).
+
 ## Threats / known dangers
 - **Castle (wiki Castle.txt)**: up stairs in the small left maze; castle in the middle surrounded by a MOAT with 4 SHARKS + 4 GIANT EELS (stay 2+ squares from water; HELD = Elbereth doesn't work on... engrave anyway / kill it). Barracks on both sides of the entry hall (soldiers, sergeants, lieutenants, captains), 2 soldiers per corner tower, 8 soldiers + a lieutenant in the atrium. Throne room: 27 monsters from E H L M N O R T X Z (LICHES), chest behind the throne. Two random DRAGONS in each alcove between the storerooms. Floor undiggable (except trap-door squares); castle walls undiggable, maze walls diggable. No down stairs: the TRAP DOORS at the back (east) lead to the Valley. No teleport on the level. Mazes and some floors are unlit (and I have no light source now).
 - **WAND OF WISHING**: locked (never trapped) chest in one of the 4 corner rooms, on a burnt Elbereth + scroll of scare monster, 2 soldiers each. Key d opens it (`unlock()` / `loot_all()`).
 - Soldiers (@) ignore Elbereth; MR + reflection cover wand death rays; they hit hard in groups — fight in corridors/doorways; zap SLEEP (h) down a line of them.
 - Fire elementals/fire breath destroy potions/scrolls. Quantum mechanics teleport (not on the Castle). Gelatinous cubes: force bolt from range.
 
-## Shift 23 plan (written at T:20376 before acting)
-Route facts (castle.des, screen = map+(8,4)): the bottom hall (row 17, x16-62) is reachable ONLY through the throne room's locked door (40,16) (castle walls undiggable). SE tower = x64-68 y17-18, door (63,17) (closed, not locked); 2 tower soldiers start at (65,18)/(67,18); chest + burned Elbereth + cursed scare monster at (66,18) — standing there, even soldiers won't melee (scroll works on @).
-1. Eat the rest of the ice troll corpse under me (no revival behind me), rest at (32,12) behind the sleeping lieutenant plug to ~85%+.
-2. Kill the lieutenant from (33,12), hold (33,12) (only the door square reaches me) vs soldiers/giants/ogre lords/troll one at a time.
-3. Cross the throne room to (40,15) (peaceful black naga: never attack), unlock (40,16) with key d, hall east to (62,17), open (63,17), kill the 2 soldiers, stand on (66,18), loot_all().
-4. Wishes: first "2 blessed scrolls of charging"? NO — order decided at the chest after seeing the charge count (never engrave-test). Default: 1) 2 blessed scrolls of remove curse? -> see journal for the final order.
-
-## Objective and plan (after shift 22)
-Castle geometry: screen x = mapx+8, y = mapy+4. Towers NW (12,6), NE (66,6), SW (12,18), **SE (66,18) = the chest**. Tower doors (15,7), (63,7), (15,17), **(63,17)**. Throne-room doors to the halls: (40,8) top, **(40,16) bottom (locked; key d / unlock())**. Halls y=7 / y=17.
-1. Recover HP (97/145) in the corridor chokepoint (32,12)/(33,12): only (34,12) [door] and (31,12) can reach me. Finish eating the troll corpse or keep killing it when it revives. Kill the lieutenant plug when ready and fight the throne room one at a time at the door (hold loop: fight_until_clear radius 1 + unseen-I handling). Sleep wands h/s down row 12 when a queue forms.
-2. Throne room: peaceful black naga (35,13) — leave it. Then unlock (40,16), hall east to (62,17), door (63,17), 2 tower soldiers, chest at (66,18): `loot_all()` (key d). Do NOT pick up the cursed scare monster scroll. Stand ON the chest square (scare monster: soldiers flee too).
-3. Wishes (zap the wand; the harness pauses at the prompt; `cont --reply '...<CR>'`): 1) "2 blessed scrolls of remove curse" (uncurse the BAG before ever opening it, + the amulet) — or "2 blessed scrolls of charging" first if the wand shows (0:3)?: never engrave-test it. Then "2 blessed scrolls of charging" (recharge ONCE at 0 charges -> 3), blessed +2 speed boots, 2 blessed genocide (L, then ;), blessed amulet of life saving... (PLAYBOOK E). Write every wish in the journal.
-4. Invisible LICHES are around (3 killed): their cold touch destroys potions even with cold res and they cast curse items. Hit an adjacent `I` at once (F-dir); keep potions bagged (after the bag is uncursed).
-5. XL14 (80000) + piety for the quest (DL13 portal).
+## Objective and plan (after shift 23)
+1. (optional, cheap) Loot the royal chest (45,12): stand on it, `#untrap` it once or twice, then loot_all(). (optional) Sit on the throne (44,12): 1/39 wish, 1/39 genocide per sit; risks shock d30, curse (1 remove curse left), a summoned court — full HP only, bag the wands first.
+2. Next objective: THE VALLEY OF THE DEAD via a Castle trap door (search (46,12) from (45,12) with Excalibur, walk to (48,12), step_onto(force=True)). Full HP first. Gehennom rules: NO PRAYER, Temple of Moloch priest peaceful (leave it), eat WRAITH corpses at once (+1 XL each) -> XL14 for the quest.
+3. Quest (DL13 portal (73,17)) once XL14 + piety() "piously". Bell of Opening from Lord Surtur.
+4. Identify the coral ring Q (altar/scroll/price) before wearing. Consider blessed genocide #2 for `;` (Plane of Water) or keep as a reserve.
