@@ -414,8 +414,10 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 cur = ctx.last()
                 detour = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad), allow_monsters=False)
                 if detour is None:
-                    raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square "
-                                   f"{sorted(bad)}")
+                    on = [c for c in direct if c in bad]
+                    raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square — the direct "
+                                   f"one crosses {on} (traps, avoid() squares, mimics, stationary hostiles: "
+                                   f"{sorted(bad)}); avoid(clear=True) forgets the manual ones")
                 try:
                     return walk_path(detour)
                 except NavError:
@@ -869,7 +871,9 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
         return unknown[0], (f"the other {ch} at {other[0]} leads to {known[other[0]]}; pass to='...' to take a "
                             "branch on purpose")
     print(f"stairs: {len(cells)} {ch!r} here ({', '.join(map(str, cells))}) and where they lead is unknown — "
-          f"taking the nearest; one of them is a branch (^O overview shows which branches start here)")
+          f"taking the nearest, {cells[0]}; one of them is a branch (overview() says which branch starts on "
+          f"this level; go_{'down' if ch == '>' else 'up'}(to='Mines'/'Sokoban'/'Dungeons') once one is known, "
+          "or travel to the other one and press it yourself)")
     return cells[0], ""
 
 

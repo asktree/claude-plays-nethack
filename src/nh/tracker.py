@@ -79,9 +79,9 @@ class Tracker:
                 if fname in feat_ch:
                     for c in fcells:
                         game.terrain_seen.setdefault(key, {}).setdefault(tuple(c), feat_ch[fname])
-            for attr in ("traps", "avoid"):
+            for attr in ("traps", "avoid", "solid"):
                 cells = {tuple(c) for c in lv.get(attr, [])}
-                if cells:
+                if cells and hasattr(game, attr):
                     getattr(game, attr).setdefault(key, set()).update(cells)
             if lv.get("kills") and hasattr(game, "kills"):
                 game.kills[key] = [(n, (x, y), t) for n, x, y, t in lv["kills"]]
@@ -184,8 +184,8 @@ class Tracker:
                     feats["drawbridge"] = bridges
                 lv["features"] = feats
                 lv["map"] = [snap.screen.row(y).rstrip() for y in range(MAP_TOP, MAP_BOTTOM + 1)]
-            for attr in ("traps", "avoid"):
-                cells = sorted(getattr(self.game, attr).get(key, ()))
+            for attr in ("traps", "avoid", "solid"):
+                cells = sorted(getattr(self.game, attr, {}).get(key, ()))
                 if cells or attr in lv:
                     lv[attr] = [list(c) for c in cells]
             kills = getattr(self.game, "kills", {}).get(key)

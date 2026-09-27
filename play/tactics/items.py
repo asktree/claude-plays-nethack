@@ -607,6 +607,18 @@ def _warn_full(msgs, who: str) -> None:
               "something (bag_put) and try again.")
 
 
+_ENC = ("", "Burdened", "Stressed", "Strained", "Overtaxed", "Overloaded")
+_TAKE = ("encumbrance",)     # a heavier load from a helper's own pickup is no news: _enc_note says it once
+
+
+def _enc_note(who: str, enc0: str) -> None:
+    st = ctx.last().status
+    e1 = (st.encumbrance or "") if st.ok else ""
+    if e1 in _ENC and (enc0 or "") in _ENC and _ENC.index(e1) > _ENC.index(enc0 or ""):
+        print(f"{who}: you are now {e1}" + ("" if e1 == "Burdened" else
+                                              " — !! slow and clumsy in a fight: drop or bag something heavy"))
+
+
 def bag_put(bag: str, letters: str) -> list:
     """Put the inventory items `letters` (e.g. 'mq') into the carried
     container `bag`, one "stash one item" at a time. Returns the messages."""
@@ -695,6 +707,7 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
     if pattern is not None and pattern.strip().lower() in ("gold", "$", "coins", "gold pieces", "zorkmids"):
         pattern = r"\bgold pieces?\b"
     disco = discoveries() if pattern else []
+    enc0 = ctx.last().status.encumbrance or ""
     s = _apply_container(bag, r"take something out")
     msgs = list(s.messages)
     for _ in range(6):
@@ -724,12 +737,13 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
                 ctx.do("<Esc>", quiet=True)
                 raise LookupError(f"bag_take: nothing in {bag!r} matches {pattern!r}; it holds: "
                                   + "; ".join(with_looks(t, disco) for t in seen))
-            s = ctx.do("<CR>", quiet=True)
+            s = ctx.do("<CR>", quiet=True, expect=_TAKE)
         else:
             ctx.pause(f"bag_take(): unexpected {k} {p!r}")
             s = ctx.last()
         msgs += s.messages
     _warn_full(msgs, "bag_take")
+    _enc_note("bag_take", enc0)
     return msgs
 
 
@@ -788,7 +802,8 @@ def pickup(pattern: str | None = None) -> list:
         print(f"pickup({pattern!r}): nothing matching here — the floor has only {single.group(1)} "
               "(a pet or a monster may have moved it: obs.objects)")
         return []
-    s = ctx.do(",", quiet=True)
+    enc0 = ctx.last().status.encumbrance or ""
+    s = ctx.do(",", quiet=True, expect=_TAKE)
     msgs = list(s.messages)
     if s.state.kind == "menu":
         chosen, seen = 0, []
@@ -806,11 +821,16 @@ def pickup(pattern: str | None = None) -> list:
             ctx.do("<Esc>", quiet=True)
             print(f"pickup({pattern!r}): nothing matching here — the floor has: " + "; ".join(seen))
             return msgs
-        s = ctx.do("<CR>", quiet=True)
+        try:
+            s = ctx.do("<CR>", quiet=True, expect=_TAKE)
+        except PermissionError:
+            ctx.do("<Esc>", quiet=True)          # a guard refused (loadstone? cockatrice?): don't leave the menu open
+            raise
         msgs += s.messages
     if s.state.kind != "command":
         ctx.pause(f"pickup(): unexpected {s.state.kind} {s.state.prompt!r}")
     _warn_full(msgs, "pickup")
+    _enc_note("pickup", enc0)
     return msgs
 
 
@@ -967,6 +987,7 @@ _GRAY_STONE = re.compile(r"\bgr[ae]y stones?\b")
 
 
 def _loot_all_once(take_gray_stones: bool = False) -> list:
+    enc0 = ctx.last().status.encumbrance or ""
     s = ctx.do("#loot<CR>", quiet=True)
     msgs = list(s.messages)
     left: list = []
@@ -1011,7 +1032,7 @@ def _loot_all_once(take_gray_stones: bool = False) -> list:
                         s = ctx.do(">", quiet=True)
                     else:
                         break
-                s = ctx.do("<CR>", quiet=True)
+                s = ctx.do("<CR>", quiet=True, expect=_TAKE)
         else:
             ctx.pause(f"loot_all(): unexpected {k} {p!r}")
             s = ctx.last()
@@ -1023,4 +1044,5 @@ def _loot_all_once(take_gray_stones: bool = False) -> list:
               "container (its contents spill on the floor), step aside and kick the stone — a loadstone doesn't "
               "budge ('Thump!'); a luckstone/touchstone/flint slides. loot_all(take_gray_stones=True) takes them.")
     _warn_full(msgs, "loot_all")
+    _enc_note("loot_all", enc0)
     return msgs

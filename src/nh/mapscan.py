@@ -174,6 +174,8 @@ def features_in_view(snap, hero=None) -> list[dict]:
                     name = "open door"
                 elif ch == "#" and col == 2:
                     name = "tree"
+                elif ch == "#" and col == 10:
+                    name = "poison gas cloud"      # S_poisoncloud: blocks sight, blinds you a turn at a time
                 elif ch == "#" and col == 6:
                     name = "iron bars"
                 elif ch == "#" and col == BROWN:

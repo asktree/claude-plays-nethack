@@ -29,6 +29,7 @@ from .keys import parse_keys
 from .parse import MAP_BOTTOM, MAP_TOP, MONSTER_CHARS, HUNGER, ENCUMBRANCE
 
 _HUNGER_RANK = {"": 0, "Satiated": 0, "Hungry": 1, "Weak": 2, "Fainting": 3, "Fainted": 4}
+_ENC_RANK = {"": 0, "Burdened": 1, "Stressed": 2, "Strained": 3, "Overtaxed": 4, "Overloaded": 5}
 
 
 # Messages that never need a human look by themselves (pets, routine
@@ -91,6 +92,11 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     # your own armor/accessory changes (a cursed one still pauses: "You can't. It is cursed.")
     r"^You were wearing (?!.*\bcursed\b)", r"^You are now wearing (?!.*\bcursed\b)",
     r"^You finish (?:taking off|your dressing maneuver)",
+    r"^You can see again\.$",           # blindness over (the status line shows it)
+    # a lighter load (hack.c encumber_msg) is good news; a heavier one pauses on the status change
+    r"^Your movements are (?:now unencumbered|only slowed slightly by your load)\.$",
+    r"^You rebalance your load\.  ?Movement is still difficult\.$",
+    r"^You \w+ under your load\.  ?Movement is still very hard\.$",      # (stagger/crawl/slither...)
     # exercise (attrib.c exerchk): gains are good news; the status line shows the attribute
     r"^You feel (?:very )?(?:strong|smart|wise|agile|tough|charismatic)!$",
     r"^You must have been (?:exercising diligently|very observant|working on your reflexes|leading a healthy)",
@@ -110,6 +116,12 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:the tones of courtly conversation|a sceptre pounded|Queen Beruthiel)",
     r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
 )]
+
+
+# a poison gas cloud (region.c inside_gas_cloud; a green dragon's breath leaves them, so do stinking cloud
+# scrolls and Gehennom's fumaroles): with poison resistance only a 1-turn blindness and a cough each turn
+# you stand in it — news once per level; without it "Something is burning your lungs!" costs HP
+_CLOUD = re.compile(r"^Your eyes sting\.$|^You cough!$")
 
 
 class Abandon(BaseException):
@@ -334,6 +346,9 @@ class Kernel:
         if snap.state.kind in ("gameover", "dead"):
             reasons.append("GAME OVER" if snap.state.kind == "gameover" else "TERMINAL DEAD")
         extra = [re.compile(p) if isinstance(p, str) else p for p in (ok or [])]
+        in_cloud = any(_CLOUD.search(m) for m in snap.messages)
+        cloud_key = (snap.status.ldesc if snap.status.ok else "", "cloud")
+        cloud_news = in_cloud and cloud_key not in self._heard
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
                 and not any(p.search(m) for p in extra)
@@ -341,6 +356,12 @@ class Kernel:
                 and not self._heard_before(m, snap)]
         if msgs and not quiet:
             reasons.append("message")
+        if cloud_news:
+            reasons.insert(0, "POISON GAS CLOUD (bright green '#'): each turn in it blinds you for a turn"
+                              + (" — harmless otherwise with your poison resistance; step out of it (it also "
+                                 "hides monsters)" if self._poison_res() else
+                                 " and BURNS YOUR LUNGS (rnd(dmg)+5 HP a turn without poison resistance) — "
+                                 "get out now"))
         trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)
                    and not m.startswith("There is")]
         lt = getattr(self.game, "last_theft", None)
@@ -393,13 +414,16 @@ class Kernel:
                     low = a.hp < self.hp_pause * mx
                     if big_hit or low:
                         reasons.append(f"HP {b.hp}->{a.hp}/{a.hpmax}")
-            new_conds = [c for c in a.conditions if c not in b.conditions]
+            new_conds = [c for c in a.conditions if c not in b.conditions
+                         and not (c == "Blind" and in_cloud and not cloud_news and self._poison_res())]
             if new_conds:
                 reasons.append("status: +" + ",".join(new_conds))
             if _HUNGER_RANK.get(a.hunger, 0) > _HUNGER_RANK.get(b.hunger, 0):
                 reasons.append(f"hunger: {a.hunger}")
-            if a.encumbrance != b.encumbrance:
-                reasons.append(f"encumbrance: {a.encumbrance or 'unencumbered'}")
+            if _ENC_RANK.get(a.encumbrance or "", 0) > _ENC_RANK.get(b.encumbrance or "", 0) \
+                    and "encumbrance" not in expect:
+                # (a lighter load is never news; the item helpers take heavier loads themselves and say so)
+                reasons.append(f"encumbrance: {a.encumbrance}")
             if a.ldesc != b.ldesc and "level" not in expect:
                 reasons.append(f"level: {b.ldesc} -> {a.ldesc}")
             if a.xl != b.xl:
@@ -459,7 +483,8 @@ class Kernel:
             self._maybe_pause("; ".join(reasons), snap)
 
     def _heard_before(self, m: str, snap: Snap) -> bool:
-        """A ONCE_PER_LEVEL noise already paused for on this level."""
+        """A ONCE_PER_LEVEL noise already paused for on this level (and, with poison resistance, the
+        gas-cloud cough)."""
         for i, p in enumerate(ONCE_PER_LEVEL):
             if p.search(m):
                 key = (snap.status.ldesc if snap.status.ok else "", i)
@@ -467,7 +492,15 @@ class Kernel:
                     return True
                 self._heard.add(key)
                 return False
+        if _CLOUD.search(m) and self._poison_res():
+            key = (snap.status.ldesc if snap.status.ok else "", "cloud")
+            if key in self._heard:
+                return True
+            self._heard.add(key)
         return False
+
+    def _poison_res(self) -> bool:
+        return "poison" in (getattr(self.game, "intrinsics", None) or ())
 
     DEFER_NEAR = 6       # a deferred far newcomer pauses when it comes this close
 

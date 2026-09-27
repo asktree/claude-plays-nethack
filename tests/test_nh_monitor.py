@@ -604,3 +604,53 @@ def test_poison_paralysis_and_quest_notes():
     assert "QUEST LEADER" in note_for("peaceful Norn", 13) and "stronger" not in note_for("peaceful Norn", 13)
     assert "Bell of Opening" in note_for("Lord Surtur", 14)
     assert "DROWNS" in note_for("giant eel, holding you", 14)
+
+
+def test_wanderer_back_in_view_far_away_is_looked_at_but_not_new():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(5, 3): "frost giant"}
+    first = t.update(snap({(5, 3): "H"}, 100, color=15))
+    t.update(snap({}, 101, color=15))
+    g.truth = {(70, 18): "frost giant"}
+    g.looked.clear()
+    m = t.update(snap({(70, 18): "H"}, 300, color=15))    # 65 squares and 200 turns away: looked at...
+    assert g.looked == [(70, 18)] and m[0]["desc"] == "frost giant"
+    assert not m[0]["new"] and m[0]["id"] == first[0]["id"]  # ...but the same giant, not a newcomer
+    # a SECOND one while the first is still in view is new
+    g.truth = {(70, 18): "frost giant", (10, 3): "frost giant"}
+    m = by_pos(t.update(snap({(70, 18): "H", (10, 3): "H"}, 301, color=15)))
+    assert m[(10, 3)]["new"] and not m[(70, 18)]["new"]
+
+
+def test_kernel_encumbrance_and_gas_cloud_rules():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def check(before_enc, after_enc, msgs=(), conds=((), ()), expect=()):
+        s0, s1 = snap({}, 10), snap({}, 11)
+        s0.status.encumbrance, s1.status.encumbrance = before_enc, after_enc
+        s0.status.conditions, s1.status.conditions = list(conds[0]), list(conds[1])
+        s1.messages = list(msgs)
+        reasons.clear()
+        k._check_events(s0, s1, expect=expect)
+        return " / ".join(reasons)
+    assert "encumbrance: Burdened" in check("", "Burdened", ["Your movements are slowed slightly because of your load."])
+    assert check("Burdened", "", ["Your movements are now unencumbered."]) == ""        # lighter: no news
+    assert check("", "Burdened", expect=("encumbrance",)) == ""                         # an item helper's own pickup
+    # a poison gas cloud: without poison resistance every turn pauses
+    g.intrinsics = {"cold"}
+    first = check("", "", ["Your eyes sting.", "Something is burning your lungs!", "You cough and spit blood!"],
+                  conds=((), ("Blind",)))
+    assert "POISON GAS CLOUD" in first and "BURNS YOUR LUNGS" in first
+    assert "status: +Blind" in check("", "", ["Your eyes sting.", "You cough!"], conds=((), ("Blind",)))
+    # with poison resistance: news once per level, then routine (the 1-turn blindness included)
+    g.intrinsics = {"cold", "poison"}
+    k._heard.clear()
+    once = check("", "", ["Your eyes sting.", "You cough!"], conds=((), ("Blind",)))
+    assert "POISON GAS CLOUD" in once and "harmless" in once
+    assert check("", "", ["You can see again.", "Your eyes sting.", "You cough!"], conds=((), ("Blind",))) == ""

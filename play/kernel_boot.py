@@ -34,6 +34,7 @@ from tactics import sokoban  # noqa: E402,F401  (sokoban.push(x, y, 'hhk'), soko
 from tactics.info import (corpse, last_seen, mon, obj, price_candidates, price_id, threat,  # noqa: E402,F401
                           wiki, wiki_page)
 from tactics.nav import descend, kick_door  # noqa: E402,F401
+from tactics.info import overview  # noqa: E402,F401
 from tactics.explore import object_frontiers, search_until_change  # noqa: E402,F401
 from tactics.explore import head_to, screen_frontiers  # noqa: E402,F401
 from tactics.nav import avoid, bad_squares, blockers, path_to, walk_path  # noqa: E402,F401

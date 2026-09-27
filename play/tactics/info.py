@@ -196,3 +196,16 @@ def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: i
             continue
         out.append((o["name"], base))
     return sorted(out, key=lambda x: (x[1], x[0]))
+
+
+def overview() -> str:
+    """The dungeon overview (^O, no game time) as text: every level you have
+    seen with its notes — branch stairs ("Stairs down to the Gnomish Mines"),
+    shops, altars, fountains, "A primitive area." (the Rogue level)..."""
+    from . import ctx
+    ctx.require_command("overview()")
+    with ctx.no_monster_pauses():
+        s = ctx.do("<C-o>", quiet=True)
+    text = "\n".join(s.messages)
+    s.messages = []            # the text is the return value, not a message to show again
+    return text

@@ -136,6 +136,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
     s = ctx.last()
     locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
     engulf_warned = False
+    t_first = s.status.turn if s.status.ok and s.status.turn is not None else 0
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
             return s
@@ -177,7 +178,10 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 seen.extend(s.messages)
                 continue
             if not targets and locked_on:
-                if not any(re.search(r"^You (?:kill|destroy) ", m) for m in seen):
+                recent = [m for t, m in list(getattr(ctx.game, "history", []))[-40:] if t is None or t >= t_first]
+                killed = re.compile(r"^You (?:kill|destroy) (?:it\b|(?:the |an? |poor )?" + re.escape(locked_on) + ")")
+                if not any(re.search(r"^You (?:kill|destroy) ", m) for m in seen) \
+                        and not any(killed.search(m) for m in recent):
                     print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed (it teleported, fled out of "
                           "view or hid): look around (a covetous one teleports to heal and comes back)")
                 return s
@@ -513,17 +517,21 @@ HUNT_OK = ROUTINE + [r" attacks you with a fiery gaze!$", r" spits venom!$", r"^
 
 
 def _greedy_step(s, goal, bad) -> tuple | None:
-    """A square next to you, closer to `goal`, that is known floor or blank (unexplored dark floor
-    may be there) and not a known trap, water, wall or monster."""
-    from .mapview import is_walkable, neighbors
+    """A square next to you, closer to `goal`, that is known floor (or, while you are BLIND, a blank:
+    you don't see the squares next to you then; otherwise a blank next to you is rock) and not a known
+    trap, water, wall or monster; never diagonally into or out of a doorway."""
+    from .mapview import is_door, is_walkable, neighbors
     h = s.hero
     occupied = {(m["x"], m["y"]) for m in s.monsters or []}
+    blind = s.status.ok and "Blind" in s.status.conditions
     best = None
     for c in neighbors(*h):
         if c in bad or c in occupied or c == goal:
             continue
         ch = s.screen.at(*c)
-        if not (is_walkable(s, *c, allow_monsters=False) or ch == " "):
+        if not (is_walkable(s, *c, allow_monsters=False) or (ch == " " and blind)):
+            continue
+        if c[0] != h[0] and c[1] != h[1] and (is_door(s, *h) or is_door(s, *c)):
             continue
         d = (max(abs(c[0] - goal[0]), abs(c[1] - goal[1])), abs(c[0] - goal[0]) + abs(c[1] - goal[1]))
         if d[0] < max(abs(h[0] - goal[0]), abs(h[1] - goal[1])) and (best is None or d < best[0]):
@@ -551,6 +559,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
     t0 = s.status.turn or 0
     kills: list = []
     want = species = None
+    warned_others = False
 
     def out(reason):
         return {"reason": reason, "turns": (ctx.last().status.turn or t0) - t0, "kills": kills}
@@ -586,10 +595,15 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
             from nh.monitor import _stationary
             others = [e for e in s.adjacent_hostiles() if e is not m and not auto_fightable(e, s)
                       and not _stationary(e.get("desc") or "")]     # a mold can't follow: walk on past it
-            if others:
+            if others and m["dist"] != 1:
                 return out("blocked: " + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})"
                                                    for e in others) + " is next to you — your call")
             if m["dist"] == 1:
+                if others and not warned_others:
+                    warned_others = True
+                    print("hunt: " + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})" for e in others)
+                          + f" is next to you too — fighting the {species or target} first (fight()'s HP checks "
+                          "count every adjacent hostile)")
                 s = fight(m["x"], m["y"], stop_hp=stop_hp)
                 kills += killed_names(s.messages)
                 if s.state.kind == "command" and any(e.get("id") == want for e in s.adjacent_hostiles()) \

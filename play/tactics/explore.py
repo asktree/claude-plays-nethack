@@ -83,7 +83,8 @@ def object_frontiers(s=None):
     out = []
     for o in s.objects:
         x, y = o["x"], o["y"]
-        if o["ch"] in "0`" or (x, y) in bad or not _on_known_ground(s, x, y):
+        if o["ch"] in "0`" or (x, y) in bad or (x, y) in getattr(s, "solid_mem", ()) \
+                or not _on_known_ground(s, x, y):
             continue
         # a blank square beside it that you were never next to (standing next to the pile shows the
         # pile, not what lies beyond it in a dark corridor)

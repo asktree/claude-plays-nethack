@@ -66,6 +66,7 @@ class Snap:
     flags: set = field(default_factory=set)       # this level's flags ("rogue", "castle", "medusa?", "medusa"...)
     medusa_risk: bool = False  # probably Medusa's level and you are neither blind nor known to reflect
     gold_note: str = ""        # loose gold while you carry a bag (leprechauns take the purse, not the bag)
+    solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -353,6 +354,8 @@ class Game:
         self.last_theft: dict | None = None       # {"turn", "msg", "what"}: the latest theft from you
         self.level_flags: dict[str, set] = {}     # level key -> {"rogue"}: levels drawn differently
         self.floor_seen: dict[str, set] = {}      # Rogue level: squares once shown as floor/corridor/doorway
+        self.solid: dict[str, set] = {}           # level key -> squares a step into said "It's solid stone."
+                                                  # (gold/gems embedded in the Mines' rock look walkable)
         self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
         self.real_xl: int | None = None    # last XL read while not polymorphed
@@ -377,7 +380,8 @@ class Game:
         """Merge per-level memory recorded under a provisional key."""
         if old == new:
             return
-        for d in (self.traps, self.avoid, self.visited, self.locked_doors, self.level_flags, self.floor_seen):
+        for d in (self.traps, self.avoid, self.visited, self.locked_doors, self.level_flags, self.floor_seen,
+                  self.solid):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc):
@@ -814,6 +818,7 @@ class Game:
     _CORPSE_Q = re.compile(r"There (?:is|are) (?:an? |\d+ )?(.+?) corpses? here; eat (?:it|one)\?")
     _TIN_SMELL = re.compile(r"It smells like (?:the )?(.+?)\.")
     GRAY_STONE = re.compile(r"\bgr[ae]y stones?\b")
+    _KNOWN_SAFE_BUC = re.compile(r"\b(?:uncursed|blessed)\b")    # only a CURSED loadstone can't be dropped
 
     @staticmethod
     def _singulars(plural: str) -> list[str]:
@@ -945,7 +950,7 @@ class Game:
                         "refusing to pick up here: the only object on this square is a cockatrice/chickatrice "
                         "corpse, and ',' takes it without a menu — touching it bare-handed is instant stoning. "
                         "force=True only if you wear gloves.")
-                if self.GRAY_STONE.search(txt) and "Things that" not in txt:
+                if self.GRAY_STONE.search(txt) and "Things that" not in txt and not self._KNOWN_SAFE_BUC.search(txt):
                     raise PermissionError(
                         "refusing to pick up the gray stone: it may be a LOADSTONE (cursed ones can't be dropped; "
                         "500 weight). Step off and kick it first: a loadstone doesn't budge ('Thump!'), a "
@@ -1040,7 +1045,8 @@ class Game:
                 raise PermissionError(
                     f"refusing to confirm the pickup of {bad[0]!r}: touching a cockatrice corpse bare-handed is "
                     "instant stoning. Unselect it (its letter again), or force=True if you wear gloves.")
-            stones = [i.text for i in snap.state.menu.selectable() if i.selected and self.GRAY_STONE.search(i.text)]
+            stones = [i.text for i in snap.state.menu.selectable() if i.selected and self.GRAY_STONE.search(i.text)
+                      and not self._KNOWN_SAFE_BUC.search(i.text)]
             if stones:
                 raise PermissionError(
                     f"refusing to confirm the pickup of {stones[0]!r}: it may be a LOADSTONE (cursed: can't be "
@@ -1254,6 +1260,11 @@ class Game:
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
                         # moves or erases the engraving here without a word (zap.c)
                         self.engr_seen.get(self.level_key(snap.status), {}).pop(snap.hero, None)
+                    if len(data) == 1 and data[0] in self._MOVE and cur.hero is not None and snap.hero == cur.hero \
+                            and any(m in ("It's solid stone.", "It's a wall.") for m in messages):
+                        dx, dy = self._MOVE[data[0]]
+                        self.solid.setdefault(self.level_key(snap.status), set()).add(
+                            (cur.hero[0] + dx, cur.hero[1] + dy))
                     self._note_wield(messages)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
@@ -1548,6 +1559,11 @@ class Game:
                           if bags and snap.status.ok and (snap.status.gold or 0) >= 200 else "")
         snap.flags = set(self.level_flags.get(key, ())) if key is not None else set()
         snap.floor_mem = (self.floor_seen.get(key, set()) | self.visited.get(key, set())) if snap.rogue else set()
+        solid = self.solid.get(key) if key is not None else None
+        if solid:
+            for c in [c for c in solid if c == snap.hero or snap.screen.at(*c) in ".#"]:
+                solid.discard(c)            # dug out since (or you stand there)
+        snap.solid_mem = set(solid or ())
 
     _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
 

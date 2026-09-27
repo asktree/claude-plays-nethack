@@ -60,6 +60,8 @@ def is_walkable(s, x, y, allow_monsters=True) -> bool:
     only gray '#' as corridor."""
     if not in_map(x, y):
         return False
+    if (x, y) in getattr(s, "solid_mem", ()):
+        return False          # a step there said "It's solid stone." (gold/gems embedded in rock)
     ch = cell(s, x, y)
     if ch == " ":
         # a cyan blank is open air (Planes of Air and Water); on the Rogue level a dark-room floor square

@@ -1044,9 +1044,17 @@ def test_tune_prompt_is_text_and_cyan_underscore_is_a_chain():
 def test_hunt_steps_into_unexplored_dark_floor(monkeypatch):
     from tactics.combat import _greedy_step
     troll = {"x": 13, "y": 5, "ch": "T", "desc": "rock troll", "dist": 3}
+    s = _snap({5: "        ..@.  "}, (10, 5), [troll])
+    assert _greedy_step(s, (13, 5), set()) == (11, 5)          # known floor toward it (the rest is dark)
     s = _snap({5: "        ..@   "}, (10, 5), [troll])
-    assert _greedy_step(s, (13, 5), set()) == (11, 5)          # blank (unexplored) square toward it
+    assert _greedy_step(s, (13, 5), set()) is None             # a blank NEXT to you is rock when you can see
+    s.status.conditions = ["Blind"]
+    assert _greedy_step(s, (13, 5), set()) == (11, 5)          # blind: you don't see the floor next to you
     assert _greedy_step(s, (13, 5), {(11, 5), (11, 4), (11, 6)}) is None
+    # never diagonally out of a doorway (a Rogue-level '+' doorway too)
+    s = _snap({3: "     ---+---", 4: "     |.....|"}, (8, 3), [dict(troll, x=10, y=6)])
+    s.rogue = True
+    assert _greedy_step(s, (10, 6), set()) == (8, 4)
 
 
 def test_bounce_risk_breather_in_line_with_wall_behind(monkeypatch):
@@ -1161,6 +1169,7 @@ def test_bag_take_gold_means_coins_not_golden_potions(monkeypatch):
                                                                 MenuItem("c", "a gold ring")]))
     done = _snap({}, (10, 5), [])
     sent = []
+    monkeypatch.setattr(ctx, "last", lambda: done)
     monkeypatch.setattr(items, "_apply_container", lambda bag, action: what)
     monkeypatch.setattr(items, "discoveries", lambda: [])
     monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or (done if keys == "<CR>" else what))

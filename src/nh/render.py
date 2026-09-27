@@ -149,10 +149,11 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append("objects: " + "; ".join(
             f"{o['ch']} {o['kind']}{' (pile)' if o['pile'] else ''} ({o['x']},{o['y']})" for o in objs[:14])
             + (f"; ... {len(objs) - 14} more" if len(objs) > 14 else "")
-            + (f"{'; ' if objs else ''}+{far} farther away (obs --full / obs.objects)" if far else ""))
+            + (f"{'; ' if objs else ''}+{far} farther away (`bin/nh obs` lists all; obs.objects in exec)"
+               if far else ""))
     allf = snap.features
-    liquid = [f for f in allf if f["name"] in ("water", "lava")]
-    feats = [f for f in allf if f["name"] not in ("water", "lava")
+    liquid = [f for f in allf if f["name"] in ("water", "lava", "poison gas cloud")]
+    feats = [f for f in allf if f["name"] not in ("water", "lava", "poison gas cloud")
              and (lim is None or (f["dist"] is not None and f["dist"] <= lim)
                   or f["name"].startswith(("up stairs", "down stairs", "magic portal", "vibrating"))
                   or "altar" in f["name"])]
@@ -163,7 +164,7 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     bits = [f"{f['name']} ({f['x']},{f['y']})" for f in feats[:16]]
     if len(feats) > 16:
         bits.append(f"... {len(feats) - 16} more")
-    for nm in ("water", "lava"):
+    for nm in ("water", "lava", "poison gas cloud"):
         sq = [f for f in liquid if f["name"] == nm]
         if sq:
             near = min(sq, key=lambda f: f["dist"] if f["dist"] is not None else 99)

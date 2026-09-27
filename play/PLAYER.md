@@ -75,7 +75,12 @@ monsters:
 
 Python in a persistent namespace. Every `do()` inside it takes one game step and **pauses the script when
 anything noteworthy happens**: any message, HP loss, a new monster in view, a new status condition, hunger
-getting worse, a level change, level-up, game over. You then see what happened and decide: `bin/nh cont` to
+getting worse, a heavier load (a lighter one never pauses; `pickup()`/`bag_take()`/`loot_all()` take the
+load they cause themselves and print `you are now Burdened`), a level change, level-up, game over. A known
+monster coming back into view far from where it was last seen is looked at again but isn't "new" (the same
+species seen on this level lately). A **poison gas cloud** (bright green `#`, listed as `poison gas cloud`;
+a green dragon's breath leaves them) pauses once per level with poison resistance (it only blinds you a turn
+at a time and hides monsters: step out), every time without (it burns your lungs). You then see what happened and decide: `bin/nh cont` to
 resume, or do something else (which abandons the script). This makes multi-step plans safe. On a crowded level (more than 8 hostiles in view), and for monsters only SENSED by telepathy/warning, a newcomer farther than 6 squares without a danger note doesn't pause at first: it pauses once as `approaching: ...` when it comes within 6 (`with defer_far(6):` does the same for everything in a block; `sokoban.solve()` uses it). A swarm or pack
 pauses once: more members of a species that paused in the last 5 turns, turning up within 4 squares of it,
 don't pause again (they are in the monster list). Noises that are news once per level (a were-creature
@@ -121,7 +126,7 @@ Available in the kernel:
 | `fight(x=None, y=None, stop_hp=0.45)` | melee adjacent hostiles one checked blow at a time until dead/gone; below stop_hp it pauses unless the adjacent hostiles' worst-case damage is under a third of your HP (a newt can't hurt you at 21 HP). Prints the target's passive attacks (acid, rust...) with their worst case per hit before the first blow; refuses paralysing/sliming/disenchanting ones, stoning ones only when you wield nothing (a wielded weapon protects your hands; the cockatrice's own touch can still start stoning), and pauses when one hit's passive could take more than half your current HP (energy vortex, spotted jelly...) — `allow_passive=True` overrides; with several adjacent it picks one it may melee first (the coyote, not the floating eye beside it). `fight(x, y)` on an `I` square swings at the unseen monster there. A monster that EXPLODES as its attack (yellow light: ~100 turns blind; black light: hallucination; spheres) is struck at once when adjacent (a kill never sets it off; waiting lets it go off) — kill those at range before they arrive. Never touches peacefuls/pets. `fight(x, y)` sticks to the species that was there (another monster stepping into the square after the kill stops it); auto-fight (`fight_trivial`) stops as soon as a non-trivial hostile is adjacent. Passive damage you resist (fire/cold/shock/poison — learned from "You feel a momentary chill." etc., `game.intrinsics`) isn't counted. **HP pauses inside fight() follow fight rules** (no `--hp-pause` needed): it pauses below stop_hp, when two more rounds like the last would take you there, or when one round costs a quarter of your max HP — not after every blow below 70%. Monster spell lines, missiles hitting other monsters, potions thrown/quaffed are routine inside it (curses, paralysis, lost armor, summons and HP still pause). Blind with `I`s around, it says so (apply the unicorn horn) |
 | `fight_until_clear(radius=2, stop_hp=0.5)` | hold your square at a chokepoint (a zoo's doorway, a corridor) and fight a crowd: melees whatever comes adjacent (via fight()), waits a turn while hostiles within `radius` approach, returns `{'reason': 'clear' | 'HP ...' | '... not coming' | 'max_turns', 'kills', 'turns'}`. Newly seen monsters pause only if `threat()` says dangerous (or unknown); `ignore=('killer bee',)` silences a swarm you chose to fight (an outer `monster_filter` block still applies); `allow_passive=True` lets it melee a cockatrice with your weapon wielded; HP pauses follow the fight rules (see fight()), messages still pause. Not for fights in the open (you get surrounded). `threat()`/the `!!` notes know your resistances: with poison resistance a killer bee is rated by level, not as 'dangerous' |
 | `piety()` | your alignment record in words from a stethoscope applied to yourself ("piously" = 20+, what the quest leader needs); remembered for travel's quest-leader check |
-| `hunt('pyrolisk')` / `hunt((x, y))` | close in on ONE hostile and kill it: one checked step at a time along a known route (or, within 6 squares, straight across unexplored dark floor) (never onto another monster; its fiery gaze, spit or missiles don't pause, HP by the fight rules), then `fight()` when adjacent; trivial hostiles in the way are fought. Returns `{'reason': 'killed' / 'lost: ...' / 'HP ...' / 'blocked: ...' / 'no route ...', 'turns', 'kills'}` |
+| `hunt('pyrolisk')` / `hunt((x, y))` | close in on ONE hostile and kill it: one checked step at a time along a known route (or, while Blind, a step into the unseen square toward it; a far target just past the known map: the nearest unexplored edge) (never onto another monster, never diagonally through a doorway; its fiery gaze, spit or missiles don't pause, HP by the fight rules), then `fight()` when adjacent — even with another hostile next to you too (it says so); a non-trivial one next to you while the target is still away returns `blocked: ...`; trivial hostiles in the way are fought. Returns `{'reason': 'killed' / 'lost: ...' / 'HP ...' / 'blocked: ...' / 'no route ...', 'turns', 'kills'}` |
 | `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move); the thrown item's own hit/miss message doesn't pause. Both refuse (pause) when your pet or a peaceful is in the line of fire — before the first hostile for a throw, anywhere on the line for a zap (`friendly_in_line(dir, ray=)` checks; `force=True` overrides). Bounced rays aren't checked |
 | `dip_into('d', 'T')` | `#dip` item d INTO potion T (a fountain here is declined): holy water — cursed item "glows amber" = now uncursed, uncursed "glows with a light blue aura" = now blessed; unholy water — "black aura" = cursed, blessed "glows brown" = uncursed. Returns outcome + the item's text before/after |
 | `rub('d', max_rubs=1)` | `#rub` a lamp (stops at the first djinni). #rub WIELDS the lamp; it wields your weapon again afterwards (`rewield=True`). Magic lamp: 1/3 per rub a djinni; blessed → wish 80% (uncursed 20%, cursed 5%/80% hostile). The wish prompt pauses: answer ONLY with `cont --reply '...<CR>'` |
@@ -146,7 +151,9 @@ Available in the kernel:
 | `sokoban.board()`, `sokoban.push(x, y, 'hhk')` | before each push it checks the boulder's route for a monster that won't step aside (a mimic, an unseen `I`, a sessile one) and pauses: kill it first, or the boulder/monster gets stranded. Sokoban by hand (if the board deviated from the plan): show the board; push the boulder at (x,y) left,left,up with checked walking |
 
 Also `bin/nh info`: the harness's own memory — current branch/level (from the game's `^O` overview),
-prayer log with turns-ago, per-level stairs/fountains/altars seen.
+prayer log with turns-ago, per-level stairs/fountains/altars seen. In the kernel, `overview()` returns the
+game's `^O` text (which branches start where: "Stairs down to the Gnomish Mines", shops, altars...);
+`bin/nh obs` (no flag) shows the whole map and every object.
 
 Status while polymorphed: the game shows `HD:n` instead of `Xp`; `obs.status.polymorphed` is True,
 `obs.status.hd` is the form's hit dice and `obs.status.xl` keeps your own level (a pause says
@@ -223,7 +230,9 @@ levitating/flying; **eating while Satiated** and `y` to "Continue eating?" (chok
 force=True only for an emergency cure like a lizard corpse against stoning); `y` to a **tin** that smells
 like something never to be eaten (cockatrices/"chicken", Medusa, dwarves, dogs/cats, were-creatures, green
 slime) and to any tin while hallucinating; picking up an unknown **gray stone** (kick it first: a loadstone
-doesn't budge — cursed ones can't be dropped).
+doesn't budge — cursed ones can't be dropped; one known to be uncursed or blessed is allowed). A step that
+says "It's solid stone." (gold or gems embedded in the Mines' rock look walkable) marks that square as rock:
+routes and `explore()` leave it alone.
 
 What the monster list shows in odd states: while hallucinating every monster is `hallu` (no names, no
 "new monster" pauses; everything is looked at again when it ends); `I` markers are `unseen`; a `]` is a

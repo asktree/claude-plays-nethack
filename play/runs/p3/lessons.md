@@ -6,3 +6,11 @@
 - Pets move items around: farlook the item again before a pickup trip (the blindfold moved 1 square); items a pet carried are not cursed.
 - A hostile little dog (speed 18) bites twice a turn: 9 HP in one round at XL3/AC5. Treat fast d's as "normal", not trivial, below XL5.
 - Explore dead-end problem: a level whose half is blank (D3 east) hides a corridor; searching one doorway/dead end 12-15 turns may not be enough — note it and move on, come back later.
+- 3.6.7 mklev join() makes the ORIGIN door before digging, and extra (nxcor) corridors stop at random (1/35 per square): a door + a 1-square dead-end stub is usually a blind corridor. I wasted 35 searches at D4 (57,12). A corridor that ends next to blank space in the direction of a big unexplored region is the better bet (D4 (65,6): hidden door found in 6 searches).
+- 35 failed searches next to a square = no hidden spot there (1/7 per turn at Luck 0 -> 0.5% miss chance). Stop at ~15-20.
+- Mines: gold/gems shown inside solid rock next to a tunnel are mineral deposits ("It's solid stone.") — only digging gets them. Don't avoid() the TUNNEL square you walked through by mistake.
+- Giant bat (speed 22) = two bites a turn: 30 HP in 3 turns at AC5. At XL4-5 it is NOT trivial: fight it only at high HP, Elbereth works.
+- Attacking a monster that is scared by your Elbereth (you standing on it) = "You feel like a hypocrite" + alignment penalty + the engraving is deleted (setmangry, uhitm.c #H7329). Step off first. A smudged one ("El??re??") no longer counts: read it with engraving_here() before attacking.
+- An abandoned pet turns "peaceful"; throwing food it likes (tripe for dogs) re-tames it — farlook shows "tame". It only follows when ADJACENT at the stairs: bring it with travel(..., with_pet=True) legs.
+- Excalibur needs only one fountain if lucky: XL5, lawful, long sword -> 1/6 per dip. Got it on dip 1 (T:3107).
+- Food burns fast: food ration ~800 turns, lichen 200, lembas 800, candy bar 100. Eat fresh safe corpses whenever Hungry near a kill to save carried food.

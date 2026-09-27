@@ -33,6 +33,8 @@ MAX_LOOKS_PER_UPDATE = 12
 RESEEN_TURNS = 150     # a hostile re-entering view this soon and this near keeps its label...
 RESEEN_DIST = 12       # ...unless a dangerous species looks just like it (danger.risky_lookalike)
 SAME_SQUARE_TURNS = 2000   # ...and one back on the very square it was last seen on, for this long
+RETURN_TURNS = 600     # a looked-at monster back in view FAR from its last sighting: the same species seen
+                       # on this level this recently (and out of view now) is taken to be it (no "new" again)
 
 
 _KILL_RES = [
@@ -341,6 +343,13 @@ class MonsterTracker:
                 continue
             recs = resight.get(id(m), [])
             same = [r for r in recs if _kind(r["desc"]) == _kind(m["desc"]) and r["id"] not in claimed]
+            if m["desc"] and not same and not m.get("statue"):
+                # a wanderer back in view far from where it was last seen (the Rogue level's long corridors,
+                # big rooms): the same species, out of view now and seen here lately, is most likely it
+                taken = {k.get("id") for k in mons if k.get("id") is not None}
+                same = [r for i, r in self.recent.items()
+                        if i not in claimed and i not in taken and r.get("desc") and not r.get("statue")
+                        and _kind(r["desc"]) == _kind(m["desc"]) and turn - r.get("turn", 0) <= RETURN_TURNS]
             if m["desc"] and same:
                 r = min(same, key=lambda r: _cheb(m, r))
                 m["id"] = r["id"]
