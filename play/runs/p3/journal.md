@@ -227,3 +227,20 @@ T:14086 DL12 — an ENERGY VORTEX posing as a statue at (64,20): killed in one b
 T:14101 DL11 (Mines 7) — up from Mines' End: arrived on D11's `>` (20,7). Killed a tiger (ate it), a straw golem, an AIR ELEMENTAL (engulfed me once, killed from inside, -7), 4 Woodland-elves (-18). Falling rock traps at (29,8) (the only corridor east) and on D12.
 T:14239 DL11 — a 2nd TRAP DOOR at (45,9) dropped me back to Mines' End (13,14); bear trap at D12 (28,7) held me ~8 turns. Climbed again T:14267; now the trap door is remembered and routes go around it.
 T:14291 DL11 — END OF SHIFT 14 at (57,6), exploring east for D11's `<` (not found yet; the east half beyond (49,10) is being mapped). HP 142/142, XL13 (Exp 47030), AC-7, Luck ~+3 (luckstone), not hungry (tiger T:14125).
+
+## Shift 15
+T:14294-14429 DL11 (Mines 7) — explored east: `<` at (44,19) (far south-centre). Anti-magic field (39,15) found by search.
+T:14442 DL11 — travel(75,10) to a scroll stepped on a LAND MINE hidden under it (found by Excalibur's auto-search at T:14321 "You find a land mine." but the scroll hid the `^`, so the harness never recorded it). KAABLAMM -4 HP, legs wounded ~25 turns; the mine became a pit. Scroll N = PRIRUTSENIE.
+T:14466 DL10 — arrived on D10's `>` (6,17) (far west). The harness route to `<` (47,12) squeezed diagonally (10,10)->(11,9): "You are carrying too much to get through" (pack >600). Put b, F, s, K, N, gems, w in the bag -> squeezed.
+T:14511-14540 DL9 -> DL8 — killed a LARGE MIMIC at the D8 `<` (2 blows).
+T:14545 MINETOWN — altar (33,4): N, K (enchant weapon), i (tin wand), p (lightning), r (bag), F (grease), M (luckstone) ALL UNCURSED. Read K: Excalibur +3 -> +4.
+T:14567-14589 MINETOWN — mummy wrapping on (visible). Deli (Djasinga) almost empty: bought slime mold, carrot, orange + a CLEAR POTION (133) -> altar: CURSED = UNHOLY WATER (Y, in the bag).
+T:14637 MINETOWN — killed a hostile gray unicorn inside Wonotobo's store (3 turns, no damage).
+T:14643 MINETOWN — price-ID at Wonotobo (lowballs 3/8): N PRIRUTSENIE = base 300 (charging/genocide/punishment); K VE FORBRYDERNE, g VELOX NEB, Z 2x NR 9 = base 100 (confuse monster/destroy armor/fire/food det./gold det.). Bought j = CURSED remove curse (107): a cursed one still UNPUNISHES (read.c 1341).
+T:14654-14660 MINETOWN — GAMBLE: dipped N (300: charging/genocide/punishment) in the unholy water (cursed) to reverse-genocide SILVER DRAGONS (cold breath harmless to me, scales = reflection, ~86% for 4-6 kills) from the dead end (73,3) of the 1-wide hall above the shops (ring of regeneration on, potions bagged). N was CHARGING: Esc at "What do you want to charge?" = "Never mind", nothing stripped. Lost: the charging scroll + the unholy water.
+T:14690 MINETOWN — an OCHRE JELLY engulfed me at the temple entrance: killed from inside in 2 blows (-24 HP incl. one acid splash).
+T:14697 MINETOWN — re-tamed my old abandoned LITTLE DOG with a thrown candy bar (no message in the dark; farlook said "tame").
+T:14664-14750 MINETOWN — telepathy showed a peaceful DWARF inside a wall square = digging = pick. Led the dog near it; T:14750 "You hear some noises. Your little dog grows up into a dog. The dog eats a dwarf corpse." Swapped onto the dog's square: dwarvish cloak, iron shoes, PICK-AXE. Took the pick-axe (e); altar (33,4): UNCURSED. No penalty for a pet's kill.
+T:14760-14904 — left the dog in Minetown; up Mines 2, Mines 1 (Hungry T:14817: ate the CRAM; killed a carnivorous ape, ate it: Satiated) -> D4.
+T:14904-15040 — descend: D5 (killed a raven), D6, D7, D8 (destroyed a manes), D9 ORACLE: killed a MONKEY at once; it dropped l = a SCROLL OF REMOVE CURSE (probably the one a monkey stole here long ago); picked up m RIDING BOOTS (unknown type, in the bag).
+T:15048 DL9 — END OF SHIFT 15 on the up stairs (61,8): HP 142/142, XL13 (Exp 47384), AC-7, Satiated, Luck ~+3, PICK-AXE in the bag. Nothing in view.
