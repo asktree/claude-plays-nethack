@@ -44,7 +44,8 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            # missiles and potions flying at other monsters, monsters quaffing (the HP checks cover you)
            r"^The (?:\d+(?:st|nd|rd|th) )?[\w' -]+ (?:hits|misses) (?!you\b)(?:the |an? |it[.!]|[A-Z])",
            r" hurls (?:an? |the |\d+ )", r"^The [\w' -]+ crashes on your \w+ and breaks into shards\.",
-           r"^The [\w' -]+ evaporates?\.$", r"^Crash!$", r" drinks (?:an? |the )[\w' -]+!$",]
+           r"^The [\w' -]+ evaporates?\.$", r"^Crash!$", r" drinks (?:an? |the )[\w' -]+!$",
+           r"^The [\w' -]+ misses[.!]$", r"^You are almost hit by "]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
@@ -331,8 +332,10 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 idle += 1
             if idle >= patience:
                 who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in near[:4])
+                mim = any("mimic" in (m.get("desc") or "") for m in near)
                 return out(f"{who} within {radius} but not coming for {idle} turns (trapped, slow or sessile?) "
-                           "— go to it or leave it")
+                           "— go to it or leave it" + ("; a MIMIC re-hides as an object whenever you can't see "
+                                                       "it — keep it in sight, or hunt() it" if mim else ""))
             s = ctx.do(".", ok=ROUTINE)
             kills += killed_names(s.messages)
     return out("max_turns")

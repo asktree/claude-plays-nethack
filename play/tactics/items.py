@@ -100,7 +100,8 @@ _ENGRAVE_ID = [
     (r"is riddled by bullet holes", "magic missile"),
     (r"A few ice cubes drop from the wand", "cold"),
     (r"unsuccessfully fights your attempt to write", "striking"),
-    (r"engraving on the .* vanishes", "cancellation, teleportation or make invisible"),
+    (r"engraving on the .* vanishes", "cancellation, teleportation or make invisible (to tell: zap it at a "
+                                      "boulder or an object pile — teleportation makes it vanish)"),
     (r"The engraving now reads", "polymorph"),
     (r"You feel self-knowledgeable", "enlightenment"),
     (r"A lit field surrounds you", "light"),
@@ -150,6 +151,7 @@ def engrave_test(letter: str, text: str = "Elbereth", prep: bool = True, force: 
         raise RuntimeError(f"engrave_test: expected 'What do you want to write with?', got {s.state.kind}")
     s = ctx.do(letter, quiet=True)
     msgs += s.messages
+    wrote = False
     for _ in range(8):
         k, p = s.state.kind, s.state.prompt or ""
         if k == "getlin" and "wish" in p.lower():
@@ -162,6 +164,7 @@ def engrave_test(letter: str, text: str = "Elbereth", prep: bool = True, force: 
             s = ctx.do("n", quiet=True)
         elif k == "getlin":
             s = ctx.do(f"{text}<CR>", quiet=True)
+            wrote = True
         elif k == "command":
             break
         else:
@@ -178,8 +181,34 @@ def engrave_test(letter: str, text: str = "Elbereth", prep: bool = True, force: 
             break
     if verdict is None:
         verdict = _NO_EFFECT
+    if not auto and " or " in verdict:
+        verdict = _narrow_verdict(verdict)
+    cur = ctx.last()
+    if wrote and cur.hero is not None and cur.status.ok and hasattr(ctx.game, "engr_seen"):
+        # the test left `text` engraved here: the harness must know (attacking from an Elbereth
+        # square erases it and costs -5 alignment — "You feel like a hypocrite")
+        ctx.game.engr_seen.setdefault(ctx.game.level_key(cur.status), {})[cur.hero] = text
+        if text.strip().lower() == "elbereth":
+            print(f"engrave_test: an Elbereth is under you now at {cur.hero} — step off before attacking "
+                  "(melee, zap, throw or kick from it erases it and costs -5 alignment)")
     print(f"engrave_test({letter!r}): {verdict}" + (" (auto-identified)" if auto else ""))
     return {"verdict": verdict, "messages": msgs, "autoidentified": auto}
+
+
+def _narrow_verdict(verdict: str) -> str:
+    """'cancellation, teleportation or make invisible' minus the wand types
+    already identified (discoveries(); no game time)."""
+    try:
+        known = {name.lower() for name, _look in discoveries()}
+    except Exception:  # noqa: BLE001
+        return verdict
+    head, _, tail = verdict.partition(" (")
+    names = [n.strip() for n in re.split(r",\s*|\s+or\s+", head) if n.strip()]
+    left = [n for n in names if f"wand of {n}".lower() not in known]
+    if not left or len(left) == len(names):
+        return verdict
+    return (" or ".join(left) + (" (" + tail if tail else "")
+            + f" [ruled out, already identified: {', '.join(n for n in names if n not in left)}]")
 
 
 # ---- dipping (Excalibur) ------------------------------------------------------
@@ -672,6 +701,15 @@ def eat(letter: str | None = None) -> list:
             ctx.pause(f"eat(): unexpected {k} {p!r}")
             s = ctx.last()
         msgs += s.messages
+    text = " | ".join(msgs)
+    if "Rotten" in text:
+        # eat.c rottenfood(): passing out stops the meal and flags the corpse rotten (every new try
+        # rolls again); the confusion/blindness branches finish it for a quarter of its nutrition
+        if re.search(r"world spins|conscious again", text):
+            print("eat(): ROTTEN — you passed out; the corpse is now flagged rotten (each new try rolls "
+                  "again): leave it")
+        else:
+            print("eat(): rotten food — you ate it anyway, but for only a quarter of its nutrition")
     return msgs
 
 
@@ -832,26 +870,33 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
     return msgs
 
 
-def loot_all(unlock_with_key: bool = True) -> list:
+def loot_all(unlock_with_key: bool = True, take_gray_stones: bool = False) -> list:
     """Take everything out of the (single) container on your square with
     #loot: confirms, picks "take something out" in the pick-one "Do what?"
-    menu, then "Auto-select every item". Returns the messages. A locked box:
-    unlocked with your key/lock pick/credit card first when you carry one
-    (unlock(); unlock_with_key=False to skip), else it says so (kick it or
-    #force with a blade). Pauses on anything else."""
+    menu, then every item — EXCEPT unknown gray stones (a chest's loadstone
+    is generated cursed: once in your pack it can't be dropped): those stay
+    inside and it says how to test them (#tip the box, kick the stone;
+    take_gray_stones=True to take them anyway). Returns the messages. A
+    locked box: unlocked with your key/lock pick/credit card first when you
+    carry one (unlock(); unlock_with_key=False to skip), else it says so
+    (kick it or #force with a blade). Pauses on anything else."""
     ctx.require_command("loot_all()")
-    msgs = _loot_all_once()
+    msgs = _loot_all_once(take_gray_stones)
     if unlock_with_key and any(re.search(r"turns out to be locked|^It is locked", m) for m in msgs) \
             and any(_KEYS.search(i["text"]) for i in inventory()):
         msgs += unlock()
         if ctx.last().state.kind == "command":
-            msgs += _loot_all_once()
+            msgs += _loot_all_once(take_gray_stones)
     return msgs
 
 
-def _loot_all_once() -> list:
+_GRAY_STONE = re.compile(r"\bgr[ae]y stones?\b")
+
+
+def _loot_all_once(take_gray_stones: bool = False) -> list:
     s = ctx.do("#loot<CR>", quiet=True)
     msgs = list(s.messages)
+    left: list = []
     for _ in range(10):
         k, p = s.state.kind, (s.state.prompt or "")
         if k == "command":
@@ -869,13 +914,26 @@ def _loot_all_once() -> list:
             items = s.state.menu.selectable()
             auto = [it for it in items if "Auto-select every item" in it.text]
             if auto:
-                s = ctx.do(auto[0].letter, quiet=True)
+                # the class menu: "All types" (or the one class there is) -> the item list, where unknown
+                # gray stones can be left out ("Auto-select every item" would take them unseen)
+                kinds = [it for it in items if it.text.startswith("All types")] or \
+                        [it for it in items if "Auto-select" not in it.text and not
+                         re.match(r"^(?:Unpaid|Items known|Items of unknown|Unknown)", it.text)][:1]
+                if not kinds:
+                    ctx.do("<Esc>", quiet=True)
+                    msgs.append("(loot_all: no item class to pick)")
+                    break
+                s = ctx.do(kinds[0].letter, quiet=True)
                 s = ctx.do("<CR>", quiet=True)
             else:                                   # an item list: select every item on every page
                 for _page in range(8):
                     for it in s.state.menu.selectable():
-                        if not it.selected:
-                            s = ctx.do(it.letter, quiet=True)
+                        if it.selected:
+                            continue
+                        if _GRAY_STONE.search(it.text) and not take_gray_stones:
+                            left.append(it.text)
+                            continue
+                        s = ctx.do(it.letter, quiet=True)
                     if s.state.menu and s.state.menu.page < s.state.menu.pages:
                         s = ctx.do(">", quiet=True)
                     else:
@@ -886,5 +944,10 @@ def _loot_all_once() -> list:
             s = ctx.last()
         msgs += s.messages
     print("loot_all(): " + " | ".join(msgs[-6:]))
+    if left:
+        print(f"!! loot_all(): left inside: {'; '.join(left)} — an unknown gray stone may be a LOADSTONE (a "
+              "chest's is generated cursed: in your pack it can't be dropped, 500 weight). To test: #tip the "
+              "container (its contents spill on the floor), step aside and kick the stone — a loadstone doesn't "
+              "budge ('Thump!'); a luckstone/touchstone/flint slides. loot_all(take_gray_stones=True) takes them.")
     _warn_full(msgs, "loot_all")
     return msgs

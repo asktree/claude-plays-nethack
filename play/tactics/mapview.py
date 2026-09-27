@@ -29,6 +29,8 @@ def in_map(x, y):
 def is_door(s, x, y) -> bool:
     if (x, y) == s.hero and getattr(s, "under", None) == "D":
         return True          # you stand in a doorway with a door (the '@' hides it)
+    if (getattr(s, "feature_mem", None) or {}).get((x, y)) == "D":
+        return True          # a door seen before, now under an object pile or a monster
     return is_open_door(s, x, y) or is_closed_door(s, x, y)
 
 
@@ -39,7 +41,8 @@ def is_open_door(s, x, y) -> bool:
 def is_closed_door(s, x, y) -> bool:
     """A brown '+' in a wall line; a '+' lying on the floor is a spellbook."""
     from nh.mapscan import _door_like
-    return cell(s, x, y) == "+" and color(s, x, y) == BROWN and _door_like(s.screen, x, y)
+    return cell(s, x, y) == "+" and color(s, x, y) == BROWN and (
+        _door_like(s.screen, x, y) or (getattr(s, "feature_mem", None) or {}).get((x, y)) == "D")
 
 
 def is_wall(s, x, y) -> bool:

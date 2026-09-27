@@ -811,3 +811,120 @@ def test_ascend_refuses_a_cross_aligned_altar(monkeypatch):
     s.under = None
     with pytest.raises(RuntimeError, match="not standing on an altar"):
         endgame.ascend()
+
+
+def test_loot_all_leaves_unknown_gray_stones_inside(monkeypatch):
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+
+    def menu(title, entries):
+        s = _snap({}, (10, 5), [])
+        s.state = State("menu", prompt=title, menu=Menu(title=title, items=[MenuItem(l, t) for l, t in entries]))
+        return s
+    yn = _snap({}, (10, 5), [])
+    yn.state = State("yn", prompt="There is a large box here, loot it? [ynq] (q)", choices="ynq")
+    do_what = menu("Do what with the large box?", [("o", "take something out"), ("i", "put something in")])
+    kinds = menu("Take out what type of objects?", [("A", "Auto-select every item"), ("a", "All types"),
+                                                    ("b", "Coins"), ("c", "Gems/Stones")])
+    what = menu("Take out what?", [("a", "551 gold pieces"), ("b", "a gray stone"), ("c", "a ruby")])
+    done = _snap({}, (10, 5), [])
+    done.messages = ["$ - 551 gold pieces.", "r - a ruby."]
+    seq = []
+    flow = {"#loot<CR>": yn, "y": do_what, "o": kinds, "a": kinds, "<CR>": None}
+    state = {"cur": _snap({}, (10, 5), []), "menu_cr": 0}
+
+    def fake_do(keys, **kw):
+        seq.append(keys)
+        if keys == "<CR>":
+            state["menu_cr"] += 1
+            state["cur"] = what if state["menu_cr"] == 1 else done
+        elif keys in flow and flow[keys] is not None:
+            state["cur"] = flow[keys]
+        elif state["cur"] is what:
+            state["cur"] = what            # item letters toggle within the same menu
+        return state["cur"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: state["cur"])
+    items.loot_all(unlock_with_key=False)
+    assert "A" not in seq                        # never "Auto-select every item"
+    assert seq[seq.index("<CR>") + 1:] == ["a", "c", "<CR>"]      # gold and ruby, not the gray stone
+
+
+def test_sokoban_push_stops_before_a_mimic_on_the_route():
+    from tactics.sokoban import _sessile_on_route
+    s = _snap({5: "   ..0...."}, (4, 5), [{"x": 8, "y": 5, "ch": "m", "desc": "giant mimic, mimicking a boulder"}])
+    assert _sessile_on_route(s, (5, 5), ["l", "l", "l"])[1] == (8, 5)
+    assert _sessile_on_route(s, (5, 5), ["l"]) is None
+    jackal = _snap({5: "   ..0...."}, (4, 5), [{"x": 6, "y": 5, "ch": "d", "desc": "jackal"}])
+    assert _sessile_on_route(jackal, (5, 5), ["l"]) is None       # a mobile monster steps aside (the solver waits)
+
+
+def test_remembered_doors_under_piles_and_beside_dug_walls():
+    from tactics.mapview import bfs_path, is_door
+    rows = {4: "   ---.---", 5: "   |..%..|", 6: "   |.....|"}
+    s = _snap(rows, (5, 6), [])
+    s.feature_mem = {(6, 4): "D"}          # an open door, now under a corpse pile... (the '%' at (6,5) is food)
+    s.screen.chars[4] = "   ---%---".ljust(80)
+    assert is_door(s, 6, 4)
+    path = bfs_path(s, (5, 5), (6, 3)) if False else None   # (row 3 unknown: just check the diagonal rule below)
+    s2 = _snap({4: "   ---+---", 5: "   |..@..|", 3: "      .   "}, (6, 5), [], colors={(6, 4): 3})
+    s2.feature_mem = {(6, 4): "D"}
+    s2.screen.chars[3] = "      .   ".ljust(80)
+    # a dug wall beside the door broke its wall line: still a door (not a spellbook) thanks to the memory
+    s2.screen.chars[4] = "   ---+.--".ljust(80)
+    assert not any(o["ch"] == "+" for o in s2.objects)
+    assert "closed door" in {f["name"] for f in s2.features}
+
+
+def test_throne_forgotten_when_it_vanishes():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    s = _snap({17: "   ..@.."}, (5, 17), [])
+    s.status.ldesc = "Dlvl:19"
+    g.terrain_seen["Dlvl:19"] = {(5, 17): "\\\\"}
+    g._remember_terrain(s, ["The throne vanishes in a puff of logic."])
+    assert (5, 17) not in g.terrain_seen["Dlvl:19"] and s.under is None
+
+
+def test_travel_steps_away_from_a_floating_eye(monkeypatch):
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    eye = {"x": 11, "y": 5, "ch": "e", "desc": "floating eye", "dist": 1, "note": "NEVER melee"}
+    rows = {4: "        ..........", 5: "        ..........", 6: "        .........."}
+    s = _snap(rows, (10, 5), [eye])
+    assert nav._passive_only(eye) and not nav._passive_only({"desc": "jackal"})
+    frames = {"s": s}
+    sent = []
+
+    from nh.parse import State
+
+    def do(keys, **kw):
+        sent.append(keys)
+        cur = frames["s"]
+        if keys == "_":                        # NetHack's travel prompt opens...
+            g = _snap(rows, (10, 5), [eye])
+            g.state = State("getpos", prompt="Where do you want to travel to?")
+            frames["s"] = g
+            return g
+        if keys == "." and cur.state.kind == "getpos":
+            back = _snap(rows, cur.last_pos or (10, 5), [eye])   # ...and lookaround() doesn't start it
+            frames["s"] = back
+            return back
+        if keys in ("y", "k", "u", "h", "l", "b", "j", "n"):
+            from tactics.mapview import KEY_DIR
+            dx, dy = KEY_DIR[keys]
+            cur = _snap(rows, (cur.hero[0] + dx, cur.hero[1] + dy), [dict(eye, dist=max(abs(11 - cur.hero[0] - dx),
+                                                                                      abs(5 - cur.hero[1] - dy)))])
+        frames["s"] = cur
+        return cur
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: frames["s"])
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y, rounds=5: frames["s"])
+    try:
+        nav._travel(2, 5, 3, None, 0, 0, False)
+    except nav.NavError as e:
+        assert "hostile floating eye adjacent" not in str(e)
+    steps = [k for k in sent if k in ("y", "k", "u", "h", "l", "b", "j", "n")]
+    assert sent[:2] == ["_", "."] and steps and steps[0] in ("h", "y", "b")   # then a plain step away

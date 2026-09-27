@@ -84,6 +84,10 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You stop at the edge of the (?:water|lava)\.",
     r"^A board beneath (?:the |an? )[\w' -]+ squeaks",
     r"^You hear an? [A-G][\w ]* squeak (?:nearby|in the distance)\.",   # a monster on a squeaky board (trap.c)
+    r"^The poison doesn't seem to affect you\.",       # poison resistance at work
+    # exercise (attrib.c exerchk): gains are good news; the status line shows the attribute
+    r"^You feel (?:very )?(?:strong|smart|wise|agile|tough|charismatic)!$",
+    r"^You must have been (?:exercising diligently|very observant|working on your reflexes|leading a healthy)",
     # dropping things on an altar to learn their BUC (the flash/landing is the answer, not an event)
     r" lands? on the altar\.$", r"^There is an? (?:amber|black) flash as .* hits? the altar\.$",
 )]

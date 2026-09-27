@@ -76,3 +76,11 @@
 - SOKOBAN: `sokoban.solve()` did two levels with no manual pushes; everything that went wrong was monsters. On a no-teleport level a floating eye on the solution path must be killed at range (find a clear straight line to it); unicorns stop avoiding your line; the Soko 2b stair-room door can be LOCKED (key: `unlock(x, y)`).
 - Emerald potion = SLEEPING (a centaur threw one: "You feel rather tired" — brief sleep from the vapour).
 - Food rations can be "Rotten" (Blecch!) — usually harmless, but eat in a safe spot.
+- SOKOBAN GIANT MIMICS (4a has 2, disguised as boulders or "something"): kill every known mimic BEFORE the solver pushes a boulder next to it. A boulder pushed against a mimic can strand it where you can't reach (no diagonal squeezing in Sokoban). An unseen mimic re-disguises 1 time in 3 per move (mon.c restrap) — unless CANCELLED, or you can see its square.
+- Thrown objects and rays fly over boulders; immediate wand beams (teleport, cancel, striking, polymorph) act on EVERY object pile along the path. Teleportation removes boulders (no Luck cost; they land at random, maybe in the puzzle); striking breaks them and polymorph changes them (−1 Luck each).
+- engrave_test() leaves an Elbereth under you: step off before zapping or attacking ("You feel like a hypocrite", −5 alignment).
+- A zap test that "does nothing" is weak evidence: the oak wand left a fog cloud in place, yet later teleported 2 boulders and a mimic. Confirm a wand's identity on an object pile (a vanishing boulder or rock = teleportation) before relying on it.
+- Unicorn horns dropped by a dying unicorn are never cursed (mkobj.c: no blessorcurse for UNICORN_HORN) — safe to apply at once.
+- A "rotten" food ration gives half nutrition: Hungry ~330 turns later instead of ~800.
+- A monster behind a boulder in a 1-wide corridor: fire bolts over the boulder. A ray's range is 7–13 squares, so it can't bounce back from a wall 11+ squares away.
+- A hostile unicorn in Sokoban may still refuse to approach. Step next to it (a doorway is fine: diagonal attacks through doorways work both ways).

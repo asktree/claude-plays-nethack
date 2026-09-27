@@ -410,10 +410,11 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 if s.state.kind != "command" or s.adjacent_hostiles():
                     return s             # fight() stopped (HP, passive, a new threat): your call
                 continue
-            if hostile:
+            if hostile and not all(_passive_only(m) for m in hostile):
                 raise NavError(f"travel to {(x, y)} did not move: hostile {_mdesc(hostile)} adjacent — "
                                "travel never starts next to one. Fight it (fight()) or step away by hand "
                                "(or travel(..., fight_through=True)).")
+            # (a floating eye, a mold: no active attack — step away along our own route like past a peaceful)
             if blk and sidesteps < 6:
                 # lookaround(): NetHack's travel never starts next to a non-tame monster, even one
                 # that isn't in the way — plain steps along our own route (never into it) do
@@ -557,6 +558,14 @@ def _no_path_msg(s, h0, target, start=None, bad=None) -> str:
     return (f"{head} — the known map doesn't connect to it and has no unexplored edge left: search() walls and "
             "dead ends for hidden doors/passages, dig through (not on undiggable levels), or teleport/levitate"
             + msgs)
+
+
+def _passive_only(m) -> bool:
+    """A monster with no active attack (floating eye, molds, gas spore): it
+    can't hurt you if you don't hit it, so travel may step away from it."""
+    from nh.danger import base_name, monster_record
+    rec = monster_record(base_name(m.get("desc") or ""))
+    return bool(rec) and all(a.get("type") in ("AT_NONE", "AT_BOOM") for a in rec.get("attacks", []))
 
 
 def _refuge(s, blk, target):

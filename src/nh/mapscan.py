@@ -116,8 +116,9 @@ def objects_in_view(snap, hero=None) -> list[dict]:
             if ch not in OBJECT_CLASSES:
                 continue
             col = scr.color_at(x, y)
-            if ch == "+" and col == BROWN and _door_like(scr, x, y):
-                continue  # a door, not a spellbook
+            if ch == "+" and col == BROWN and (_door_like(scr, x, y)
+                                                or (getattr(snap, "feature_mem", None) or {}).get((x, y)) == "D"):
+                continue  # a door (in a wall line, or known to be one: a dug wall beside it), not a spellbook
             if ch == '"' and col in (7, 8):
                 kind = "web?"
             elif ch == "0" and col in (6, 14):
@@ -167,7 +168,7 @@ def features_in_view(snap, hero=None) -> list[dict]:
                 out.append({"ch": ch, "x": x, "y": y, "name": name, "dist": d, "color": ""})
                 continue
             if name is None:
-                if ch == "+" and col == BROWN and _door_like(scr, x, y):
+                if ch == "+" and col == BROWN and (_door_like(scr, x, y) or fmem.get((x, y)) == "D"):
                     name = "closed door"
                 elif ch in "|-" and col == BROWN:
                     name = "open door"

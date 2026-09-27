@@ -126,6 +126,26 @@ def walk(keys: str):
     return s
 
 
+def _sessile_on_route(s, b, dirs):
+    """A monster that won't step aside on the squares the boulder at `b`
+    will move through: a mimic (disguised ']' or known), a sessile monster,
+    or an unseen 'I'. Returns (monster, square) or None."""
+    from nh.monitor import _stationary
+    route, cur = [], b
+    for d in dirs:
+        dx, dy = _ORTHO[d]
+        cur = (cur[0] + dx, cur[1] + dy)
+        route.append(cur)
+    for m in s.monsters or []:
+        sq = (m["x"], m["y"])
+        if sq not in route or m.get("tame") or m.get("pet"):
+            continue
+        desc = m.get("desc") or ""
+        if m.get("mimic") or "mimic" in desc or m.get("unseen") or m["ch"] in "I]" or _stationary(desc):
+            return m, sq
+    return None
+
+
 def push(bx: int, by: int, dirs: str):
     """Push the boulder at (bx, by) along `dirs` (e.g. 'hhk' = left, left, up).
     Walks to the correct side before each push. Returns (final_snap, boulder_pos
@@ -134,11 +154,19 @@ def push(bx: int, by: int, dirs: str):
     s = ctx.last()
     if s.screen.at(bx, by) != "0":
         raise ValueError(f"no boulder '0' at {b} (found {s.screen.at(bx, by)!r})")
-    for d in dirs:
+    for i, d in enumerate(dirs):
         d = _norm(d)
         dx, dy = _ORTHO[d]
         stand = (b[0] - dx, b[1] - dy)
         s = ctx.last()
+        stuck = _sessile_on_route(s, b, [_norm(e) for e in dirs[i:]])
+        if stuck:
+            m, sq = stuck
+            ctx.pause(f"push: the {m.get('desc') or m['ch']} at {sq} sits on boulder {b}'s route ({dirs[i:]}) and "
+                      "won't move out of the way (a mimic, or something unseen) — pushing the boulder against it "
+                      "strands it or the monster behind the boulder (no diagonal squeezing in Sokoban). Kill it "
+                      "first (fight()/hunt()/throw from a square you can reach), then solve() again")
+            return ctx.last(), b
         if s.hero is None:
             ctx.pause(f"push: not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
             return ctx.last(), b

@@ -118,6 +118,10 @@ def _pick_target(skip, bad=frozenset(), why=None):
         seen.append(c)
         if c in skip:
             continue
+        if c in bad:
+            skip.add(c)                  # the frontier itself is an avoided square
+            why["avoided"].append(c)
+            continue
         if bad and hero is not None:
             av = frozenset(set(bad) - {c})
             if (bfs_path(s, hero, c, avoid=av, allow_monsters=True) is None
@@ -243,7 +247,9 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             # try the screen frontiers (walkable squares beside never-seen space) before giving up
             from .mapview import bfs_path as _bfs, dist as _dist
             cur = ctx.last()
-            extra = [c for c in screen_frontiers(cur) if c not in skip and c not in bad and c != cur.hero
+            sf = screen_frontiers(cur)
+            why["avoided"] += [c for c in sf if c in bad and c not in why["avoided"]]
+            extra = [c for c in sf if c not in skip and c not in bad and c != cur.hero
                      and cur.hero is not None and _bfs(cur, cur.hero, c, allow_monsters=True) is not None]
             if not extra:
                 return finished()

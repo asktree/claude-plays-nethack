@@ -660,7 +660,7 @@ class Game:
             if v not in "^~" and c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
                 del feats[c]           # e.g. a fountain that dried up (portals never go away; on the Plane
                                        # of Air unseen squares are drawn as '#' clouds)
-        if any("dries up" in m or "fountain disappears" in m for m in messages):
+        if any("dries up" in m or "fountain disappears" in m or "throne vanishes" in m for m in messages):
             feats.pop(snap.hero, None)
         for m in messages:
             if m.startswith("You enter what seems to be an older, more primitive world."):

@@ -432,3 +432,21 @@ Format: step `#N` — command — expected — what happened.
 1. Rogue level glyphs (`%` stairs, `+` doors) unmapped: explore() "explored" with the level unseen; stairs listed as food — `#2125`.
 2. Kill not recorded for "coyote - Eatius-Slobbius" → eat() refused a 17-turn-old corpse — `#867`.
 3. explore()'s own route steps diagonally out of doorways (`#12`); fight_until_clear() picks a floating eye over an adjacent hostile (`#836`).
+
+## Shift 16 (T:15291 -> 15937; DL19 -> DL20; daemon restarted before the shift, step numbers from #0)
+- `#931` — **loot_all() took an unknown GRAY STONE out of the court chest** ("v - a gray stone") with no loadstone guard. `,` on the floor has the guard; containers bypass it. A loadstone (always generated cursed, 500 wt, undroppable) would have been a disaster. It was light (no Burdened) so not one, but loot_all()/bag_take() should deselect unknown gray stones (or pause: "gray stone inside — kick the box first / leave it").
+- `#632` onward — after `dig('l')` through the wall at (58,7) beside the hidden door (58,8), the obs listed that closed door as `+ spellbook (58,8)` in OBJECTS for the rest of the shift and dropped it from features. The door-vs-spellbook heuristic misfires once the square above a door becomes a (dug) doorway.
+- `#1025` — after "The throne vanishes in a puff of logic." obs features kept `throne (under you) (68,17)` (later `throne (under an object)`). The remembered feature should be dropped on that message (and after "vanishes" generally).
+- `#553`, `#569` — `travel()` refused twice to start next to a FLOATING EYE ("hostile floating eye adjacent — travel never starts next to one") while I was leaving a room past it; 2 wasted calls and a step-around by hand. Suggest: when the only adjacent hostile is a never-melee, speed-1 monster, travel() could take one plain step away first (or the error could name a free square not adjacent to it).
+- `#663` — explore() with my `avoid()` zone around the court returned "explored (no reachable frontier left)" with `'avoided': []`, although the one remaining frontier (58,15) lay inside the avoided squares. Expected `avoided: [(58,15)]` (the docs say explore reports frontiers cut off by avoided squares).
+- `#720`, `#749` — `eat()` of floor corpses: both "Blecch! Rotten food!" outcomes came back as plain message pauses. A verdict line would help: unconscious branch = "corpse now flagged ROTTEN — every resume re-rolls, abandon it"; blind/confused branch = "finished but only 1/4 nutrition".
+- `#157`-`#166`, `#921` — chest trap checks by hand (`#untrap`, `.`, `y`) cost 3 calls the first time. Suggest `loot_all(check_traps=True)`: untrap-check first, and if "You find a trap" answer n to "Disarm it?" and stop (disarming fires it ~2/3 of the time).
+- `#844` — `pickup('wand')` also re-took the empty wand of striking I had just dropped on that square (my pattern; minor). The pack-full message was clear.
+- `#690`/`#691` — entering the lit court: one pause listing 26 new monsters (16 "not looked at yet"), then one more pause when they got their names (stone giant, rock troll, white dragon — all with danger notes, so fair). Only 1 extra `cont`.
+- Missing helper (written in the kernel): a throne-sitting loop. A `sit_throne(max_sits)` could bag gold, move objects off the throne ("You sit on the club."), stop on any effect, and note that a teleport outcome leaves the throne intact.
+- Worked very well: my scripted court sweep with `fight(x, y)` per sleeper (27 kills, 2 dragons) — the new fight HP rules never paused needlessly (HP 137 -> 118 at worst); `dig('l')` re-wielded Excalibur; `engrave_test('g')` auto-ID ("This platinum wand is a wand of digging!"); `loot_all()` unlocking the chest by itself; `bag_put('D', '$')` for gold; `read_identify(priority=[...])`; `go_down()` auto-fighting a monkey; `fight_until_clear()` reporting "clear (beyond the radius: mountain nymph ... d=11)".
+
+### Shift 16 — ranked summary
+1. loot_all() takes unknown gray stones out of containers without the loadstone guard — `#931`.
+2. Stale/misclassified map memory: closed door shown as `+ spellbook` after a dig beside it (`#632`); throne kept in features after it vanished (`#1025`).
+3. travel() NavError next to a floating eye (`#553`, `#569`) and explore()'s empty `avoided` list when the only frontier is avoided (`#663`).
