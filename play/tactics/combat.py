@@ -665,8 +665,9 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
     missiles don't pause — HP pauses follow the fight rules, new monsters and
     statuses still pause). Trivial hostiles in the way are fought.
     Returns {"reason", "turns", "kills"}: reason "killed", "lost: ..." (out
-    of view), "HP ...", "blocked: ..." (another non-trivial hostile next to
-    you), "no route ..." or "max_turns"."""
+    of view: it first follows it up to 6 steps toward where it was last seen,
+    and hunts on if it shows up again), "HP ...", "blocked: ..." (another
+    non-trivial hostile next to you), "no route ..." or "max_turns"."""
     import contextlib
     from nh.danger import base_name
     from nh.monitor import killed_names
@@ -679,6 +680,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
     want = species = None
     warned_others = False
     tried: set = set()                 # frontier squares already tried on the way to a far target
+    chase = 0                          # steps taken toward where the target was last seen
 
     def out(reason):
         return {"reason": reason, "turns": (ctx.last().status.turn or t0) - t0, "kills": kills}
@@ -709,8 +711,30 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
             else:
                 m = next((e for e in s.monsters or [] if e.get("id") == want), None)
                 if m is None:
-                    return out("killed" if species and species in kills else
-                               f"lost: the {species or target} is out of view")
+                    if species and species in kills:
+                        return out("killed")
+                    # out of view (round a corner, past telepathy's reach): follow it to where it was last
+                    # seen for a few steps — it keeps its id if it shows up again
+                    tr = getattr(ctx.game, "tracker", None)
+                    rec = (getattr(tr, "recent", None) or {}).get(want) if tr is not None else None
+                    last = (rec["x"], rec["y"]) if rec else None
+                    if last and chase < 6 and s.hero != last:
+                        chase += 1
+                        path = bfs_path(s, s.hero, last, avoid=frozenset(bad_squares(s) - {last}),
+                                        allow_monsters=False, allow_pets=True)
+                        if path:
+                            try:
+                                _check_free(s, path[0], "hunt()")
+                            except NavError:
+                                path = None
+                        if path:
+                            s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])],
+                                       ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])
+                            kills += killed_names(s.messages)
+                            continue
+                    return out(f"lost: the {species or target} is out of view"
+                               + (f" (last seen at {last}; followed {chase} step(s))" if last else ""))
+                chase = 0
             from nh.monitor import _stationary
             others = [e for e in s.adjacent_hostiles() if e is not m and not auto_fightable(e, s)
                       and not _stationary(e.get("desc") or "")]     # a mold can't follow: walk on past it

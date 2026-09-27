@@ -489,6 +489,12 @@ def read_identify(letter: str, priority=ID_PRIORITY) -> list:
         entries = _menu_entries(s)
         pick = next((e for rx in rxs for e in entries if rx.search(e[2])), None)
         if pick is None:
+            # (Esc here throws the scroll's remaining identifications away: invent.c menu_identify)
+            dflt = [re.compile(p, re.I) for p in ID_PRIORITY]
+            pick = next((e for rx in dflt for e in entries if rx.search(e[2])), entries[0] if entries else None)
+            if pick is not None:
+                print(f"read_identify(): none of your priorities matched — taking {pick[2]!r}")
+        if pick is None:
             s = ctx.do("<Esc>", quiet=True)
             break
         s = ctx.last()

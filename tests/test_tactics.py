@@ -1560,3 +1560,63 @@ def test_fight_until_clear_holds_the_square(monkeypatch):
     assert r["reason"] == "held" and sent == ["s"] * 5
     sent.clear()
     assert combat.fight_until_clear()["reason"].startswith("clear") and sent == []
+
+
+def test_read_identify_never_escapes_the_menu(monkeypatch):
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    base = _snap({}, (10, 5), [])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to read?")
+    menu = _snap({}, (10, 5), [])
+    menu.state = State("menu", prompt="What would you like to identify first?",
+                       menu=Menu(title="What would you like to identify first?",
+                                 items=[MenuItem("", "Weapons", header=True), MenuItem("a", "a dagger"),
+                                        MenuItem("", "Tools", header=True), MenuItem("b", "a bag")]))
+    done = _snap({}, (10, 5), [])
+    done.messages = ["b - a bag of holding."]
+    frames = {"r": obj, "k": menu, "b": menu, "<CR>": done}
+    sent = []
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = frames.get(keys, cur["s"])
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: base)
+    items.read_identify("k", priority=(r"^Rings",))          # nothing matches: the default order picks
+    assert "<Esc>" not in sent and sent[-2:] == ["b", "<CR>"]  # the bag (tools before weapons)
+
+
+def test_hunt_follows_a_target_out_of_view(monkeypatch):
+    from types import SimpleNamespace
+    from tactics import combat, ctx
+    g = _G()
+    g.tracker = SimpleNamespace(recent={7: {"id": 7, "x": 14, "y": 5, "desc": "hill giant"}})
+    monkeypatch.setattr(ctx, "game", g)
+    row = {5: "        ..........."}
+    giant = {"x": 14, "y": 5, "ch": "H", "desc": "hill giant", "dist": 4, "id": 7}
+    pos = {"x": 10}
+
+    def frame(with_giant):
+        s = _snap(row, (pos["x"], 5), [dict(giant, dist=14 - pos["x"])] if with_giant else [])
+        s.status.turn, s.status.hp, s.status.hpmax = 100 + pos["x"], 90, 90
+        return s
+    cur = {"s": frame(True)}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == "l":
+            pos["x"] += 1
+        cur["s"] = frame(False)          # it went round a corner: out of view from now on
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+    r = combat.hunt("hill giant")
+    assert sent == ["l", "l", "l", "l"] and pos["x"] == 14       # one step while seen, then to its last square
+    assert r["reason"].startswith("lost:") and "last seen at (14, 5)" in r["reason"]

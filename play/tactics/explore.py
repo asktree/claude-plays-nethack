@@ -287,6 +287,13 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                      and cur.hero is not None and _bfs(cur, cur.hero, c, allow_monsters=True) is not None]
             if not extra:
                 return finished()
+            if stale >= 4:
+                # NetHack sees no frontier and the last legs to screen edges showed nothing new: what's
+                # left is dark room floor you haven't stood next to, not unexplored ground
+                r = finished()
+                r["reason"] += (f" (NetHack reports no unexplored spot; {len(extra)} dark edge square(s) like "
+                                f"{extra[:4]} were left unvisited after {stale} legs showed nothing new)")
+                return r
             tgt = min(extra, key=lambda c: _dist(c, cur.hero))
             skip.add(tgt)
             try:
