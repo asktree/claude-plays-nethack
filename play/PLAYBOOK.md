@@ -206,15 +206,40 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   fight one helmetless or at low Int (`fight()` refuses; the obs header shows `LOW-Int:N` at 6 or less and a
   `BRAIN EATEN` pause names your Int). Kill them at range (wand of sleep/striking/death, daggers), Elbereth,
   or leave. Blessed genocide of `h` removes them (and dwarves — fine this late).
-- **Vlad's Tower branch is 9–13 levels below the Valley** — search there (with several `<` on that level,
+- **Where things are** (dat/dungeon.def; Gehennom has 20-24 levels, the Valley is Gehennom level 1, so
+  Gehennom level N = the Valley's Dlvl + N - 1): Asmodeus 2-7, Juiblex's swamp 4-7, Baalzebub 6-9, the Vlad's
+  Tower staircase 9-13, Orcus Town 10-15, the Wizard's Tower (three stacked levels) from 11-16, the two
+  fake-tower levels 6th to 3rd from the bottom, the vibrating square on the level just above the Sanctum
+  (the last level).
+- **Vlad's Tower branch is on Gehennom level 9–13 (8–12 below the Valley)** — search there (with several `<` on that level,
   `go_up()` looks at each and skips the ladders; the branch staircase leads into the tower). Vlad has the
   **Candelabrum**; attach 7 candles. He is very fast and covetous: in the dark tower he hits and steps out
   of view, so `fight()` gets one blow at a time — fight him in a lit spot or with a light source, wait with
   `s` for him to come back next to you, and keep Elbereth for healing breaks. He leaves NO corpse: the
   Candelabrum drops where he dies (`pickup('Candelabrum')`). Wolves down here may be vampire lords (the obs
   says so; auto-fight leaves them to you).
-- **Wizard's Tower**: entered through the magic portal on a **fake-tower level**; the Wizard has the **Book
-  of the Dead**. He resurrects and harasses; keep remove-curse reserves; don't wear levitation near him.
+- **Wizard's Tower** (dat/yendor.des). The Wizard has the **Book of the Dead**. He resurrects and harasses,
+  so keep remove-curse reserves, and don't wear levitation near him.
+  - **The tower**: the west part (28x12) of three stacked levels; the rest of each level is a maze.
+    - Its outer walls can't be dug or phased through. The levels are no-teleport with a hard floor.
+    - The level stairs are outside the tower.
+  - **The way in** is the magic portal on the fake-tower level **fakewiz1**. Each of the two fake-tower levels
+    has a tiny walled chamber (3 squares plus a nook above and below) inside a moat ring, with a kraken in the
+    moat and a lich and a vampire lord inside.
+    - Only one of the two chambers holds the portal, at its center. The other holds a random amulet.
+    - Freeze the moat, dig through the chamber wall (these walls can be dug), kill the guards, and step onto
+      the portal. Squeaky boards surround the center.
+    - The portal lands you inside the lowest tower level. Its up ladder leads to the middle level, whose up
+      ladder leads to the top level.
+  - **Top level**: the Wizard sleeps in a closed 3x1 room with a hell hound and a vampire lord. The Book lies
+    under him.
+    - The room is ringed by walls, then a moat holding 4 krakens, 4 giant eels and 2 piranhas. Their wraps
+      drown you, and travel() refuses the moat's edge while they're in sight.
+    - Freeze a path with a cold ray or frost horn (a cold ray also forces an eel out of hiding onto the ice),
+      then dig through the room's wall. The walls inside the moat can be dug.
+    - Squeaky boards sit at the room's two gaps.
+    - Kill him and take the Book. He comes back later ("double trouble", curses, summoned nasties); magic
+      resistance stops his touch of death.
 - **Invocation** (checked in a wizard-mode run): walk the bottom level until "You feel a strange vibration
   under your feet" (obs: `vibrating square` in features once seen, `(under you)` on it). All three items must
   be UNCURSED. Attach the candles by applying the CANDLES ("Attach your candles to your candelabrum? y"; it
