@@ -336,6 +336,12 @@ class Game:
                                 f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
                                 f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
                                 "Use ranged attacks or go around. force=True overrides.")
+        elif k in ("yn", "getlin") and unit[:1] in (b"y", b"Y") and "Really attack" in (snap.state.prompt or ""):
+            # NetHack only asks this about peaceful monsters
+            raise PermissionError(
+                "refusing to confirm 'Really attack ...?': the target is PEACEFUL. Killing peacefuls costs "
+                "alignment and Luck, angers your god, and in Minetown the Watch; a shopkeeper or priest "
+                "will kill you. Answer no (<Esc>). force=True overrides.")
         elif k == "yn" and unit[:1] in (b"y", b"Y"):
             m = self._CORPSE_Q.search(snap.state.prompt or "")
             if m:

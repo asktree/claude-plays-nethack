@@ -272,3 +272,17 @@ def test_engulfed_is_not_an_explosion():
     for (x, y) in ((6, 9), (7, 9), (8, 9), (6, 10), (8, 10), (6, 11), (7, 11), (8, 11)):
         s.fg[y][x] = 6
     assert not _explosion_frame(s)
+
+
+def test_really_attack_guard():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    p = "Really attack the peaceful gnome? (yes) [no]"
+    snap = Snap(screen=mk({0: p}, cursor=(len(p), 0)), state=State("yn", prompt=p, choices="yes/no"),
+                status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"y", force=False)
+    g._guard(snap, b"\x1b", force=False)
+    g._guard(snap, b"y", force=True)

@@ -51,10 +51,12 @@ class MonsterTracker:
         self.next_id = 1
         self.last_turn: int | None = None
         self.visible_ids: set[int] = set()
+        self.mixed: dict = {}
 
     def reset(self):
         self.known, self.recent = [], {}
         self.visible_ids = set()
+        self.mixed: dict = {}    # (ch, color) -> {"friendly", "hostile"} labels seen on this level
 
     def gone(self, turn: int | None = None) -> list[dict]:
         """Monsters seen recently on this level that are not in view now:
@@ -156,8 +158,10 @@ class MonsterTracker:
                 r = recs[0]
                 m.update(id=r["id"], desc=r["desc"], statue=True)
                 claimed.add(r["id"])
-            elif len(descs) == 1 and not _friendly(next(iter(descs))):
-                # re-seen hostile: keep the label (a wrong 'hostile' label is the safe mistake)
+            elif len(descs) == 1 and not _friendly(next(iter(descs))) \
+                    and len(self.mixed.get((m["ch"], m["color"]), ())) < 2:
+                # re-seen hostile: keep the label (a wrong 'hostile' label is the safe mistake),
+                # unless this glyph comes in both peaceful and hostile kinds on this level
                 r = min(recs, key=lambda r: _cheb(m, r))
                 m.update(id=r["id"], desc=r["desc"])
                 claimed.add(r["id"])
@@ -217,6 +221,10 @@ class MonsterTracker:
             if d and not m.get("statue"):
                 m["note"] = note_for(d, xl)
 
+        for m in mons:
+            if m.get("desc") and not m.get("statue"):
+                self.mixed.setdefault((m["ch"], m["color"]), set()).add(
+                    "friendly" if _friendly(m["desc"]) else "hostile")
         for m in mons:
             if m.get("desc"):
                 self.recent[m["id"]] = {"id": m["id"], "ch": m["ch"], "color": m["color"], "x": m["x"],

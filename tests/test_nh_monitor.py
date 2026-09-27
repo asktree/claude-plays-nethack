@@ -173,3 +173,15 @@ def test_gone_reports_last_sighting():
     t.update(snap({}, 12, color=8))
     gone = t.gone(12)
     assert gone and gone[0]["desc"] == "gas spore" and (gone[0]["x"], gone[0]["y"]) == (50, 10)
+
+
+def test_reseen_hostile_rechecked_when_glyph_is_mixed():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(50, 10): "gnome", (60, 12): "peaceful gnome"}
+    t.update(snap({(50, 10): "G", (60, 12): "G"}, 10))
+    t.update(snap({}, 11))
+    g.truth = {(51, 10): "peaceful gnome"}      # a peaceful one shows up where the hostile was
+    g.looked.clear()
+    m = t.update(snap({(51, 10): "G"}, 12))
+    assert g.looked == [(51, 10)] and m[0]["peaceful"]
