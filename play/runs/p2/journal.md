@@ -266,3 +266,10 @@
 - T:11837 D16 — black potion (t) at (63,18). **+3 IRON SHOES at (65,20): worn (replaced very burnt +0 high boots, dropped) → AC -1 → -6.**
 - T:11885 D16 — RUST TRAP (18,16): orcish helm now thoroughly rusty (still AC 0 from it). Snake killed. **D16 `>` = (20,16)** (bottom-left room). 2nd HAPAX LEGOMENON scroll at (5,11) → bag i.
 - T:12004 Hungry → ate a food ration (3 left). T:12064 → D17 (arrived on `<` (13,15)).
+- T:12099–12113 D17 — Green-elf + large kobold at the NW room door: killed. Gray ooze (1 blow). **Swapped armor from the elf's pile: +0 elven leather helm (for the rusty orcish helm) and a fresh +0 faded pall (for the burnt one) → AC -8.**
+- T:12151 D17 — hidden door (36,18) east of the `>` room (search 2), hidden corridor at (38,8)→(39,7). Wolf killed.
+- T:12189–12206 D17 — GELATINOUS CUBE: 1 dagger + 3 zaps of the ebony wand (= STRIKING, now formally identified) killed it with no melee. Ate its corpse (acid -8, no intrinsic). Food ration from its pile.
+- T:12215–12261 D17 — **THRONE ROOM (1-row court at y=3, x=54-69)**: locked door (53,3) opened with the key; stealth kept the whole court asleep; killed them one by one along the row with hunt(): bugbear x4, hobgoblin x4, ELVENKING (on the throne), HILL GIANT, plains centaur, gnome lord, GNOME KING, goblin; gnomish wizard read teleportation, found and killed later; paper golem auto-fought. HP never below 123. Exp 10923 → 11538.
+- T:12263 D17 — **SPHERICAL AMULET (I, unknown)** from the court (64,3). Royal chest (58,3): 21 gold + scroll of teleportation. 2nd puce potion.
+- T:12395 D17 — chest (66,13) (locked, unlock()): 2 food rations, tripe, tin, GLITTERING SPELLBOOK, COPPER RING, green gem. Burdened → bagged food rations etc.
+- T:12477 D17 — horse killed. SHIFT 17 END on the D17 up stairs (13,15), HP 125/129, XL11 (Exp 11624), AC -8. Plan: altar trip to D14 to BUC-test the amulet.

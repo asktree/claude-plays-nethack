@@ -14,3 +14,10 @@
 - An abandoned pet turns "peaceful"; throwing food it likes (tripe for dogs) re-tames it — farlook shows "tame". It only follows when ADJACENT at the stairs: bring it with travel(..., with_pet=True) legs.
 - Excalibur needs only one fountain if lucky: XL5, lawful, long sword -> 1/6 per dip. Got it on dip 1 (T:3107).
 - Food burns fast: food ration ~800 turns, lichen 200, lembas 800, candy bar 100. Eat fresh safe corpses whenever Hungry near a kill to save carried food.
+- Being HUNGRY doubles shop food prices (getprice: x u.uhs — Hungry x2, Weak x3). Eat your own snack first, then buy food.
+- A shopkeeper's lowball of unidentified items (3/8 instead of 1/2 of base) is fixed per shopkeeper (shk.c `!(shkp->m_id % 4)`): once one offer proves it (identify offered 8), read every other offer from him with the 3/8 rule — it separates base 60 from base 80.
+- A shopkeeper can only pay the gold he holds ("offers only N"): Wonotobo had 1054 for a 2500-base black opal. Buying from him first raises his cash.
+- Read a blessed identify even when you know it is one: 1 in 5 it identifies the whole pack (it did at T:3659).
+- Monster-dropped weapons: the gnome's 5 daggers were cursed -1. Always altar-test before wielding/wearing (iron shoes from an Uruk-hai: untested).
+- A tin whistle still calls a pet within ~10 squares (wake_nearby sets whistletime): the dog came in <10 turns.
+- Minetown orc packs: one of them threw a potion of sleeping — fight packs at full HP, in a spot where only 1-2 can reach you.

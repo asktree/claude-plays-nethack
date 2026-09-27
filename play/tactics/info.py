@@ -153,16 +153,42 @@ def _buy_prices(base: int, cha: int, dunce: bool = False) -> set:
     return out
 
 
-def _sell_offers(base: int, dunce: bool = False) -> set:
+def _sell_offers(base: int, dunce: bool = False, rate: str | None = None) -> set:
     """Possible sell offers for one UNidentified item (shk.c set_cost): half
-    the base price, or 3/8 of it at a shopkeeper who lowballs (1 in 4
-    shopkeepers, always the same one)."""
+    the base price, or 3/8 of it at a shopkeeper who lowballs unidentified
+    things (1 in 4 shopkeepers, m_id % 4 == 0 — always the same one).
+    rate: "normal" / "low" once that shopkeeper's habit is known."""
     div = 3 if dunce else 2
-    return {_scale(base, 1, div), _scale(base, 3, div * 4)} if base > 1 else {base}
+    if base <= 1:
+        return {base}
+    normal, low = _scale(base, 1, div), _scale(base, 3, div * 4)
+    return {normal} if rate == "normal" else {low} if rate == "low" else {normal, low}
+
+
+def _shopkeeper(shk: str | None = None) -> str | None:
+    """The shopkeeper whose shop you stand in ("Wonotobo's general store" -> "Wonotobo")."""
+    from . import ctx
+    if shk:
+        return shk
+    if ctx.game is None:
+        return None              # no game attached (offline use): nothing to remember
+    shop = getattr(ctx.last(), "shop", "") or ""
+    return shop.split("'s ")[0] if "'s " in shop else None
+
+
+def shk_rates() -> dict:
+    """{shopkeeper: "normal" | "low"} learned from sell offers for unidentified items."""
+    from . import ctx
+    if ctx.game is None:
+        return {}
+    r = getattr(ctx.game, "shk_rates", None)
+    if r is None:
+        r = ctx.game.shk_rates = {}
+    return r
 
 
 def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: int | None = None,
-             dunce: bool = False, exclude_known: bool = True) -> list:
+             dunce: bool = False, exclude_known: bool = True, shk: str | None = None) -> list:
     """Which unidentified items of a class match a shop price? klass like
     'SCROLL_CLASS', 'POTION_CLASS', 'RING_CLASS', 'WAND_CLASS',
     'AMULET_CLASS', 'SPBOOK_CLASS'. buy = the unit price quoted to you
@@ -170,7 +196,11 @@ def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: i
     to your Charisma from the status line. Returns [(name, base price)]
     consistent with every number given (formulas from shk.c). Types you have
     already identified (the discoveries list, read at the command prompt)
-    are left out unless exclude_known=False."""
+    are left out unless exclude_known=False. A sell offer also teaches the
+    harness whether this shopkeeper lowballs unidentified items (3/8 instead
+    of 1/2 of the base: fixed per shopkeeper) when only one rate fits; later
+    offers from the same one then give one answer (shk= names the
+    shopkeeper when you aren't standing in the shop)."""
     from . import ctx
     if cha is None:
         st = ctx.last().status
@@ -183,7 +213,9 @@ def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: i
                 known = {n for n, _look in discoveries() if " called " not in n}
         except Exception:  # noqa: BLE001 — the price list still works without it
             known = set()
-    out = []
+    who = _shopkeeper(shk) if sell is not None else None
+    rate = shk_rates().get(who) if who else None
+    out, fits = [], {"normal": 0, "low": 0}
     for o in _objects():
         if o.get("class") != klass or not o.get("name"):
             continue
@@ -192,9 +224,17 @@ def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: i
         base = int(o.get("cost") or 0)
         if buy is not None and buy not in _buy_prices(base, cha, dunce):
             continue
-        if sell is not None and sell not in _sell_offers(base, dunce):
-            continue
+        if sell is not None:
+            if sell not in _sell_offers(base, dunce, rate):
+                continue
+            for r in ("normal", "low"):
+                fits[r] += sell in _sell_offers(base, dunce, r)
         out.append((o["name"], base))
+    if who and sell is not None and rate is None and out and (fits["normal"] == 0) != (fits["low"] == 0):
+        learned = "low" if fits["low"] else "normal"
+        shk_rates()[who] = learned
+        print(f"price_id: {who} " + ("LOWBALLS unidentified items (offers 3/8 of the base, not 1/2)" if learned ==
+                                     "low" else "pays the normal half of the base") + " — remembered for later offers")
     return sorted(out, key=lambda x: (x[1], x[0]))
 
 

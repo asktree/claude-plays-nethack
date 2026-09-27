@@ -141,7 +141,7 @@ def neighbors(x, y, diag=True):
 
 
 def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False, allow_water=False,
-             allow_boulders=False):
+             allow_boulders=False, allow_pets=False):
     """Shortest 8-connected path over known-walkable cells (doors: no diagonal
     moves into/out of doorways, per NetHack rules). Returns list of cells
     excluding start, or None. allow_traps=True also crosses '^' squares,
@@ -150,6 +150,8 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_trap
     from collections import deque
     if start == goal:
         return []
+    # allow_pets: your pet's square is passable even when other monsters aren't (a step there swaps places)
+    pets = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("tame") or m.get("pet")} if allow_pets else set()
     prev = {start: None}
     q = deque([start])
     while q:
@@ -158,7 +160,7 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_trap
             nxt = (nx, ny)
             if nxt in prev or nxt in avoid:
                 continue
-            if nxt != goal and not is_walkable(s, nx, ny, allow_monsters=allow_monsters) \
+            if nxt != goal and nxt not in pets and not is_walkable(s, nx, ny, allow_monsters=allow_monsters) \
                     and not (allow_traps and cell(s, nx, ny) == "^") \
                     and not (allow_water and cell(s, nx, ny) == "}") \
                     and not (allow_boulders and cell(s, nx, ny) in "0`"):

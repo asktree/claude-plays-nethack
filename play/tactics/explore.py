@@ -13,6 +13,8 @@ ourselves (object squares next to blank space that we haven't stood next to).
 
 from __future__ import annotations
 
+import re
+
 from . import ctx
 from .mapview import DIR_KEY, is_closed_door
 from .nav import NavError
@@ -198,7 +200,14 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                         "kick_door(x, y) from an orthogonally adjacent square — never a shop door ('Closed for "
                         "inventory'), and no kicking anywhere in Minetown)")
         if why["avoided"]:
-            left.append(f"frontiers {why['avoided']} only reachable across avoided squares {sorted(bad_squares())}")
+            bad = sorted(bad_squares())
+            fd = getattr(ctx.last(), "feature_desc", None) or {}
+            minor = [c for c in bad if re.search(r"\b(?:dart|arrow|squeaky board|rust|falling rock|bear) trap\b|"
+                                                 r"squeaky board", fd.get(c, ""))]
+            left.append(f"frontiers {why['avoided']} only reachable across avoided squares {bad}"
+                        + (f" — {', '.join(f'{c} {fd[c]}' for c in minor[:3])} is a minor trap: cross it on "
+                           "purpose with travel next to it, then step_onto(x, y) (a bear trap holds you a few "
+                           "turns; a falling rock hurts without a helmet)" if minor else ""))
         if unreachable:
             left.append(f"frontiers {unreachable} travel couldn't reach")
         if why["squeeze"]:
@@ -338,7 +347,7 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 from .mapview import bfs_path as _bfs
                 from .nav import walk_path
                 own = _bfs(ctx.last(), hero, target, avoid=frozenset(bad_squares() - {target}),
-                           allow_monsters=False) if hero else None
+                           allow_monsters=False, allow_pets=True) if hero else None
                 if own and stuck < 3:
                     try:
                         s2 = walk_path(own[:3])
@@ -368,7 +377,7 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             # never-walked dark corridor can still be walked: try our own route
             from .nav import walk_path
             own = bfs_path(ctx.last(), hero, target, avoid=frozenset(bad_squares() - {target}),
-                           allow_monsters=False)
+                           allow_monsters=False, allow_pets=True)
             if own:
                 s = walk_path(own[:8])
                 if s.hero != hero:

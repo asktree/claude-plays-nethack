@@ -40,7 +40,7 @@ from tactics.explore import head_to, screen_frontiers  # noqa: E402,F401
 from tactics.nav import avoid, bad_squares, blockers, path_to, walk_path  # noqa: E402,F401
 from tactics.combat import fight, fight_until_clear, friendly_in_line, throw, zap  # noqa: E402,F401
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))
-from tactics.town import buy_protection, pay  # noqa: E402,F401
+from tactics.town import buy_protection, pay, sell_offer  # noqa: E402,F401
 from tactics.items import bag_put, bag_take, dig, eat, pickup  # noqa: E402,F401
 from tactics.items import dip_into, discoveries, read_identify, rub, unlock, with_looks  # noqa: E402,F401
 from tactics.items import piety, write_scroll  # noqa: E402,F401

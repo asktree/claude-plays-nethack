@@ -88,3 +88,55 @@ def pay(x: int | None = None, y: int | None = None) -> list:
             s = ctx.last()
         msgs += s.messages
     return msgs
+
+
+_OFFER = re.compile(r"^(?P<shk>.+?) offers(?: only)? (?P<n>\d+) gold pieces? for ")
+_CLASS_OF = (("scroll", "SCROLL_CLASS"), ("potion", "POTION_CLASS"), ("ring", "RING_CLASS"),
+             ("wand", "WAND_CLASS"), ("amulet", "AMULET_CLASS"), ("spellbook", "SPBOOK_CLASS"))
+
+
+def sell_offer(letter: str) -> dict:
+    """In a shop, on an EMPTY floor square: drop item `letter`, read the
+    shopkeeper's offer, DECLINE it ('n' — the item stays yours) and pick the
+    item up again (2 turns). Returns {"offer", "per_item", "shk", "item",
+    "candidates"}: candidates = price_id(<its class>, sell=per_item) for an
+    unidentified scroll/potion/ring/wand/amulet/spellbook (the shopkeeper's
+    lowballing habit is learned along the way). offer None: "seems
+    uninterested" (not this shop's kind of item) or "cannot pay"."""
+    from .info import price_id
+    from .items import here, inventory, pickup
+    s = ctx.require_command("sell_offer()")
+    if not getattr(s, "shop", ""):
+        raise RuntimeError("sell_offer(): you are not inside a shop")
+    look = here()
+    if look and "You see no objects here" not in look:
+        raise RuntimeError(f"sell_offer(): step onto an empty floor square first (here: {look[:80]}) — picking "
+                           "your item up again must not take the shop's goods")
+    it = next((i for i in inventory() if i["letter"] == letter), None)
+    if it is None:
+        raise RuntimeError(f"sell_offer(): no item {letter!r} in your inventory")
+    s = ctx.do("d", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"sell_offer(): 'd' gave {s.state.kind}: {s.state.prompt!r}")
+    s = ctx.do(letter, quiet=True)
+    offer, shk = None, None
+    texts = list(s.messages) + ([s.state.prompt] if s.state.prompt else [])
+    for t in texts:
+        m = _OFFER.search(t or "")
+        if m:
+            offer, shk = int(m.group("n")), m.group("shk")
+    if s.state.kind == "yn":
+        s = ctx.do("n", quiet=True)          # decline: the item stays yours ("no charge")
+    msgs = pickup()                           # the square was empty: everything here is yours
+    qty = re.match(r"^(\d+) ", re.sub(r"^[a-zA-Z$] - ", "", it["text"]))
+    n = int(qty.group(1)) if qty else 1
+    per = offer // n if offer is not None and offer % n == 0 else (offer if n == 1 else None)
+    klass = next((k for w, k in _CLASS_OF if re.search(rf"\b{w}s?\b", it["text"])), None)
+    cands = price_id(klass, sell=per, shk=shk) if (klass and per and not re.search(r"\bof\b", it["text"])) else []
+    print(f"sell_offer({letter}): " + (f"{shk} offers {offer} for {it['text']}" + (f" ({per} each)" if n > 1 else "")
+                                       + (f" — base price candidates: {cands}" if cands else "")
+                                       if offer is not None else f"no offer ({' | '.join(texts)[:120]})")
+          + ("" if any("You have a little trouble" in m or "- " in m for m in msgs) else ""))
+    return {"offer": offer, "per_item": per, "shk": shk, "item": it["text"], "candidates": cands}

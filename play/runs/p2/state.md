@@ -2,40 +2,46 @@
 
 ## Character
 - Name/role: p2 — local practice game, seed 202 (lawful female dwarven Valkyrie, god: Tyr)
-- Turn / Dlvl / XL / HP / Pw / AC: **T:11747 / D16 = ROGUE LEVEL, corridor (23,4) just east of doorway (22,4)** / **XL11** (Exp 10143; XL12 at 20000) / 103/129 / 18/18 / **AC -1** (orcish helm very rusty) / $24 loose (sack n: **1307 gold** + murky potion). Not hungry (ate a food ration T:11307 → Hungry ~T:12100).
-- FOOD: **o 4 food rations** (Rogue ghost's pile), l lembas wafer, p slime mold, k lichen corpse, G 2 cloves of garlic; in bag i: 4 tripe rations, tin. **X LIZARD CORPSE (stoning cure — eat it at "You are slowing down"/Stone status).**
+- Turn / Dlvl / XL / HP / Pw / AC: **T:12478 / D17, standing ON the up stairs (13,15)** / **XL11** (Exp 11624; XL12 at 20000) / 125/129 / 18/18 / **AC -8** / $0 loose (sack n: **1433 gold** + murky potion). Not hungry (ate a food ration T:12004, gelatinous cube corpse T:12206 → Hungry ~T:12900).
+- FOOD: in bag i: **6 food rations**, 5 tripe rations, 2 tins. Carried: l lembas wafer, p slime mold, k lichen corpse, G 2 cloves of garlic. **X LIZARD CORPSE (stoning cure — eat it at "You are slowing down"/Stone status).** To eat a ration: `bag_take('i', 'food ration')` first.
 - Attributes: **St:18** Dx:12 Co:19 In:11 Wi:9 Ch:9.
 - Skills: long sword EXPERT; #enhance other skills when "more confident" appears.
-- Intrinsics (harness knows them): cold res, stealth (Valk + elven cloak), infravision, SPEED, EXTRINSIC telepathy (amulet of ESP O) + INTRINSIC TELEPATHY, POISON RESISTANCE, SEE INVISIBLE (ring B worn, left hand). Excalibur: autosearch + drain resistance while wielded. **NO magic resistance, NO reflection, NO fire resistance, NO sleep resistance.**
-- Luck: 0. Alignment high ("well-pleased" at T:10649; +kills since).
+- Intrinsics (harness knows them): cold res, stealth (Valk + elven cloak), infravision, SPEED, EXTRINSIC telepathy (amulet of ESP O) + INTRINSIC TELEPATHY, POISON RESISTANCE, SEE INVISIBLE (ring B worn, left hand). Excalibur: autosearch + drain resistance while wielded. **NO magic resistance, NO reflection, NO fire resistance, NO sleep resistance, NO shock resistance** (gelatinous cube corpse T:12206 gave nothing).
+- Luck: 0. Alignment high ("well-pleased" at T:10649; many kills since).
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
 | T:6107–6110 | deliberate no-trouble prayer on the D11 lawful altar with 2 waters | SUCCESS, 2 holy water, timeout reset |
 | T:10649 | holy-water prayer on the D11 lawful altar (2 waters; cursed worn mithril = minor trouble) | SUCCESS, "well-pleased", 2 HOLY WATER; coat NOT uncursed. Timeout reset. |
-- prayer_check() at T:11118: minor trouble (cursed worn coat), 73%. By ~T:11650+ it should be ~90%+: CHECK prayer_check() before any emergency prayer.
+- prayer_check() at T:12478: minor trouble (cursed worn coat), **p_safe 0.99** for major trouble (1829 turns since the last prayer).
 
 ## Equipment worn/wielded (letter: item)
 - a: EXCALIBUR — blessed rustproof **+6** (wielded). NEVER read enchant weapon on it.
-- m: **CURSED** +0 elven mithril-coat (can't be taken off — uncurse with holy water only when a better suit turns up); q: uncursed +0 elven cloak (burnt); c: +3 small shield (very burnt); E: +0 high boots (very burnt); j: +0 orcish helm (**very rusty**, rust monster D16) — replace when a better helmet turns up; O: amulet of ESP; B: ring of see invisible (left hand).
+- m: **CURSED** +0 elven mithril-coat (can't be taken off — uncurse with holy water only when a better suit turns up)
+- H: **+0 faded pall (elven cloak), BUC unknown** (from a Green-elf, D17) — replaced the burnt one
+- E: **+0 elven leather helm, BUC unknown** (Green-elf, D17) — replaced the thoroughly rusty orcish helm
+- w: **+3 IRON SHOES, BUC unknown** (floor, D16 (65,20)) — replaced the very burnt high boots
+- c: +3 small shield (very burnt); O: amulet of ESP; B: ring of see invisible (left hand).
+- (Everything BUC-unknown above was put on voluntarily: if one turns out cursed it is minor trouble; holy water fixes it.)
 
 ## Key inventory (letters)
 - **TWO BAGS OF HOLDING: i and s (both uncursed). NEVER put one into the other (both explode).** n = plain sack (gold only).
-- **BAG s**: pick-axe, **2 HOLY WATER**, potion of HEALING, murky potion, puce potion (base 150), POTION OF OBJECT DETECTION, 2 scrolls of TELEPORTATION, 2 ETAOIN SHRDLU (= earth), scrolls VERR YED HORRE, FOOBIE BLETCH, STRC PRST SKRZ KRK (unknown), KIRJE = create monster, blank x2, ENCHANT WEAPON, gems.
-- **BAG i**: cursed rings (agate, sapphire, teleportation), wands make invisible (0:3), undead turning (0:3), slow monster, light, ebony W (striking), 7 candles, whistle, **scroll HAPAX LEGOMENON (new unknown)**, 2nd potion of object detection, blue + white gems, 4 tripe rations, brass lantern, blessed oil lamp, grease, tin.
-- **L: UNICORN HORN** (uncursed) — cured raven blindness in 1 apply.
+- **I: SPHERICAL AMULET (unknown type, BUC unknown)** — from the D17 throne room. Could be reflection or life saving (~10% each), or strangulation/restful sleep/change (~17% each). DON'T WEAR until BUC-tested on an altar; then wear-test only when uncursed (strangulation → remove at once).
+- **BAG s**: pick-axe, **2 HOLY WATER**, potion of HEALING, murky potion, **2 puce potions** (base 150; one from D17), **black potion** (D16, unknown), **milky potion** (D16, unknown), 2 POTIONS OF OBJECT DETECTION (one may be in i), **3 scrolls of TELEPORTATION**, 2 ETAOIN SHRDLU (= earth), scrolls VERR YED HORRE, FOOBIE BLETCH, STRC PRST SKRZ KRK (unknown), KIRJE = create monster, blank x2, ENCHANT WEAPON, gems.
+- **BAG i**: cursed rings (agate, sapphire, teleportation), **copper ring T (D17 chest, BUC unknown)**, wands make invisible (0:3), undead turning (0:3), slow monster, light, ebony W (striking), 7 candles, whistle, **2 scrolls HAPAX LEGOMENON (unknown)**, **glittering spellbook (D17 chest; to sell)**, 2nd potion of object detection, blue + white + **green** gems, 6 food rations, 5 tripe, 2 tins, brass lantern, blessed oil lamp, grease.
+- **L: UNICORN HORN** (uncursed).
 - THROWING: e blessed +0 dagger, C, D (quivered), F elven dagger; P 12 blessed darts.
-- **WANDS carried: R OAK = TELEPORTATION (CURSED, 0–3 charges); g, N, y, Z FIRE; x SLEEP (1–5 left; the ray BOUNCES — never zap it toward unknown rock/walls near me); v ebony (striking); r slow monster; h hexagonal (unknown, engrave: no message).**
-- RINGS carried: B see invisible (worn); **b IRON, uncursed, unknown**. Unknown potion carried: **Y milky** (D16).
+- **WANDS carried: R OAK = TELEPORTATION (CURSED, 0–3 charges); g, N, y, Z FIRE; x SLEEP (1–5 left; the ray BOUNCES); v STRIKING (3 used on the gelatinous cube T:12191, charges unknown); r slow monster; h hexagonal (unknown, engrave: no message).**
+- RINGS carried: B see invisible (worn); **b IRON, uncursed, unknown**.
 - TOOLS: u key (`unlock()`), L unicorn horn.
 
 ## Identified appearances (appearance -> identity)
-- Scrolls: YUM YUM enchant weapon; ANDOVA BEGARIN identify; ELAM EBOW scare monster; unlabeled blank; KO BATE light; DAIYEN FOOELS teleportation; KERNOD WEL base 80 (enchant armor / remove curse); ELBIB YLOH destroy armor; ETAOIN SHRDLU = earth (not formally); KIRJE = create monster; VERR YED HORRE, FOOBIE BLETCH, STRC PRST SKRZ KRK, HAPAX LEGOMENON unknown.
+- Scrolls: YUM YUM enchant weapon; ANDOVA BEGARIN identify; ELAM EBOW scare monster; unlabeled blank; KO BATE light; DAIYEN FOOELS teleportation; KERNOD WEL base 80 (enchant armor / remove curse); ELBIB YLOH destroy armor; ETAOIN SHRDLU = earth (not formally); KIRJE = create monster; VERR YED HORRE, FOOBIE BLETCH, STRC PRST SKRZ KRK, HAPAX LEGOMENON (x2) unknown.
 - Wands: uranium create monster; ebony striking; curved sleep; balsa slow monster; jeweled FIRE; pine light; iron make invisible; forked undead turning; oak TELEPORTATION; hexagonal: no engrave message.
-- Rings: silver regeneration; copper unknown (cursed one left on D13); agate base 100; steel shock resistance; twisted teleportation; bronze SEE INVISIBLE; sapphire, iron unknown.
-- Potions: MAGENTA healing; YELLOW speed; cyan gain level; clear water; WHITE paralysis; EFFERVESCENT full healing; golden object detection; EMERALD sleeping; puce base 150; murky base 100; milky unknown.
-- Amulets: hexagonal ESP; oval unchanging. Faded pall = elven cloak. "bag" = bag of holding (called "holding").
+- Rings: silver regeneration; copper unknown (cursed one left on D13; another in bag i); agate base 100; steel shock resistance; twisted teleportation; bronze SEE INVISIBLE; sapphire, iron unknown.
+- Potions: MAGENTA healing; YELLOW speed; cyan gain level; clear water; WHITE paralysis; EFFERVESCENT full healing; golden object detection; EMERALD sleeping; puce base 150 (blindness / gain energy / invisibility / monster detection); murky base 100; milky, black unknown.
+- Amulets: hexagonal ESP; oval unchanging; spherical UNKNOWN (I). Faded pall = elven cloak. "bag" = bag of holding (called "holding").
 
 ## Dungeon map
 | Dlvl | branch | features |
@@ -46,29 +52,32 @@
 | Soko 1–4 | Sokoban | ALL SOLVED. |
 | 7–10 | Dungeons | 7: up (33,13) `>` (64,16); 8: up (48,4) `>` (49,16); 9: up (31,19) `>` (43,4); 10 BIG ROOM `<` (16,8) `>` (4,16) |
 | 11 | Dungeons | `<` (48,19) `>` (14,19) LAWFUL ALTAR (44,6). QUEST PORTAL LEVEL (portal not found; XL14 + piously needed). |
-| 12 | Dungeons | `<` (48,3) land mine (47,4) `>` (13,4); WEAPON SHOP (Carignan) x57-66 y3-7, door (56,3): nothing useful; buys only weapons/armor. |
+| 12 | Dungeons | `<` (48,3) land mine (47,4) `>` (13,4); WEAPON SHOP (Carignan): nothing useful; buys only weapons/armor. |
 | 13 | Dungeons | `<` (74,7) `>` (66,16) LAWFUL ALTAR (17,18) |
-| 14 | Dungeons | `<` (17,7) `>` (30,6) **LAWFUL ALTAR (49,6)**, fountains (7,11), (19,17). Explored (boulder (49,13) blocks one corridor). |
-| 15 | Dungeons | `<` (23,15) `>` (6,10); rolling boulder trap (9,9). **BARRACKS east (x≈47-50, y 12-19, soldiers + sergeant, asleep) — AVOID** (harness avoid() block set there). |
-| 16 | Dungeons | **ROGUE LEVEL**. `<` (41,2); `>` NOT FOUND YET (unexplored: south/east rooms). 3 frost giants killed; **1 frost giant left** (wanders the row-16 corridors), a snake. Ghost pile (30,10): plate mail, bow, arrows, two-handed sword (likely cursed) left. Egg at (17,4) left. |
+| 14 | Dungeons | `<` (17,7) `>` (30,6) **LAWFUL ALTAR (49,6)** (closest altar), fountains (7,11), (19,17). |
+| 15 | Dungeons | `<` (23,15) `>` (6,10); rolling boulder trap (9,9). **BARRACKS east (x≈47-50, y 12-19, asleep) — AVOID** (avoid() set). |
+| 16 | Dungeons | **ROGUE LEVEL**. `<` (41,2); **`>` (20,16)** (bottom-left room); rust trap (18,16); dart trap (39,2). All 4 frost giants dead. Ghost pile (30,10): plate mail, bow, arrows, two-handed sword left. |
+| 17 | Dungeons | **`<` (13,15), `>` (25,18)**. Hidden door (36,18) east of the `>` room, hidden corridor (38,7). **THRONE ROOM (54-69, 3-4)**: court CLEARED (Elvenking, hill giant, gnome king, centaur, bugbears, hobgoblins...), throne (56,3) (never sit), paper golem's blank scrolls (54,3). Chests at (58,3) (empty now) and (66,13) (looted). A PEACEFUL gnome lord wanders there. |
 
 ## Threats / known dangers
-- Prayer: check `prayer_check()` first (last prayer T:10649).
+- Prayer: check `prayer_check()` first (last prayer T:10649; p_safe 0.99 at T:12478).
 - Stoning: X lizard corpse carried. Cockatrices: melee only with Excalibur.
 - WAND USERS / BREATHERS / SOLDIERS: stay off their lines; never zap sleep toward nearby unknown rock (bounce).
+- GELATINOUS CUBES: never melee (passive paralysis) — wand of striking (v) / thrown daggers; they resist fire/cold/sleep/shock.
 - YELLOW LIGHTS: kill with one blow as they step adjacent, or at range.
 - LEPRECHAUNS: keep ALL gold in sack n (`bag_put('n','$')` after every pickup).
-- No MR/reflection: must come from silver/gray dragon scales, cloak of MR, shield of reflection, amulet of reflection, wishes, quest.
+- No MR/reflection: must come from silver/gray dragon scales, cloak of MR, shield of reflection, amulet of reflection (maybe amulet I!), wishes, quest.
 
 ## Objective and plan
-- NEXT (shift 17):
-  1. D16: rest to full on a safe spot, then finish exploring (the 4th frost giant: fight it 1-on-1 in a corridor/doorway — it went down in 2 turns each time), find `>`.
-  2. D17+ new levels: look for MR/reflection (dragons, shops, armor), a stethoscope, gold for protection (400×XL = 4400 at XL11; have 1331), better helmet.
-  3. Price-ID the 4 unknown scrolls, iron ring b, milky/puce/murky potions at the next general store/scroll shop (none known below D4).
-  4. Uncurse the mithril-coat (holy water) only when a better body armor appears. Quest at XL14 + piously (portal on D11). Medusa D21–24 needs reflection or blindness + a water crossing.
+- NEXT (shift 18):
+  1. **Altar trip: D17 `<` (here) → D16 `<` (41,2) → D15 `<` (23,15) → D14 `>`... i.e. go_up() x3 to D14, travel to the lawful altar (49,6).** Drop-test BUC: amulet I, iron shoes/helm/cloak (worn — `T`-test instead, or just note), copper ring T, iron ring b, spellbook, all unknown potions and scrolls (EXCEPT base-100 scrolls picked up before — scare-monster risk on re-pickup; the HAPAX pair could be scare monster).
+  2. If amulet I is uncursed/blessed: wear-test it (strangulation → `R` at once; "You feel very drowsy"/nothing → keep watching). Nothing happening = reflection / life saving / vs poison / magical breathing (restful sleep shows only later as random sleep).
+  3. With known BUC, consider read-testing unknown scrolls on the altar level at full HP (genocide: uncursed → "master mind flayer"? no: `L` only when blessed/class prompt; never `h`/dwarf/`@`/valkyrie).
+  4. Then back down: D17 → `>` (25,18) → D18+. Look for MR/reflection, shops (price-ID; sell the spellbook for protection gold: need 4400 at XL11).
 - Emergency: HP < 40% → Elbereth / potion of healing (bag s) / stairs / scroll of teleportation (bag s). Prayer only when `prayer_check()` says it's safe.
 
 ## Harness/helper calibration notes
-- `monster_filter(lambda m: ...)` silences far-away known threats during explore() (used for wandering frost giants).
+- `monster_filter(lambda m: ...)` silences far-away known threats during explore(); it does NOT silence the crowded-level "approaching: X" pauses (neither does `defer_far(1)`).
+- A 1-row throne room is a perfect corridor: `hunt((x, y))` on each sleeper in turn, one call per kill.
 - fight_until_clear() in a 1-wide corridor killed a frost giant in 2 turns with no damage.
 - The dungeon overview (`bin/nh info` → overview) names shop TYPES of visited levels — check it before a shop detour.

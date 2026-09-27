@@ -145,13 +145,16 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   refuses travel/explore/kick_door there until you are Blind or wear known reflection (inventory() learns a
   worn shield of reflection / silver dragon scale mail; medusa_ok=True if you know better). Her level's
   floor can be dug down (a wand of digging skips her island — but you come back up this way with the Amulet).
+  Medusa's level is 1-4 levels ABOVE the Castle (dungeon.def: medusa @ (-5, 4), castle = the bottom level):
+  digging down may land on a filler level; its `<` then leads up onto Medusa's `>` on her island, next to
+  her (asleep). Reflection kills her with her own gaze only if she can see you: don't be invisible then.
 - **Eels** (Medusa, the Castle moat, any water): "The giant eel swings itself around you!" = HELD: its NEXT
   hit drowns you — LEVITATION DOES NOT HELP (QA death). That turn: engrave Elbereth (it flees and lets go;
   impossible while levitating), kill it, or teleport (not on the Castle: no-teleport). The harness pauses
   with `HELD — ...`. Stay 2 squares from water where eels swim.
 - **Poison**: without poison resistance every poisonous bite/sting (snakes, soldier ants, bees, rabid rats,
   quasits) can kill outright (1 in 30) — the harness rates them dangerous and never auto-fights them then.
-- **Castle** (below Medusa) — only per rule A1. Wand of wishing: in a chest in a **corner tower** (Astra:
+- **Castle** (the bottom level of the Dungeons, 1-4 levels below Medusa) — only per rule A1. Wand of wishing: in a chest in a **corner tower** (Astra:
   NE once, NW once; check both). Approach from the back: levitate over the moat, use the trapdoor-side door,
   conflict in the court, avoid the central hall and barracks. Minotaurs in the maze ignore Elbereth.
 - **Wishes** (after MR/reflection are covered as needed): blessed +2 gray dragon scale mail (MR) → "2

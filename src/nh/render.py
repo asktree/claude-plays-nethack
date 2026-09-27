@@ -180,6 +180,11 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
                        "reflection / silver dragon scale mail). She starts asleep: noise (kicking doors, fights) "
                        "wakes her. travel()/explore()/kick_door() refuse here until then (medusa_ok=True overrides; "
                        "going back up is always allowed)")
+    flags = getattr(snap, "flags", None) or set()
+    if not getattr(snap, "medusa_risk", False) and flags & {"medusa", "medusa?"} and "medusa_dead" not in flags:
+        lines.append(("MEDUSA'S LEVEL" if "medusa" in flags else "PROBABLY MEDUSA'S LEVEL")
+                     + " (you are Blind or wear reflection): reflection turns her gaze back on her — it kills her "
+                       "only if she can see you (NOT while you are invisible)")
     if getattr(snap, "rogue", False):
         lines.append("ROGUE LEVEL (no colours): '%' = stairs (up or down: see features), '+' in a wall = doorway "
                      "(NO diagonal moves into or out of it), ':' = food or a lizard/newt, ']' armor, ',' amulet, '*' gold or gem, "

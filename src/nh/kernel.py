@@ -93,6 +93,10 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You were wearing (?!.*\bcursed\b)", r"^You are now wearing (?!.*\bcursed\b)",
     r"^You finish (?:taking off|your dressing maneuver)",
     r"^You can see again\.$",           # blindness over (the status line shows it)
+    # a monster's spell that fumbled or wasn't aimed at you (mcastu.c cursetxt(), castmu() fumble)
+    r"^.+ points (?:at you, then curses|all around, then curses|and curses in your general direction)\.$",
+    r"^You hear a mumbled curse\.$", r"^The air crackles around .+\.$",
+    r"^You feel yourself slowing down a bit\.$",     # a temporary speed-up ended; intrinsic speed remains
     # a lighter load (hack.c encumber_msg) is good news; a heavier one pauses on the status change
     r"^Your movements are (?:now unencumbered|only slowed slightly by your load)\.$",
     r"^You rebalance your load\.  ?Movement is still difficult\.$",
@@ -115,6 +119,7 @@ ONCE_PER_LEVEL = [re.compile(p) for p in (
     r"^You hear (?:blades being honed|loud snoring|dice being thrown|General MacArthur)",
     r"^You hear (?:the tones of courtly conversation|a sceptre pounded|Queen Beruthiel)",
     r"^You hear (?:a seal barking|an elephant stepping on a peanut)",
+    r"^You hear (?:a|several) slurping sounds?\.",       # a gelatinous cube eating objects out of sight (mon.c)
 )]
 
 
@@ -196,7 +201,7 @@ class Kernel:
         self._announced: dict[str, dict] = {}   # species -> {turn, level, cells} of its last new-monster pause
         self._heard: set = set()     # (level, ONCE_PER_LEVEL index) already paused for
         self.defer_dist: int | None = None   # defer_far(): newcomers farther than this wait until they come near
-        self._deferred: dict = {}    # monster id -> level: seen far off, pauses when it comes within DEFER_NEAR
+        self._deferred: dict = {}    # monster id -> {level, pos, near}: seen far off, pauses once it MOVES within near
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
         self._reply_sent: bytes | None = None   # the `cont --reply` keys just sent for the script
         self.parked = False        # True while an exec worker waits at a pause point
@@ -466,21 +471,34 @@ class Kernel:
                                                      or "[seen: warned" in (m.get("desc") or ""))) \
                         or (self.defer_dist is not None and d > self.defer_dist)
                 later = [m for m in new if far(m)]
+                near_at = self.defer_dist if self.defer_dist is not None else self.DEFER_NEAR
                 for m in later:
                     if m.get("id") is not None:
-                        self._deferred[m["id"]] = level
+                        self._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near_at}
                 new = [m for m in new if m not in later]
                 if new:
                     reasons.append("new monster: " + ", ".join(
                         f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))
                 if self._deferred:
-                    for i in [i for i, lv in self._deferred.items() if lv != level]:
+                    for i in [i for i, v in self._deferred.items() if v["level"] != level]:
                         del self._deferred[i]
-                    near = [m for m in snap.monsters if m.get("id") in self._deferred and not m.get("new")
-                            and m.get("dist") is not None and m["dist"] <= self.DEFER_NEAR
-                            and not m.get("tame") and not m.get("peaceful")]
-                    for m in near:
+                    near = []
+                    for m in snap.monsters:
+                        v = self._deferred.get(m.get("id"))
+                        if v is None or m.get("new") or m.get("dist") is None or m.get("tame") \
+                                or m.get("peaceful"):
+                            continue
+                        pos, v["pos"] = v["pos"], (m["x"], m["y"])
+                        if m["dist"] > v["near"] or (m["x"], m["y"]) == pos:
+                            continue         # still far, or it didn't move: only you came closer (a sleeper)
                         del self._deferred[m["id"]]
+                        if self.new_monster_filter is not None:
+                            try:
+                                if not self.new_monster_filter(m):
+                                    continue
+                            except Exception:  # noqa: BLE001 — a broken filter must not hide monsters
+                                pass
+                        near.append(m)
                     if near:
                         reasons.append("approaching: " + ", ".join(
                             f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m['dist']}" for m in near[:4]))

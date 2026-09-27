@@ -412,7 +412,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
         if direct and any(c in bad for c in direct):
             for _try in range(6):
                 cur = ctx.last()
-                detour = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad), allow_monsters=False)
+                detour = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad), allow_monsters=False, allow_pets=True)
                 if detour is None:
                     on = [c for c in direct if c in bad]
                     raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square — the direct "
@@ -482,7 +482,8 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             continue
         if (tx, ty) == (x, y) and h0 is not None:
             # stop one short (the last step is a plain move) — on a free square when one will do
-            path = bfs_path(s, h0, (x, y), allow_monsters=False) or bfs_path(s, h0, (x, y), allow_monsters=True)
+            path = bfs_path(s, h0, (x, y), allow_monsters=False, allow_pets=True) or \
+                bfs_path(s, h0, (x, y), allow_monsters=True)
             if path and len(path) >= 2:
                 tx, ty = path[-2]
         if h0 is not None and dist((tx, ty), h0) == 1:
@@ -539,7 +540,8 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if blk and sidesteps < 6:
                 # lookaround(): NetHack's travel never starts next to a non-tame monster, even one
                 # that isn't in the way — plain steps along our own route (never into it) do
-                own = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False)
+                own = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False,
+                               allow_pets=True)
                 if own:
                     sidesteps += 1
                     try:
@@ -583,7 +585,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     # NetHack's travel plans through closed doors, ours doesn't: walk around a locked one
                     cur = ctx.last()
                     own = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad_squares(cur) - {(x, y)}),
-                                   allow_monsters=False) if "locked" in str(e) and cur.hero else None
+                                   allow_monsters=False, allow_pets=True) if "locked" in str(e) and cur.hero else None
                     if not own:
                         raise
                     print(f"{e} — walking around it by our own route ({len(own)} steps)")
@@ -598,7 +600,8 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     continue
                 raise NavError(f"travel to {(x, y)} did not move: your pet stays in the way ({s.messages}); "
                                "step around it by hand")
-            own = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False)
+            own = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False,
+                           allow_pets=True)
             if own and fallbacks < 3:
                 # NetHack's travel planned through something it then can't pass ("A boulder blocks
                 # your path." — TEST_TRAV lets boulders through): walk our own route a stretch

@@ -513,6 +513,12 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
     when your pet or a peaceful is anywhere on the straight line (rays and
     beams go through monsters; force=True to zap anyway)."""
     ctx.require_command("zap()")
+    empty = getattr(ctx.game, "empty_wands", None)
+    if empty and wand in empty and not force:
+        ctx.pause(f"zap: wand {wand} said \"Nothing happens\" last time — it is EMPTY (0 charges): recharge it "
+                  "(scroll of charging) or use another; zap(..., force=True) tries to wrest a last charge (1 in "
+                  "121 per zap, a turn each)")
+        return ctx.last()
     if direction and _refuse_friendly_fire("zap", direction, ray=True, force=force):
         return ctx.last()
     if direction:
@@ -528,6 +534,13 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
         ctx.pause(f"zap: expected an item prompt, got {s.state.kind}: {s.state.prompt!r}")
         return ctx.last()
     s = ctx.do(wand)
+    if s.state.kind == "command" and any(m.startswith("Nothing happens") for m in s.messages):
+        # zap.c zappable(): a wand with 0 charges does nothing (no direction asked)
+        if getattr(ctx.game, "empty_wands", None) is None:
+            ctx.game.empty_wands = set()
+        ctx.game.empty_wands.add(wand)
+        print(f"zap: wand {wand} is EMPTY (\"Nothing happens\": 0 charges) — recharge it (scroll of charging); "
+              "zap() now refuses it unless force=True (wresting a last charge: 1 in 121 per zap)")
     if s.state.kind == "direction":
         if direction is None:
             ctx.do("<Esc>", quiet=True)
@@ -644,7 +657,8 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                     kills += killed_names(fs.messages)
                     continue
             goal = (m["x"], m["y"])
-            path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=False)
+            path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=False,
+                            allow_pets=True)
             if not path or len(path) < 2:
                 nxt = _greedy_step(s, goal, bad_squares(s)) if m["dist"] is not None and m["dist"] <= 6 else None
                 if nxt is None:

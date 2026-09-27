@@ -684,3 +684,32 @@ def test_kernel_brain_eaten_pause_names_the_int_danger():
     k._check_events(s0, s1)
     assert reasons and reasons[-1].startswith("BRAIN EATEN") and "NEXT" in reasons[-1] and "Int 6->4" in reasons[-1]
     assert "LOW-Int:4" in s1.status.short()
+
+
+def test_sleepers_you_walk_up_to_are_not_approaching():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def step(turn, mons):
+        s = snap({}, turn)
+        s.monsters = mons
+        reasons.clear()
+        k._check_events(snap({}, turn - 1), s)
+        return reasons[-1] if reasons else ""
+    court = [{"ch": "o", "x": 50 + i, "y": 3, "desc": "bugbear", "new": True, "dist": 12 + i, "id": 100 + i}
+             for i in range(10)]
+    assert step(10, court) == ""                                   # a crowd far off: deferred
+    walked = [dict(m, new=False, dist=m["dist"] - 8) for m in court]
+    assert step(11, walked) == ""                                  # you came closer, they didn't move
+    woke = [dict(walked[0], x=walked[0]["x"] - 1, dist=3)] + walked[1:]
+    assert "approaching: bugbear" in step(12, woke)                # one woke up and moved toward you
+    # defer_far(1): the approach line is 1 square, not 6; and monster_filter applies to it
+    ape = {"ch": "Y", "x": 60, "y": 10, "desc": "ape", "new": True, "dist": 5, "id": 300}
+    with k.ns["defer_far"](1):
+        assert step(20, [ape]) == ""
+        assert step(21, [dict(ape, new=False, x=59, dist=4)]) == ""
+        with k.ns["monster_filter"](lambda m: False):
+            assert step(22, [dict(ape, new=False, x=58, dist=1)]) == ""

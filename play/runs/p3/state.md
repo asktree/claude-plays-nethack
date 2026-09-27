@@ -2,61 +2,63 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:3107 / D2 (at the dried-up fountain spot (39,5)) / XL5 (Exp 173; XL6 at 320) / 63/63 / 9/9 / AC5
-- Attributes: St17 Dx12 (up at T:1474) Co19 In9 Wi9 Ch10
-- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf); speed at XL7. NOT poison resistant (black naga hatchling corpse T:2556 gave nothing)
-- Luck notes: none known (hit rate ~59% overall = consistent with Luck 0)
-- Alignment / god anger notes: none; never prayed; no hypocrite/peaceful kills
-- Skills: long sword Basic, dagger Basic (nothing to #enhance at T:3107)
+- Turn / Dlvl / XL / HP / Pw / AC: T:3753 / D7 = MINETOWN (Grotto Town), at (36,17) south-centre of town (orc fight site) / XL5 (Exp 299; XL6 at 320) / 37/63 / 9/9 / AC5
+- Attributes: St17 Dx12 Co19 In9 Wi9 Ch10 (Ch10 = shop prices x4/3)
+- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf); speed at XL7. NOT poison resistant. Excalibur gives auto-search while wielded.
+- Luck notes: none known (assume 0)
+- Alignment / god anger notes: none; never prayed; no hypocrite/peaceful kills by me (the DOG killed ~4 peaceful gnomes: no penalty to me)
+- Skills: long sword SKILLED (T:3435), dagger Basic
+- Hunger: ate a hill orc corpse at T:3753 (not hungry)
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
-| (none yet) | | prayer timeout surely 0 now (T:3107): first prayer safe in MAJOR trouble (HP<=9 at max 63, i.e. <=1/7) |
+| (none yet) | | prayer timeout surely 0 (T:3753): first prayer safe in MAJOR trouble (HP<=9 at max 63 (1/7), or Weak) |
 
 ## Equipment worn/wielded (letter: item)
-- a: **the blessed rustproof +1 Excalibur** (wielded; from the D2 fountain, first dip, T:3107)
+- a: the blessed rustproof +1 Excalibur (wielded)
 - b: uncursed +0 dagger (alternate; `x` swaps)
 - c: uncursed +3 small shield (worn)
-- m: +0 orcish helm (worn since T:1091; BUC not formally known; stopped a falling rock)
-- NO body armor, no boots/gloves/cloak -> AC5 is the weak spot. Look for a dwarvish mithril coat / iron helm, buy armor in Minetown.
+- m: CURSED +0 orcish helm (worn; identified T:3659) — can't take it off; z (remove curse) or i (enchant armor, if it lands on the helm) would uncurse it
+- NO body armor, no cloak/gloves; H: iron shoes (AC2) carried, BUC UNKNOWN (Uruk-hai drop) — altar-test before wearing
 
-## Key inventory (letters) — evidence [seen]
-- Escape items: none (upstairs + Elbereth)
-- Healing: none known. f: puce potion, w: puce potion (the two did NOT stack -> different BUC)
-- Emergency cures: none (prayer)
-- Food: e: 2 candy bars ONLY (lembas eaten T:2638, tripe fed to the dog). Need food: eat fresh safe corpses, buy food in Minetown
-- Ranged: l: 7 darts (restricted skill; they break on hit sometimes) [seen T:3107]
-- Tools: h: blindfold; o: whistle (untested: magic?); s: credit card; v: key (skeleton key: unlock doors/boxes)
-- Scrolls (unknown): i KERNOD WEL, j GNIK SISI VLE, p ETAOIN SHRDLU, r ZLORFIK
-- Rings (unknown): k ivory ring (never put on untested)
-- Gems: g: 2 yellow gems; t: green gem; u: black gem; x: black gem (u and x did NOT stack -> different types)
-- Gold: $44
+## Key inventory (letters)
+- Food: D: 2 uncursed food rations; G: 1 food ration (BUC unknown, shop); E: uncursed cram ration; e: 1 uncursed candy bar (~2900 nutrition in all). Food rations are old: 1/7 rotten chance — eat on a safe square
+- Ranged: l: 7 uncursed +0 darts; B: 5 CURSED -1 daggers (throw only)
+- Scrolls: F: KO BATE = ENCHANT WEAPON (bought 80zm; BUC UNKNOWN — altar-test, then read with Excalibur wielded); i: uncursed ENCHANT ARMOR (hold until more armor is worn; small shield is +3: a 4th + could evaporate it only above +3); z: uncursed REMOVE CURSE (reserve); p: uncursed STINKING CLOUD
+- Potions: w: blessed potion of OIL; I: orange potion (unknown, Uruk-hai drop)
+- Rings: k: uncursed RING OF TELEPORT CONTROL (keep!)
+- Tools: h: blindfold; o: tin whistle (calls the pet within ~10 squares); s: credit card; v: skeleton key
+- Gems: g: 2 worthless yellow glass; t: worthless green glass; x: worthless black glass (junk)
+- Gold: $953 (no bag: a leprechaun would take it all — spend it on armor soon)
 
-## Identified appearances (appearance -> identity)
-- none yet (dwarvish items are pre-identified)
-- Price-ID notes (Ermenak, D2, Ch10): riding gloves 67zm = base 50 (GoP/GoDex/fumbling); mud boots 67zm = base 50 (speed/jumping/water walking); combat boots 53 = fumble/levitation; jungle boots 11 = elven/kicking; faded pall 107 = base 60 w/ surcharge (elven cloak/MR/invisibility)
+## Identified appearances
+- scrolls: ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon (price); GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud
+- potions: puce = oil; rings: ivory = teleport control; whistle = tin
+- Price rules: being HUNGRY doubles food prices (Weak x3). Wonotobo lowballs unID'd items (offers 3/8 base; fixed per shopkeeper, shk.c set_cost `!(shkp->m_id % 4)`). A shopkeeper pays at most the cash he holds (Wonotobo paid 1054 for the black opal).
+- D2 Ermenak armor: faded pall 107zm = ELVEN CLOAK (fixed appearance); riding gloves 67 = base 50 (GoP/GoDex/FUMBLING); mud boots 67 = base 50 (SPEED/water walking/jumping); combat boots 53; jungle boots 11 (elven/kicking)
+- D4 Fleac's weapon shop: 2 SPLINT MAILS (AC6, base 80 -> ~107-142zm), ring mail (AC3)
 
 ## Dungeon map
 | Dlvl | branch | features |
 |---|---|---|
-| 1 | Dungeons | up (43,18), down (57,6); FOUNTAIN (19,3) (still there); hole (14,6); magic trap (16,17); opened chest (32,5) |
-| 2 | Dungeons | up (53,3), down (36,14); fountain (39,5) GONE (Excalibur); Ermenak's used armor dealership (69-73,12-16), door (68,16); boulder (12,4) |
-| 3 | Dungeons | up (45,18) with RED MOLD (44,18) beside it (enter the stair room by the doorless west doorway (43,18) diagonally); down (47,9) with YELLOW MOLD (48,8) beside it. East half (x>56) unexplored/hidden (shop there: cash register chime). **Tame little dog left here T:3080** (re-tamed with tripe at T:3052) |
-| 4 | Dungeons | up (22,5), down (60,8); **MINES BRANCH stairs (70,5)** in the small room (67-70,5-7) behind the broken door (66,6), reached by the corridor from room D's east doorway (61,7). Fleac's weapon shop (no daggers; ring mail, 2 splint mails, conical hat) (71-76,17-19), door (70,18); vault guard heard. Dead end (57,12) is a blind corridor |
-| 5 | Mines 1 | up (28,3) (yellow mold (27,4) beside it), down (60,13). Traps: sleeping gas (27,11), (48,3); falling rock (12,17); magic trap (42,10); pit (21,3). Gold embedded in rock (33,11) (needs digging). Fully explored |
-| 6 | Mines 2 | up (8,6); down NOT found yet (east part past the corridor (27,15) unexplored). Traps: sleeping gas (21,12), dart (11,18); a land mine went off somewhere ("Kaablamm!"). Towel at (6,9). A giant bat roams (dangerous: 2 bites/turn) |
-- Mines: entrance D4 -> Mines 1 = D5. Minetown expected at D7 or D8.
+| 1 | Dungeons | up (43,18), down (57,6); FOUNTAIN (19,3); hole (14,6); magic trap (16,17) |
+| 2 | Dungeons | up (53,3), down (36,14); fountain gone (Excalibur); Ermenak's used armor shop (69-73,12-16), door (68,16) |
+| 3 | Dungeons | up (45,18) with RED MOLD (44,18) beside it (leave/enter the stair room by the doorless west doorway (43,18) diagonally — the route planner won't); down (47,9) with YELLOW MOLD (48,8). East half unexplored |
+| 4 | Dungeons | up (22,5), down (60,8); MINES stairs (70,5) (room behind broken door (66,6)). Fleac's weapon shop (71-76,17-19), door (70,18) |
+| 5 | Mines 1 | up (28,3) (yellow mold (27,4)), down (60,13). Traps: sleeping gas (27,11), (48,3); falling rock (12,17); magic trap (42,10); pit (21,3) |
+| 6 | Mines 2 | up (8,6), down (54,7). Traps: sleeping gas (21,12), dart (11,18) |
+| 7 | Mines 3 = MINETOWN (Grotto Town) | up (3,2); down (48,4) (wiki map, not yet seen); TEMPLE of ODIN (neutral, cross-aligned), priestess, altar (33,4), door (33,6); Wonotobo's GENERAL STORE (61-69,10-11), door (68,9) (obsidian 356; my sold potions/scrolls); DELI (7-10,10-11) door (9,12); TOOL shop door (58,15); IZCHAK's lighting shop door (26,19); fountains (52,10), (12,16). Wiki: bottom-right closet has a chest; the room above it has a secret closet with a ring |
+- Screen coords from the wiki Grotto Town map: screen x = wiki line index + 1 (with its leading space), screen y = wiki line - 138.
 
 ## Pets
-- tame little dog on D3 (left at T:3080 near the corridor (38,15)-(44,17), on the way to the up stairs).
+- tame little dog, with me in Minetown (kills peaceful gnomes; picks up shop gems)
 
 ## Threats / known dangers
-- D3 red mold (44,18) next to the upstairs, yellow mold (48,8) next to the downstairs: never melee.
-- Giant bats: speed 22, two bites a turn — took me from 48 to 18 HP in 3 turns (T:2785). Elbereth works on them.
-- Leprechaun seen on D5 (T:2242).
+- Orc packs roam Minetown (killed 3 Uruk-hai + 3 hill orcs at T:3715-3732; one THREW A SLEEPING POTION at me — I slept a few turns).
+- Giant bats: speed 22, two bites a turn. D3 molds next to both staircases: never melee.
+- Minetown watch: no fountain quaffing/dipping, no door kicking, no theft.
 
 ## Objective and plan
-- DONE: XL5, Excalibur (T:3107), Mines branch found (D4 (70,5)).
-- Next: (1) back down: D2 (36,14) -> D3, pick up the dog near the D3 up stairs (with_pet travel), D3 down (47,9) -> D4 -> Mines (70,5) -> D5 -> D6; (2) finish D6, then Minetown (D7/D8): temple priest (co-aligned? check), altar for BUC-testing (drop scrolls/potions/ring/gems), shops: price-ID the 4 scrolls, buy FOOD and body armor; (3) keep an eye on food (only 2 candy bars).
-- Open questions: whistle magic? (apply once with the dog around); ivory ring; 4 unknown scrolls; 2 puce potions of different BUC.
+- DONE: XL5, Excalibur, Minetown, altar BUC test, full identify, food (~2900 nutrition), $953.
+- Next shift: (1) rest to full HP (Elbereth/quiet corner; HP 37/63); (2) altar (33,4): drop F (enchant weapon), G, H (iron shoes), I — then read F on Excalibur if not cursed, wear H if not cursed (AC5 -> 3); (3) spend the gold on AC before a leprechaun gets it: D4 Fleac's SPLINT MAIL (AC6, ~107-142) and D2 Ermenak's elven cloak (107) + mud boots (1/3 speed; altar/pet-test first); (4) protection from the priestess needs 400*XL (2000 at XL5, 2400 at XL6) — not yet; (5) then Sokoban (up stairs of the level below the Oracle, D5-9 main dungeon) or deeper Mines.

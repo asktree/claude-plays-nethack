@@ -51,6 +51,10 @@ def inventory():
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         ctx.game.reflecting = any("(being worn)" in it["text"] and _REFLECT.search(it["text"]) for it in items)
+        empty = getattr(ctx.game, "empty_wands", None)
+        if empty:           # a letter that isn't a wand any more (dropped, recharged: "(x:N)" with N > 0)
+            wands = {it["letter"]: it["text"] for it in items if re.search(r"\bwand\b", it["text"])}
+            empty.intersection_update({k for k, t in wands.items() if not re.search(r"\(\d+:[1-9]\d*\)", t)})
         ctx.game.helmet = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:helm|helmet|hat|cap|cornuthaum|fedora|kabuto)\b", it["text"])), "")
         ctx.game.cursed_worn = [it["text"] for it in items if re.search(r"\bcursed\b", it["text"])

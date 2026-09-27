@@ -1403,3 +1403,31 @@ def test_step_onto_refuses_when_not_adjacent(monkeypatch):
     monkeypatch.setattr(nav, "step", lambda d, **kw: steps.append((d, kw.get("force"))) or s)
     nav.step_onto(11, 5)
     assert steps == [("l", True)]
+
+
+def test_detour_passes_through_your_pet():
+    from tactics.mapview import bfs_path
+    rows = {17: "      #-|---", 18: "#######.F@.|", 19: "      #|d..|", 20: "      #-----"}
+    rows = {y: r.rjust(len(r) + 36) for y, r in rows.items()}
+    dog = {"x": 44, "y": 19, "ch": "d", "desc": "tame little dog", "tame": True, "pet": True}
+    mold = {"x": 44, "y": 18, "ch": "F", "desc": "red mold"}
+    s = _snap(rows, (45, 18), [dog, mold])
+    assert bfs_path(s, (45, 18), (36, 18), avoid=frozenset({(44, 18)}), allow_monsters=False) is None
+    p = bfs_path(s, (45, 18), (36, 18), avoid=frozenset({(44, 18)}), allow_monsters=False, allow_pets=True)
+    assert p and p[0] == (44, 19) and p[1] == (43, 18)       # swap with the dog, then the doorless doorway
+
+
+def test_price_id_learns_a_lowballing_shopkeeper(monkeypatch):
+    from tactics import ctx, info
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({}, (10, 5), [])
+    s.shop = "Wonotobo's general store"
+    s.status.ch = 10
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    ident = info.price_id("SCROLL_CLASS", sell=8, exclude_known=False)
+    assert [b for _n, b in ident] == [20] and info.shk_rates()["Wonotobo"] == "low"
+    both = {b for _n, b in info.price_id("SCROLL_CLASS", sell=30, exclude_known=False, shk="Someone else")}
+    assert both == {60, 80}                                   # an unknown shopkeeper: either rate
+    low = {b for _n, b in info.price_id("SCROLL_CLASS", sell=30, exclude_known=False)}
+    assert low == {80}                                        # Wonotobo lowballs: base 80 only
