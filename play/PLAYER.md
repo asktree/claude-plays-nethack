@@ -159,7 +159,10 @@ after death except the end-of-game answers; any key in the server lobby (use `ta
 there will be no return! Still climb?" (the up stairs of dungeon level 1 end the game without the Amulet);
 picking up a **cockatrice/chickatrice corpse** (`,` when it's the only object here, or confirming a pickup
 menu with it selected — wear gloves and force=True); **while blind**, stepping onto a square known to hold
-one (you feel what you step on; bare-handed that is instant stoning); a plain step into **water/lava `}`**
+one (you feel what you step on; bare-handed that is instant stoning); **attacking from your Elbereth square**
+(melee, `t`/`f`/`z`, kick: it erases the engraving and costs −5 alignment — step off first; the harness knows
+the square's engraving from the last "You read: ..." message); a plain step into a **peaceful** (you can't
+swap places with peacefuls; wait a turn or go around); a plain step into **water/lava `}`**
 (NetHack only stops running/travel, not a single step; lava is death without fire resistance) unless
 levitating/flying; **eating while Satiated** and `y` to "Continue eating?" (choking is death 19 times in 20;
 force=True only for an emergency cure like a lizard corpse against stoning); `y` to a **tin** that smells
