@@ -527,7 +527,7 @@ class Game:
 
     # shk.c u_entered_shop(): "Velkommen, p2!  Welcome to Carignan's antique weapons outlet!"
     # ("Welcome again to ..." on later visits); printed on the first square inside the door
-    _SHOP_WELCOME = re.compile(r"Welcome(?: again)? to (?P<name>[^!]+?(?:'s|s') [^!]+)!")
+    _SHOP_WELCOME = re.compile(r"^[^!]+!\s+Welcome(?: again)? to (?P<name>[^!]+?(?:'s|s') [^!]+)!")
     _ROOM_EDGE = set("|-+# ")
 
     def _room_rect(self, snap: Snap, start) -> tuple | None:
@@ -750,6 +750,10 @@ class Game:
         if force or not unit:
             return
         k = snap.state.kind
+        if k == "extcmd" and unit[:1] != b"\x1b" and not unit.endswith((b"\r", b"\n")):
+            # stray keys typed into '# ' autocomplete into an extended command ("s" -> #sit)
+            raise PermissionError(f"refusing {unit!r}: an extended-command prompt ('#') is open — finish it "
+                                  "with the whole command and <CR> (e.g. 'pray<CR>') or <Esc> it first")
         if k == "command" and unit in (b"F", b"m", b"M", b"g", b"G"):
             # cmd.c parse(): a prefix reads the next key silently (no prompt on screen) — the
             # next thing you send would be taken as its direction

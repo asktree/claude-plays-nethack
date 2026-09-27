@@ -86,6 +86,10 @@ def here():
 
 _ENGRAVE_ID = [
     (r"is a wand of ([\w ]+)!", None),   # auto-identified (digging/fire/lightning)
+    # the game identified it on its own (zapnodir() for create monster, light, secret door detection,
+    # enlightenment): "You write in the dust with a wand of create monster."
+    (r"(?:write|engrave|burn|melt)\w* (?:in|into) the \w+ with an? (?:[\w+-]+ )*?wand of ([\w ]+?)(?: \(|\.)",
+     None),
     (r"Gravel flies up|You hear drilling|Chips fly out|Ice chips fly up|Splinters fly up|You feel tremors",
      "digging"),
     (r"Flames fly from the wand|You feel the wand heat up", "fire"),
@@ -819,6 +823,9 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
         if re.search(r"You succeed in (?:unlocking|picking)", text) or not answered:
             break
     print("unlock(): " + (" | ".join(msgs[-3:]) or "nothing to unlock here"))
+    if any("KABOOM" in m for m in msgs):
+        print("!! unlock(): the door was booby-trapped — the explosion WOKE everything within ~15 squares "
+              "(a zoo/throne room next door is now awake)")
     return msgs
 
 

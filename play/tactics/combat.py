@@ -29,7 +29,8 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^You are burning to a crisp", r"^You are covered (?:with a seemingly harmless goo|in slime)",
            r"^You can't see in here", r"^You are jolted with electricity", r"^You are suddenly very (?:hot|cold)",
            # a passive you resist (uhitm.c passive(): Fire_resistance "mildly warm", ...)
-           r"^You feel mildly (?:warm|chilly)\.", r"^You are (?:splashed|covered) by .* but it doesn't",]
+           r"^You feel mildly (?:warm|chilly)\.", r"^You feel a mild (?:chill|tingle)\.",
+           r"^You are (?:splashed|covered) by .* but it doesn't",]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
@@ -193,7 +194,8 @@ def auto_fightable(m, s=None) -> bool:
             or m.get("hallu") or m.get("mimic") or m.get("engulfer"):
         return False
     st = (s or ctx.last()).status
-    if threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None) != "trivial":
+    if threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
+                    getattr(ctx.game, "intrinsics", ())) != "trivial":
         return False
     return not passive_attacks(base_name(d)) and not _stationary(d)
 
@@ -217,7 +219,8 @@ def fight_trivial(s=None):
     return fight(only=lambda m: auto_fightable(m))
 
 
-def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6) -> dict:
+def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6,
+                      ignore=(), allow_passive: bool = False) -> dict:
     """Hold your square and fight a crowd (a zoo from its doorway, a pack in a
     corridor): melee whatever hostile comes adjacent (fight(): passive checks,
     worst-case HP rule), wait a turn while hostiles within `radius` aren't
@@ -228,15 +231,21 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     Returns {"reason", "kills", "turns"}: reason "clear"; "HP ..." (below
     stop_hp: Elbereth / retreat / pray); "... not coming" (a hostile in range
     didn't approach for `patience` turns: trapped, slow or sessile — go to
-    it or leave it); or "max_turns"."""
+    it or leave it); or "max_turns". ignore=('killer bee',): newcomers of
+    these species never pause (a swarm you decided to fight); an outer
+    monster_filter() block still applies too. allow_passive=True is passed
+    to fight() (a cockatrice at a doorway, with your weapon wielded)."""
     import contextlib
-    from nh.danger import threat_level
+    from nh.danger import base_name, threat_level
     from nh.monitor import killed_names
 
     def dangerous(m):
         d = m.get("desc") or ""
+        if d and base_name(d) in ignore:
+            return False
         st = ctx.last().status
-        return not d or threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None) == "dangerous"
+        return not d or threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
+                                     getattr(ctx.game, "intrinsics", ())) == "dangerous"
 
     ctx.require_command("fight_until_clear()")
     t0 = ctx.last().status.turn or 0
@@ -258,7 +267,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             from nh.monitor import _stationary
             mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")]
             if mobile_adj:
-                s = fight(stop_hp=stop_hp)
+                s = fight(stop_hp=stop_hp, allow_passive=allow_passive)
                 kills += killed_names(s.messages)
                 best, idle = None, 0
                 if s.adjacent_hostiles() and s.status.ok and s.status.hp < stop_hp * max(1, s.status.hpmax):
@@ -347,7 +356,7 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
     return ctx.do(direction, ok=THROW_OK, force=force)
 
 
-def zap(wand: str, direction: str | None, force: bool = False):
+def zap(wand: str, direction: str | None = None, force: bool = False):
     """Zap wand `wand` (a letter) in `direction` (or None for non-directional
     wands). Sends the direction only if the game actually asks for one (an
     empty wand says "Nothing happens" and asks nothing). Refuses (pauses)

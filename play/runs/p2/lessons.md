@@ -64,3 +64,9 @@
 - YELLOW LIGHT: it explodes only as its own attack when it starts its turn next to you; kill it with one melee blow after softening it with thrown daggers (4 dagger hits did not kill it; Excalibur did).
 - QUANTUM MECHANIC: its claw teleports you on the level (you lose position, it comes back); never eat its corpse with intrinsic speed (toggles it off).
 - Step directions: to reach a square, use travel(x, y) instead of a hand-picked direction key (I sent 'y' instead of 'h' and rested off the altar).
+- SACRIFICE vs PRAYER NET: once the prayer timeout is proven 0, every further sacrifice rolls a 1/10 artifact gift, and a gift resets the timeout to rnz(300+50*artifacts). When the proven-safe prayer is your only stoning/lycanthropy cure, stop sacrificing for small Luck gains (iguana-sized corpses give 0 Luck anyway: Luck = (difficulty+1)*10/48).
+- YELLOW LIGHT, again: Excalibur (10–30) vs its 3d8 HP is NOT a sure kill — it survived and blinded me ~100 turns (T:7623). Never let travel carry you next to one; throw daggers from range first, or leave the level. They resist sleep.
+- Fountains dry up fast: two fountains dried on the FIRST dip each (D12, D11). Plan holy-water dilution with 2–3 fountains per potion stack.
+- A wall corner next to the stairs (D10 `>` (4,16): 4 open neighbours) is a good place to take on a Big-Room crowd; the stairs are the escape, and only adjacent monsters follow (the giant zombie did, and died alone below).
+- A door leading into apparent rock is often just a 1-square dead-end stub ("extra corridor" that stopped): after ~25 fruitless searches, give up.
+- Monster potion quaffs identify appearances for free: "looks better" = healing (magenta here).

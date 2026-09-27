@@ -77,3 +77,9 @@
 - Eat wraith corpses the moment they drop (+1 XL, 0 nutrition, never rot issues if fresh). Excalibur's drain resistance makes wraiths/vampires harmless XP.
 - A rotten ration that knocks you out is split off as its own "partly eaten" item; the rest of the stack is unaffected (the partly eaten one stays flagged rotten).
 - Monsters drink potions in view and the game identifies them: "looks better" = healing (swirly here).
+- STEALTH ZOO CLEARING works: with intrinsic stealth, sleeping zoo monsters never wake from your presence (disturb() needs !Stealth; only ettins ignore it). Open the door from the corridor square outside (only the doorway can reach you), let the ones you woke come to the door, then walk in and kill sleepers ONE AT A TIME (each attack wakes only its target). ~21 monsters for 9 HP (T:13424-13477). Check each target's name before the blow; skip floating eyes (range only).
+- A booby-trapped door fires when you UNLOCK it (lock.c); if the unlock succeeds quietly, opening is safe. The KABOOM wakes every monster within ~15 squares (wake_nearby) and stuns you: never unlock a door next to a sleeping zoo; the unicorn horn may need several applies.
+- A wand ray in a crowded room: every monster it hits takes 2 off the range (rn1(7,7)), so a lightning bolt into a packed zoo row dies out long before it can bounce back — the "first wall >= 7 squares" rule is only for empty lines.
+- Floating eye corpse = guaranteed telepathy (level 2 > rn2(1)); kill it with a force bolt (wand of striking) from 2 squares, never melee.
+- Giant corpses (fire giant etc.) raise Strength ("You feel very strong!") and are ~750 nutrition: eat one fresh when not Satiated instead of a ration.
+- Monsters quaff unknown potions in view and the game names them (vampire: golden = speed; umber hulk: swirly = healing). Watch for "drinks a <colour> potion!".

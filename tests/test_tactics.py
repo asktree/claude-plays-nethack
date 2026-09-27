@@ -564,3 +564,28 @@ def test_offer_skips_own_race_and_records_outcome(monkeypatch):
     r = survival.offer()
     assert sent == ["#offer<CR>", "n", "y"] and r["offered"] == "jackal"
     assert "prayer timeout is 0" in r["outcome"]
+
+
+def test_travel_keeps_away_from_exploders(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    row = {5: "        ....................."}
+    light = {"x": 16, "y": 6, "ch": "y", "desc": "yellow light", "dist": 6}
+    s = _snap(row, (10, 5), [light])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    with pytest.raises(nav.NavError, match="EXPLODES"):
+        nav._travel(25, 5, 40, None, 3, 8, False)
+    assert sent == []
+
+
+def test_engrave_message_identification():
+    import re
+    from tactics.items import _ENGRAVE_ID
+    for msg, want in (("You write in the dust with a wand of create monster.", "create monster"),
+                      ("You write in the dust with an uncursed wand of striking (0:4).", "striking")):
+        hit = next((m.group(1) for pat, v in _ENGRAVE_ID if v is None for m in [re.search(pat, msg)] if m), None)
+        assert hit == want, msg

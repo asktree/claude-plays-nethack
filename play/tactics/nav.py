@@ -205,7 +205,8 @@ def waypoint(s, target, cap):
     return target
 
 
-def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False):
+def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
+           fight_through=False, near_exploders=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -223,7 +224,12 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     with_pet=True (or a number of turns, default 12): bring your pet along —
     3-square legs, and after each leg wait ('.') while the pet is more than 2
     squares behind (not with a hostile within 3); raises NavError if the pet
-    drops out of view. Without a pet in view it travels normally."""
+    drops out of view. Without a pet in view it travels normally.
+    fight_through=True: when a hostile next to you stops the trip, fight() it
+    (all its checks apply) and go on, instead of raising NavError.
+    It refuses (NavError) to take a leg that passes within 2 squares of a known
+    exploder (yellow/black light, sphere, gas spore): kill it at range first;
+    near_exploders=True overrides."""
     import contextlib
     ctx.require_command("travel()")
     if auto_fight and ctx.monster_filter:
@@ -239,7 +245,8 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
         else:
             print("travel(with_pet): no pet in view — travelling without waiting for one")
     with guard:
-        return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget)
+        return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget,
+                       fight_through, near_exploders)
 
 
 def _pets(s) -> list:
@@ -270,7 +277,17 @@ def engulfed_check(s, who: str):
                        "(or wait to be expelled)")
 
 
-def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget=None):
+def _exploders_near(s, cells, radius: int = 2) -> list:
+    """Known exploding monsters (a yellow light's blinding burst) within
+    `radius` of any of `cells`."""
+    from nh.danger import explodes_at_you
+    ex = [m for m in (s.monsters or []) if not m.get("tame") and not m.get("peaceful") and m.get("desc")
+          and explodes_at_you(m["desc"])]
+    return [m for m in ex if any(dist((m["x"], m["y"]), c) <= radius for c in cells)]
+
+
+def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget=None,
+            fight_through=False, near_exploders=False):
     s = ctx.last()
     engulfed_check(s, f"travel{(x, y)}")
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
@@ -293,7 +310,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if detour is None:
                 raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
             return walk_path(detour)
-    waits = sidesteps = backoffs = fallbacks = 0
+    waits = sidesteps = backoffs = fallbacks = fights = 0
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):
@@ -308,6 +325,14 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 continue
         cap = leg_cap(s) if leg is None else (leg or None)
         tx, ty = waypoint(s, (x, y), cap)
+        if not near_exploders and h0 is not None:
+            route = bfs_path(s, h0, (tx, ty), allow_monsters=True) or []
+            ex = _exploders_near(s, [h0] + route[:8])
+            if ex:
+                raise NavError(f"travel to {(x, y)}: the way passes within 2 squares of {_mdesc(ex)}, which "
+                               "EXPLODES next to you (a yellow light blinds you ~100 turns) — kill it at range "
+                               "(throw/zap/fire), wait for it to come and fight from where it can't reach you, or "
+                               "travel(..., near_exploders=True)")
         if (tx, ty) == (x, y) and h0 is not None and max(abs(x - h0[0]), abs(y - h0[1])) == 1:
             # a peaceful stepped onto the target: wait for it (a plain step into it is refused)
             peace = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and m.get("peaceful")
@@ -366,9 +391,18 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
         if h1 == h0:
             blk = blockers(s)
             hostile = [m for m in blk if not m.get("peaceful")]
+            if hostile and fight_through and fights < 12:
+                from .combat import fight
+                fights += 1
+                print(f"travel: fighting {_mdesc(hostile)} on the way (fight_through)")
+                s = fight()
+                if s.state.kind != "command" or s.adjacent_hostiles():
+                    return s             # fight() stopped (HP, passive, a new threat): your call
+                continue
             if hostile:
                 raise NavError(f"travel to {(x, y)} did not move: hostile {_mdesc(hostile)} adjacent — "
-                               "travel never starts next to one. Fight it (fight()) or step away by hand.")
+                               "travel never starts next to one. Fight it (fight()) or step away by hand "
+                               "(or travel(..., fight_through=True)).")
             if blk and sidesteps < 6:
                 # lookaround(): NetHack's travel never starts next to a non-tame monster, even one
                 # that isn't in the way — plain steps along our own route (never into it) do

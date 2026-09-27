@@ -83,6 +83,8 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^The [\w' -]+ (?:throws|shoots|fires) ", r" welds itself to the [\w' -]+'s hand!$",
     r"^You stop at the edge of the (?:water|lava)\.",
     r"^A board beneath (?:the |an? )[\w' -]+ squeaks",
+    # dropping things on an altar to learn their BUC (the flash/landing is the answer, not an event)
+    r" lands? on the altar\.$", r"^There is an? (?:amber|black) flash as .* hits? the altar\.$",
 )]
 
 
@@ -207,7 +209,9 @@ class Kernel:
             fn(monster_dict) is true (e.g. only dangerous ones during a fight
             at a chokepoint). Everything else still pauses as usual."""
             old = k.new_monster_filter
-            k.new_monster_filter = fn
+            # nested blocks combine: a newcomer pauses only if every active filter says so (a helper's
+            # own filter must not undo the player's: fight_until_clear inside a "no bees" block)
+            k.new_monster_filter = fn if old is None else (lambda m, _o=old, _f=fn: _o(m) and _f(m))
             try:
                 yield
             finally:
@@ -327,6 +331,12 @@ class Kernel:
                     except Exception as e:  # noqa: BLE001 — a broken filter must not hide monsters
                         reasons.append(f"monster_filter error: {e!r}")
                 new = self._not_yet_announced(new, snap)
+                crowd = [m for m in snap.monsters if not m.get("statue") and not m.get("tame")
+                         and not m.get("peaceful")]
+                if len(crowd) > 8:
+                    # a big lit room reveals a crowd a few at a time: only the near or noted newcomers
+                    # are news (the rest are listed in the obs anyway)
+                    new = [m for m in new if (m.get("dist") is not None and m["dist"] <= 6) or m.get("note")]
                 if new:
                     reasons.append("new monster: " + ", ".join(
                         f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))

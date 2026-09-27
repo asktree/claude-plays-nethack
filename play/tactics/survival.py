@@ -349,7 +349,7 @@ _OWN_RACE = ("dwarf", "dwarf lord", "dwarf king", "dwarf mummy", "dwarf zombie")
 _UNICORN_ALIGN = {"white unicorn": "lawful", "gray unicorn": "neutral", "black unicorn": "chaotic"}
 
 
-def offer(pattern: str | None = None, max_age: int = 50) -> dict:
+def offer(pattern: str | None = None, max_age: int = 50, letter: str | None = None) -> dict:
     """#offer a corpse lying here, on the altar you stand on: the first one
     (or the first matching `pattern`) that is safe to offer. Refuses corpses
     of your own race (dwarves: -5 Luck, the altar is desecrated) and a
@@ -357,12 +357,24 @@ def offer(pattern: str | None = None, max_age: int = 50) -> dict:
     knows died more than `max_age` turns ago (worthless after 50). Prints and
     returns the outcome: Luck up / prayer timeout 0 (recorded for
     prayer_check()), gift, or nothing. Kill on or next to the altar, or carry
-    light fresh corpses there."""
+    light fresh corpses there: offer(letter='h') drops your corpse h on the
+    altar first (the drop also shows its BUC) and offers that one."""
     ctx.require_command("offer()")
     from nh.danger import base_name
     s = ctx.last()
     if s.under != "_":
         raise RuntimeError("offer(): you are not standing on an altar")
+    if letter:
+        s = ctx.do("d" + letter, ok=[r" lands? on the altar", r"flash as .* hits? the altar"])
+        for msg in s.messages:
+            t = re.sub(r"^There is an? (?:amber|black) flash as ", "", msg)
+            m = re.search(r"^(?:[Aa]n? |[Tt]he |\d+ )?(?:(?:blessed|uncursed|cursed|partly eaten) )*(.+?) "
+                          r"corpses? (?:lands?|hits?) ", t)
+            if m and pattern is None:
+                pattern = re.escape(base_name(m.group(1)))
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"offer(): dropping {letter!r} opened {s.state.kind} {s.state.prompt!r}")
     altar = (getattr(s, "feature_desc", None) or {}).get(s.hero, "")
     rx = re.compile(pattern, re.I) if pattern else None
     s = ctx.do("#offer<CR>", quiet=True)

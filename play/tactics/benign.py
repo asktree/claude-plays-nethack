@@ -26,5 +26,8 @@ BENIGN = [
     r"^There's some graffiti on the ",
     r"^You see a message scrawled in blood here\.",
     r"^You (read|feel the words): ",
+    # a monster's plain melee on you while moving: travel stops by itself (and auto-fights trivial
+    # ones, or raises "hostile adjacent"); HP loss still pauses by the exec's HP rules
+    r"^(?:The |An? )?[\w' -]+ (?:misses|bites|stings|hits|butts|kicks|claws|scratches|touches)!$",
 ]
 

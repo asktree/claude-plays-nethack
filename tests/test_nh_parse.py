@@ -987,3 +987,63 @@ def test_sacrifice_evidence_recorded(tmp_path):
              messages=["Your sacrifice is consumed in a flash of light!", "You glimpse a four-leaf clover at your feet."])
     t.on_step(s)
     assert t.state["prayer_evidence"] == [{"turn": 7100, "kind": "zero"}]
+
+
+def test_zoo_welcome_is_not_a_shop_and_extcmd_guard():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State
+    g = _guard_game()
+    rows = {3: "  ------------", 4: "  |.)).[[....|", 5: "  |@.........|", 6: "  |..........|", 7: "  ------------",
+            22: STATUS1, 23: "Dlvl:15 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    scr = mk(rows, cursor=(3, 5))
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+    g._note_shop(s, ["Welcome to David's treasure zoo!"])
+    assert not g.shops
+    g._note_shop(s, ["Velkommen, p1!  Welcome to Asidonhopo's hardware store!"])
+    assert g.shops
+    ext = Snap(screen=scr, state=State("extcmd", prompt="# force"), status=s.status)
+    with pytest.raises(PermissionError, match="extended-command"):
+        g._guard(ext, b"s", force=False)
+    g._guard(ext, b"pray\r", force=False)
+    g._guard(ext, b"\x1b", force=False)
+
+
+def test_resistance_aware_ratings_and_notes():
+    from nh.danger import note_for, threat_level
+    assert threat_level("killer bee", 10, 120) == "dangerous"
+    assert threat_level("killer bee", 10, 120, resists={"poison"}) != "dangerous"
+    assert "you resist" in note_for("killer bee", 10, {"poison"})
+    assert threat_level("soldier ant", 10, 120, resists={"poison"}) == "dangerous"   # fast and strong anyway
+
+
+def test_nested_monster_filters_combine():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    with k.ns["monster_filter"](lambda m: m["desc"] != "killer bee"):
+        with k.ns["monster_filter"](lambda m: True):          # a helper's own filter inside
+            f = k.new_monster_filter
+            assert not f({"desc": "killer bee"}) and f({"desc": "soldier ant"})
+        assert not k.new_monster_filter({"desc": "killer bee"})
+    assert k.new_monster_filter is None
+
+
+def test_crowded_level_far_newcomers_do_not_pause():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from test_nh_monitor import snap as msnap  # noqa: E402
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    s = msnap({}, 11)
+    s.monsters = [{"ch": "d", "x": 10 + i, "y": 3, "desc": "jackal", "new": False, "dist": 20} for i in range(9)]
+    s.monsters += [{"ch": "r", "x": 60, "y": 3, "desc": "sewer rat", "new": True, "dist": 25},
+                   {"ch": "a", "x": 61, "y": 3, "desc": "soldier ant", "new": True, "dist": 25, "note": "fast"}]
+    k._check_events(msnap({}, 10), s)
+    assert reasons and "soldier ant" in reasons[-1] and "sewer rat" not in reasons[-1]

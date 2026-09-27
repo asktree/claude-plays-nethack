@@ -160,6 +160,9 @@ INFO_NOTES = {"hill orc", "Uruk-hai", "dwarf", "dwarf lord", "leprechaun", "cham
               "blue jelly", "nurse", "rotting corpse", "master of thieves", "water moccasin", "centipede",
               "scorpion", "pit viper", "large mimic", "giant mimic", "ice vortex", "dust vortex"}
 
+# notes whose danger is the poison: with poison resistance the level/damage rating decides
+POISON_NOTES = {"killer bee", "water moccasin", "pit viper", "centipede", "scorpion"}
+
 _STRIP = re.compile(r"^(?:peaceful |tame |invisible |saddled |partly eaten )+")
 # farlook suffixes (pager.c look_at_monster / mhidden_description) and the long worm's "tail of a"
 _SUFFIX = re.compile(r",\s*(?:swallowing you|engulfing you|being held|holding you|leashed to you|trapped in\b|"
@@ -225,13 +228,16 @@ def risky_lookalike(ch: str, color: str, desc: str) -> bool:
     return any(n != name and NOTES.get(n) for n in _lookalikes().get((ch, color), ()))
 
 
-def note_for(desc: str, hero_xl: int | None = None) -> str:
-    """Short danger note for a farlook description ('' if nothing notable)."""
+def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
+    """Short danger note for a farlook description ('' if nothing notable).
+    resists: your resistances — a poison note shrinks when you resist it."""
     if not desc or "statue of" in desc or desc.startswith("tame "):
         return ""
     name = base_name(desc)
     bits = []
     n = NOTES.get(name)
+    if n and name in POISON_NOTES and "poison" in resists:
+        n = "poisonous (you resist the poison)"
     if n:
         bits.append(n)
     rec = monster_record(name)
@@ -380,7 +386,7 @@ def max_hit(desc: str) -> int:
     return total * moves
 
 
-def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None) -> str:
+def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None, resists=()) -> str:
     """'trivial' | 'normal' | 'dangerous' for a monster description vs you.
     dangerous: has a danger note, deadly passive, or difficulty >= XL+3, or
     its worst-case round is >= 3/4 of your HP; trivial: difficulty <= XL/2
@@ -392,8 +398,8 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None) -
     xl = hero_xl or 1
     diff = rec.get("difficulty", 0)
     mh = max_hit(name)
-    if (NOTES.get(name) and name not in INFO_NOTES) or \
-            any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
+    noted = NOTES.get(name) and name not in INFO_NOTES and not (name in POISON_NOTES and "poison" in resists)
+    if noted or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"
     if diff >= xl + 3 or (hp is not None and mh * 4 >= hp * 3):
         return "dangerous"      # much stronger, or one worst-case round takes 3/4 of your HP

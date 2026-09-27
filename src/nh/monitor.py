@@ -314,7 +314,7 @@ class MonsterTracker:
             m["tame"] = d.startswith("tame ")
             m["peaceful"] = d.startswith("peaceful ")
             if d and not m.get("statue"):
-                m["note"] = note_for(d, xl)
+                m["note"] = note_for(d, xl, getattr(self.game, "intrinsics", ()))
                 if no_tele and "telep" in m["note"]:
                     m["note"] += " — BUT teleporting is blocked in Sokoban: corner it and kill it"
 

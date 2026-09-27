@@ -98,7 +98,8 @@ def threat(desc: str) -> str:
     from nh.danger import threat_level
     from . import ctx
     st = ctx.last().status
-    return threat_level(desc, st.xl if st.ok else None, st.hp if st.ok else None)
+    return threat_level(desc, st.xl if st.ok else None, st.hp if st.ok else None,
+                        getattr(ctx.game, "intrinsics", ()))
 
 
 def last_seen(name: str | None = None) -> list[dict]:
