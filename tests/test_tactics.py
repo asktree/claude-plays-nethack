@@ -1849,3 +1849,38 @@ def test_eat_pattern_picks_one_corpse_and_zero_nutrition_while_satiated(monkeypa
     monkeypatch.setattr(items, "here", lambda: "Things that are here:\na human corpse\na wraith corpse")
     items.eat(pattern="wraith corpse")
     assert sent == [("e", True), ("n", False), ("y", False), ("y", True)]
+
+
+def test_desmap_identifies_and_routes_over_unseen_parts(monkeypatch):
+    from tactics import ctx, desmap
+    g = _G()
+    g.traps, g.avoid = {}, {}
+    monkeypatch.setattr(ctx, "game", g)
+    fake = {"level": "testlev", "file": "test.des", "index": 0, "geometry": None, "features":
+            [{"kind": "stair", "x": 8, "y": 2, "detail": "down"}, {"kind": "trap", "x": 5, "y": 2, "detail": "sleep gas"}],
+            "rows": ["------------",
+                     "|....|.....|",
+                     "|....S.....|",
+                     "|....|.....|",
+                     "------------"]}
+    monkeypatch.setattr(desmap, "_MAPS", None)
+    monkeypatch.setattr(desmap, "_DATA", None)
+    monkeypatch.setattr(desmap, "maps", lambda: _prep([fake]))
+
+    def _prep(ms):
+        for m in ms:
+            m["_cells"] = [(x, y, desmap._MAP_CLS[ch]) for y, row in enumerate(m["rows"])
+                           for x, ch in enumerate(row) if ch in desmap._MAP_CLS]
+            m["w"], m["h"] = max(len(r) for r in m["rows"]), len(m["rows"])
+        return ms
+    # only the west room is seen (map offset (20,5)); the east room is dark / never seen
+    rows = {5: "                    ------", 6: "                    |....|", 7: "                    |....|",
+            8: "                    |....|", 9: "                    ------"}
+    s = _snap(rows, (22, 7), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    r = desmap.identify(names="testlev", min_score=10)
+    assert r and (r["ox"], r["oy"]) == (20, 5)
+    feats = {f["kind"]: (f["x"], f["y"]) for f in desmap.features()}
+    assert feats["stair"] == (28, 7)
+    route = desmap.route(28, 7)
+    assert route["path"][-1] == (28, 7) and route["secret"] == [(25, 7)]
