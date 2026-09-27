@@ -162,13 +162,16 @@ def test_corpse_guard():
     from nh.game import Snap
     from nh.parse import State, Status
     g = _guard_game()
+    g.hero_pos = (10, 5)
+
     def yn(prompt):
         return Snap(screen=mk({0: prompt}, cursor=(len(prompt), 0)), state=State("yn", prompt=prompt, choices="ynq"),
-                    status=Status(ok=True))
+                    status=Status(ok=True, turn=100))
     with pytest.raises(PermissionError):
         g._guard(yn("There is a cockatrice corpse here; eat it? [ynq] (n)"), b"y", force=False)
     with pytest.raises(PermissionError):
         g._guard(yn("There is a dwarf corpse here; eat it? [ynq] (n)"), b"y", force=False)
+    g.record_kill("newt", (10, 5), 95)          # a newt you just killed here
     g._guard(yn("There is a newt corpse here; eat it? [ynq] (n)"), b"y", force=False)
     g._guard(yn("There is a dwarf corpse here; eat it? [ynq] (n)"), b"n", force=False)
 
@@ -611,3 +614,48 @@ def test_guard_deadly_tins_and_gray_stones():
     ms = Snap(screen=mk({}), state=State("menu", menu=menu, prompt="Pick up what?"), status=Status(ok=True))
     with pytest.raises(PermissionError):
         g._guard(ms, b"\r", force=False)
+
+
+def test_guard_corpse_age_from_kill_records():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    g.hero_pos = (10, 5)
+
+    def q(name, turn):
+        p = f"There is a {name} corpse here; eat it? [ynq] (n)"
+        s = Snap(screen=mk({0: p}, cursor=(len(p), 0)), state=State("yn", prompt=p, choices="ynq"),
+                 status=Status(ok=True, turn=turn))
+        g.last_status = s.status
+        return s
+    # a jackal you didn't see die: age unknown -> refused
+    with pytest.raises(PermissionError):
+        g._guard(q("jackal", 500), b"y", force=False)
+    # killed right here 10 turns ago: fine
+    g.record_kill("jackal", (10, 5), 490)
+    g._guard(q("jackal", 500), b"y", force=False)
+    # 200 turns later it may be tainted
+    with pytest.raises(PermissionError):
+        g._guard(q("jackal", 700), b"y", force=False)
+    # lichens never rot
+    g._guard(q("lichen", 9000), b"y", force=False)
+    g._guard(q("jackal", 700), b"y", force=True)
+
+
+def test_tracker_records_kills():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from test_nh_monitor import FakeGame, snap  # noqa: E402
+    from nh.monitor import MonsterTracker
+    g = FakeGame()
+    kills = []
+    g.record_kill = lambda name, cell, turn: kills.append((name, cell, turn))
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "jackal"}
+    t.update(snap({(41, 10): "d"}, 100))
+    s = snap({}, 101)
+    s.messages = ["You kill the jackal!"]
+    t.update(s)
+    assert kills == [("jackal", (41, 10), 101)]

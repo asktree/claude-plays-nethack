@@ -78,6 +78,8 @@ class Tracker:
                 cells = {tuple(c) for c in lv.get(attr, [])}
                 if cells:
                     getattr(game, attr).setdefault(key, set()).update(cells)
+            if lv.get("kills") and hasattr(game, "kills"):
+                game.kills[key] = [(n, (x, y), t) for n, x, y, t in lv["kills"]]
 
     def save(self):
         tmp = self.path.with_suffix(".tmp")
@@ -144,6 +146,9 @@ class Tracker:
                 cells = sorted(getattr(self.game, attr).get(key, ()))
                 if cells or attr in lv:
                     lv[attr] = [list(c) for c in cells]
+            kills = getattr(self.game, "kills", {}).get(key)
+            if kills:
+                lv["kills"] = [[n, c[0], c[1], t] for n, c, t in kills]
             changed = True
         if changed:
             self.save()

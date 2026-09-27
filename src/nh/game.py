@@ -266,6 +266,7 @@ class Game:
         self.avoid: dict[str, set] = {}     # level (ldesc) -> squares the player asked to avoid
         self.terrain_seen: dict[str, dict] = {}   # level key -> {(x, y): feature char} (stairs, fountains...)
         self.here_seen: dict[str, dict] = {}      # level key -> {(x, y): last "You see here"/pile text}
+        self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -291,8 +292,11 @@ class Game:
         for d in (self.traps, self.avoid, self.visited):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
-        if old in self.terrain_seen:
-            self.terrain_seen.setdefault(new, {}).update(self.terrain_seen.pop(old))
+        for d in (self.terrain_seen, self.here_seen):
+            if old in d:
+                d.setdefault(new, {}).update(d.pop(old))
+        if old in self.kills:
+            self.kills.setdefault(new, []).extend(self.kills.pop(old))
 
     FEATURE_CHARS = "<>{_\\"
     # look_here(): "There is %s here." with dfeature_at() (invent.c) — "an opulent throne",
@@ -317,6 +321,22 @@ class Game:
             here[snap.hero] = "\n".join(texts)
         elif any(self._NO_OBJS.search(m) for m in messages):
             here.pop(snap.hero, None)
+
+    def record_kill(self, name: str, cell, turn: int | None) -> None:
+        """Called by the monster tracker when a monster it tracked was killed."""
+        if not name or cell is None or turn is None:
+            return
+        lst = self.kills.setdefault(self.level_key(), [])
+        lst.append((name, tuple(cell), int(turn)))
+        del lst[:-40]
+
+    def corpse_age(self, name: str, cell, turn: int | None):
+        """Turns since the oldest recorded kill of `name` on `cell` of this level
+        (a corpse lies where its monster died), or None if unknown."""
+        if cell is None or turn is None:
+            return None
+        ages = [turn - t for n, c, t in self.kills.get(self.level_key(), []) if n == name and c == tuple(cell)]
+        return max(ages) if ages else None
 
     def _here_text(self, snap: Snap, cell=None) -> str:
         cell = cell or snap.hero
@@ -619,7 +639,9 @@ class Game:
                     from .data.corpses import corpse_verdict
                     from .danger import base_name
                     name = base_name(m.group(1))
-                    v = corpse_verdict(name, hero_race="dwarf", hero_role="Valkyrie", age_turns=0,
+                    turn = (self.last_status.turn if self.last_status is not None else None) or snap.status.turn
+                    age = self.corpse_age(name, self.hero_pos, turn)
+                    v = corpse_verdict(name, hero_race="dwarf", hero_role="Valkyrie", age_turns=age,
                                        has_poison_res=False)
                     verdict = getattr(v.verdict, "value", v.verdict)
                 except Exception:
@@ -627,6 +649,13 @@ class Game:
                 if verdict == "NEVER":
                     raise PermissionError(f"refusing to eat the {name} corpse: " + "; ".join(v.reasons)
                                           + " — force=True overrides.")
+                if verdict == "DEADLY":
+                    when = ("you didn't see it die here (age unknown)" if age is None
+                            else f"it died {age} turns ago")
+                    raise PermissionError(
+                        f"refusing to eat the {name} corpse: {when} — " + "; ".join(v.reasons)
+                        + ". Eat corpses you killed in the last ~50 turns (lichens/lizards never rot), or a "
+                        "food item. force=True if you know better.")
 
     def _next_unit(self, data: bytes, i: int, kind: str) -> int:
         """End index of the next input unit starting at data[i], given the

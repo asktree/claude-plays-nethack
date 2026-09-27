@@ -306,7 +306,7 @@ class MonsterTracker:
                                         "turn": turn}
         new_visible = {m["id"] for m in mons}
         self._forget_killed(killed_names(getattr(snap, "messages", None)), self.visible_ids - new_visible,
-                            snap.hero)
+                            snap.hero, turn)
         self.visible_ids = new_visible
         stale = [i for i, r in self.recent.items()
                  if i not in self.visible_ids and turn - r.get("turn", 0) > RESEEN_TURNS
@@ -350,11 +350,13 @@ class MonsterTracker:
                     else:
                         del self.recent[k["id"]]
 
-    def _forget_killed(self, names: list[str], vanished: set, hero) -> None:
+    def _forget_killed(self, names: list[str], vanished: set, hero, turn: int | None = None) -> None:
         """A killed monster must not be 're-seen' later: drop its record
         (prefer one that vanished this step, nearest the hero), so the next
-        monster of that species counts as new."""
+        monster of that species counts as new. The kill (name, square, turn)
+        goes to the game's memory: it dates the corpse."""
         from .danger import base_name
+        record = getattr(self.game, "record_kill", None)
         for name in names:
             cands = [(i, r) for i, r in self.recent.items() if base_name(r.get("desc", "")) == name
                      and i not in self.visible_ids - vanished]
@@ -363,7 +365,9 @@ class MonsterTracker:
             hx, hy = hero if hero else (0, 0)
             cands.sort(key=lambda ir: (ir[0] not in vanished, max(abs(ir[1]["x"] - hx), abs(ir[1]["y"] - hy)),
                                        -ir[1].get("turn", 0)))
-            del self.recent[cands[0][0]]
+            r = self.recent.pop(cands[0][0])
+            if record is not None and cands[0][0] in vanished:
+                record(name, (r["x"], r["y"]), turn)
 
     def _describe(self, cells: list[tuple[int, int]]) -> dict:
         fn = getattr(self.game, "describe_cells", None)

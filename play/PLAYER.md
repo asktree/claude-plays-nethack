@@ -142,7 +142,11 @@ send keys into a prompt you haven't seen; always handle the case where a step re
 **Harness guards** (they raise `PermissionError` / refuse the keys; `force=True` / `--force` overrides —
 think twice): moving or `F`-fighting into a **floating eye, gas spore or green slime** (unless you're
 Blind); answering `y` to eating a corpse that is certain death or permanent harm (cockatrice, chickatrice,
-Medusa, green slime, were-creatures, Riders, **dwarves** — cannibalism, dogs/cats); confirming
+Medusa, green slime, were-creatures, Riders, **dwarves** — cannibalism, dogs/cats) **or possibly tainted**:
+the harness records every kill (monster, square, turn), so a corpse you saw die less than ~50 turns ago is
+fine, while an older one or one of unknown age (you didn't see it die there) is refused — tainted meat is
+fatal food poisoning. Lichens and lizards never rot. `corpse(name, age)` explains a verdict;
+`game.kills` lists the records; confirming
 "Really attack ...?" (NetHack asks that only about **peaceful** monsters); a plain step onto a **known trap**
 (NetHack doesn't ask; go around, or force=True to jump into a hole/trap door or enter a magic portal on
 purpose); **while hallucinating**, attacking/moving into any monster (NetHack doesn't ask "Really attack?"
