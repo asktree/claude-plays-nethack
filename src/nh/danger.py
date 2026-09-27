@@ -133,6 +133,14 @@ NOTES = {
     "watch captain": "Minetown Watch: don't anger.",
 }
 
+# notes that inform but don't by themselves make a monster 'dangerous' in threat_level() (packs,
+# nuisances, thieves, slow hard hitters): its level and worst-case damage vs you decide
+INFO_NOTES = {"hill orc", "Uruk-hai", "dwarf", "dwarf lord", "leprechaun", "chameleon", "tengu", "cave spider",
+              "fog cloud", "ghost", "xorn", "hill giant", "stone giant", "giant beetle", "owlbear", "leocrotta",
+              "ettin", "troll", "rock troll", "ice troll", "water troll", "Olog-hai", "python", "rust monster",
+              "blue jelly", "nurse", "rotting corpse", "master of thieves", "water moccasin", "centipede",
+              "scorpion", "pit viper", "large mimic", "giant mimic", "ice vortex", "dust vortex"}
+
 _STRIP = re.compile(r"^(?:peaceful |tame |invisible |saddled |partly eaten )+")
 # farlook suffixes (pager.c look_at_monster / mhidden_description) and the long worm's "tail of a"
 _SUFFIX = re.compile(r",\s*(?:swallowing you|engulfing you|being held|holding you|leashed to you|trapped in\b|"
@@ -347,7 +355,8 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None) -
     xl = hero_xl or 1
     diff = rec.get("difficulty", 0)
     mh = max_hit(name)
-    if NOTES.get(name) or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
+    if (NOTES.get(name) and name not in INFO_NOTES) or \
+            any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"
     if diff >= xl + 3 or (hp is not None and mh * 4 >= hp * 3):
         return "dangerous"      # much stronger, or one worst-case round takes 3/4 of your HP

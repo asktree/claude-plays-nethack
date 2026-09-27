@@ -175,8 +175,9 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
     def finished():
         left = []
         if locked:
-            left.append(f"locked doors {locked} (kick_door(x, y) from an orthogonally adjacent square — "
-                        "never a shop door ('Closed for inventory') or anywhere in Minetown)")
+            left.append(f"locked doors {locked} (unlock(x, y) with a key/lock pick/credit card, or "
+                        "kick_door(x, y) from an orthogonally adjacent square — never a shop door ('Closed for "
+                        "inventory'), and no kicking anywhere in Minetown)")
         if why["avoided"]:
             left.append(f"frontiers {why['avoided']} only reachable across avoided squares {sorted(bad_squares())}")
         if unreachable:
@@ -197,7 +198,9 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                        "unexplored space" + hint)
             r["dead_ends"] = de
             return r
-        return result("blocked: " + "; ".join(left) + hint)
+        r = result("blocked: " + "; ".join(left) + hint)
+        r["dead_ends"] = dead_ends()
+        return r
 
     fights = 0
     idle, last_mark = 0, None

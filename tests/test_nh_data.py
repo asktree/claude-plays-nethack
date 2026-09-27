@@ -303,3 +303,11 @@ def test_risky_lookalikes():
     assert risky_lookalike("d", "brown", "jackal")          # the werejackal's animal form looks the same
     assert risky_lookalike("r", "brown", "sewer rat")       # wererat
     assert not risky_lookalike("O", "brown", "ogre")
+
+
+def test_threat_level_info_notes_dont_force_danger():
+    from nh.danger import threat_level
+    assert threat_level("hill orc", 10, 121) == "trivial"        # "comes in packs" is information
+    assert threat_level("hill orc", 3, 30) != "trivial"
+    for n in ("killer bee", "soldier ant", "wood nymph", "floating eye", "cockatrice"):
+        assert threat_level(n, 10, 121) == "dangerous", n

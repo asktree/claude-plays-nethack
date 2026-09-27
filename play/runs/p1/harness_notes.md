@@ -359,3 +359,12 @@ Format: step `#N` — command — expected — what happened.
 - `threat('hill orc')` and `threat('killer bee')` returned 'dangerous' at XL10 / AC-10 / 121 HP (they are one-hit kills that rarely hit me); the '!! comes in packs' / 'poisonous swarm' notes seem to force the label. Effect: fight_until_clear() pauses for each new one. Suggest: 'dangerous' only when the worst-case round is a real fraction of HP, keep the note as text.
 - `obs.status` has no `gold` attribute (the header shows `$`); trivial to expose.
 - `explore()` on DL8 (#573-#583): the pit pause "trap at (7,11)" and the `blocked: locked doors [(17,3)]` result with the kick advice were clear; the result dict no longer has `dead_ends` — the corridor end at (10,13) was not flagged as a dead end (the level's only other lead was the locked door).
+- `#744`-`#760` — `loot_all()` on a locked large box returned "Hmmm, it turns out to be locked." (clear). Unlocking with the key: `ad` asks "In what direction?" even for a box on your own square — the answer is `.`, then "There is a locked large box here; unlock it? [ynq] (q)". Wish: `loot_all()` (or an `unlock_here()` helper) could offer that sequence when a key is carried, since the docs only mention kicking/#force. After the unlock `loot_all()` took everything in one call (wand, 2 books, gold). Good.
+- General (shift 11): zero mis-parses seen; the stair-link memory, `dig()`, `bag_take()`, the sell-offer loop and the new wish guard all behaved. The remaining friction is peacefuls in 1-wide Mines corridors (`travel`/`path_to`, see above) and the conservative `threat()` labels.
+
+### Shift 11 — ranked summary
+1. Wish-prompt guard: worked first time (`#300`); `cont --reply` delivered the exact text.
+2. Peaceful-in-corridor handling (`#71`, `#138`, `#271`, `#307`, `#367`): ~8 calls and ~65 game turns; `path_to()` cannot see through a peaceful.
+3. `threat()` over-labels pack monsters as 'dangerous' (hill orc, killer bee at XL10/AC-10).
+4. `go_up()` with a disconnected known map (`#138`): accurate error, but a hint to explore would save a call.
+5. Key-on-box prompt sequence not covered by `loot_all()` (`#748`).

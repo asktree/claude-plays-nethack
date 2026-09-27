@@ -39,6 +39,6 @@ from tactics.combat import fight, fight_until_clear, friendly_in_line, throw, za
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))
 from tactics.town import buy_protection, pay  # noqa: E402,F401
 from tactics.items import bag_put, bag_take, dig, eat, pickup  # noqa: E402,F401
-from tactics.items import dip_into, discoveries, rub, with_looks  # noqa: E402,F401
+from tactics.items import dip_into, discoveries, rub, unlock, with_looks  # noqa: E402,F401
 from tactics.survival import prayer_verdict  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401

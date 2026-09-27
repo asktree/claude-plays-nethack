@@ -614,12 +614,87 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
     return msgs
 
 
-def loot_all() -> list:
+_KEYS = re.compile(r"skeleton key|\bkey\b|lock pick|credit card|Master Key of Thievery", re.I)
+_UNLOCK_OK = [r"^You succeed in (?:unlocking|picking)", r"^You stop (?:unlocking|picking)",
+              r"^Hmmm, it turns out to be locked", r"^It is locked", r"^There is .* here; (?:un)?lock"]
+
+
+def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, tries: int = 4) -> list:
+    """Unlock the locked box/chest under you (no x, y) or the locked door
+    at the adjacent (x, y) with your skeleton key / lock pick / credit card
+    (found in the inventory unless `tool` is given): applies it, answers the
+    direction ('.' = here), says y to "unlock it?" and never to "lock it?".
+    It takes a few turns and a monster can interrupt it ("You stop
+    unlocking"): retried up to `tries` times. A trapped box can go off.
+    Never on a shop door. Returns the messages."""
+    ctx.require_command("unlock()")
+    if tool is None:
+        t = next((i for i in inventory() if _KEYS.search(i["text"])), None)
+        if t is None:
+            raise RuntimeError("unlock(): no key, lock pick or credit card in the inventory — kick or #force")
+        tool = t["letter"]
+    s = ctx.last()
+    if x is None:
+        dkey = "."
+    else:
+        from .mapview import DIR_KEY
+        dkey = DIR_KEY.get((x - s.hero[0], y - s.hero[1])) if s.hero else None
+        if dkey is None:
+            raise RuntimeError(f"unlock(): {(x, y)} is not next to you at {s.hero}")
+    msgs: list = []
+    for _ in range(tries):
+        s = ctx.do("a", quiet=True)
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"unlock(): expected the apply prompt, got {s.state.kind} {s.state.prompt!r}")
+        s = ctx.do(tool, quiet=True)
+        if s.state.kind != "direction":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"unlock(): no direction prompt after applying {tool!r} ({s.state.kind} "
+                               f"{s.state.prompt!r}; {s.messages})")
+        s = ctx.do(dkey, ok=_UNLOCK_OK)
+        msgs += s.messages
+        answered = False
+        for _q in range(6):
+            p = s.state.prompt or ""
+            if s.state.kind != "yn":
+                break
+            if re.search(r"\bunlock (?:it|its lock)\?|^Unlock it\?|pick its lock\?", p):
+                s = ctx.do("y", ok=_UNLOCK_OK)
+                answered = True
+            elif re.search(r"\block (?:it|its lock)\?|^Lock it\?|fix", p):
+                s = ctx.do("n", ok=_UNLOCK_OK)         # not locked (or broken): next box / done
+            else:
+                ctx.do("<Esc>", quiet=True)
+                raise RuntimeError(f"unlock(): unexpected question {p!r}")
+            msgs += s.messages
+        text = " ".join(msgs)
+        if re.search(r"You succeed in (?:unlocking|picking)", text) or not answered:
+            break
+    print("unlock(): " + (" | ".join(msgs[-3:]) or "nothing to unlock here"))
+    return msgs
+
+
+def loot_all(unlock_with_key: bool = True) -> list:
     """Take everything out of the (single) container on your square with
     #loot: confirms, picks "take something out" in the pick-one "Do what?"
-    menu, then "Auto-select every item". Returns the messages. A locked box
-    says so (kick it open or #force with a blade). Pauses on anything else."""
+    menu, then "Auto-select every item". Returns the messages. A locked box:
+    unlocked with your key/lock pick/credit card first when you carry one
+    (unlock(); unlock_with_key=False to skip), else it says so (kick it or
+    #force with a blade). Pauses on anything else."""
     ctx.require_command("loot_all()")
+    msgs = _loot_all_once()
+    if unlock_with_key and any(re.search(r"turns out to be locked|^It is locked", m) for m in msgs) \
+            and any(_KEYS.search(i["text"]) for i in inventory()):
+        msgs += unlock()
+        if ctx.last().state.kind == "command":
+            msgs += _loot_all_once()
+    return msgs
+
+
+def _loot_all_once() -> list:
     s = ctx.do("#loot<CR>", quiet=True)
     msgs = list(s.messages)
     for _ in range(10):

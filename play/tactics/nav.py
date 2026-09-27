@@ -270,7 +270,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if detour is None:
                 raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
             return walk_path(detour)
-    waits = 0
+    waits = sidesteps = backoffs = 0
     for _ in range(max_legs):
         h0 = s.hero
         if h0 == (x, y):
@@ -335,14 +335,45 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if hostile:
                 raise NavError(f"travel to {(x, y)} did not move: hostile {_mdesc(hostile)} adjacent — "
                                "travel never starts next to one. Fight it (fight()) or step away by hand.")
+            if blk and sidesteps < 6:
+                # lookaround(): NetHack's travel never starts next to a non-tame monster, even one
+                # that isn't in the way — plain steps along our own route (never into it) do
+                own = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False)
+                if own:
+                    sidesteps += 1
+                    try:
+                        s2 = walk_path(own[:2])
+                    except NavError:
+                        s2 = ctx.last()
+                    if s2.hero != h0:
+                        s = s2
+                        continue
             if blk and waits < wait_peaceful:
                 waits += 1
                 print(f"travel: waiting a turn for {_mdesc(blk)} to move")
                 s = ctx.do(".", ok=BENIGN)      # give the peaceful a turn to move off
                 continue
+            if blk and backoffs < 2:
+                # it blocks the only way (a 1-wide corridor): step back so it can come out, then retry
+                ref = _refuge(s, blk, (x, y))
+                if ref is not None:
+                    backoffs += 1
+                    waits = 0
+                    print(f"travel: {_mdesc(blk)} blocks the way — stepping back to {ref} to let it pass")
+                    try:
+                        s = walk_path([ref])
+                    except NavError:
+                        s = ctx.last()
+                    for _w in range(3):
+                        if s.state.kind != "command" or \
+                                bfs_path(s, s.hero, (x, y), allow_monsters=False) is not None:
+                            break
+                        s = ctx.do(".", ok=BENIGN)
+                    continue
             if blk:
-                raise NavError(f"travel to {(x, y)} did not move: {_mdesc(blk)} stays next to you; "
-                               "step around it by hand.")
+                raise NavError(f"travel to {(x, y)} did not move: {_mdesc(blk)} stays next to you "
+                               f"(the only known route passes {sorted((m['x'], m['y']) for m in blk)}); "
+                               "wait, go around, or dig past it.")
             if any("door is closed" in m for m in s.messages):
                 s = _open_door_toward(s, (x, y))    # travel never opens doors (autoopen is for plain steps)
                 continue
@@ -353,12 +384,40 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     continue
                 raise NavError(f"travel to {(x, y)} did not move: your pet stays in the way ({s.messages}); "
                                "step around it by hand")
-            raise NavError(f"travel to {(x, y)} did not move (no known path?)"
+            raise NavError(f"travel to {(x, y)} did not move (no known path?"
+                           + (" — the map you know doesn't connect to it: explore() to find the way, or "
+                              f"head_to({x}, {y}) across the unexplored part)"
+                              if bfs_path(s, h0, (x, y), allow_monsters=True) is None else ")")
                            + (f"; messages: {s.messages}" if s.messages else ""))
         if _notable(s.messages) and not s.paused:
             return s   # something happened en route; let the caller look (unless the exec
                        # already paused on it and the player chose to go on)
     return s
+
+
+def _refuge(s, blk, target):
+    """A free square next to you, away from the blocking monster(s), where
+    you can stand aside so a peaceful in a corridor can come out: the
+    farthest from them, then the most open. None if there is none."""
+    from .mapview import is_walkable
+    h = s.hero
+    if h is None:
+        return None
+    bad = bad_squares(s)
+    occupied = {(m["x"], m["y"]) for m in (s.monsters or [])}
+    best = None
+    for (dx, dy) in DIR_KEY:
+        c = (h[0] + dx, h[1] + dy)
+        if c in bad or c in occupied or not is_walkable(s, *c, allow_monsters=False):
+            continue
+        away = min(dist(c, (m["x"], m["y"])) for m in blk)
+        if away <= 1:
+            continue                                   # still next to it: travel wouldn't start either
+        room = sum(1 for (ex, ey) in DIR_KEY if is_walkable(s, c[0] + ex, c[1] + ey, allow_monsters=False))
+        key = (away, room)
+        if best is None or key > best[0]:
+            best = (key, c)
+    return best[1] if best else None
 
 
 _PET_IN_WAY = ("is in your way", "is in the way!", "doesn't seem to move!", "Pardon me, ")
@@ -617,13 +676,15 @@ def kick_door(x, y, tries: int = 8):
     return s
 
 
-def path_to(x, y, avoid_bad: bool = True) -> list:
+def path_to(x, y, avoid_bad: bool = True, through_monsters: bool = False) -> list:
     """Our known-map path from you to (x, y) (list of cells, excluding your
     square; [] if you're there; None if no known path). Honours known traps
-    and avoid() squares unless avoid_bad=False. Walk it with walk_path(path)
-    (one checked step at a time) or path_to(...)[:n] for the first n steps."""
+    and avoid() squares unless avoid_bad=False. Monsters block it unless
+    through_monsters=True (then None really means "no known route", and
+    occupants(s, cell) on the path shows who is in the way). Walk it with
+    walk_path(path) (one checked step at a time; stops before a monster)."""
     s = ctx.last()
     if s.hero is None:
         return None
     bad = frozenset(c for c in bad_squares(s) if c != (x, y)) if avoid_bad else frozenset()
-    return bfs_path(s, s.hero, (x, y), avoid=bad, allow_monsters=False)
+    return bfs_path(s, s.hero, (x, y), avoid=bad, allow_monsters=through_monsters)

@@ -307,3 +307,57 @@ def test_screen_frontiers_and_head_to(monkeypatch):
     monkeypatch.setattr(nav, "travel", fake_travel)
     out = explore.head_to(30, 5)
     assert trips == [(15, 5), (21, 5), (30, 5)] and out.hero == (30, 5)
+
+
+def test_refuge_steps_back_out_of_a_corridor_mouth():
+    from tactics import ctx, nav
+
+    class G:
+        traps, avoid = {}, {}
+
+        def level_key(self, status=None):
+            return "L"
+    import pytest
+    mp = pytest.MonkeyPatch()
+    mp.setattr(ctx, "game", G())
+    try:
+        # a room (x 2-9) opening east into a 1-wide corridor; you in the doorway, a gnome in the corridor
+        rows = {3: " --------",
+                4: " |.......",
+                5: " |.......@G####",
+                6: " |.......",
+                7: " --------"}
+        gnome = {"x": 10, "y": 5, "ch": "G", "desc": "peaceful gnome", "peaceful": True, "dist": 1}
+        s = _snap(rows, (9, 5), [gnome])
+        ref = nav._refuge(s, [gnome], (14, 5))
+        assert ref is not None and ref[0] == 8           # back into the room, away from the gnome
+        assert nav._refuge(_snap({5: "       #@G###"}, (8, 5), [gnome]), [gnome], (12, 5)) == (7, 5)
+    finally:
+        mp.undo()
+
+
+def test_unlock_box_prompt_flow(monkeypatch):
+    from nh.parse import State
+    from tactics import ctx, items
+    base = _snap({}, (10, 5), [])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to use or apply? [k or ?*]")
+    dirp = _snap({}, (10, 5), [])
+    dirp.state = State("direction", prompt="In what direction?")
+    lockq = _snap({}, (10, 5), [])
+    lockq.state = State("yn", prompt="There is a large box here; lock it? [ynq] (q)")
+    unlockq = _snap({}, (10, 5), [])
+    unlockq.state = State("yn", prompt="There is a chest here; unlock it? [ynq] (q)")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["You succeed in unlocking the chest."]
+    script = iter([obj, dirp, lockq, unlockq, done])
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return next(script)
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: base)
+    msgs = items.unlock(tool="k")
+    # the unlocked large box is left alone ('n' to "lock it?"), the locked chest gets 'y'
+    assert sent == ["a", "k", ".", "n", "y"] and msgs[-1] == "You succeed in unlocking the chest."

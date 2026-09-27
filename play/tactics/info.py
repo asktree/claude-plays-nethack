@@ -161,20 +161,32 @@ def _sell_offers(base: int, dunce: bool = False) -> set:
 
 
 def price_id(klass: str, buy: int | None = None, sell: int | None = None, cha: int | None = None,
-             dunce: bool = False) -> list:
+             dunce: bool = False, exclude_known: bool = True) -> list:
     """Which unidentified items of a class match a shop price? klass like
     'SCROLL_CLASS', 'POTION_CLASS', 'RING_CLASS', 'WAND_CLASS',
     'AMULET_CLASS', 'SPBOOK_CLASS'. buy = the unit price quoted to you
     ("For you, 133 zorkmids"), sell = the offer for ONE item. cha defaults
     to your Charisma from the status line. Returns [(name, base price)]
-    consistent with every number given (formulas from shk.c)."""
+    consistent with every number given (formulas from shk.c). Types you have
+    already identified (the discoveries list, read at the command prompt)
+    are left out unless exclude_known=False."""
     from . import ctx
     if cha is None:
         st = ctx.last().status
         cha = st.ch if st.ok else 10
+    known: set = set()
+    if exclude_known and ctx.game is not None:
+        try:
+            if ctx.last().state.kind == "command":
+                from .items import discoveries
+                known = {n for n, _look in discoveries() if " called " not in n}
+        except Exception:  # noqa: BLE001 — the price list still works without it
+            known = set()
     out = []
     for o in _objects():
         if o.get("class") != klass or not o.get("name"):
+            continue
+        if o.get("full_name") in known or o.get("name") in known:
             continue
         base = int(o.get("cost") or 0)
         if buy is not None and buy not in _buy_prices(base, cha, dunce):
