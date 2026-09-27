@@ -242,6 +242,29 @@ def _state(s, lv, ox, oy):
     return boulders, traps, covered
 
 
+def _diff(state, want, ox, oy) -> str:
+    """Human-readable difference between the board and the plan (screen coords)."""
+    boulders, traps, covered = state
+    wb, wt = want
+    def scr(cells):
+        return sorted((x + ox, y + oy) for x, y in cells)
+    bits = []
+    extra = (boulders - covered) - wb
+    missing = (wb - covered) - boulders
+    if extra:
+        bits.append(f"unexpected boulders {scr(extra)} (a boulder that appeared from nowhere is often a MIMIC: "
+                    "farlook/search before touching it)")
+    if missing:
+        bits.append(f"boulders missing at {scr(missing)}")
+    tm = (wt - covered) - traps
+    if tm:
+        bits.append(f"holes filled that shouldn't be {scr(tm)}")
+    te = (traps - covered) - wt
+    if te:
+        bits.append(f"holes still open {scr(te)}")
+    return "; ".join(bits) or "no visible difference"
+
+
 def _matches(state, want) -> bool:
     boulders, traps, covered = state
     wb, wt = want
@@ -278,8 +301,12 @@ def solve(max_steps: int | None = None):
     treasure zoo — prepare for that fight before going in)."""
     p = progress()
     if p["done"] < 0:
-        ctx.pause(f"sokoban: the board of {p['wiki']} matches no point of the solution — solve the rest by "
-                  "hand (board(), push_wiki()) or ask for help")
+        lv = _levels()[p["level"]]
+        cur = _state(ctx.last(), lv, p["ox"], p["oy"])
+        start = (set(map(tuple, lv["boulders"])), set(map(tuple, lv["traps"])))
+        ctx.pause(f"sokoban: the board of {p['wiki']} matches no point of the solution (vs the start: "
+                  f"{_diff(cur, start, p['ox'], p['oy'])}) — solve the rest by hand (board(), push_wiki()) "
+                  "or ask for help")
         return p
     lv = _levels()[p["level"]]
     ox, oy = p["ox"], p["oy"]
@@ -298,9 +325,10 @@ def solve(max_steps: int | None = None):
         if pos != want:
             ctx.pause(f"sokoban: step {i + 1} ended with the boulder at {pos}, expected {want}")
             return progress()
-        if not _matches(_state(ctx.last(), lv, ox, oy),
-                        (set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"])))):
-            ctx.pause(f"sokoban: after step {i + 1} the board differs from the plan — check board()")
+        want = (set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"])))
+        cur = _state(ctx.last(), lv, ox, oy)
+        if not _matches(cur, want):
+            ctx.pause(f"sokoban: after step {i + 1} the board differs from the plan: {_diff(cur, want, ox, oy)}")
             return progress()
         n += 1
     return progress()
