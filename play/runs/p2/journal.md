@@ -386,3 +386,8 @@
 - **T:16706 MISTAKE: F-attacked a PEACEFUL black naga the monitor had relabeled "black naga hatchling" (`F` skips NetHack's "Really attack?" — uhitm.c). "The black naga screams!" = angered: -1 alignment; killed it as a hostile.** Farlook before every blow from then on.
 - T:16740 on Medusa's `<` (75,9); landed at (73,17) for a ZINC WAND (g, unknown; trap door (72,17) next to it); unknown ring `=` left at (53,8). T:16753 **climbed to D26** `>` (20,19). Telepathy: long worm + snake only.
 - SHIFT 26 END T:16754 D26 on the `>` (20,19), HP 147/147, XL13 (Exp 41618, +2508), AC -8. No prayer (0% until ~T:17200-17400). Wand of wishing used up: GDSM, charging x2, life saving, speed boots, LEVITATION, 3 GAIN LEVEL (bag s).
+
+## Shift 27 (D26 → the D24 temple)
+- T:16755 D26 — engrave-tests: zinc wand g = SECRET DOOR DETECTION (auto-id) → hexagonal h (nodir, no effect at the Castle) is most likely an EMPTY wand of ENLIGHTENMENT; long wand Q = no engrave effect (locking/probing/nothing/empty). A dust "ad aerarium" at (21,19): trapped closet (21,21) (harmless with MR).
+- T:16840 land mine at (46,6) (-12, pit, wounded legs a while). T:16896 killed a COCKATRICE (it touched me, no hiss) → it dropped a POTION OF EXTRA HEALING (c, now 2?). Orc shaman, kobold shaman, long worm killed. Teleport trap (70,15) (MR: wrenching sensation). Picked up an ORANGE potion (v, unknown) at (70,17).
+- T:17013 D26 `<` found at (3,19) (SW room x3-6 y18-19).

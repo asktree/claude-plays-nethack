@@ -118,17 +118,18 @@ def bad_squares(s=None) -> set:
     return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics | zone
 
 
-# mklev.c create_room(): a random room is at most 14 squares wide and 6 high inside
-_ROOM_W, _ROOM_H = 15, 7
+# sp_lev.c create_room(): a random room is at most 14 squares wide and 6 high inside (special rooms are picked
+# among those; the Castle's and Fort Ludios's are bigger but lit, so their walls are known)
+_ROOM_W, _ROOM_H = 14, 6
 
 
 def special_room_zone(s=None, outside_only: bool = True) -> dict:
     """{(x, y): kind} the squares of the special rooms announced on this
     level (treasure zoo, anthole, beehive, barracks, cockatrice nest, throne
     room, leprechaun hall, graveyard — NetHack says it only once per room):
-    what's known of its floor, plus blank squares on its side of the entry
-    wall within a room's size, and its doorways. Empty while you stand in it
-    (outside_only), so you can walk out."""
+    its known floor (up to its walls), the never-seen squares on its side of
+    the entry wall within a room's size (a dark room), and its doorways.
+    Empty while you stand in it (outside_only), so you can walk out."""
     s = s or ctx.last()
     mem = getattr(s, "room_mem", None)
     if mem is None:
@@ -152,7 +153,11 @@ def _room_cells(s, entry, prev) -> set:
         return s.screen.at(*c)
 
     def blocked(c):
-        return is_wall(s, *c) or (ch(c) == "#" and s.screen.color_at(*c) in (7, 8, 15))
+        return not in_map(*c) or not 1 <= c[1] <= 21 or is_wall(s, *c) \
+            or (ch(c) == "#" and s.screen.color_at(*c) in (7, 8, 15))
+
+    def blank(c):
+        return ch(c) == " " and s.screen.color_at(*c) != 6
 
     def doorish(c):
         return is_door(s, *c) or (ch(c) == "." and (
@@ -168,33 +173,58 @@ def _room_cells(s, entry, prev) -> set:
             axis, sign = 0, (1 if dx > 0 else -1)
         elif dy:
             axis, sign = 1, (1 if dy > 0 else -1)
+    at_door = axis is not None and doorish(entry)
 
-    def inside(c):
-        if abs(c[0] - ex) > _ROOM_W or abs(c[1] - ey) > _ROOM_H or not in_map(*c):
-            return False
-        if axis is not None and doorish(entry):
-            d = (c[axis] - entry[axis]) * sign
-            return d > 0 or (d == 0 and doorish(c))       # (on the entry's wall line: only its doorways)
-        return True
+    def side_ok(c):
+        if not at_door:
+            return True
+        d = (c[axis] - entry[axis]) * sign
+        return d > 0 or (d == 0 and doorish(c))        # (on the entry's wall line: only its doorways)
+    # a door in a vertical wall: the room reaches 14 squares across and 5 rows up/down from it; in a
+    # horizontal wall 13 across and 6 deep
+    rw, rh = (_ROOM_W, _ROOM_H - 1) if axis == 0 else (_ROOM_W - 1, _ROOM_H) if axis == 1 else (_ROOM_W, _ROOM_H)
+
+    def in_box(c):
+        return abs(c[0] - ex) <= rw and abs(c[1] - ey) <= rh
     cells = {entry}
-    if doorish(entry) and axis is not None:
+    if at_door:
         seeds = [(ex + (sign if axis == 0 else 0), ey + (sign if axis == 1 else 0))]
     else:
         seeds = [c for c in ((ex + dx, ey + dy) for dx, dy in DIRS4) if c != prev]
-    q = [c for c in seeds if inside(c) and not blocked(c)]
+    # 1) the room's known squares, up to its walls and doorways (no size limit: a lit room shows its walls)
+    q = [c for c in seeds if not blocked(c) and not blank(c) and side_ok(c)]
     seen = set(q) | {entry}
+    fringe = [c for c in seeds if blank(c) and side_ok(c) and in_box(c)]
+    while q and len(cells) < 600:
+        c = q.pop()
+        cells.add(c)
+        if doorish(c) and c != entry:
+            continue                 # another doorway of the room: part of it, not a way through
+        for dx, dy in DIRS4:
+            n = (c[0] + dx, c[1] + dy)
+            if n in seen or n == prev or blocked(n) or not side_ok(n):
+                continue
+            seen.add(n)
+            if blank(n):
+                if in_box(n):
+                    fringe.append(n)
+                continue
+            q.append(n)
+    # 2) never-seen squares next to it on its side, within a room's size (a dark room's unseen floor)
+    q = [c for c in fringe]
+    seen |= set(q)
     while q:
         c = q.pop()
-        if doorish(c) and c not in (entry,):
-            cells.add(c)             # another doorway of the room: part of it, not a way through
-            continue
         cells.add(c)
         for dx, dy in DIRS4:
             n = (c[0] + dx, c[1] + dy)
-            if n in seen or n == prev or not inside(n) or blocked(n):
+            if n in seen or n == prev or blocked(n) or not side_ok(n) or not in_box(n):
                 continue
             seen.add(n)
-            q.append(n)
+            if blank(n):
+                q.append(n)
+            elif doorish(n):
+                cells.add(n)         # a doorway found at the edge of the unseen part
     return cells
 
 
