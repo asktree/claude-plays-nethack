@@ -42,3 +42,35 @@ player would. Step numbers are the obs header `#N`.
   line (prayer is the only other exit), one pause per big hit.
 - M4 (LOW) #25 `go_down()` while levitating with no `>` known yet says only `NavError you are
   LEVITATING ...` — the "no '>' known" part (find the stairs first) comes after you land.
+- M1 (HIGH) #104-#182 **nothing warns before Medusa's gaze can reach you.** After ^F the obs knew the level
+  (down stairs (12,5) inside a walled building, statues everywhere) and `mon('Medusa')` has the right note
+  (`GAZE = STONING. Need reflection or be blind`), but the note only appears once Medusa is IN VIEW — and
+  the first turn she is in view and awake is the stoning. The naive player flow: `travel(11, 5)` (next to
+  the `>`) -> `NavError travel: the door at (10, 5) is locked — ... kick_door(10, 5)` -> `kick_door(10,5)`
+  (#182): "As you kick the door, it crashes open! | You meet Medusa's gaze. | You turn to stone..." ->
+  `Die? [yn]` (wizard mode; on the server: dead). No reflection, not blind, Dlvl 23 of a water level with
+  statues: nothing in obs, no guard in travel/kick_door/explore, no pause before. Suggest: a Medusa-level
+  flag (Dlvl 21-24 + the level is mostly water, or ^O/overview, or the statue garden) that makes
+  travel/explore/kick_door/open refuse to reveal new squares unless `Blind` or reflection is known worn
+  (shield of reflection / SDSM / amulet of reflection in `inventory()` "(being worn)"), and an arrival
+  line `!! MEDUSA'S LEVEL: be Blind (blindfold/towel) or wear reflection BEFORE she comes into view`.
+- M5 (LOW-MED) #167-#169 the locked-door NavError suggests `kick_door(10, 5)` while LEVITATING; the kick
+  fails ("You have nothing to brace yourself against.", a paused message). Mention it (or #force/unlock/
+  force bolt) when `Lev` is on.
+- M6 (MEDIUM) #185-#188 **blindfolded melee (the no-reflection way to fight Medusa) is blocked by
+  contradictory advice**: `fight()` blind says `fight: you are Blind — ... cure it (apply a unicorn horn)
+  or fight(x, y) on an 'I' square you know is hostile`; `fight(8, 5)` then raises `PermissionError
+  refusing to attack the remembered unseen monster 'I' at (8, 5) while blind ... force=True if it is
+  attacking you.` — but `fight()` has no `force` parameter (signature `x, y, stop_hp, max_blows,
+  allow_passive, only`). Only raw `do('Fh', force=True)` works (used for Medusa at #189-#197: "You hit it."
+  x3, then she left). And "cure it (apply a unicorn horn)" is the wrong advice when the blindness is a
+  worn blindfold on Medusa's level — taking it off is death; the harness doesn't tell self-blinding
+  (blindfold/towel worn) from a blinding attack.
+- (good) #185-#207 while blind: `out of view: Medusa last at (11,5) N turn(s) ago` kept her last position;
+  `step('l')` into her unseen square gave NetHack's "Wait! There's something there you can't see!" (no
+  attack) and the `I` got the right `!!` note. After eating a floating eye (wished corpse: `eat('m')` was
+  NOT refused although the harness never saw it die — fine for a wish; `corpse()` warned about the 1-in-7
+  "Rotten food" roll, which then happened: 2 turns unconscious) telepathy labelled everything while blind,
+  incl. `kraken, hiding in murky water` and the statues (`a statue of a stone giant`).
+- (info) Medusa, hurt, left the level (with telepathy she is nowhere on it; she stood next to the `>` —
+  fleeing monsters use stairs). `hunt('Medusa')` -> `no hostile 'Medusa' in view` (expected).
