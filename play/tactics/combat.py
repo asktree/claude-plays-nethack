@@ -71,6 +71,14 @@ _warned: set = set()
 _warned_expl: set = set()
 
 
+def _covetous(name) -> bool:
+    """monst.c M3_COVETOUS (wants the Amulet/Bell/Book/Candelabrum/quest artifact): it teleports to you and
+    away to heal — there is no point walking to where it was."""
+    from nh.danger import monster_record
+    rec = monster_record(name or "") or {}
+    return any(f.startswith("M3_WANTS") for f in rec.get("flags3") or [])
+
+
 def _ench_safe() -> bool:
     """zap.c drain_item(): a disenchanter's passive can't take enchantment from a weapon that defends
     against level drain (Excalibur, Stormbringer, the Staff of Aesculapius) or has none to lose (+0 or
@@ -216,6 +224,17 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                         and s.screen.at(hx + dx, hy + dy) not in " -|")
                 print(f"fight: Stunned — each blow goes in a random open direction (about 1 in {max(1, n)} "
                       "lands on the target; the others hit thin air); no peaceful/pet is next to you, so swinging")
+        from .nav import drowners_adjacent
+        drown = drowners_adjacent(s) if targets or any(m.get("unseen") and m.get("dist") == 1
+                                                       for m in s.monsters or []) else []
+        if drown and not force and "drown" not in seen_notes:
+            seen_notes.add("drown")
+            ctx.pause("fight: you stand next to WATER with " + ", ".join(
+                f"{m.get('desc') or 'an unseen monster'} at ({m['x']},{m['y']})" for m in drown[:3])
+                + " in it — one wrap holds you and the next DROWNS you (levitation doesn't help). Step to a square "
+                  "with no water next to it first and fight what follows you there (or Elbereth / freeze the "
+                  "water); fight(..., force=True) to fight on here")
+            return ctx.last()
         if x is None:
             from nh.monitor import _stationary
             sessile = [m for m in targets if _stationary(m.get("desc") or "")]
@@ -234,6 +253,12 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 seen.extend(s.messages)
                 continue
             if not targets and locked_on:
+                again = [m for m in s.adjacent_hostiles() if base_name(m.get("desc") or "") == locked_on]
+                if again:
+                    # a covetous monster teleports next to you again (monmove.c: mnexto): same fight
+                    x, y = again[0]["x"], again[0]["y"]
+                    print(f"fight: the {locked_on} is next to you again at ({x},{y}) — fighting it there")
+                    continue
                 recent = [m for t, m in list(getattr(ctx.game, "history", []))[-40:] if t is None or t >= t_first]
                 killed = re.compile(r"^You (?:kill|destroy) (?:it\b|(?:the |an? |poor )?" + re.escape(locked_on) + ")")
                 if not any(re.search(r"^You (?:kill|destroy) ", m) for m in seen) \
@@ -371,7 +396,8 @@ def fight_trivial(s=None):
 
 
 def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6,
-                      ignore=(), allow_passive: bool = False, hold: int = 0, unseen: bool = False) -> dict:
+                      ignore=(), allow_passive: bool = False, hold: int = 0, unseen: bool = False,
+                      near_water: bool = False) -> dict:
     """Hold your square and fight a crowd (a zoo from its doorway, a pack in a
     corridor): melee whatever hostile comes adjacent (fight(): passive checks,
     worst-case HP rule), wait a turn while hostiles within `radius` aren't
@@ -390,7 +416,10 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     radius (search 's' each turn; whatever comes next to you is fought) —
     holding a chokepoint for a garrison that trickles in; reason "held".
     unseen=True: also swing (F) at an adjacent remembered unseen monster 'I'
-    (invisible attackers; never where a peaceful may be)."""
+    (invisible attackers; never where a peaceful may be).
+    Next to water with a sea monster (or an unseen 'I') in it, it returns
+    "DROWNING RISK: ..." at once — step away from the water first
+    (near_water=True fights on there)."""
     import contextlib
     from nh.danger import base_name, threat_level
     from nh.monitor import killed_names
@@ -422,6 +451,13 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             st = s.status
             if st.ok and st.hp < stop_hp * max(1, st.hpmax):
                 return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%} — Elbereth / retreat / pray if HP <= 1/7")
+            from .nav import drowners_adjacent
+            drown = drowners_adjacent(s)
+            if drown and not near_water:
+                return out("DROWNING RISK: " + ", ".join(f"{m.get('desc') or 'an unseen monster'} at ({m['x']},{m['y']})"
+                                                         for m in drown[:3])
+                           + " in the water next to you — step to a square with no water next to it and hold "
+                             "there")
             from nh.monitor import _stationary
             mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")]
             if mobile_adj:
@@ -718,7 +754,12 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                     tr = getattr(ctx.game, "tracker", None)
                     rec = (getattr(tr, "recent", None) or {}).get(want) if tr is not None else None
                     last = (rec["x"], rec["y"]) if rec else None
-                    if last and chase < 6 and s.hero != last:
+                    near = [e for e in s.adjacent_hostiles() if not auto_fightable(e, s)]
+                    if near:
+                        return out(f"lost: the {species or target} is out of view, and "
+                                   + ", ".join(f"{e.get('desc') or e['ch']} at ({e['x']},{e['y']})" for e in near[:3])
+                                   + " is next to you — your call")
+                    if last and chase < 6 and s.hero != last and not _covetous(species):
                         chase += 1
                         path = bfs_path(s, s.hero, last, avoid=frozenset(bad_squares(s) - {last}),
                                         allow_monsters=False, allow_pets=True)
@@ -759,7 +800,9 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                     kills += killed_names(fs.messages)
                     continue
             goal = (m["x"], m["y"])
-            path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=False,
+            from .nav import squeaky_boards
+            boards = squeaky_boards(s)      # (they only squeak: a hunt crosses them)
+            path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal} - boards), allow_monsters=False,
                             allow_pets=True)
             if not path or len(path) < 2:
                 nxt = _greedy_step(s, goal, bad_squares(s)) if m["dist"] is not None and m["dist"] <= 6 else None
@@ -802,7 +845,8 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                 path = alt
             h0 = s.hero
             s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])],
-                       ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])
+                       ok=HUNT_OK + BENIGN + [r"^The door opens\.$", r"^A board beneath you squeaks"],
+                       force=path[0] in boards)
             kills += killed_names(s.messages)
             if s.hero == h0 and any(m.startswith("The door opens") for m in s.messages):
                 continue                     # the step opened a door on the way (autoopen): go on through it

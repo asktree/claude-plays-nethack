@@ -205,8 +205,12 @@ def features_in_view(snap, hero=None) -> list[dict]:
     fdesc = getattr(snap, "feature_desc", None) or {}
     if under and hero and MEM_NAMES.get(under):
         name = fdesc.get(hero) if under == "_" and fdesc.get(hero) else MEM_NAMES[under]
-        out.append({"ch": under, "x": hero[0], "y": hero[1], "name": name + " (under you)",
-                    "dist": 0, "color": ""})
+        dup = next((f for f in out if (f["x"], f["y"]) == tuple(hero)), None)
+        if dup is not None:
+            dup["name"] += " (under you)"      # an invisible hero isn't drawn: the map shows the feature itself
+        else:
+            out.append({"ch": under, "x": hero[0], "y": hero[1], "name": name + " (under you)",
+                        "dist": 0, "color": ""})
     # remembered features the map doesn't show now: under an object or a monster (stairs under a
     # scroll, an altar under its priest), or a magic portal on the Planes of Air/Water (no map memory)
     shown = {(f["x"], f["y"]) for f in out}

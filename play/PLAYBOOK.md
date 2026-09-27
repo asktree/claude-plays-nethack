@@ -211,13 +211,16 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   Tower staircase 9-13, Orcus Town 10-15, the Wizard's Tower (three stacked levels) from 11-16, the two
   fake-tower levels 6th to 3rd from the bottom, the vibrating square on the level just above the Sanctum
   (the last level).
-- **Vlad's Tower branch is on Gehennom level 9–13 (8–12 below the Valley)** — search there (with several `<` on that level,
-  `go_up()` looks at each and skips the ladders; the branch staircase leads into the tower). Vlad has the
-  **Candelabrum**; attach 7 candles. He is very fast and covetous: in the dark tower he hits and steps out
-  of view, so `fight()` gets one blow at a time — fight him in a lit spot or with a light source, wait with
-  `s` for him to come back next to you, and keep Elbereth for healing breaks. He leaves NO corpse: the
-  Candelabrum drops where he dies (`pickup('Candelabrum')`). Wolves down here may be vampire lords (the obs
-  says so; auto-fight leaves them to you).
+- **Vlad's Tower branch is on Gehennom level 9–13 (8–12 below the Valley)**. Search there: with several `<`
+  on that level, `go_up()` looks at each and leaves tower ladders for last. A ladder with an object on it
+  looks like stairs, and the one you can reach is preferred. The branch staircase leads into the tower.
+- **Vlad** has the **Candelabrum**; attach 7 candles to it. He is very fast and covetous: he teleports next
+  to you, hits, and teleports off to heal.
+  - Hold your square with `fight_until_clear(radius=3, hold=30, unseen=True)`. It fights him each time he
+    comes back (QA: this killed him twice, dark or lit). A light source doesn't help.
+  - Keep Elbereth for healing breaks.
+  - He leaves NO corpse: the Candelabrum drops where he dies (`pickup('Candelabrum')`).
+  - Wolves down here may be vampire lords. The obs says so, and auto-fight leaves them to you.
 - **Wizard's Tower** (dat/yendor.des). The Wizard has the **Book of the Dead**. He resurrects and harasses,
   so keep remove-curse reserves, and don't wear levitation near him.
   - **The tower**: the west part (28x12) of three stacked levels; the rest of each level is a maze.

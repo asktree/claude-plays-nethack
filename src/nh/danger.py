@@ -78,8 +78,9 @@ NOTES = {
     "vampire lord": "LEVEL DRAIN bite; regenerates; shape-shifts (fog cloud, vampire bat, WOLF): killing that "
                     "form raises the vampire lord at full HP next to you.",
     "Vlad the Impaler": "LEVEL DRAIN bite; strong, very fast (26). Carries the CANDELABRUM (needed to win); "
-                        "covetous: hits and runs, flees to heal — in the dark he vanishes between blows: fight "
-                        "from a lit spot / wait with `s` for him to come back. Shape-shifts only once he has lost "
+                        "covetous: teleports next to you, hits, teleports off to heal — hold your square: "
+                        "fight_until_clear(radius=3, hold=30, unseen=True) fights him each time he comes back "
+                        "(a light doesn't help). Shape-shifts only once he has lost "
                         "the Candelabrum. NO corpse: the Candelabrum drops on his square (pickup('Candelabrum')).",
     "wraith": "LEVEL DRAIN touch. Its corpse gives a level.",
     "barrow wight": "level drain weapon, spells.",
@@ -349,7 +350,7 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
         n = ("IT IS HOLDING YOU next to water: its next hit DROWNS you (levitation does NOT help) — engrave "
              "Elbereth NOW (it flees and lets go; not possible while levitating), kill it this turn, or teleport")
     if n:
-        bits.append(n)
+        bits.append(n.rstrip(". ") if len(n) > 1 else n)     # (joined with "; " below: no ".;")
     rec = monster_record(name)
     if rec and hero_xl is not None and not desc.startswith("peaceful "):
         diff = rec.get("difficulty", 0)

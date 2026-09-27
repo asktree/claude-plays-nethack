@@ -269,10 +269,25 @@ class Kernel:
             k.game.log_event({"ev": "note", "ts": round(time.time(), 3), "text": text})
 
         @contextlib.contextmanager
+        def long_task(steps: int = 1200, seconds: float = 330.0):
+            """Inside this block the exec's step/time budget pause comes later (a long helper the player
+            trusts, like sokoban.solve(), shouldn't stop mid-way just for the budget); restored after."""
+            old = (k.budget_steps, k.budget_seconds)
+            k.budget_steps, k.budget_seconds = max(old[0], steps), max(old[1], seconds)
+            try:
+                yield
+            finally:
+                k.budget_steps, k.budget_seconds = old
+
+        @contextlib.contextmanager
         def monster_filter(fn):
             """Inside this block a newly seen hostile pauses the exec only if
             fn(monster_dict) is true (e.g. only dangerous ones during a fight
             at a chokepoint). Everything else still pauses as usual."""
+            if not callable(fn):
+                raise TypeError(f"monster_filter() takes a predicate on the monster dict, not {fn!r}: e.g. "
+                                "monster_filter(lambda m: 'bee' not in (m.get('desc') or '')) — only newcomers "
+                                "it returns True for pause")
             old = k.new_monster_filter
             # nested blocks combine: a newcomer pauses only if every active filter says so (a helper's
             # own filter must not undo the player's: fight_until_clear inside a "no bees" block)
@@ -315,7 +330,7 @@ class Kernel:
             k.activity = text or ""
 
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
-                       set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far)
+                       set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -407,6 +422,12 @@ class Kernel:
                               "— look before the next step (it may be peaceful)")
         if any("position suddenly seems very uncertain" in m for m in snap.messages):
             reasons.insert(0, f"TELEPORTED by a monster's hit (quantum mechanic) — you are now at {snap.hero}")
+        brush = next((m for m in snap.messages if re.search(r"brushes against your (?:left |right )?\w+\.$", m)), None)
+        if brush and not any(re.search(r" swings itself around you!$", m) for m in snap.messages):
+            # mhitu.c AD_WRAP: a failed wrap — the next one can hold you, and a hold in water drowns you
+            reasons.insert(0, f"DROWNING ATTEMPT — {brush!r}: a sea monster (eel/kraken, maybe hidden under the "
+                              "water) tried to wrap you. Step AWAY from the water now (to a square with no water "
+                              "next to it); fight it only from there or at range")
         grab = next((m for m in snap.messages if re.search(r" swings itself around you!$", m)), None)
         if grab:
             # mhitu.c AD_WRAP: held by an eel/kraken in water, its next wrap hit drowns you outright
@@ -422,6 +443,10 @@ class Kernel:
                                  "at Int 3 the next one kills you")
                               + " (life saving doesn't help). Kill it at range, Elbereth, or get away NOW; a worn "
                                 "helmet stops 7 in 8")
+        if any(m.startswith("You feel as if you need some help.") for m in snap.messages):
+            # mcastu.c MGC_CURSE_ITEMS -> rndcurse(): some of your items are cursed now (fewer with MR)
+            reasons.insert(0, "CURSED ITEMS — a curse spell hit you: inventory() shows which (cursed armor can't "
+                              "come off, a cursed weapon welds, a cursed bag of holding loses items when opened)")
         bash = next((m for m in snap.messages if m.startswith("You begin bashing monsters with ")), None)
         if bash:
             # uhitm.c: the first blow with something that isn't a proper weapon (a pick-axe applied to dig,

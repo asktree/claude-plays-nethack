@@ -783,3 +783,28 @@ def test_kernel_bashing_warning_and_battle_noise():
     s.messages = ["The soldier wields a cockatrice corpse!"]
     k._check_events(snap({}, 10), s)
     assert reasons and "message" in reasons[-1]
+
+
+def test_kernel_wrap_attempt_curse_and_filter_validation():
+    import pytest
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    from nh.monitor import killed_names
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    s = snap({}, 11)
+    s.messages = ["It bites!", "It brushes against your leg."]
+    k._check_events(snap({}, 10), s)
+    assert reasons and reasons[-1].startswith("DROWNING ATTEMPT")
+    reasons.clear()
+    s.messages = ["The Wizard of Yendor casts a spell!", "You feel as if you need some help."]
+    k._check_events(snap({}, 10), s)
+    assert reasons and reasons[-1].startswith("CURSED ITEMS")
+    with pytest.raises(TypeError, match="predicate"):
+        with k.ns["monster_filter"]("killer bee"):
+            pass
+    assert killed_names(["The vampire lord is destroyed by the blast of fire!"]) == ["vampire lord"]
+    from nh.danger import note_for
+    assert ".;" not in note_for("Vlad the Impaler", 5)

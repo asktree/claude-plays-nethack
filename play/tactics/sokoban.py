@@ -471,7 +471,9 @@ def solve(max_steps: int | None = None, defer: int = 6):
     treasure zoo — prepare for that fight before going in)."""
     import contextlib
     far = getattr(ctx, "defer_far", None)
-    with (far(defer) if far is not None and defer else contextlib.nullcontext()):
+    long_task = getattr(ctx, "long_task", None)
+    with (far(defer) if far is not None and defer else contextlib.nullcontext()), \
+            (long_task() if long_task is not None else contextlib.nullcontext()):
         return _solve(max_steps)
 
 

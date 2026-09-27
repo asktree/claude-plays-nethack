@@ -13,6 +13,13 @@ monster_filter = None   # with monster_filter(fn): only newcomers with fn(m) tru
 _set_activity = None    # set_activity(text): shown with any pause while a helper works
 hp_rules = None         # with hp_rules(stop_hp): fight-style HP pauses (kernel)
 defer_far = None        # with defer_far(6): far newcomers pause only when they come near (kernel)
+_long_task = None       # with long_task(): a later exec-budget pause (kernel)
+
+
+def long_task(steps: int = 1200, seconds: float = 330.0):
+    """A block in which the exec's step/time budget pause comes later (no-op outside the kernel)."""
+    import contextlib
+    return _long_task(steps, seconds) if _long_task is not None else contextlib.nullcontext()
 
 
 def activity(text: str = "") -> None:

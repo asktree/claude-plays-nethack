@@ -396,6 +396,8 @@ class Game:
         self.last_theft: dict | None = None       # {"turn", "msg", "what"}: the latest theft from you
         self.level_flags: dict[str, set] = {}     # level key -> {"rogue"}: levels drawn differently
         self.floor_seen: dict[str, set] = {}      # Rogue level: squares once shown as floor/corridor/doorway
+        self.water_seen: dict[str, set] = {}      # level key -> squares last shown as water ('}' not red): an 'I'
+                                                  # or a sea monster drawn there is IN the water
         self.solid: dict[str, set] = {}           # level key -> squares a step into said "It's solid stone."
                                                   # (gold/gems embedded in the Mines' rock look walkable)
         self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
@@ -423,7 +425,7 @@ class Game:
         if old == new:
             return
         for d in (self.traps, self.avoid, self.visited, self.locked_doors, self.level_flags, self.floor_seen,
-                  self.solid):
+                  self.solid, self.water_seen):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
@@ -751,6 +753,18 @@ class Game:
                 elif snap.screen.color_at(x, y) == 3 and (ch in "|-" or (ch == "+" and _door_like(snap.screen, x, y))):
                     feats[(x, y)] = "D"         # a door (open or closed): no diagonal moves in or out of it
         self._remember_portals(snap, feats)
+        water = self.water_seen.setdefault(key, set())
+        for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
+            row = snap.screen.row(y)
+            for x, ch in enumerate(row):
+                if ch == "}" and snap.screen.color_at(x, y) != 1:
+                    water.add((x, y))
+                elif ch in ".#" and (x, y) in water:
+                    water.discard((x, y))          # frozen, filled or drained
+        if any(re.search(r"brushes against your (?:left |right )?\w+\.$|swings itself around you!$|"
+                         r"was hidden under the water|^You are being crushed", m) for m in messages):
+            # (mhitu.c AD_WRAP: a sea monster's wrap attempt; "A kraken was hidden under the water!")
+            self.level_flags.setdefault(key, set()).add("eels")
         if "rogue" in self.level_flags.get(key, ()):
             # the Rogue level turns dark-room floor you can't see back into blank stone (display.c): keep
             # it, or neither the frontier finder nor the route planner knows the room you walked through

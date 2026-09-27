@@ -41,7 +41,7 @@ RETURN_TURNS = 600     # a looked-at monster back in view FAR from its last sigh
 
 _KILL_RES = [
     re.compile(r"^You (?:kill|destroy) (?:the |an? |poor )?(?P<n>.+?)!$"),
-    re.compile(r"^(?:The |An? )?(?P<n>.+?) (?:is|are) (?:killed|destroyed)!"),
+    re.compile(r"^(?:The |An? )?(?P<n>.+?) (?:is|are) (?:killed|destroyed)(?: by [^!]+)?!"),   # (by the blast of fire)
     re.compile(r"^(?:The |An? )?(?P<n>.+?) dies!"),
     re.compile(r"^(?:The |Your |An? )?.+? (?:kills|destroys) (?:the |an? )?(?P<n>.+?)[.!]$"),
 ]

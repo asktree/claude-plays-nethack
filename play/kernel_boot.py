@@ -15,6 +15,7 @@ _ctx.monster_filter = globals().get("monster_filter")   # absent in daemons star
 _ctx._set_activity = globals().get("set_activity")
 _ctx.hp_rules = globals().get("hp_rules")
 _ctx.defer_far = globals().get("defer_far")
+_ctx._long_task = globals().get("long_task")
 try:   # pause traces quote the helper code as loaded now (not a file edited later)
     import nh.kernel as _nk
     _nk.snapshot_sources()
@@ -44,6 +45,7 @@ from tactics.town import buy_protection, pay, sell_offer  # noqa: E402,F401
 from tactics.items import bag_put, bag_take, dig, eat, pickup  # noqa: E402,F401
 from tactics.items import dip_into, discoveries, read_identify, rub, unlock, with_looks  # noqa: E402,F401
 from tactics.items import ID_PRIORITY, piety, write_scroll  # noqa: E402,F401
+from tactics.nav import drowners_adjacent, eel_level, eel_zone, squeaky_boards  # noqa: E402,F401
 from tactics.survival import offer, prayer_verdict  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401
 from tactics.combat import auto_fightable, hunt  # noqa: E402,F401

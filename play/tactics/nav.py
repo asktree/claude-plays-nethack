@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from . import ctx
 from .benign import BENIGN
 from .mapview import DIR_KEY, bfs_path, dist, find, nearest
@@ -104,6 +106,32 @@ def bad_squares(s=None) -> set:
     mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")
               or (not m.get("tame") and not m.get("peaceful") and _stationary(m.get("desc") or ""))}
     return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics
+
+
+def squeaky_boards(s=None) -> set:
+    """Known squeaky boards on this level (feature_desc): harmless to cross — they only squeak and wake
+    monsters nearby — but travel and the step guard avoid every known trap."""
+    s = s or ctx.last()
+    fd = getattr(s, "feature_desc", None) or {}
+    return {c for c, d in fd.items() if "squeaky board" in (d or "")}
+
+
+def _walk_over(path, boards: set):
+    """walk_path() that steps onto the given squeaky boards on purpose (force=True past the trap guard)."""
+    s = ctx.last()
+    for cell in path:
+        h = s.hero
+        if h is None:
+            return s
+        key = DIR_KEY.get((cell[0] - h[0], cell[1] - h[1]))
+        if key is None:
+            raise NavError(f"walk: {cell} is not adjacent to {h}")
+        _check_free(s, cell, "travel")
+        s = ctx.do(key, ok=BENIGN + [r"^A board beneath you squeaks", r"^You hear a (?:distant )?squeak"],
+                   force=cell in boards)
+        if s.hero != cell:
+            return s
+    return s
 
 
 def avoid(*cells, clear=False):
@@ -391,20 +419,79 @@ DROWNERS = ("giant eel", "electric eel", "kraken")
 EEL_MEMORY = 80      # turns an out-of-view eel keeps its stretch of water dangerous
 
 
-def eel_zone(s=None) -> dict:
-    """Land squares next to water where a drowning monster (giant/electric
-    eel, kraken) is now or was seen lately: {(x, y): "why"}. Its wrap attack
-    from the water drowns you on its next hit (levitation doesn't help), and
-    it hides under the surface, so the water around its last sighting stays
-    dangerous a while (reach grows ~1 square per 2 turns since, up to 6)."""
+def _water(s) -> set:
+    """Water squares of this level: shown now ('}' not red: lava is red), or remembered under an 'I'/a
+    monster drawn on them."""
+    key = ctx.game.level_key(s.status)
+    out = set(getattr(ctx.game, "water_seen", {}).get(key, set()))
+    for y in range(1, 22):
+        row = s.screen.row(y)
+        x = row.find("}")
+        while x >= 0:
+            if s.screen.color_at(x, y) != 1:
+                out.add((x, y))
+            x = row.find("}", x + 1)
+    return out
+
+
+def _in_water(s, m, water=None) -> bool:
+    water = _water(s) if water is None else water
+    c = (m["x"], m["y"])
+    return c in water or sum(1 for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                             if (dx or dy) and (c[0] + dx, c[1] + dy) in water) >= 5
+
+
+def eel_level(s=None) -> str:
+    """Why this level's water should be taken to hide drowning sea monsters, or ''. Their moats are
+    stocked with giant eels / krakens / sharks created HIDDEN under the water: the Castle, Medusa's
+    island, and everything in Gehennom (the Wizard's Tower and fake-tower moats, Juiblex's swamp); on
+    any level once a wrap attempt ("brushes against your leg") or a sea monster was met."""
+    s = s or ctx.last()
+    key = ctx.game.level_key(s.status)
+    flags = set(getattr(ctx.game, "level_flags", {}).get(key, ()))
+    if "eels" in flags:
+        return "sea monsters met on this level"
+    if flags & {"castle", "medusa", "medusa?"}:
+        return "this level's moat" if "castle" in flags else "Medusa's water"
+    if key.startswith("Gehennom"):
+        return "Gehennom's moats"
+    return ""
+
+
+def drowners_adjacent(s=None) -> list:
+    """Hostile sea monsters next to you that can wrap and drown you: a giant/electric eel or kraken, or an
+    unseen 'I' in the water (a hidden one that just attacked). Only while you stand next to water."""
     from nh.danger import base_name
     s = s or ctx.last()
+    if s.hero is None:
+        return []
+    water = _water(s)
+    hx, hy = s.hero
+    if not any((hx + dx, hy + dy) in water for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
+        return []
+    out = []
+    for m in s.monsters or []:
+        if m.get("dist") != 1 or m.get("tame") or m.get("peaceful") or m.get("statue"):
+            continue
+        if base_name(m.get("desc") or "") in DROWNERS or (m.get("unseen") and _in_water(s, m, water)):
+            out.append(m)
+    return out
+
+
+def _eel_zone(s) -> dict:
+    """{(x, y): (why, visible)}: see eel_zone()."""
+    from nh.danger import base_name
     turn = s.status.turn if s.status.ok else None
+    water = _water(s)
     seen = []
     for m in s.monsters or []:
+        if m.get("tame") or m.get("peaceful"):
+            continue
         bn = base_name(m.get("desc") or "")
-        if not m.get("tame") and not m.get("peaceful") and bn in DROWNERS:
+        if bn in DROWNERS:
             seen.append((m["x"], m["y"], 0, bn))
+        elif m.get("unseen") and _in_water(s, m, water):
+            seen.append((m["x"], m["y"], 0, "unseen monster in the water ('I': a hidden eel/kraken?)"))
     tr = getattr(ctx.game, "tracker", None)
     if tr is not None and hasattr(tr, "gone") and turn is not None:
         for r in tr.gone(turn):
@@ -414,19 +501,40 @@ def eel_zone(s=None) -> dict:
             if bn in DROWNERS and 0 <= ago <= EEL_MEMORY and not d.startswith(("tame ", "peaceful ")):
                 seen.append((r["x"], r["y"], ago, bn))
     out: dict = {}
+
+    def mark_around(wx, wy, why, visible):
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                c = (wx + dx, wy + dy)
+                if s.screen.at(*c) not in "} " and c not in water and 1 <= c[1] <= 21:
+                    if c not in out or (visible and not out[c][1]):
+                        out[c] = (why, visible)
+
     for ex, ey, ago, bn in seen:
         reach = 1 if ago == 0 else min(6, 1 + ago // 2)
         why = f"{bn} at ({ex},{ey})" if ago == 0 else f"{bn} last seen at ({ex},{ey}) {ago} turns ago"
         for wy in range(ey - reach, ey + reach + 1):
             for wx in range(ex - reach, ex + reach + 1):
-                if (wx, wy) != (ex, ey) and not (s.screen.at(wx, wy) == "}" and s.screen.color_at(wx, wy) != 1):
-                    continue                        # water only (a red '}' is lava)
-                for dy in (-1, 0, 1):
-                    for dx in (-1, 0, 1):
-                        c = (wx + dx, wy + dy)
-                        if c not in out and s.screen.at(*c) not in "} " and 1 <= c[1] <= 21:
-                            out[c] = why
+                if (wx, wy) == (ex, ey) or (wx, wy) in water:
+                    mark_around(wx, wy, why, ago == 0)
+    presumed = eel_level(s)
+    if presumed:
+        for (wx, wy) in water:
+            mark_around(wx, wy, f"water that may hide eels/krakens ({presumed})", False)
     return out
+
+
+def eel_zone(s=None) -> dict:
+    """Land squares next to water where a drowning monster (giant/electric
+    eel, kraken) is now or was seen lately: {(x, y): "why"}. Its wrap attack
+    from the water drowns you on its next hit (levitation doesn't help), and
+    it hides under the surface, so the water around its last sighting stays
+    dangerous a while (reach grows ~1 square per 2 turns since, up to 6). An
+    unseen 'I' in the water counts as one. On the Castle's and Medusa's
+    levels, in Gehennom, and on any level where one was met, ALL water
+    counts (their moats hold sea monsters created hidden: eel_level())."""
+    s = s or ctx.last()
+    return {c: why for c, (why, _vis) in _eel_zone(s).items()}
 
 
 def _exploders_near(s, cells, radius: int = 2) -> list:
@@ -455,7 +563,16 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     # objects or squares we chose to avoid: if the direct route crosses one,
     # walk our own detour step by step instead.
     bad = {c for c in bad_squares(s) if c != (x, y)}
-    zone = {} if near_water or s.hero is None else {c: w for c, w in eel_zone(s).items()
+    if bad and s.hero is not None and bfs_path(s, s.hero, (x, y), allow_monsters=True) is None:
+        # the only way may cross a displayed trap: fine if all of them are squeaky boards (they only squeak)
+        wide = bfs_path(s, s.hero, (x, y), allow_monsters=True, allow_traps=True)
+        on = [c for c in wide or [] if c in bad]
+        boards = squeaky_boards(s)
+        if on and set(on) <= boards:
+            print(f"travel: the only known way crosses the squeaky board(s) {on} — harmless (it squeaks and "
+                  "wakes monsters nearby): walking over")
+            return _walk_over(wide, boards)
+    zone = {} if near_water or s.hero is None else {c: w for c, w in _eel_zone(s).items()
                                                     if c not in (s.hero, (x, y))}
     if zone:
         direct = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad), allow_monsters=True)
@@ -464,24 +581,32 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             detour = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad | set(zone)), allow_monsters=False,
                               allow_pets=True)
             if detour is not None:
-                print(f"travel: detour of {len(detour)} steps away from the water by {hit[0]} — {zone[hit[0]]} "
-                      "(its wrap from the water drowns you); travel(..., near_water=True) takes the short way")
+                print(f"travel: detour of {len(detour)} steps away from the water by {hit[0]} — {zone[hit[0]][0]} "
+                      "(a wrap from the water drowns you); travel(..., near_water=True) takes the short way")
                 return walk_path(detour)
-            if any(" last seen " not in zone[c] for c in hit):
-                raise NavError(f"travel to {(x, y)}: the only known way passes {hit[0]}, next to the water with "
-                               f"the {zone[hit[0]]} — its wrap drowns you (levitation doesn't help). Kill it or "
+            vis = [c for c in hit if zone[c][1]]
+            if vis:
+                raise NavError(f"travel to {(x, y)}: the only known way passes {vis[0]}, next to the water with "
+                               f"the {zone[vis[0]][0]} — its wrap drowns you (levitation doesn't help). Kill it or "
                                "freeze the water (cold ray) first, wait for it to leave, or travel(..., "
                                "near_water=True)")
-            print(f"travel: WARNING — the only known way passes {hit[0]}, next to the water with the "
-                  f"{zone[hit[0]]}; going on (\"swings itself around you\" = Elbereth or kill it NOW)")
+            print(f"travel: WARNING — the only known way passes {hit[0]}, next to {zone[hit[0]][0]}; going on "
+                  "(\"brushes against your leg\" / \"swings itself around you\" = step away from the water NOW)")
     if bad and s.hero is not None:
         direct = bfs_path(s, s.hero, (x, y), allow_monsters=True)
         if direct and any(c in bad for c in direct):
             for _try in range(6):
                 cur = ctx.last()
                 detour = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad), allow_monsters=False, allow_pets=True)
+                on = [c for c in direct if c in bad]
+                boards = squeaky_boards(cur)
+                if detour is None and on and set(on) <= boards:
+                    # a squeaky board only squeaks (wakes monsters nearby): cross it rather than fail
+                    print(f"travel: the only known way crosses the squeaky board(s) {on} — harmless (it squeaks "
+                          "and wakes monsters nearby): walking over")
+                    return _walk_over(bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad - boards),
+                                               allow_monsters=False, allow_pets=True) or direct, boards)
                 if detour is None:
-                    on = [c for c in direct if c in bad]
                     raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square — the direct "
                                    f"one crosses {on} (traps, avoid() squares, mimics, stationary hostiles: "
                                    f"{sorted(bad)}); avoid(clear=True) forgets the manual ones")
@@ -979,7 +1104,10 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
         for c in unknown:
             if c != s.hero:
                 try:
-                    if "ladder" in (farlook(*c) or ""):
+                    # "< a staircase up or a ladder up (ladder up)": the symbol's generic text names both;
+                    # the square's own description is the part in parentheses (an object lying there hides it)
+                    spec = re.findall(r"\(([^()]*)\)", farlook(*c) or "")
+                    if spec and re.match(r"ladder (?:up|down)$", spec[-1].strip()):
                         ladders.append(c)
                 except Exception:  # noqa: BLE001
                     pass
@@ -994,7 +1122,7 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
         return unknown[0], (f"the other {ch} at {other[0]} leads to {known[other[0]]}; pass to='...' to take a "
                             "branch on purpose")
     print(f"stairs: {len(cells)} {ch!r} here ({', '.join(map(str, cells))}) and where they lead is unknown — "
-          f"taking the nearest, {cells[0]}; one of them is a branch (overview() says which branch starts on "
+          f"taking the nearest, {cells[0]}; one may be a branch staircase or a tower ladder (overview() says which branch starts on "
           f"this level; go_{'down' if ch == '>' else 'up'}(to='Mines'/'Sokoban'/'Dungeons') once one is known, "
           "or travel to the other one and press it yourself)")
     return cells[0], ""
@@ -1079,8 +1207,14 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
     s = ctx.do(ch, expect=("level",), ok=_STAIRS_OK)   # the level change is the point: no pause for it
     cur = ctx.last()
     if ch == "<" and d0 and cur.status.ok and cur.status.dlvl and cur.status.dlvl > d0:
-        print(f"stairs: the MYSTERIOUS FORCE (you carry the Amulet) sent you DOWN to {cur.status.ldesc}, somewhere "
-              "random on it: find this level's '<' (known_cells('<') / explore()) and climb again")
+        # (a script loop must not carry on as if it had climbed: its next go_down() would run down here)
+        raise NavError(f"stairs: the MYSTERIOUS FORCE (you carry the Amulet) sent you DOWN, Dlvl {d0} -> "
+                       f"{cur.status.dlvl}, to a random spot: find this level's '<' (known_cells('<') / explore()) "
+                       "and climb again")
+    if ch == "<" and d0 and cur.status.ok and cur.status.dlvl == d0 and cur.status.ldesc == ld0 \
+            and any(m.startswith("A mysterious force momentarily surrounds you") for m in cur.messages):
+        raise NavError(f"stairs: the MYSTERIOUS FORCE (you carry the Amulet) kept you on Dlvl {d0}, moved to "
+                       f"{cur.hero}: go back to the '<' and climb again")
     if cur.state.kind == "command" and ld0 is not None and cur.status.ok and cur.status.ldesc == ld0:
         if not _retried and any(m.startswith(("You can't go down here", "You can't go up here"))
                                 for m in cur.messages):

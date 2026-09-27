@@ -37,6 +37,7 @@ class Daemon:
                                  width=self.meta.get("width", 80), height=self.meta.get("height", 24))
         self.game = Game(self.term, timing, log_path=self.dir / "events.jsonl")
         self.kernel = Kernel(self.game)
+        self._core_loaded = self._tactics_loaded = time.time()   # (the stale-code note in obs)
         self.tracker = MonsterTracker(self.game)
         self.game.tracker = self.tracker
         self.memory = Tracker(self.game, self.dir / "harness_state.json")
@@ -92,6 +93,24 @@ class Daemon:
             except Exception:
                 self.game.log_event({"ev": "boot_error", "tb": traceback.format_exc()})
 
+    @staticmethod
+    def _code_mtime(sub: str) -> float:
+        """Newest modification time of the harness's Python files under `sub` (src/nh or play/tactics)."""
+        try:
+            return max((p.stat().st_mtime for p in (REPO_ROOT / sub).rglob("*.py")), default=0.0)
+        except OSError:
+            return 0.0
+
+    def _stale_code_note(self) -> str:
+        """'' unless harness code on disk is newer than what this daemon runs (edited after start/reload)."""
+        core = self._code_mtime("src/nh") > self._core_loaded + 1
+        tact = self._code_mtime("play/tactics") > self._tactics_loaded + 1
+        if not (core or tact):
+            return ""
+        return ("!! harness code on disk is newer than this daemon's"
+                + (" core (src/nh: only a daemon restart loads it — tell the orchestrator)" if core else "")
+                + (" helpers (play/tactics: `bin/nh reload` between execs loads them)" if tact else ""))
+
     def render(self, snap, mode="crop") -> str:
         if snap is not None and snap.state.kind == "command" and self.memory.need_overview \
                 and (not self.kernel.busy() or self.kernel.parked):
@@ -107,6 +126,9 @@ class Daemon:
         where = self.memory.state.get("current_level")
         if where and mode != "brief":
             text = text.replace("\n", f"\nwhere: {where}\n", 1)
+        stale = self._stale_code_note()
+        if stale:
+            text = text.replace("\n", f"\n{stale}\n", 1) if "\n" in text else text + "\n" + stale
         return text
 
     # ------------------------------------------------------------ handlers
@@ -158,6 +180,7 @@ class Daemon:
                 except Exception as e:  # noqa: BLE001
                     reloaded.append(f"{m} FAILED: {e}")
             self._bootstrap_kernel()
+            self._tactics_loaded = time.time()
             return {"ok": True, "text": "reloaded: " + ", ".join(reloaded)}
         if op == "shutdown":
             self.kernel.drop()

@@ -1710,3 +1710,109 @@ def test_travel_falls_back_to_head_to_without_a_known_path(monkeypatch):
     assert nav._travel(40, 12, 40, None, 3, 0, False) is s
     assert called == [(40, 12)]
     assert nav._HEADING[0] is False
+
+
+def test_hidden_drowners_eel_levels_and_fight_at_the_water(monkeypatch):
+    # QA round 5: moats hold eels/krakens created hidden; an 'I' in the water is one of them
+    from tactics import combat, ctx, nav
+    g = _G()
+    g.level_flags, g.water_seen = {}, {}
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {5: "        ..........", 6: "        ..........", 7: "        }}}}}}}}}}", 8: "        }}}}}}}}}}"}
+    colors = {(x, y): 4 for x in range(8, 18) for y in (7, 8)}
+    s = _snap(rows, (10, 5), [], colors=colors)
+    assert nav.eel_zone(s) == {}                       # an ordinary level, nothing seen
+    g.level_flags["L"] = {"castle"}
+    z = nav.eel_zone(s)
+    assert (12, 6) in z and (12, 5) not in z and "may hide" in z[(12, 6)]
+    # an unseen 'I' in the water next to you: a drowner
+    g.level_flags["L"] = set()
+    rows7 = "        }}}I}}}}}}"
+    s2 = _snap({**rows, 7: rows7}, (11, 6), [{"x": 11, "y": 7, "ch": "I", "unseen": True, "dist": 1,
+                                                    "desc": ""}], colors=colors)
+    assert nav.drowners_adjacent(s2) and (12, 6) in nav.eel_zone(s2)
+    paused = []
+    monkeypatch.setattr(ctx, "last", lambda: s2)
+    monkeypatch.setattr(ctx, "pause", lambda r: paused.append(r))
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: (_ for _ in ()).throw(AssertionError("no blows")))
+    combat.fight()
+    assert paused and "WATER" in paused[0]
+    s2.status.hp, s2.status.hpmax = 50, 50
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    r = combat.fight_until_clear()
+    assert r["reason"].startswith("DROWNING RISK")
+
+
+def test_squeaky_board_only_way_is_crossed(monkeypatch):
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {4: "        -----", 5: "        |.^.|", 6: "        -----"}
+    s = _snap(rows, (9, 5), [])
+    s.feature_desc = {(10, 5): "squeaky board"}
+    g.traps = {"L": {(10, 5)}}
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    walked = []
+    monkeypatch.setattr(nav, "_walk_over", lambda path, boards: walked.append((path, boards)) or s)
+    nav._travel(11, 5, 40, None, 3, None, False)
+    assert walked and walked[0][0][-1] == (11, 5) and (10, 5) in walked[0][1]
+
+
+def test_fight_follows_a_teleporter_to_its_new_adjacent_square(monkeypatch):
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    vlad1 = {"x": 11, "y": 5, "ch": "V", "desc": "Vlad the Impaler", "dist": 1, "id": 3}
+    vlad2 = dict(vlad1, x=9, y=6)
+    s1 = _snap({}, (10, 5), [vlad1])
+    s2 = _snap({}, (10, 5), [vlad2])
+    dead = _snap({}, (10, 5), [])
+    dead.messages = ["You kill Vlad the Impaler!"]
+    for s in (s1, s2, dead):
+        s.status.hp, s.status.hpmax, s.status.xl = 200, 200, 25
+    frames = iter([s2, dead])
+    cur = {"s": s1}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = next(frames)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(combat, "_wielding", lambda: True)
+    combat.fight(11, 5)
+    assert sent == ["Fl", "Fb"]                  # the second blow went to its new square
+
+
+def test_ladder_check_reads_the_specific_description(monkeypatch):
+    # QA round 5 S2: "< a staircase up or a ladder up (staircase up)" names both kinds; the part in
+    # parentheses is this square's
+    from tactics import ctx, nav
+    g = _G()
+    g.stair_links = {}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({}, (20, 10), [])
+    looks = {(35, 13): "< a staircase up or a ladder up (ladder up)",
+             (7, 4): "< a staircase up or a ladder up (staircase up)"}
+    monkeypatch.setattr(nav, "farlook", lambda x, y: looks[(x, y)])
+    cell, why = nav._pick_stairs("<", [(35, 13), (7, 4)], None, s)
+    assert cell == (7, 4) and "ladder" in why
+
+
+def test_mysterious_force_stops_the_script(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s0 = _snap({5: "        .<."}, (9, 5), [])
+    s0.status.dlvl, s0.status.ldesc = 44, "Dlvl:44"
+    s1 = _snap({5: "        ..."}, (30, 12), [])
+    s1.status.dlvl, s1.status.ldesc = 47, "Dlvl:47"
+    s1.messages = ["A mysterious force momentarily surrounds you..."]
+    cur = {"s": s0}
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [(9, 5)])
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: cur.__setitem__("s", s1) or s1)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    with pytest.raises(nav.NavError, match="MYSTERIOUS FORCE.*44 -> 47"):
+        nav._use_stairs("<", wait_pet=0)
