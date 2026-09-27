@@ -382,6 +382,15 @@ class Kernel:
             reasons.insert(0, f"HELD — {grab!r}: if it is in water, its NEXT hit DROWNS you (levitation does NOT "
                               "help). This turn: engrave Elbereth (E - Elbereth: it flees and lets go; impossible "
                               "while levitating), or kill it, or teleport away (not on the Castle)")
+        if any(m.startswith("Your brain is eaten!") for m in snap.messages):
+            # mhitu.c AD_DRIN / eat.c eat_brains(): with Int (base) at 3 a brain-eating hit KILLS, life
+            # saving or not; each one costs 1-2 Int; a worn helmet stops 7 in 8
+            iq = snap.status.in_ if snap.status.ok else 0
+            reasons.insert(0, f"BRAIN EATEN (mind flayer) — Int now {iq or '?'}: "
+                              + ("the NEXT brain-eating hit can KILL you" if iq and iq <= 4 else
+                                 "at Int 3 the next one kills you")
+                              + " (life saving doesn't help). Kill it at range, Elbereth, or get away NOW; a worn "
+                                "helmet stops 7 in 8")
         if any(m.startswith("A mysterious force momentarily surrounds you") for m in snap.messages):
             reasons.insert(0, "MYSTERIOUS FORCE (you carry the Amulet): the climb failed — you were moved on this "
                               "level or sent down a few; climb again (1 in 4 climbs deep in the dungeon)")
@@ -428,6 +437,8 @@ class Kernel:
                 reasons.append(f"level: {b.ldesc} -> {a.ldesc}")
             if a.xl != b.xl:
                 reasons.append(f"XL {b.xl}->{a.xl}")
+            if a.in_ and b.in_ and a.in_ < b.in_:
+                reasons.append(f"Int {b.in_}->{a.in_}")
             if a.polymorphed != b.polymorphed or (a.polymorphed and a.hd != b.hd):
                 reasons.append(f"polymorphed (HD:{a.hd}; own XL {a.xl})" if a.polymorphed
                                else "back in your own form")

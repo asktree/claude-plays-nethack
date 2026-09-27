@@ -174,8 +174,18 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   or lava is then death. Kill them at range, answer n to "remove your ...?"; vampires hide as fog clouds,
   vampire bats and wolves (killing the shape makes the vampire rise).
 - Juiblex (swamp; engulf → illness), Orcus (town; wand of death), Asmodeus, Baalzebub.
-- **Vlad's Tower branch is 9–13 levels below the Valley** — search there. Vlad has the **Candelabrum**;
-  attach 7 candles.
+- **Mind flayers / master mind flayers** (`h`, purple): each tentacle hit your HELMET doesn't stop (it stops 7
+  in 8) eats your brain: −1-2 Int, and with Int at 3 the next one KILLS you — life saving doesn't help. Never
+  fight one helmetless or at low Int (`fight()` refuses; the obs header shows `LOW-Int:N` at 6 or less and a
+  `BRAIN EATEN` pause names your Int). Kill them at range (wand of sleep/striking/death, daggers), Elbereth,
+  or leave. Blessed genocide of `h` removes them (and dwarves — fine this late).
+- **Vlad's Tower branch is 9–13 levels below the Valley** — search there (with several `<` on that level,
+  `go_up()` looks at each and skips the ladders; the branch staircase leads into the tower). Vlad has the
+  **Candelabrum**; attach 7 candles. He is very fast and covetous: in the dark tower he hits and steps out
+  of view, so `fight()` gets one blow at a time — fight him in a lit spot or with a light source, wait with
+  `s` for him to come back next to you, and keep Elbereth for healing breaks. He leaves NO corpse: the
+  Candelabrum drops where he dies (`pickup('Candelabrum')`). Wolves down here may be vampire lords (the obs
+  says so; auto-fight leaves them to you).
 - **Wizard's Tower**: entered through the magic portal on a **fake-tower level**; the Wizard has the **Book
   of the Dead**. He resurrects and harasses; keep remove-curse reserves; don't wear levitation near him.
 - **Invocation** (checked in a wizard-mode run): walk the bottom level until "You feel a strange vibration
@@ -189,7 +199,7 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   raises the dead. `invoke()` does all of this with every check (refuses off the square, with a cursed or
   BUC-unknown item — force=True for unknown — or fewer than 7 candles). **The way back**: the new `>` is
   ringed by 8 fire traps, 2 rows of floor, then a 2-wide moat, and you come back up onto it with the Amulet:
-  `step(dir, force=True)` onto one fire trap (fire resistance: no HP loss, but scrolls/potions/spellbooks can
+  `step_onto(x, y)` onto one fire trap (fire resistance: no HP loss, but scrolls/potions/spellbooks can
   burn — bag them), then FREEZE the moat with a wand of cold / frost horn ("The moat is bridged with ice!")
   and walk across — or levitate, but put the ring on your LEFT hand: in the wizard-mode test the Wizard's
   harassment cursed the wielded sword, and a cursed weapon locks the right-hand ring on ("You cannot free a

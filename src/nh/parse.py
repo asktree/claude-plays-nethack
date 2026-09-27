@@ -85,6 +85,8 @@ class Status:
         if self.exp is not None:
             bits.append(f"Exp:{self.exp}")
         bits.append(f"${self.gold}")
+        if 0 < self.in_ <= 6:
+            bits.append(f"LOW-Int:{self.in_}")     # a mind flayer's brain-eating kills at Int 3
         extra = [s for s in (self.hunger, self.encumbrance) if s] + self.conditions
         if extra:
             bits.append(" ".join(extra))

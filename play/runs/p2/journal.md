@@ -259,3 +259,10 @@
 - T:11422 D16 — **MICHAEL TOY'S GHOST (Rogue tribute) destroyed at (30,10): its pile had 4 FOOD RATIONS (taken → o)**, plate mail, bow, 27 arrows, two-handed sword (left). Burdened → bagged tripe, lantern, oil lamp, grease, tin, spare wands into bag i.
 - T:11558–11747 D16 — FOUR FROST GIANTS wander the row-16 corridors. Fought them one at a time in 1-wide corridors: #1 via fight_until_clear at (62,11) (2 turns, 0 damage), #2 at (18,6) (-17), #3 at (23,4) (-6). **XL11 at T:11747** (Exp 10143). No giant corpses seen. 1 frost giant left.
 - SHIFT 16 END T:11747 D16 — corridor (23,4) east of doorway (22,4), HP 103/129, XL11, AC -1, $24 (+1307 in sack n). `>` of D16 not found yet.
+
+## Shift 17
+- T:11760 D16 — plains centaur at the doorway (22,4): 1 blow. Rested to full (T:11787).
+- T:11826–11832 D16 — the LAST FROST GIANT (#4) met me in the SE room: killed (-12). Giant zombie (-21, 1 blow).
+- T:11837 D16 — black potion (t) at (63,18). **+3 IRON SHOES at (65,20): worn (replaced very burnt +0 high boots, dropped) → AC -1 → -6.**
+- T:11885 D16 — RUST TRAP (18,16): orcish helm now thoroughly rusty (still AC 0 from it). Snake killed. **D16 `>` = (20,16)** (bottom-left room). 2nd HAPAX LEGOMENON scroll at (5,11) → bag i.
+- T:12004 Hungry → ate a food ration (3 left). T:12064 → D17 (arrived on `<` (13,15)).

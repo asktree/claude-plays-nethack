@@ -36,12 +36,21 @@ NOTES = {
     "kraken": "can DROWN you once it 'swings itself around you' (levitation does NOT help) — Elbereth at once, "
               "kill it, or teleport. Keep 2 squares from the water.",
     "shark": "hits hard from water; stay off the water edge.",
-    "mind flayer": "tentacles eat your brain (Int loss, amnesia). Kill fast / flee; telepathic.",
-    "master mind flayer": "tentacles eat your brain (Int loss, amnesia). Very dangerous; flee or burst it down.",
-    "lich": "spellcaster (curses items, summons). Kill fast.",
-    "demilich": "spellcaster: curses, destroys armor, paralysis? Kill fast.",
-    "master lich": "powerful caster: touch of death possible without MR, summons nasties.",
-    "arch-lich": "deadliest caster: touch of death without MR, haste self. Needs MR.",
+    "mind flayer": "EATS YOUR BRAIN: 3 tentacles a turn; each hit a worn helmet doesn't stop (it stops 7 in 8) "
+                   "costs 1-2 Int and some memory, and with Int at 3 the next one KILLS you (life saving doesn't "
+                   "help). Flies, fast. Kill it at range or flee; never melee it helmetless or with Int <= 6.",
+    "master mind flayer": "EATS YOUR BRAIN: FIVE tentacles a turn; each hit a worn helmet doesn't stop (it stops "
+                          "7 in 8) costs 1-2 Int, and with Int at 3 the next one KILLS you (life saving doesn't "
+                          "help). Kill it at range or flee; never melee it helmetless or with Int <= 6.",
+    "lich": "spellcaster (level 11+): curses items, destroys armor (MR stops that), weakens (Str), stuns; cold "
+            "touch; regenerates. Kill fast.",
+    "demilich": "spellcaster (level 14+): curses items, destroys armor (MR stops that), aggravates, stuns; "
+                "cold touch. Kill fast.",
+    "master lich": "powerful caster: SUMMONS NASTIES, curses items, destroys armor; a high-level one casts "
+                   "TOUCH OF DEATH (MR stops it). Covetous: wants the Book of the Dead — follows you, teleports "
+                   "off to heal.",
+    "arch-lich": "deadliest caster: TOUCH OF DEATH without MR, summons nasties, curses, destroys armor, hastes "
+                 "itself. Needs MR. Covetous: wants the Book of the Dead — follows you, teleports off to heal.",
     "disenchanter": "disenchants your weapon/armor on hit. Don't melee with good gear.",
     "rust monster": "no HP damage. Its touches rust iron armor (a worn cloak covers body armor; helmet, shield, "
                     "gloves, boots can rust); hitting it rusts an iron weapon unless rustproof (a fountain "
@@ -64,8 +73,12 @@ NOTES = {
     "lieutenant": "may carry attack WANDS (even death). Stay off straight lines.",
     "captain": "may carry attack WANDS (even death). Stay off straight lines.",
     "vampire": "LEVEL DRAIN bite; regenerates.",
-    "vampire lord": "LEVEL DRAIN bite; regenerates.",
-    "Vlad the Impaler": "LEVEL DRAIN bite; strong.",
+    "vampire lord": "LEVEL DRAIN bite; regenerates; shape-shifts (fog cloud, vampire bat, WOLF): killing that "
+                    "form raises the vampire lord at full HP next to you.",
+    "Vlad the Impaler": "LEVEL DRAIN bite; strong, very fast (26). Carries the CANDELABRUM (needed to win); "
+                        "covetous: hits and runs, flees to heal — in the dark he vanishes between blows: fight "
+                        "from a lit spot / wait with `s` for him to come back. Shape-shifts only once he has lost "
+                        "the Candelabrum. NO corpse: the Candelabrum drops on his square (pickup('Candelabrum')).",
     "wraith": "LEVEL DRAIN touch. Its corpse gives a level.",
     "barrow wight": "level drain weapon, spells.",
     "nurse": "harmless if you are unarmed & unarmored (heals you); otherwise just a nuisance.",
@@ -98,7 +111,7 @@ NOTES = {
     "horned devil": "hits hard (4 attacks).",
     "Elvenking": "fast elven lord, often with a strong weapon; sleep resistant; hits hard.",
     "nalfeshnee": "spellcaster; hits hard.",
-    "pit fiend": "strong: grabs; spellcaster.",
+    "pit fiend": "strong: two weapon hits (4d2 each) and a crushing hug that holds you; no spells.",
     "balrog": "very strong; bullwhip + broadsword; flies.",
     "ice devil": "cold (you resist) + slowing sting.",
     "barbed devil": "grabs; hits hard.",
@@ -106,7 +119,10 @@ NOTES = {
     "Death": "RIDER. Touch of death. Avoid.",
     "Pestilence": "RIDER. Illness. Avoid.",
     "Famine": "RIDER. Hunger. Avoid.",
-    "Wizard of Yendor": "steals the Amulet/quest artifact; curses; double trouble. Keep uncursing ready.",
+    "Wizard of Yendor": "covetous: steals the Amulet, the Bell, the Candelabrum, the Book or your quest "
+                        "artifact, then teleports off to heal; casts touch of death (MR stops it), summon nasties, "
+                        "curses, destroy armor, double trouble (clones himself). Comes back after being killed. "
+                        "Keep MR, reflection and uncursing ready; kill him fast.",
     "Lord Surtur": "QUEST NEMESIS (fire giant king): 2d10 weapon x2 and fire (you need fire resistance on his "
                    "lava level); his claw STEALS the Orb of Fate / the Amulet and he TELEPORTS away to heal (often "
                    "to the up stairs), then comes back; he carries the Bell of Opening (needed to ascend).",
@@ -166,6 +182,7 @@ NOTES = {
     "zruty": "hits hard (3 attacks, up to ~42 a turn) but slow (speed 8): you can walk away from it.",
     "baluchitherium": "hits hard (two 5d4 claws, ~40 a turn).",
     "xan": "leg sting: WOUNDED LEGS (can't kick; lower carrying capacity) — fast (18) and flies; kill it quickly.",
+    "storm giant": "hits hard (2d12 weapon, level 16), throws boulders; shock resistant.",
     "shopkeeper": "NEVER anger (very strong).",
     "watchman": "Minetown Watch: don't anger (no fountain dipping/quaffing, no door breaking, no theft).",
     "watch captain": "Minetown Watch: don't anger.",
@@ -178,7 +195,7 @@ INFO_NOTES = {"hill orc", "Uruk-hai", "dwarf", "dwarf lord", "leprechaun", "cham
               "ettin", "troll", "rock troll", "ice troll", "water troll", "Olog-hai", "python", "rust monster",
               "blue jelly", "nurse", "rotting corpse", "Master of Thieves", "water moccasin", "centipede",
               "scorpion", "pit viper", "large mimic", "giant mimic", "ice vortex", "dust vortex",
-              "zruty", "baluchitherium", "xan"}
+              "zruty", "baluchitherium", "storm giant"}
 
 # player-monsters ("wizard called Kevin the Sorcerer"): on the Astral Plane they are level 15-30 with a
 # +4..+8 weapon, half the time an ARTIFACT, good armor and sometimes wands (mplayer.c mk_mplayer special)

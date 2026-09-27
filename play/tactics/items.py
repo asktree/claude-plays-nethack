@@ -51,6 +51,8 @@ def inventory():
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         ctx.game.reflecting = any("(being worn)" in it["text"] and _REFLECT.search(it["text"]) for it in items)
+        ctx.game.helmet = next((it["text"] for it in items if "(being worn)" in it["text"]
+                                and re.search(r"\b(?:helm|helmet|hat|cap|cornuthaum|fedora|kabuto)\b", it["text"])), "")
         ctx.game.cursed_worn = [it["text"] for it in items if re.search(r"\bcursed\b", it["text"])
                                 and not re.search(r"\buncursed\b", it["text"])
                                 and re.search(r"\((?:being worn|on (?:left|right) hand|weapon in \w+|"
@@ -796,6 +798,13 @@ def pickup(pattern: str | None = None) -> list:
     if "You see no objects here" in look or not look:
         print(f"pickup({pattern!r}): there are no objects here" + (f" ({look})" if look else ""))
         return []
+    if pattern:
+        # the invocation items look different until identified: "papyrus spellbook", "silver bell",
+        # "candelabrum" (and a fake "Amulet of Yendor" is identical to the real one)
+        for real, look_as in (("Book of the Dead", "papyrus spellbook"), ("Bell of Opening", "silver bell"),
+                              ("Candelabrum of Invocation", "candelabrum")):
+            if re.search(pattern, real, re.I) and not re.search(pattern, look_as, re.I):
+                pattern = f"(?:{pattern})|{look_as}"
     rx = re.compile(pattern, re.I) if pattern else None
     single = re.search(r"You (?:see|feel) here (.+?)\.(?: \||$)", look)
     if single and "Things that" not in look and rx is not None and not rx.search(single.group(1)):

@@ -654,3 +654,33 @@ def test_kernel_encumbrance_and_gas_cloud_rules():
     once = check("", "", ["Your eyes sting.", "You cough!"], conds=((), ("Blind",)))
     assert "POISON GAS CLOUD" in once and "harmless" in once
     assert check("", "", ["You can see again.", "Your eyes sting.", "You cough!"], conds=((), ("Blind",))) == ""
+
+
+def test_wolf_in_gehennom_may_be_a_vampire_and_is_not_auto_fought():
+    g = FakeGame()
+    g.level_key = lambda: "Gehennom / Level 33"
+    t = MonsterTracker(g)
+    g.truth = {(44, 10): "wolf"}
+    m = t.update(snap({(44, 10): "d"}, 50, color=3))
+    assert "VAMPIRE" in m[0]["note"]
+    g2 = FakeGame()
+    g2.level_key = lambda: "The Dungeons of Doom / Level 7"
+    t2 = MonsterTracker(g2)
+    g2.truth = {(44, 10): "wolf"}
+    m2 = t2.update(snap({(44, 10): "d"}, 50, color=3))
+    assert "VAMPIRE" not in (m2[0].get("note") or "")
+
+
+def test_kernel_brain_eaten_pause_names_the_int_danger():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    s0, s1 = snap({}, 10), snap({}, 11)
+    s0.status.in_, s1.status.in_ = 6, 4
+    s1.messages = ["The mind flayer's tentacles suck you!", "Your brain is eaten!"]
+    k._check_events(s0, s1)
+    assert reasons and reasons[-1].startswith("BRAIN EATEN") and "NEXT" in reasons[-1] and "Int 6->4" in reasons[-1]
+    assert "LOW-Int:4" in s1.status.short()

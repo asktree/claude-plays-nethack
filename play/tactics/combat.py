@@ -23,7 +23,7 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            # ranged/weapon flavour (the damage, if any, is caught by the HP checks); thefts still pause
            r"^The .+ wields (?:an? |the |\d+ )", r"^The .+ (?:throws|shoots|fires) ", r"^The .+ breathes ",
            r"^You are hit by ", r"^The .+ misses you[.!]$",
-           r"^The .+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$",
+           r"^(?:The )?.+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$",   # also "Jay's ghost touches you!"
            # an engulfer's routine attack from inside (mhitu.c gulpmu()); the damage is the HP check's job
            r"^You feel your magical energy drain away", r"^You are pummeled with debris",
            r"^You are laden with moisture", r"^The air around you crackles with electricity",
@@ -117,6 +117,15 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
         last = ctx.last()
         if seen and last is not None:
             last.messages = seen + [m for m in last.messages if m not in seen]
+
+
+def _danger_rank(desc: str) -> tuple:
+    """Sort key, most dangerous first: a real danger note (not an info note like a ghost's), then the
+    monster's difficulty."""
+    from nh.danger import INFO_NOTES, NOTES, base_name, monster_record
+    bn = base_name(desc)
+    rec = monster_record(bn) or {}
+    return (0 if bn in NOTES and bn not in INFO_NOTES else 1, -(rec.get("difficulty") or 0))
 
 
 def _wielding() -> bool:
@@ -218,7 +227,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         # never pick one the passive checks below refuse while another is there (a coyote beside a
         # floating eye gets the blow)
         targets.sort(key=lambda m: (bool(allow_passive is False and _passive_refusal(m.get("desc") or "", st)),
-                                    0 if m.get("note") else 1))
+                                    _danger_rank(m.get("desc") or "")))
         m = targets[0]
         desc = m.get("desc") or ""
         pas = passive_attacks(desc) if desc else []
@@ -234,6 +243,16 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
             _warned_expl.add(desc)
             print(f"fight: the {desc} is next to you and EXPLODES as its attack ({expl[3:].lower()}) — striking "
                   "first: a kill doesn't set it off; if it survives, it may go off on its turn")
+        if base_name(desc) in ("mind flayer", "master mind flayer") and not force:
+            helm = getattr(ctx.game, "helmet", None)
+            iq = st.in_ if st.ok else 0
+            if (iq and iq <= 6) or helm == "":
+                ctx.pause(f"fight: not meleeing the {desc}: " + (f"your Int is {iq} — its brain-eating tentacles "
+                          "kill you once Int is 3 (life saving doesn't help)" if iq and iq <= 6 else
+                          "you wear NO helmet (inventory()) — every tentacle hit eats your brain (a helmet stops "
+                          "7 in 8)") + ". Zap/throw at it, Elbereth, or leave; fight(..., force=True) to melee "
+                          "anyway.")
+                return ctx.last()
         stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
         if "AD_STON" in stops and _wielding():
             stops.remove("AD_STON")     # uhitm.c: only a bare-handed (no weapon, no gloves) hit petrifies you
@@ -263,6 +282,8 @@ def auto_fightable(m, s=None) -> bool:
     if not d or m.get("peaceful") or m.get("tame") or m.get("pet") or m.get("statue") or m.get("unseen") \
             or m.get("hallu") or m.get("mimic") or m.get("engulfer"):
         return False
+    if "shape-shifted VAMPIRE" in (m.get("note") or ""):
+        return False
     st = (s or ctx.last()).status
     if threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
                     getattr(ctx.game, "intrinsics", ())) != "trivial":
@@ -283,6 +304,8 @@ def fight_trivial(s=None):
     adj = s.adjacent_hostiles()
     if not adj or not all(auto_fightable(m, s) for m in adj):
         return None
+    if any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
+        return None          # an unseen 'I' next to you (an invisible attacker?): not a trivial situation
     if hasattr(ctx.game, "on_elbereth") and ctx.game.on_elbereth(s):
         return None          # attacking from Elbereth erases it and costs alignment: leave that to the player
     print("auto-fight: " + ", ".join(f"{m.get('desc')} at ({m['x']},{m['y']})" for m in adj))
@@ -348,9 +371,14 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")]
             if not near:
                 beyond = [m for m in s.hostiles() if not _stationary(m.get("desc") or "")]
+                recent = [g for g in getattr(s, "gone", None) or [] if (g.get("ago") or 0) <= 2]
                 return out("clear" + (" (beyond the radius: " + ", ".join(
                     f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m['dist']}" for m in beyond[:3]) + ")"
-                                      if beyond else ""))
+                                      if beyond else "")
+                           + (" — BUT " + ", ".join(f"{g['desc']} was at ({g['x']},{g['y']}) {g['ago']} turn(s) ago"
+                                                     for g in recent[:2])
+                              + " and left view: a hit-and-run in the dark (Vlad, a covetous caster)? wait a turn "
+                                "(`s`) and look before moving on" if recent else ""))
             d = min(m["dist"] for m in near)
             if best is None or d < best:
                 best, idle = d, 0

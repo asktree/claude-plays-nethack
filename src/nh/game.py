@@ -1268,29 +1268,7 @@ class Game:
                     self._note_wield(messages)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
-                    arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
-                    if arrive:
-                        # only a real staircase: not a hole you dug ('>' answered the dig
-                        # direction), a trap door, a level teleport or a fall
-                        stood = self.terrain_seen.get(old_key, {}).get(cur.hero) if old_key else None
-                        fell = any(re.search(r"\bfall|\bhole\b|trap door|\bdig\b|dug|teleport|You float down",
-                                             m, re.I) for m in messages)
-                        if fell or (stood is not None and stood != chr(data[-1])) or cur.state.kind != "command":
-                            arrive = None
-                    if arrive and snap.under is None:
-                        # took the stairs: you stand on the other end (the '@' hides it)
-                        self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive
-                        snap.under = arrive
-                    if arrive and cur.hero is not None and old_key:
-                        # where each staircase leads: the one you took, and the one you arrived on
-                        new_key = self.level_key(snap.status)
-                        self.stair_links.setdefault(old_key, {})[cur.hero] = new_key
-                        self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
-                    if arrive and any(snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) in MONSTER_CHARS
-                                      for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
-                        # a monster came along (or stood there): you may be NEXT TO the stairs — checked
-                        # with a look once this step is done (_verify_arrival)
-                        self._arrival_check = {"n": snap.n, "hero": snap.hero, "ch": arrive, "old_key": old_key}
+                    self._note_arrival(cur, snap, data, messages, old_key, moved)
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             elif snap.state.kind == "getpos" and snap.status.ok:
@@ -1564,6 +1542,33 @@ class Game:
             for c in [c for c in solid if c == snap.hero or snap.screen.at(*c) in ".#"]:
                 solid.discard(c)            # dug out since (or you stand there)
         snap.solid_mem = set(solid or ())
+
+    # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,
+    # a fall, or the Amulet's mysterious force (1 in 4 climbs in Gehennom: you land somewhere on a DEEPER level)
+    _NOT_STAIRS = re.compile(r"\bfall|\bhole\b|trap door|\bdig\b|dug|teleport|You float down|mysterious force", re.I)
+
+    def _note_arrival(self, cur: Snap, snap: Snap, data: bytes, messages: list, old_key, moved: bool) -> None:
+        """After '<'/'>' took you to another level: the staircase you arrived on is under you (the '@' hides
+        it), and the two ends lead to each other (stair_links). With a monster next to you, checked by a look
+        once the step is done (_verify_arrival)."""
+        arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
+        if not arrive:
+            return
+        stood = self.terrain_seen.get(old_key, {}).get(cur.hero) if old_key else None
+        if any(self._NOT_STAIRS.search(m) for m in messages) or (stood is not None and stood != chr(data[-1])) \
+                or cur.state.kind != "command":
+            return
+        if snap.under is None:
+            self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive
+            snap.under = arrive
+        if cur.hero is not None and old_key:
+            new_key = self.level_key(snap.status)
+            self.stair_links.setdefault(old_key, {})[cur.hero] = new_key
+            self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
+        if any(snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) in MONSTER_CHARS
+               for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
+            # a monster came along (or stood there): you may be NEXT TO the stairs
+            self._arrival_check = {"n": snap.n, "hero": snap.hero, "ch": arrive, "old_key": old_key}
 
     _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
 

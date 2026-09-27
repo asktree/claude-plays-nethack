@@ -1346,3 +1346,60 @@ def test_rogue_doorways_forbid_diagonal_moves():
     assert path is not None and path[0] == (8, 5) and path[1] == (8, 4)     # straight in, straight out
     s.rogue = False                                   # elsewhere a gray '+' in a wall is a doorless doorway
     assert not is_door(s, 8, 4)
+
+
+def test_mysterious_force_arrival_is_not_a_staircase():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    cur = _snap({5: "     .@."}, (6, 5), [])
+    cur.status.ldesc = "Dlvl:30"
+    g.terrain_seen["Dlvl:30"] = {(6, 5): "<"}
+    arr = _snap({12: "   ..@.."}, (5, 12), [])
+    arr.status.ldesc = "Dlvl:32"
+    g._note_arrival(cur, arr, b"<", ["A mysterious force momentarily surrounds you..."], "Dlvl:30", True)
+    assert (5, 12) not in g.terrain_seen.get("Dlvl:32", {}) and not g.stair_links.get("Dlvl:30")
+    g._note_arrival(cur, arr, b"<", ["You climb up the stairs."], "Dlvl:30", True)      # a real climb
+    assert g.terrain_seen["Dlvl:32"][(5, 12)] == ">" and g.stair_links["Dlvl:30"][(6, 5)] == "Dlvl:32"
+
+
+def test_fight_refuses_a_mind_flayer_without_a_helmet_and_skips_auto_fight_next_to_an_I(monkeypatch):
+    from tactics import combat, ctx
+    g = _G()
+    g.helmet = ""
+    monkeypatch.setattr(ctx, "game", g)
+    flayer = {"x": 11, "y": 5, "ch": "h", "desc": "mind flayer", "dist": 1}
+    s = _snap({5: "        ..@..."}, (10, 5), [flayer])
+    s.status.xl, s.status.hp, s.status.hpmax, s.status.in_ = 14, 120, 120, 16
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    paused, sent = [], []
+    monkeypatch.setattr(ctx, "pause", lambda why: paused.append(why))
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    combat.fight(11, 5)
+    assert paused and "NO helmet" in paused[0] and not any(k.startswith("F") for k in sent)
+    # a trivial newt next to an unseen 'I': auto-fight leaves it to you
+    newt = {"x": 11, "y": 5, "ch": ":", "desc": "newt", "dist": 1}
+    unseen = {"x": 9, "y": 5, "ch": "I", "desc": "remembered, unseen monster", "unseen": True, "dist": 1}
+    s2 = _snap({5: "        .I@:.."}, (10, 5), [newt, unseen])
+    s2.status.xl, s2.status.hp, s2.status.hpmax = 14, 120, 120
+    assert combat.fight_trivial(s2) is None
+
+
+def test_fight_targets_the_most_dangerous_neighbour_first():
+    from tactics.combat import _danger_rank
+    ranked = sorted(["ghost", "lich", "newt"], key=_danger_rank)
+    assert ranked[0] == "lich" and ranked[-1] == "newt"
+
+
+def test_step_onto_refuses_when_not_adjacent(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({5: "        ..@..^"}, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    with pytest.raises(nav.NavError, match="not next to it"):
+        nav.step_onto(13, 5)
+    steps = []
+    monkeypatch.setattr(nav, "step", lambda d, **kw: steps.append((d, kw.get("force"))) or s)
+    nav.step_onto(11, 5)
+    assert steps == [("l", True)]

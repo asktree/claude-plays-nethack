@@ -26,13 +26,15 @@ from __future__ import annotations
 
 import re
 
-from .danger import note_for, risky_lookalike
+from .danger import base_name, note_for, risky_lookalike
 from .mapscan import monsters_in_view
 
 MAX_LOOKS_PER_UPDATE = 12
 RESEEN_TURNS = 150     # a hostile re-entering view this soon and this near keeps its label...
 RESEEN_DIST = 12       # ...unless a dangerous species looks just like it (danger.risky_lookalike)
 SAME_SQUARE_TURNS = 2000   # ...and one back on the very square it was last seen on, for this long
+VAMP_WOLF_NOTE = ("down here a wolf may be a shape-shifted VAMPIRE LORD (or Vlad): killing this form raises "
+                  "the vampire at full HP next to you (level-drain bite)")
 RETURN_TURNS = 600     # a looked-at monster back in view FAR from its last sighting: the same species seen
                        # on this level this recently (and out of view now) is taken to be it (no "new" again)
 
@@ -356,7 +358,6 @@ class MonsterTracker:
                 m["desc"] = _richer(r.get("desc", ""), m["desc"])
                 claimed.add(r["id"])
                 continue
-            from .danger import base_name
             bn = base_name(m.get("desc") or "")
             were = [(i, r) for i, r in self.recent.items() if bn.startswith("were") and i not in claimed
                     and i not in {k["id"] for k in mons if k.get("id") is not None}
@@ -380,6 +381,11 @@ class MonsterTracker:
             m["peaceful"] = d.startswith("peaceful ")
             if d and not m.get("statue"):
                 m["note"] = note_for(d, xl, getattr(self.game, "intrinsics", ()))
+                if (lk or "").startswith(("Gehennom", "Vlad's Tower")) and not _friendly(d) \
+                        and base_name(d) == "wolf":
+                    # 3.6.7 vampire shape-shifting: a vampire lord (1 in 10) or Vlad without the Candelabrum
+                    # (1 in 3) becomes a wolf; its "death" raises the vampire at full HP next to you
+                    m["note"] = ((m["note"] + " — ") if m["note"] else "") + VAMP_WOLF_NOTE
                 if no_tele and "telep" in m["note"]:
                     m["note"] += " — BUT teleporting is blocked in Sokoban: corner it and kill it"
 

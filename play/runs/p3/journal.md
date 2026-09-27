@@ -30,3 +30,10 @@ T:2784 DL6 — GIANT BAT fight in the corridor (26,15): HP 48 -> 18/49 in 3 turn
 T:2936 DL6 — stepped off Elbereth (attacking from it = hypocrite + engraving deleted), killed an elf zombie -> XL5 (HP 47/63). "Kaablamm!" — a land mine went off somewhere on DL6.
 T:3052 DL3 — my abandoned little dog was "peaceful"; threw the tripe ration: re-tamed. Killed an acid blob with a dart. Dog left behind on DL3 when I went up (not adjacent).
 T:3107 DL2 — dipped the long sword into the fountain (39,5): EXCALIBUR on the first dip (blessed rustproof +1). The fountain disappeared. End of shift 2 (safe, full HP 63/63, in the fountain room).
+
+## Shift 3
+T:3132 DL2 — picked up a lichen corpse (y) and a 2nd GNIK SISI VLE scroll (z; did NOT stack with j -> different BUC).
+T:3137 DL3 — applied the whistle: "high whistling sound" = TIN whistle; it still called the dog (came within 10 turns). Stepped around the red mold via the doorless west doorway (43,18) by hand (planner treats it as a door).
+T:3179-3301 DL4->DL5->DL6 with the dog. The dog kills peaceful gnomes (no penalty to me). Killed a kobold zombie (D5, on a magic trap (42,10)).
+T:3334-3435 DL6 — killed an elf zombie, then the giant bat (2 fights, it fled once); long sword -> SKILLED. Ate the lichen at T:3427 (Hungry). A: scroll ELBIB YLOH picked up at (40,3). D6 down stairs at (54,7).
+T:3452 DL7 — MINETOWN (peaceful watchman at T:3521); arrived at up stairs (3,2) in the NW corner; dark irregular layout (Grotto Town?).

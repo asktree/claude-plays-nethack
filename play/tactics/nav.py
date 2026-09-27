@@ -654,7 +654,7 @@ def _no_path_msg(s, h0, target, start=None, bad=None) -> str:
         how = []
         if traps_on:
             how.append("farlook() the trap(s) and step onto one on purpose with do(dir, force=True) / "
-                       "step(dir, force=True) if it's survivable for you (a fire trap with fire resistance only "
+                       "step_onto(x, y) if it's survivable for you (a fire trap with fire resistance only "
                        "burns scrolls/potions/spellbooks; levitating floats over holes, trap doors and pits)")
         if water_on:
             how.append("cross the water: FREEZE it (zap a wand of cold / frost horn across it: \"The moat is "
@@ -677,12 +677,20 @@ def _no_path_msg(s, h0, target, start=None, bad=None) -> str:
         open_edges = bool(screen_frontiers(s))
     except Exception:  # noqa: BLE001
         open_edges = True
+    maze = ""
+    try:
+        if ctx.game.level_key(s.status).startswith("Gehennom"):
+            maze = ("; in Gehennom's mazes digging is often quickest: dig(dir) with a pick-axe or zap digging "
+                    "sideways through the maze wall toward it (Vlad's Tower, the Wizard's Tower and some lairs are "
+                    "undiggable)")
+    except Exception:  # noqa: BLE001
+        pass
     if open_edges:
         return (f"{head} — the map you know doesn't connect to it: explore() to find the way, or head_to{target} "
-                "across the unexplored part" + msgs)
+                "across the unexplored part" + maze + msgs)
     return (f"{head} — the known map doesn't connect to it and has no unexplored edge left: search() walls and "
             "dead ends for hidden doors/passages, dig through (not on undiggable levels), or teleport/levitate"
-            + msgs)
+            + maze + msgs)
 
 
 def _passive_only(m) -> bool:
@@ -820,6 +828,22 @@ def travel_to(ch: str, index: int = 0, color_num: int | None = None):
     return travel(*cells[index])
 
 
+def step_onto(x: int, y: int, force: bool = True, quest_ok: bool = False):
+    """One plain step onto the ADJACENT square (x, y) — the way onto a trap
+    target (a magic portal, a trap door, a hole, a fire trap you resist) once
+    travel() has stopped next to it. Raises NavError if you are not next to
+    it (travel may have stopped short: a monster, a message), so a forced
+    step never goes off in the wrong direction. force=True (the default)
+    passes the trap/water step guards; never the never-attack check."""
+    s = ctx.require_command("step_onto()")
+    h = s.hero
+    if h is None or max(abs(x - h[0]), abs(y - h[1])) != 1:
+        raise NavError(f"step_onto({x}, {y}): you are at {h}, not next to it — travel there first (travel() may "
+                       "have stopped short)")
+    from .mapview import DIR_KEY
+    return step(DIR_KEY[(x - h[0], y - h[1])], force=force, quest_ok=quest_ok)
+
+
 def step(direction: str, n: int = 1, force: bool = False, quest_ok: bool = False):
     """Move one square n times (direction: y k u h l b j n). Stops on messages
     (inside exec) like any do(). Never attacks: NavError if a monster (not
@@ -867,6 +891,23 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
         return same[0], f"stays in {mine} (leads to {known[same[0]]})"
     other = [c for c in cells if c in known]
     unknown = [c for c in cells if c not in known]
+    if len(unknown) > 1:
+        # a LADDER is drawn like stairs (Vlad's Tower, the Wizard's Tower inside): look (no game time)
+        ladders = []
+        for c in unknown:
+            if c != s.hero:
+                try:
+                    if "ladder" in (farlook(*c) or ""):
+                        ladders.append(c)
+                except Exception:  # noqa: BLE001
+                    pass
+        if ladders and len(ladders) < len(unknown):
+            print(f"stairs: {ladders} {'is a ladder' if len(ladders) == 1 else 'are ladders'} (a tower's) — "
+                  "not taking it unless nothing else is left")
+            unknown = [c for c in unknown if c not in ladders]
+            cells = [c for c in cells if c not in ladders] + ladders
+            if not other and len(unknown) == 1:
+                return unknown[0], "the only staircase (the other is a ladder)"
     if other and unknown:
         return unknown[0], (f"the other {ch} at {other[0]} leads to {known[other[0]]}; pass to='...' to take a "
                             "branch on purpose")
@@ -952,8 +993,12 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         print(f"stairs: your pet ({had_pet[0].get('desc') or had_pet[0]['ch']}) is not next to you — "
               f"taking the {ch} without it (it stays on this level)")
     ld0 = s.status.ldesc if s.status.ok else None
+    d0 = s.status.dlvl if s.status.ok else None
     s = ctx.do(ch, expect=("level",), ok=_STAIRS_OK)   # the level change is the point: no pause for it
     cur = ctx.last()
+    if ch == "<" and d0 and cur.status.ok and cur.status.dlvl and cur.status.dlvl > d0:
+        print(f"stairs: the MYSTERIOUS FORCE (you carry the Amulet) sent you DOWN to {cur.status.ldesc}, somewhere "
+              "random on it: find this level's '<' (known_cells('<') / explore()) and climb again")
     if cur.state.kind == "command" and ld0 is not None and cur.status.ok and cur.status.ldesc == ld0:
         if not _retried and any(m.startswith(("You can't go down here", "You can't go up here"))
                                 for m in cur.messages):
@@ -975,7 +1020,7 @@ def _ways_down_hint(s) -> str:
     castle = "castle" in getattr(s, "flags", ()) or any("drawbridge" in f["name"] for f in s.features)
     if holes:
         return (f" — but trap door(s)/hole(s) are known at {holes[:5]}: they lead down (step in on purpose with "
-                "step(dir, force=True)); " + ("this is the Castle: its trap doors are the ONLY way down, into the "
+                "step_onto(x, y)); " + ("this is the Castle: its trap doors are the ONLY way down, into the "
                                               "Valley of the Dead (Gehennom) — ready for it?" if castle else
                                               "you land somewhere random below"))
     if castle:
@@ -1072,6 +1117,10 @@ def kick_door(x, y, tries: int = 8):
     for _ in range(tries):
         s = ctx.do("<C-d>", quiet=True)
         if s.state.kind != "direction":
+            if any("in no shape for kicking" in m for m in s.messages):
+                print("kick_door: WOUNDED LEGS (a xan's sting, a trap, a fall...) — no kicking until they heal "
+                      "(some dozens of turns; a unicorn horn doesn't help): unlock(x, y) with a key/lock pick, "
+                      "#force the lock of a box, zap striking / force bolt at the door, or dig around it")
             return s
         s = ctx.do(key, ok=[r"^WHAMM", r"crashes open", r"^As you kick the door, it (crashes|shatters)"])
         text = " ".join(s.messages)
