@@ -97,7 +97,9 @@ class Daemon:
     def _code_mtime(sub: str) -> float:
         """Newest modification time of the harness's Python files under `sub` (src/nh or play/tactics)."""
         try:
-            return max((p.stat().st_mtime for p in (REPO_ROOT / sub).rglob("*.py")), default=0.0)
+            # (the CLI and the build/generator scripts never run inside a daemon: editing them isn't news)
+            return max((p.stat().st_mtime for p in (REPO_ROOT / sub).rglob("*.py")
+                        if p.name not in ("cli.py", "__main__.py")), default=0.0)
         except OSError:
             return 0.0
 
