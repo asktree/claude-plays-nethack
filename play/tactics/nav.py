@@ -293,7 +293,7 @@ def waypoint(s, target, cap):
 
 def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
            fight_through=False, near_exploders=False, water_plane=False, medusa_ok=False, quest_ok=False,
-           near_water=False):
+           near_water=False, pass_hostile=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -314,6 +314,9 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     drops out of view. Without a pet in view it travels normally.
     fight_through=True: when a hostile next to you stops the trip, fight() it
     (all its checks apply) and go on, instead of raising NavError.
+    pass_hostile=True: when a hostile next to you stops the trip, walk past it
+    with plain steps along your own route (never into it, never attacking) —
+    for a sleeping monster you'd rather not wake (Stealth keeps it asleep).
     It refuses (NavError) to take a leg that passes within 2 squares of a known
     exploder (yellow/black light, sphere, gas spore): kill it at range first;
     near_exploders=True overrides.
@@ -360,7 +363,7 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
         x, y = tr
     with guard:
         return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget,
-                       fight_through, near_exploders, near_water)
+                       fight_through, near_exploders, near_water, pass_hostile)
 
 
 def _medusa_check(s, target, who: str, ok: bool) -> None:
@@ -595,7 +598,7 @@ def _exploders_near(s, cells, radius: int = 2) -> list:
 
 
 def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget=None,
-            fight_through=False, near_exploders=False, near_water=False):
+            fight_through=False, near_exploders=False, near_water=False, pass_hostile=False):
     s = ctx.last()
     engulfed_check(s, f"travel{(x, y)}")
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
@@ -772,10 +775,11 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 if s.state.kind != "command" or s.adjacent_hostiles():
                     return s             # fight() stopped (HP, passive, a new threat): your call
                 continue
-            if hostile and not all(_passive_only(m) for m in hostile):
+            if hostile and not all(_passive_only(m) for m in hostile) and not pass_hostile:
                 raise NavError(f"travel to {(x, y)} did not move: hostile {_mdesc(hostile)} adjacent — "
-                               "travel never starts next to one. Fight it (fight()) or step away by hand "
-                               "(or travel(..., fight_through=True)).")
+                               "travel never starts next to one. Fight it (fight()), step away by hand, "
+                               "travel(..., fight_through=True), or travel(..., pass_hostile=True) to walk past "
+                               "it on your own route without attacking (a SLEEPING one: Stealth keeps it asleep)")
             # (a floating eye, a mold: no active attack — step away along our own route like past a peaceful)
             if blk and sidesteps < 6:
                 # lookaround(): NetHack's travel never starts next to a non-tame monster, even one

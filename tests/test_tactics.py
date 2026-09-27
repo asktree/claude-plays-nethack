@@ -1984,3 +1984,30 @@ def test_desmap_walk_fights_trivial_neighbours(monkeypatch):
     cur["s"].hostiles = lambda radius=None: [newt]
     desmap.walk(24, 7, fight=False)
     assert fought == [] and walked
+
+
+def test_travel_pass_hostile_walks_past_a_sleeper(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {4: "        ..........", 5: "        ..........", 6: "        .........."}
+    nymph = {"x": 10, "y": 4, "ch": "n", "desc": "wood nymph", "dist": 1}
+    s = _snap(rows, (10, 5), [nymph])
+    getpos = _snap(rows, (10, 5), [nymph])
+    getpos.state = State("getpos")
+    cur = {"s": s}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: getpos if keys == "_" else s)   # lookaround(): no move
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y, rounds=5: getpos)
+    with pytest.raises(nav.NavError, match="pass_hostile=True"):
+        nav._travel(16, 5, 40, None, 3, 0, False)
+    walked = []
+
+    def fake_walk(path, ok=None):
+        walked.append(list(path))
+        cur["s"] = _snap(rows, (16, 5), [])
+        return cur["s"]
+    monkeypatch.setattr(nav, "walk_path", fake_walk)
+    r = nav._travel(16, 5, 40, None, 3, 0, False, pass_hostile=True)
+    assert walked and (10, 4) not in walked[0] and r.hero == (16, 5)
