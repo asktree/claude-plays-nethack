@@ -2,7 +2,7 @@
 
 ## Character
 - Name/role: P4, lawful female dwarven Valkyrie, god: Tyr. Seed 404 (local practice game).
-- Turn / Dlvl / XL / HP / Pw / AC: T:1686 / DL4 / XL4 / 38/44 / 5/5 / AC5
+- Turn / Dlvl / XL / HP / Pw / AC: T:1943 / Gnomish Mines 1 (DL5) / XL4 / 42/44 / 5/5 / AC5 / $86
 - Attributes: St 18/05, Dx 10, Co 19, In 7, Wi 8
 - Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), speed at XL7
 - Luck notes: nothing done to change Luck.
@@ -26,11 +26,14 @@
 - h: BLESSED sky blue potion, base 200 [altar + price]: enlightenment/full healing/levitation/polymorph/speed
 - t: dark potion (unknown)
 - r: WAND OF LIGHT (engrave-identified T:1250), charges unknown
+- x: marble wand CALLED "polymorph" (engrave-test T:1772: the engraving changed) — sliming cure (self-zap), polypiling
+- A: BAG OF TRICKS (bit me on #loot T:1935) — applying it creates a monster; never put it in a bag of holding
+- B: scroll STRC PRST SKRZ KRK (unknown); y: dagger (hobbit's, BUC unknown); z: 2 white gems; w: tripe ration
 - s: orange gem (unknown)
 - Escape items: none. Elbereth + upstairs.
 - Healing: none known (h might be full healing).
 - Emergency cures: prayer only (never prayed; prayer should be safe in major trouble now, T>1000).
-- Food: 1 food ration (o), lichen corpse (m).
+- Food: 1 food ration (o), lichen corpse (m), tripe ration (w).
 
 ## Identified appearances (appearance -> identity)
 - scroll MAPIRO MAHAMA DIROMAT = identify; balsa wand = light
@@ -48,16 +51,21 @@
 | 1 | Dungeons | up (52,18), down (12,8). 9 rooms, explored. Cursed orcish helm at (48,8). |
 | 2 | Dungeons | up (25,12), down (17,4). Fountain (24,13). CHAOTIC altar (Loki) (5,4) — BUC tests only. Sipaliwini's GENERAL STORE (66-73,3-5), door (65,4): 2 wands, scrolls, lamp. Kitten left here (T:~1200). |
 | 3 | Dungeons | up (65,11), down (52,6). Overview says a fountain (not located). Werejackal killed. Unexplored: west third, SE (dead end (70,16)). |
-| 4 | Dungeons | up (54,5); TWO down stairs: (45,15) and (72,7) — one is the GNOMISH MINES branch. A sink (overview). |
+| 4 | Dungeons | up (54,5); '>' (45,15) -> Dungeons DL5; '>' (72,7) -> GNOMISH MINES. FOUNTAIN (42,15) next to the main '>' = Excalibur spot. A sink. |
+| 5 | Dungeons | up (50,17). Barely seen. |
+| 5 | Mines 1 | up (35,13), down (46,14). Traps: pit (4,9), arrow trap (14,13), magic trap (59,14). Whistle (10,9), gem (2,11) left. |
 
 ## Pets
 - Kitten: left behind on DL2 near the shop at T:~1230 (go_down went on without it). No pet now.
 
 ## Threats / known dangers
-- none currently known on DL4
+- Mines 1: "You hear distant howling" (T:1909) — maybe a were-creature; kill @ forms fast, avoid bites.
 
 ## Objective and plan
-- Current objective: take the Mines branch from DL4 (PLAYBOOK D: Mines -> Minetown first; as a dwarf most
-  gnomes/dwarves are peaceful). Reach XL5, then Excalibur (fountain: DL2 (24,13); not Minetown's).
-- Next steps: find out which DL4 '>' is the Mines; explore Mines levels carefully; Minetown temple/altar.
-- Open questions: read-ID PRATYAVAYAH or keep; what to identify with scroll k (a good wand/ring later).
+- Current objective: Mines toward Minetown (Mines level 3-4 = DL7-8); get XL5, then Excalibur.
+- Next steps: (1) explore Mines 1-2 carefully (the gnomes and the dwarf are peaceful: never attack them; hostile dwarves hit hard).
+  (2) At XL5 go back up to the DL4 fountain (42,15) (Mines up stairs of Mines 1 = (35,13) -> DL4 (72,7)) and dip
+  the long sword, full HP, escape = up stairs (54,5). (3) Minetown: co-aligned temple? altar BUC, shops (price-ID
+  the spellbooks q/u, scroll B, potions h/t).
+- Open questions: use identify (k) on the sky blue potion (h: full healing?) or save it; read PRATYAVAYAH (n) now
+  (2/3 enchant) or keep it as a remove-curse candidate. Bag of tricks as an XP source (risky: random monsters).

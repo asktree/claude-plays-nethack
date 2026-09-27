@@ -21,3 +21,11 @@
 - T:1441 DL4 — garter snake, cave spider (hidden under items). Large box: 15 kicks all THUD, forced it with an
   orcish dagger in 1 turn — empty. T:1515 Hungry, ate ration e. T:1686 orc zombie killed -> XL4 (38/44).
   TWO '>' on DL4: (45,15) and (72,7) — Mines branch is one of them.
+- T:1715 — took DL4 '>' (45,15): Dungeons DL5 (tripe ration, gold). Back up; DL4 fountain at (42,15) right
+  next to that '>'. go_down(to='Mines') -> (72,7) = GNOMISH MINES.
+- T:1750 Mines 1 (DL5) — peaceful gnomes/gnome lord/dwarf. Took a marble wand (engrave-test: engraving changed
+  => POLYMORPH, #called "polymorph"). Killed a straw golem (HP 30/44), a hostile hobbit (took its dagger y), a
+  kobold shaman. 2 white gems (z). Fell into a pit (4,9); arrow trap (14,13) hit me.
+- T:1909-1943 Mines 1 — down stairs (46,14). "You hear distant howling" (were-creature? unconfirmed). A bag at
+  (67,19): #loot bit me => BAG OF TRICKS (A). Scroll STRC PRST SKRZ KRK (B). Magic trap at (59,14).
+  End of shift 1: T:1943, HP 42/44, XL4, AC5, $86, at (45,10) Mines 1, no hostiles in view.

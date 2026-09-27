@@ -190,3 +190,27 @@ Top 3 (ranked):
 1. `levitate_to()` should use the identified desmap's fixed map (walls, iron bars) for unseen squares (#582, #641).
 2. `defer_far(n)` should also defer telepathy-sensed "approaching" pauses; crowded telepathy levels pause almost every leg (#524, #525, #528).
 3. `dig()` at a statue should detect or report "The statue shatters." and not suggest digging on (#614). Also fix the `unlock()` booby-trap note: it can explode on unlock (#930).
+
+## Shift 17
+
+1. #229-#231 (MEDIUM) `tunnel(3, 18)` paused at #229 (new monster: long worm tails in the vault) with the pick-axe in hand between digs. Neither that obs nor the next one (#230, after my new exec dropped the paused one) showed the `!! you WIELD a pick-axe` line that PLAYER.md promises. At #231 `fight(2, 18)` then swung the pick-axe ("You begin bashing monsters with your pick-axe."; the NOT YOUR WEAPON pause came after the blow). Expected: the obs warning whenever a pick-axe is wielded, and `fight()` re-wields the known weapon (or refuses) before its first blow when the harness knows a digging tool is in hand. The drop note ("a helper's re-wield won't happen") is generic; naming the pick-axe there would help.
+2. #1321 (LOW-MEDIUM) `dip()` at a Minetown fountain (68,19) returned outcome `fountain dried up` for "The flow reduces to a trickle.", but the fountain was still there (features: `fountain (under you)`). In a town that line is dryup()'s WARNING: the fountain stays, and the next dry-up roll dries it and ANGERS THE WATCH. Likewise at #1275 "A watch captain yells: Hey, stop using that fountain!" was classified `nothing special`. A dip loop that stops on `obs.under != '{'` would keep dipping and anger the Watch. Expected: an outcome like `TOWN WARNING — stop dipping here` for both messages. My loop also broke on 'trickle', so no harm done.
+3. #53 (LOW, cosmetic) While the level-teleport "To what level do you want to teleport?" getlin prompt was open, the monster list showed `@ unidentified white @ (not looked at yet) at (32,21) d=1 <-- ADJACENT !! could be aligned priest, high priest, shopkeeper`. That @ was me: the hero had stepped onto the trap, and obs.pos was still the previous square (32,20). Expected: while a prompt hides the cursor, treat an `@` next to the last known position as probably the hero, or don't list it.
+4. #1225-#1226 (LOW) Mines 2: `go_down()` raised NavError twice because a peaceful gnome lord stood in the 1-wide corridor before the `>`, then on it ("travel target (54,7) is occupied by peaceful gnome lord"). It moved off after 2-3 more turns of `s`. Expected: when the target is stairs and the blocker is peaceful, wait a few more turns automatically before raising.
+5. #438-#462 (LOW) D13: a white `|` inside a room at (18,4) was not in the obs features. It is walkable: a soldier stood on it at #462, and ^O says "a grave" on D13. I first read it as a wall that blocked a soldier's line of fire, which was wrong and dangerous. Expected: graves listed in features (PLAYER.md says a bright white `|` is a grave).
+6. Good:
+   - `step_onto(32, 21, risky=True)` on the level teleporter, then `cont --reply '16<CR>'`: a clean controlled level teleport.
+   - The altar test via `D` → `X` → `.` → `<CR>` showed readable flash messages, and `pickup()` took everything back.
+   - Object detection: the browse cursor closed by itself, and `obs.objects` listed all 23 detected objects with coordinates, so the vault showed up at once.
+   - `tunnel()` into the vault and into the iron-barred niche, re-wielding Excalibur at the end.
+   - `buy_protection()` in one call.
+   - `dip()` outcome and before/after lines (uncurse and curse both detected, with a hint).
+   - `fight()` struck the shocking sphere before it could explode.
+   - The sergeant's note: `ZAPPED A WAND OF LIGHTNING AT YOU`.
+   - `hunt()` against soldiers and a leprechaun.
+   - `bin/nh history` worked at shift start (#1 fixed).
+
+Top 3 (ranked):
+1. The pick-axe-wielded warning did not fire during or after `tunnel()` (#229/#230), and `fight()` bashed with the pick-axe (#231). `fight()` should re-wield first.
+2. `dip()` should classify the town warnings ("The flow reduces to a trickle.", "Hey, stop using that fountain!") as STOP, not as `fountain dried up` / `nothing special` (#1275, #1321). A Watch riot is one dip away.
+3. Graves are missing from the obs features (#438), and the hero is listed as an adjacent unidentified `@` while a prompt is open (#53). Both misled my reading of the map.

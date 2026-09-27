@@ -274,3 +274,20 @@ T:16019 DL16 — lawful altar (58,18) BUC test: B CLEAR POTION = BLESSED = HOLY 
 T:16021 DL16 — quaffed L (object detection): the VAULT is the 2x2 at (2-3,18-19) (SW corner); nothing else of value on the level (no armor/amulets/rings/wands). Minetown's lighting shop had NO magic lamp (checked T:4003: oil lamps only), so plan item 2 is out.
 T:16058-16090 DL16 — tunnel(3,18) from the start room (3,8) straight south (dwarf: ~3 turns per rock square). A LONG WORM was inside the vault: killed (I was still wielding the pick-axe after a dropped tunnel exec: 1 bash). Took the 4 piles: $3048 -> bag total $4845 (protection at XL13 costs 5200: 355 short).
 T:16116-16134 DL16 — killed 2 rothes, a MONKEY (next to the Odin priestess), a lizard (4th lizard corpse, w). Dug into the iron-barred niche (18,5) above the temple: a scroll of teleportation (uncursed on the Odin altar -> G, now 4).
+T:16145-16203 — D16 -> D15 -> D14 (killed a hostile large cat) -> D13.
+T:16207-16252 DL13 — WISH HUNT begins (water demon from a fountain dip: wish if rnd(100) > 80 + depth; 1/30 per dip; dip item = the 2 cursed candles, which water can't harm). Fountain (30,17): dried at once. Fountain (15,5): 3 dips (candles UNCURSED, then dried).
+T:16217-16241 DL13 — 2 SOLDIERS and a SERGEANT: the sergeant zapped a WAND OF LIGHTNING along my row: missed twice (AC), but the flash BLINDED me; it read create monster (a soldier ant). Killed all four (no damage); unicorn horn cured the blindness in 2 applies. Took the WAND OF LIGHTNING (B), 2 K-rations, 2 C-rations, LEATHER GLOVES (Tyr altar: uncursed; worn: AC -8).
+T:16287-16291 DL12 — killed a LEPRECHAUN (one of the old thieves): $1972.
+T:16300 DL12 — an ettin zombie fled after one blow.
+T:16338 DL11 — Loki temple: bought PROTECTION (5200): AC -9. $1617 left (bag).
+T:16358 DL11 — fountain (38,9): 6 dips (gush, coins, bath, loss), dried. T:16365 DL10 fountain (60,12): dried on dip 1.
+T:16395-16404 DL9 ORACLE — killed a SHOCKING SPHERE at once (one blow); the 4 Delphi fountains: 10 dips, all dried; no demon.
+T:16439 DL8 — killed a WEREWOLF (@ form; ring J blocks the lycanthropy bite): a scroll of create monster (a lembas wafer left in its pile at (45,6)).
+T:16484 DL7 — Hungry: ate the food ration (fine).
+T:16512 DL5 — fountain (74,5): uncursed the candles again, dried.
+T:16556-16640 — D4 -> Mines 1 -> Mines 2 (a peaceful gnome lord sat on the `>` a few turns) -> MINETOWN.
+T:16666-16691 MINETOWN — 3 fountains: (12,16) 2 dips then "A watch captain yells: Hey, stop using that fountain!"; (52,10) warned after 1; (68,19) "The flow reduces to a trickle." after 1. Stopped at each warning (the next dry-up would anger the Watch).
+T:16731-16878 — back up: Mines 1 (acid blob killed; potion of blindness), D4, D3 (around the red mold), D2 (around a floating eye), D1.
+T:16940 DL1 — fountain (19,3): 5 dips, dried. WISH HUNT TOTAL: 31 dips, NO water demon.
+T:16981 DL1 — killed a jaguar.
+T:17000 DL1 — END OF SHIFT 17 on the down stairs (57,6): HP 142/142, XL13 (Exp 50293), AC -9, Luck ~+3, never prayed, not hungry. A lichen at (55,10).
