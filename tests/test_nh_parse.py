@@ -779,3 +779,87 @@ def test_guard_wish_prompt():
         with pytest.raises(PermissionError):
             g._guard(s, bad, force=False)
     g._guard(s, b"blessed +2 gray dragon scale mail\r", force=False)
+
+
+def test_feature_colours_throne_vs_ray_and_engulf_ring(tmp_path):
+    from nh.game import Game, Snap, Timing, feature_at
+    from nh.parse import State
+    from nh.tracker import Tracker
+    scr = mk({7: "      \\  \\   _  _", 22: STATUS1, 23: "Dlvl:11 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"},
+             cursor=(20, 7))
+    scr.fg[7][6] = 11          # a gold '\': a throne
+    scr.fg[7][9] = 12          # a bright blue '\': a sleep ray passing by
+    scr.fg[7][16] = 6          # a cyan '_': an iron chain
+    assert feature_at(scr, 6, 7) == "\\" and feature_at(scr, 9, 7) is None
+    assert feature_at(scr, 13, 7) == "_" and feature_at(scr, 16, 7) is None
+    g = Game(term=None, timing=Timing.local())
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+    g._remember_terrain(s, [])
+    assert g.terrain_seen[g.level_key(s.status)] == {(6, 7): "\\", (13, 7): "_"}
+    # engulfed by a dust vortex: the ring's corners are no thrones, for the game or the tracker
+    ring = mk({8: " " * 48 + "/-\\", 9: " " * 48 + "|@|", 10: " " * 48 + "\\-/", 22: STATUS1,
+               23: "Dlvl:11 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:6 Blind"}, cursor=(49, 9))
+    for x, y in ((50, 8), (48, 10)):
+        ring.fg[y][x] = 11
+    r = Snap(screen=ring, state=State("command"), status=parse_status(ring))
+    r.engulfed = True
+    g._remember_terrain(r, [])
+    t = Tracker(g, tmp_path / "hs.json")
+    t.need_overview = False
+    t.on_step(r)
+    t.on_step(s)
+    feats = t.state["levels"][g.level_key(s.status)]["features"]
+    assert feats == {"throne": [[6, 7]], "altar": [[13, 7]]}
+
+
+def test_wielded_labels_and_weapon_names():
+    from nh.game import WIELDED_RE, is_weapon_text
+    for t in ("a - a +1 long sword (weapon in hand)", "a - a dwarvish mattock (weapon in hands)",
+              "a - 4 +0 daggers (wielded)", "a - an elven dagger named Sting (weapon in hand, glowing light blue)",
+              "a - an aklys (tethered weapon in hand)"):
+        assert WIELDED_RE.search(t), t
+    for t in ("b - a blessed +0 dagger (alternate weapon; not wielded)", "b - a dagger (wielded in other hand)",
+              "c - an uncursed +3 small shield (being worn)"):
+        assert not WIELDED_RE.search(t), t
+    for t in ("a blessed rustproof +6 long sword named Excalibur", "a +0 pick-axe", "2 daggers",
+              "an uncursed unicorn horn", "a broad pick", "a runed dagger"):
+        assert is_weapon_text(t), t
+    for t in ("a blessed lamp", "a blessed magic lamp", "an oil lamp (lit)", "a cockatrice corpse", "a sack",
+              "a white potion", "a gray stone", "a red gem"):
+        assert not is_weapon_text(t), t
+
+
+def test_wield_tracking_from_messages():
+    g = _guard_game()
+    g.wielded = "a +1 long sword (weapon in hand)"
+    g._note_wield(["You now wield a blessed lamp."])
+    assert g.wielded == "a blessed lamp" and "not a weapon" in g.wield_note()
+    g._note_wield(["a - a blessed rustproof +6 long sword named Excalibur (weapon in hand)."])
+    assert g.wielded.startswith("a blessed rustproof +6 long sword") and g.wield_note() == ""
+    g._note_wield(["You are empty handed."])
+    assert g.wielded == "" and "EMPTY-HANDED" in g.wield_note()
+    g._note_wield(["Your long sword slips from your hands."])
+    assert g.wielded is None and g.wield_note() == ""
+    g.gloves = "d - leather gloves (being worn)"
+    g._note_wield(["You finish taking off your gloves."])
+    assert g.gloves is None
+
+
+def test_guard_cockatrice_bare_handed():
+    import pytest
+    g = _guard_game()
+    s = _cmd_snap([{"x": 11, "y": 5, "desc": "cockatrice"}])
+    g.wielded, g.gloves = "", ""
+    for keys in (b"l", b"Fl"):
+        with pytest.raises(PermissionError, match="EMPTY-HANDED"):
+            g._guard(s, keys, force=False)
+    g._guard(s, b"ml", force=False)                  # 'm' never attacks ("You move right into it")
+    g.wielded = None                                  # unknown: look first
+    with pytest.raises(PermissionError, match="inventory"):
+        g._guard(s, b"Fl", force=False)
+    g.wielded = "a +1 long sword (weapon in hand)"
+    g._guard(s, b"Fl", force=False)                   # a wielded weapon protects your hands
+    g.wielded, g.gloves = "", "e - leather gloves (being worn)"
+    g._guard(s, b"Fl", force=False)
+    g.gloves = ""
+    g._guard(s, b"Fl", force=True)

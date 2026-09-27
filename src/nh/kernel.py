@@ -148,6 +148,7 @@ class Kernel:
         self.autocontinue: list[re.Pattern] = []
         self.pause_on_monsters = True
         self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
+        self._announced: dict[str, dict] = {}   # species -> {turn, level, cells} of its last new-monster pause
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
         self._reply_sent: bytes | None = None   # the `cont --reply` keys just sent for the script
         self.parked = False        # True while an exec worker waits at a pause point
@@ -273,7 +274,8 @@ class Kernel:
         if trapmsg and snap.hero is not None and not quiet:
             reasons.append(f"trap at {snap.hero}")
         if snap.state.kind == "getlin" and (snap.state.prompt or "").startswith("Call ") \
-                and not (before is not None and before.state.kind == "getlin"):
+                and not (before is not None and before.state.kind == "getlin") \
+                and not any(p.search(snap.state.prompt) for p in extra):      # a helper that answers it
             # e.g. a scroll of scare monster crumbled on pickup: the game asks you to name
             # the type; the script's next keys would be typed into this prompt
             reasons.append(f"naming prompt open: {snap.state.prompt!r} — type a name + <CR> or <Esc>")
@@ -312,6 +314,7 @@ class Kernel:
                         new = [m for m in new if self.new_monster_filter(m)]
                     except Exception as e:  # noqa: BLE001 — a broken filter must not hide monsters
                         reasons.append(f"monster_filter error: {e!r}")
+                new = self._not_yet_announced(new, snap)
                 if new:
                     reasons.append("new monster: " + ", ".join(
                         f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4]))
@@ -323,6 +326,34 @@ class Kernel:
                     reasons.append("new monster in view: " + ",".join(sorted(set(new))))
         if reasons:
             self._maybe_pause("; ".join(reasons), snap)
+
+    SWARM_TURNS = 5      # another member of a species announced this recently...
+    SWARM_DIST = 4       # ...and this close to its group doesn't pause again (bee swarms, orc packs)
+
+    def _not_yet_announced(self, new: list, snap: Snap) -> list:
+        """Drop newcomers of a species that paused within SWARM_TURNS turns
+        and that turn up within SWARM_DIST squares of that group (as then
+        announced or now in view): a swarm pauses once, not once per bee."""
+        from .danger import base_name
+        turn = snap.status.turn if snap.status.ok else None
+        level = snap.status.ldesc if snap.status.ok else ""
+
+        def species(m):
+            return base_name(m.get("desc") or "") or f"{m['ch']}/{m.get('color')}"
+        fresh = []
+        for m in new:
+            rec = self._announced.get(species(m))
+            if rec and turn is not None and rec["level"] == level and 0 <= turn - rec["turn"] <= self.SWARM_TURNS:
+                group = rec["cells"] + [(o["x"], o["y"]) for o in snap.monsters or []
+                                        if o is not m and species(o) == species(m)]
+                if any(max(abs(m["x"] - x), abs(m["y"] - y)) <= self.SWARM_DIST for x, y in group):
+                    continue
+            fresh.append(m)
+        if turn is not None:
+            for m in fresh:
+                cells = [(o["x"], o["y"]) for o in snap.monsters or [] if species(o) == species(m)]
+                self._announced[species(m)] = {"turn": turn, "level": level, "cells": cells}
+        return fresh
 
     def _maybe_pause(self, reason: str, snap: Snap, force: bool = False, sent: bool = True) -> None:
         if not self.in_worker():

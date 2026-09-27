@@ -39,7 +39,12 @@ NOTES = {
     "master lich": "powerful caster: touch of death possible without MR, summons nasties.",
     "arch-lich": "deadliest caster: touch of death without MR, haste self. Needs MR.",
     "disenchanter": "disenchants your weapon/armor on hit. Don't melee with good gear.",
-    "rust monster": "rusts/eats iron armor and weapons.",
+    "rust monster": "no HP damage. Its touches rust iron armor (a worn cloak covers body armor; helmet, shield, "
+                    "gloves, boots can rust); hitting it rusts an iron weapon unless rustproof (a fountain "
+                    "Excalibur is). Eats metal off the floor.",
+    "gremlin": "AT NIGHT (game clock 22:00-05:59, the server's local time) its claw can STEAL AN INTRINSIC "
+               "(speed, poison/fire/cold res, telepathy...): kill it asleep or at range. Multiplies in water "
+               "and fountains.",
     "gelatinous cube": "passive PARALYSIS if you hit it; engulfs. Don't melee without free action.",
     "blue jelly": "passive cold (you are cold resistant).",
     "spotted jelly": "passive acid corrodes weapon.",

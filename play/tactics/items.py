@@ -34,13 +34,20 @@ def _parse_menu_pages(first):
     return items, s
 
 
+def _wielded(text: str) -> bool:
+    from nh.game import WIELDED_RE
+    return bool(WIELDED_RE.search(text))
+
+
 def inventory():
     """Return the hero's inventory as a list of {letter, text, class, buc}."""
     ctx.require_command("inventory()")
     s = ctx.do("i", quiet=True)
     if s.state.kind == "menu":
         items, _ = _parse_menu_pages(s)
-        ctx.game.wielded = next((it["text"] for it in items if "weapon in hand" in it["text"]), "")
+        ctx.game.wielded = next((it["text"] for it in items if _wielded(it["text"])), "")
+        ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
+                                and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
     return []
@@ -232,6 +239,114 @@ def dip(letter: str, into_fountain: bool = True) -> dict:
     return {"outcome": outcome, "messages": msgs, "before": before, "after": after}
 
 
+_GLOW = [
+    (r"glows? amber", "now UNCURSED (it was cursed)"),
+    (r"glows? with a light blue aura", "now BLESSED (it was uncursed)"),
+    (r"glows? with a black aura", "now CURSED (it was uncursed)"),
+    (r"glows? brown", "now UNCURSED (it was blessed)"),
+    (r"^Interesting\.\.\.", "nothing happened (not water, or water that can't change it)"),
+    (r"gets? wet|dilute", "got wet/diluted (plain water)"),
+    (r"explode", "the potions EXPLODED"),
+]
+
+
+def dip_into(letter: str, potion: str, name: str | None = None) -> dict:
+    """Dip inventory item `letter` into the potion `potion` with #dip (a
+    fountain/pool here is declined). Holy water: a cursed item "glows amber"
+    (now uncursed), an uncursed one "glows with a light blue aura" (now
+    blessed); unholy water: "black aura" (cursed), a blessed item "glows
+    brown" (uncursed). The potion is used up; the "Call a clear potion:"
+    prompt that may follow is answered with `name` (or skipped with Esc —
+    clear potions are always water). Returns {"outcome", "messages",
+    "before", "after"} (the item's inventory text) and prints the outcome."""
+    ctx.require_command("dip_into()")
+    inv = inventory()
+    before = next((it["text"] for it in inv if it["letter"] == letter), None)
+    pot = next((it["text"] for it in inv if it["letter"] == potion), None)
+    if before is None or pot is None:
+        raise RuntimeError(f"dip_into: no item {letter!r} or no potion {potion!r} in the inventory")
+    s = ctx.do("#dip<CR>", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"dip_into: expected 'What do you want to dip?', got {s.state.kind} {s.state.prompt!r}")
+    s = ctx.do(letter, quiet=True)
+    msgs = list(s.messages)
+    if s.state.kind == "yn" and re.search(r"fountain|pool|moat|water|lava", s.state.prompt or ""):
+        s = ctx.do("n", quiet=True)                 # not into the fountain/pool: into a potion
+        msgs += s.messages
+    if s.state.kind != "object" or "into" not in (s.state.prompt or ""):
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"dip_into: expected 'What do you want to dip ... into?', got {s.state.kind} "
+                           f"{s.state.prompt!r} ({msgs})")
+    s = ctx.do(potion, ok=[p for p, _ in _GLOW] + [r"^Call "])
+    msgs += s.messages
+    if s.state.kind == "getlin" and (s.state.prompt or "").startswith("Call "):
+        s = ctx.do(f"{name}<CR>" if name else "<Esc>", quiet=True)
+        msgs += s.messages
+    joined = " | ".join(msgs)
+    outcome = "; ".join(o for pat, o in _GLOW if re.search(pat, joined)) or \
+        ("no visible effect" if not msgs else "see messages")
+    after = None
+    if s.state.kind == "command":
+        after = next((it["text"] for it in inventory() if it["letter"] == letter), None)
+    print(f"dip_into({letter!r}, {potion!r}): {outcome}" + (f"; now {after!r}" if after else ""))
+    return {"outcome": outcome, "messages": msgs, "before": before, "after": after}
+
+
+_RUB = [
+    (r"grant one wish", "WISH"),
+    (r"Thank you for freeing me", "TAME djinni (no wish)"),
+    (r"You freed me", "PEACEFUL djinni (no wish)"),
+    (r"It is about time", "the djinni left (no wish)"),
+    (r"You disturbed me, fool", "HOSTILE djinni: kill it (it hits hard) or get away"),
+    (r"puff of smoke|You smell smoke", "a puff of smoke (magic lamp: nothing yet, rub again)"),
+    (r"not particularly rewarding", "a brass lantern: nothing"),
+    (r"Nothing happens", "nothing happens (an oil lamp never does anything)"),
+]
+_RUB_OK = [r"^You now wield", r"puff of smoke", r"^You smell smoke", r"^Nothing happens"]
+
+
+def rub(letter: str, max_rubs: int = 1, rewield: bool = True) -> dict:
+    """#rub the lamp `letter` up to `max_rubs` times, stopping at the first
+    djinni. #rub WIELDS the lamp; afterwards (rewield=True) your weapon is
+    wielded again (one more turn). A magic lamp: each rub 1/3 djinni; a
+    BLESSED one then grants a wish 80% (uncursed 20%, cursed 5% — cursed:
+    80% hostile). The wish prompt pauses the exec: answer it only with
+    `cont --reply '...<CR>'` (PLAYBOOK §E). Returns {"outcome", "messages",
+    "rubs"} and prints the outcome."""
+    ctx.require_command("rub()")
+    inv = inventory()
+    lamp = next((it["text"] for it in inv if it["letter"] == letter), None)
+    if lamp is None:
+        raise RuntimeError(f"rub(): no item {letter!r} in the inventory")
+    weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != letter), None)
+    msgs: list = []
+    outcome, n = "", 0
+    for n in range(1, max_rubs + 1):
+        s = ctx.do("#rub<CR>", quiet=True)
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"rub(): expected 'What do you want to rub?', got {s.state.kind} {s.state.prompt!r}")
+        s = ctx.do(letter, ok=_RUB_OK)
+        msgs += s.messages
+        cur = ctx.last()
+        if cur is not s:                    # the wish prompt paused and was answered with cont --reply
+            msgs += [m for m in cur.messages if m not in msgs]
+        joined = " | ".join(msgs)
+        outcome = next((o for pat, o in _RUB if re.search(pat, joined)), "")
+        if cur.state.kind != "command" or not re.search(r"smoke|^nothing happens", outcome):
+            break
+    if rewield and weapon and ctx.last().state.kind == "command":
+        s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
+        msgs += s.messages
+    print(f"rub({letter!r}): {outcome or 'see messages'} after {n} rub(s)"
+          + (f"; re-wielded {weapon!r}" if rewield and weapon else ""))
+    return {"outcome": outcome, "messages": msgs, "rubs": n}
+
+
 def _menu_pick(s, pattern: str):
     """Select (by text, on any page) the first item of the open menu matching
     `pattern`; returns the snap after the key, or None if there is none."""
@@ -287,10 +402,70 @@ def bag_put(bag: str, letters: str) -> list:
     return msgs
 
 
+_DISCO_LINE = re.compile(r"^\*?\s*(?P<name>\S.*?) \((?P<app>[^()]+)\)$")
+_DISCO_CLASS = {"potion": "{} potion", "scroll": "scroll labeled {}", "wand": "{} wand", "ring": "{} ring",
+                "amulet": "{} amulet", "spellbook": "{} spellbook"}
+
+
+def discoveries() -> list:
+    """What you have identified or named (the '\\' list; no game time):
+    [(name, unidentified look)], e.g. ('potion of paralysis', 'white potion'),
+    ('potion called water', 'clear potion'), ('scroll of identify',
+    'scroll labeled KIRJE'), ('magic lamp', 'lamp'). Identified and named
+    types are shown by that name everywhere (inventory, bags, the floor)."""
+    ctx.require_command("discoveries()")
+    s = ctx.do("\\", quiet=True)
+    return parse_discoveries(s.messages)
+
+
+def parse_discoveries(blocks) -> list:
+    out, heading = [], ""
+    for block in blocks:
+        for line in block.split("\n"):
+            m = _DISCO_LINE.match(line.strip())
+            if not m:
+                if line.strip() and not line.startswith((" ", "*")):
+                    heading = line.strip()            # "Potions", "Gems/Stones", ...
+                continue
+            name, app = m.group("name"), m.group("app")
+            word = name.split()[0]
+            if word in _DISCO_CLASS:
+                look = _DISCO_CLASS[word].format(app)
+            elif heading.startswith("Gems"):
+                look = f"{app} stone" if re.search(r"stone$|^flint", name) else f"{app} gem"
+            else:
+                look = app                            # tools/armor: 'lamp', 'ornamental cope'
+            out.append((name, look))
+    return out
+
+
+def _name_rx(name: str):
+    """'potion of paralysis' -> matches 'potions of paralysis' too."""
+    words = name.split(" ", 1)
+    if words[0] in _DISCO_CLASS and len(words) > 1:
+        rest = re.escape(words[1])
+        if words[1] == "of water":
+            rest = r"of (?:holy |unholy )?water"          # "potions of holy water" (blessed, known)
+        return re.compile(re.escape(words[0]) + r"s? " + rest, re.I)
+    return re.compile(re.escape(name) + r"(?:e?s)?\b", re.I)
+
+
+def with_looks(text: str, disco: list) -> str:
+    """An item text plus the unidentified look of its (identified/named)
+    type: 'a potion of paralysis' -> 'a potion of paralysis [white potion]'."""
+    looks = [look for name, look in disco if _name_rx(name).search(text)]
+    return text + "".join(f" [{lk}]" for lk in looks)
+
+
 def bag_take(bag: str, pattern: str | None = None) -> list:
     """Take items out of the carried container `bag`: those whose menu text
     matches `pattern` (regex, case-insensitive), or everything if None.
+    The menu lists identified/named types by name ("potion of paralysis",
+    "potions called water"), so the pattern is also tried against their
+    unidentified look from discoveries() ('white' finds the paralysis
+    potion). Raises LookupError listing the contents if nothing matches.
     Returns the messages."""
+    disco = discoveries() if pattern else []
     s = _apply_container(bag, r"take something out")
     msgs = list(s.messages)
     for _ in range(6):
@@ -305,14 +480,21 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
             s = ctx.do("<CR>", quiet=True)
         elif k == "menu":
             rx = re.compile(pattern, re.I) if pattern else None
+            chosen, seen = 0, []
             for _page in range(8):
                 for it in s.state.menu.selectable():
-                    if not it.selected and (rx is None or rx.search(it.text)):
+                    seen.append(it.text)
+                    if not it.selected and (rx is None or rx.search(with_looks(it.text, disco))):
                         s = ctx.do(it.letter, quiet=True)
+                        chosen += 1
                 if s.state.menu and s.state.menu.page < s.state.menu.pages:
                     s = ctx.do(">", quiet=True)
                 else:
                     break
+            if rx is not None and not chosen:
+                ctx.do("<Esc>", quiet=True)
+                raise LookupError(f"bag_take: nothing in {bag!r} matches {pattern!r}; it holds: "
+                                  + "; ".join(with_looks(t, disco) for t in seen))
             s = ctx.do("<CR>", quiet=True)
         else:
             ctx.pause(f"bag_take(): unexpected {k} {p!r}")
@@ -399,7 +581,7 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
         if t is None:
             raise RuntimeError("dig(): no pick-axe or mattock in the inventory")
         tool = t["letter"]
-    weapon = next((i["letter"] for i in inv if "weapon in hand" in i["text"] and i["letter"] != tool), None)
+    weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
     ldesc0 = ctx.last().status.ldesc
     msgs: list = []
     for _ in range(max_applies):

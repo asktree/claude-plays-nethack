@@ -11,6 +11,10 @@ class NavError(Exception):
     pass
 
 
+class PetLost(NavError):
+    """travel(with_pet=True): the pet dropped out of view."""
+
+
 def _cursor_keys(cx, cy, tx, ty) -> str:
     """Keys that move the getpos cursor from (cx,cy) to (tx,ty).
     Capital letters move 8 cells (truncated at map edges, so we verify)."""
@@ -98,8 +102,28 @@ def avoid(*cells, clear=False):
     return sorted(bad_squares(s))
 
 
+def occupants(s, cell) -> list:
+    """Monsters (not your pet, not statues) displayed on `cell`, including a
+    remembered unseen 'I': a plain step there attacks whatever is there."""
+    cell = tuple(cell)
+    return [m for m in (s.monsters or []) if (m["x"], m["y"]) == cell and not m.get("tame")
+            and not m.get("pet") and not m.get("statue")]
+
+
+def _check_free(s, cell, who: str):
+    """Movement helpers never attack: refuse a plain step onto a monster."""
+    occ = occupants(s, cell)
+    if occ:
+        m = occ[0]
+        what = "a remembered unseen monster ('I')" if m["ch"] == "I" else _mdesc(occ)
+        raise NavError(f"{who}: {what} is on {tuple(cell)} — a plain step there would attack it; stopped at "
+                       f"{s.hero}. " + ("Wait a turn ('.') or go around." if m.get("peaceful") else
+                                        "fight() it if it's hostile and safe to melee, wait, or go around."))
+
+
 def walk_path(path, ok=None):
-    """Walk a list of cells one step at a time, verifying each arrival."""
+    """Walk a list of cells one step at a time, verifying each arrival.
+    Never steps onto a monster (NavError instead; pets swap places)."""
     s = ctx.last()
     for cell in path:
         h = s.hero
@@ -108,6 +132,7 @@ def walk_path(path, ok=None):
         key = DIR_KEY.get((cell[0] - h[0], cell[1] - h[1]))
         if key is None:
             raise NavError(f"walk_path: {cell} is not adjacent to {h}")
+        _check_free(s, cell, "walk_path")
         s = ctx.do(key, ok=ok if ok is not None else BENIGN)
         if s.hero != cell:
             return s
@@ -164,7 +189,7 @@ def waypoint(s, target, cap):
     return target
 
 
-def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True):
+def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -178,7 +203,11 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     no known path) instead of returning silently.
     Long trips go in legs of at most leg_cap() squares (8, or 4 with a
     hostile around) so a monster coming into view pauses the script early;
-    leg=0 disables that."""
+    leg=0 disables that.
+    with_pet=True (or a number of turns, default 12): bring your pet along —
+    3-square legs, and after each leg wait ('.') while the pet is more than 2
+    squares behind (not with a hostile within 3); raises NavError if the pet
+    drops out of view. Without a pet in view it travels normally."""
     import contextlib
     ctx.require_command("travel()")
     if auto_fight and ctx.monster_filter:
@@ -186,11 +215,40 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
         guard = ctx.monster_filter(not_auto_fightable)
     else:
         guard = contextlib.nullcontext()
+    pet_budget = None
+    if with_pet:
+        if _pets(ctx.last()):
+            pet_budget = [12 if with_pet is True else int(with_pet)]
+            leg = 3 if leg is None else leg
+        else:
+            print("travel(with_pet): no pet in view — travelling without waiting for one")
     with guard:
-        return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight)
+        return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget)
 
 
-def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
+def _pets(s) -> list:
+    return [m for m in (s.monsters or []) if (m.get("tame") or m.get("pet")) and not m.get("statue")]
+
+
+def _keep_pet(s, budget: list):
+    """with_pet travel, after a leg: wait while the pet is > 2 squares away
+    (budget[0] = turns left for waiting). Returns the snap; raises NavError
+    when the pet is out of view afterwards."""
+    while budget[0] > 0 and s.state.kind == "command":
+        pets = _pets(s)
+        if any(m.get("dist") is not None and m["dist"] <= 2 for m in pets):
+            return s
+        if s.hostiles(3):
+            return s                         # don't dawdle next to hostiles
+        s = ctx.do(".", ok=BENIGN)
+        budget[0] -= 1
+    if s.state.kind == "command" and not _pets(s):
+        raise PetLost(f"travel(with_pet): your pet is out of view (you are at {s.hero}) — go back for it, "
+                      "or travel(x, y) without with_pet to leave it")
+    return s
+
+
+def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget=None):
     s = ctx.last()
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
            and not m.get("pet") and not m.get("statue")]
@@ -267,6 +325,10 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
         h1 = s.hero
         if h1 == (x, y) or h1 is None:
             return s
+        if h1 != h0 and pet_budget is not None:
+            s = _keep_pet(s, pet_budget)
+            if s.state.kind != "command":
+                return s
         if h1 == h0:
             blk = blockers(s)
             hostile = [m for m in blk if not m.get("peaceful")]
@@ -314,6 +376,7 @@ def _final_step(s, target):
     from .mapview import is_door, is_walkable
     h0 = s.hero
     dx, dy = target[0] - h0[0], target[1] - h0[1]
+    _check_free(s, target, "travel's last step")       # e.g. a cockatrice stepped onto the target
     s = ctx.do(DIR_KEY[(dx, dy)], ok=BENIGN + [_DIAG_DOOR])
     if s.hero == h0 and dx and dy and any("move diagonally" in m for m in s.messages):
         pets = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("tame") or m.get("pet")}
@@ -321,6 +384,7 @@ def _final_step(s, target):
             if (is_walkable(s, *mid, allow_monsters=False) or mid in pets) and not is_door(s, *mid):
                 s = ctx.do(DIR_KEY[(mid[0] - h0[0], mid[1] - h0[1])], ok=BENIGN)
                 if s.hero == mid and s.state.kind == "command":
+                    _check_free(s, target, "travel's last step")
                     s = ctx.do(DIR_KEY[(target[0] - mid[0], target[1] - mid[1])], ok=BENIGN)
                 return s
     return s
@@ -394,9 +458,14 @@ def travel_to(ch: str, index: int = 0, color_num: int | None = None):
 
 def step(direction: str, n: int = 1):
     """Move one square n times (direction: y k u h l b j n). Stops on messages
-    (inside exec) like any do()."""
+    (inside exec) like any do(). Never attacks: NavError if a monster (not
+    your pet) is on the next square — do('F' + direction) to attack."""
+    from .mapview import KEY_DIR
     s = ctx.last()
     for _ in range(n):
+        if s.hero is not None and direction in KEY_DIR:
+            dx, dy = KEY_DIR[direction]
+            _check_free(s, (s.hero[0] + dx, s.hero[1] + dy), "step()")
         s = ctx.do(direction)
     return s
 
@@ -439,7 +508,7 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
     return cells[0], ""
 
 
-def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None):
+def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None, with_pet=None):
     s = ctx.last()
     cells = known_cells(ch, s, rescan=True)
     if not cells:
@@ -447,10 +516,22 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
     target, note = _pick_stairs(ch, cells, to, s)
     if note:
         print(f"stairs: using the {ch} at {target}: {note}")
+    had_pet = [m for m in _pets(s) if m.get("dist") is not None and m["dist"] <= 7]
+    auto = with_pet is None
+    if auto:
+        with_pet = bool(wait_pet and had_pet)       # it's with you now: keep it in tow
     for _ in range(tries):
         if s.hero == target:
             break
-        s = travel(*target)
+        try:
+            s = travel(*target, with_pet=with_pet)
+        except PetLost as e:
+            if not auto:
+                raise
+            print(f"stairs: {e} — going on without it")
+            with_pet = False
+            s = ctx.last()
+            continue
         if s.state.kind != "command":
             return s                     # a prompt interrupted: let the caller look
         s = ctx.last()
@@ -462,6 +543,9 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         s = _wait_for_pet(s, wait_pet)
         if s.state.kind != "command" or s.hero != target:
             return s
+    if had_pet and not any(m.get("dist") == 1 for m in _pets(s)):
+        print(f"stairs: your pet ({had_pet[0].get('desc') or had_pet[0]['ch']}) is not next to you — "
+              f"taking the {ch} without it (it stays on this level)")
     return ctx.do(ch)
 
 
@@ -472,7 +556,13 @@ def _wait_for_pet(s, turns: int):
     def pets(snap):
         return [m for m in (snap.monsters or []) if (m.get("tame") or m.get("pet")) and not m.get("statue")]
     near = [m for m in pets(s) if m.get("dist") is not None and 1 < m["dist"] <= 7]
-    if not near or any(m.get("dist") == 1 for m in pets(s)):
+    if any(m.get("dist") == 1 for m in pets(s)):
+        return s
+    if not near:
+        far = pets(s)
+        if far:
+            print(f"stairs: your pet ({far[0].get('desc') or far[0]['ch']} at ({far[0]['x']},{far[0]['y']})) is "
+                  f"{far[0].get('dist')} squares away — not waiting (only for a pet within 7)")
         return s
     for i in range(turns):
         if s.hostiles(2):
@@ -490,20 +580,22 @@ def _wait_for_pet(s, turns: int):
     return s
 
 
-def go_down(wait_pet: int = 6, to: str | None = None):
+def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None):
     """Travel to a '>' (re-travelling after routine stops), check you are on
     it, then descend. Raises NavError instead of pressing '>' anywhere else.
     With several '>' on the level it takes the one that stays in this branch
     (learned from stairs you took or arrived on), or the one toward `to`
     (a substring of the destination: 'Mines', 'Dungeons', 'Sokoban').
     wait_pet: if your pet is in view nearby but not next to you, wait up to
-    this many turns for it (0: don't)."""
-    return _use_stairs(">", wait_pet=wait_pet, to=to)
+    this many turns for it (0: don't). with_pet: travel in pet-keeping legs
+    (see travel()); default: yes when wait_pet and your pet is within 7
+    squares at the start. Says so when it leaves the pet behind."""
+    return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet)
 
 
-def go_up(wait_pet: int = 6, to: str | None = None):
+def go_up(wait_pet: int = 6, to: str | None = None, with_pet=None):
     """Like go_down() for '<' (e.g. go_up(to='Sokoban') on the Oracle-below level)."""
-    return _use_stairs("<", wait_pet=wait_pet, to=to)
+    return _use_stairs("<", wait_pet=wait_pet, to=to, with_pet=with_pet)
 
 
 def kick_door(x, y, tries: int = 8):

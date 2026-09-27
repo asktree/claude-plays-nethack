@@ -2,10 +2,10 @@
 
 ## Character
 - Name/role: P1 the Skirmisher — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
-- Turn / Dlvl / XL / HP / Pw / AC: **T:~10460 / MINES' END = THE CATACOMBS (Dlvl 11), returning to the `<` (44,12) at shift end** / **XL9** (Exp 4893; XL10 at 5120) / **110/110** / 18/18 / **AC -5** (splint mail + +3 small shield + orcish helm + elven cloak + **3 points of divine protection bought T:9719**). Wielding blessed rustproof +2 EXCALIBUR (long sword EXPERT). Rings worn: f prot. from shape changers (right), w fire resistance (left).
+- Turn / Dlvl / XL / HP / Pw / AC: **T:~10742 / MINETOWN (Mines 3 = Dlvl 6), temple altar (33,4)** / **XL9** (Exp 5052; XL10 at 5120) / **109/110** / 18/18 / **AC -10** (blessed +2 GRAY DRAGON SCALE MAIL + +3 small shield + orcish helm + elven cloak + 3 points of divine protection bought T:9719). Wielding blessed rustproof +2 EXCALIBUR (long sword EXPERT). Rings worn: f prot. from shape changers (right), w fire resistance (left).
 - Hungry at T:10275 -> eating a food ration (6 rations bought/owned at T:9885). Dex 14 (T:9835). No monsters hostile in view at shift end; Minetown watch + peaceful gnomes/hobbits/gnomish wizard around.
 - Attributes: St18 Dx13 Co20 In10 Wi11 Ch7 (Ch7 => shop prices x1.5, sell offers base/2).
-- Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf), speed (XL7), POISON RESISTANCE (T:6853). NO sleep resistance, no MR, no reflection. Excalibur: auto-search, drain res.
+- Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf), speed (XL7), POISON RESISTANCE (T:6853). **MAGIC RESISTANCE from the GDSM (wished T:10728).** NO sleep resistance, no reflection. Excalibur: auto-search, drain res.
 - Luck 0; alignment record high (one "hypocrite" hit T:6808); no peacefuls killed.
 
 ## Prayer log
@@ -16,19 +16,19 @@
 | T:3401 | Weak from hunger (MAJOR; prayer_check 98%) | "well-pleased. Your stomach feels content." Prayer available: prayer_check() p_safe 1.0 (6400+ turns). Always `prayer_check()` first; major trouble at XL9 = HP <= 18 (110/6). |
 
 ## Equipment worn/wielded (letter: item)
-- **a: blessed rustproof +2 EXCALIBUR (wielded)**. c: uncursed +3 small shield. **Y: uncursed splint mail (bought Minetown T:9664, altar-tested, worn T:9710).** n: uncursed +0 orcish helm. V: uncursed +0 faded pall = ELVEN CLOAK (worn over the splint mail). The burnt studded leather was left on the Minetown altar.
+- **a: blessed rustproof +2 EXCALIBUR (wielded)**. c: uncursed +3 small shield. **x: blessed +2 GRAY DRAGON SCALE MAIL (MR; wished from the magic lamp T:10728, worn T:10740).** n: uncursed +0 orcish helm. V: uncursed +0 faded pall = ELVEN CLOAK (worn over the GDSM). Splint mail and burnt studded leather left on the Minetown altar.
 
 ## Key inventory (letters) — main pack is lean; the rest is in the BoH
-- **D: uncursed BAG OF HOLDING ("BoH prize")** containing: **MAGIC LAMP (uncursed; "lamp" bought for 75 = base 50 => magic lamp; DO NOT #rub until BLESSED: uncursed = 20% wish and the lamp is spent; blessed = 80%)**, **PICK-AXE** (bought 75; never carry it openly into a shop — shopkeepers block the door; never dig in Minetown), scrolls o ELAM EBOW (unknown, uncursed), t blank, A + u fire, x + l light, potion M swirly (unknown), rings W bronze (BLESSED, unknown), m coral, K engagement, R ivory, J twisted, I wire (all uncursed, unknown: sell-offer price-ID them), h magic marker (0:82) CURSED, wands z lightning (0:2), g striking (2nd).
+- **D: uncursed BAG OF HOLDING ("BoH prize")** containing: **PICK-AXE** (bought 75; never carry it openly into a shop — shopkeepers block the door; never dig in Minetown), scrolls o ELAM EBOW (unknown, uncursed), t blank, A + u fire, x + l light, potion M swirly (unknown), rings W bronze (BLESSED, unknown), m coral, K engagement, R ivory, J twisted, I wire (all uncursed, unknown: sell-offer price-ID them), h magic marker (0:82) CURSED, wands z lightning (0:2), g striking (2nd).
 - **B: blessed scroll of TELEPORTATION + k: scroll of teleportation (found Mines 6)** (escape; useless on no-teleport levels).
-- **i, l: 2 CLEAR POTIONS = WATER (BUC unknown; found Mines 6 T:10245-10275)** -> altar-test in Minetown; blessed = holy water for the magic lamp. **d: KEY** (skeleton key, bought 15). g: orange spellbook (unknown, sell), h: tin opener.
+- **i: HOLY WATER (blessed clear potion; altar-tested T:10724) — remove-curse / lycanthropy insurance, or uncurse the magic marker. l: uncursed clear potion = WATER (blank a scroll, or holy water on a lawful altar).** **d: KEY** (skeleton key, bought 15). g: orange spellbook (unknown, sell), h: tin opener.
 - **Z: WAND OF TELEPORTATION (called; engrave-tested + zap-tested T:9391; 2 charges used, 3-6 left)** — escape: `zap('Z', '.')` at self; or zap a nasty monster away. **E: wand of lightning (0:4)** (6d6 ray, bounces: only along a line whose first wall is >= 7 squares away). **S: wand of striking** (3 charges used).
 - Food: **P, X, e(x4): 6 food rations** (4 bought T:9885 after selling the 2 potions of oil for 250), Q pancake, U slime mold, j candy bar.
 - H: uncursed elven dagger (throwable). v: can of grease.
 - **$28.** Protection bought (3600). Next protection point costs 400 x XL again (4000 at XL10) — low priority now.
-- No healing potions, no unicorn horn, no lizard corpse, no holy water. Escapes: wand Z, scroll B, Elbereth (single monsters only), stairs. Prayer available (prayer_check() first).
+- No healing potions, no unicorn horn, no lizard corpse. 1 holy water (i). Escapes: wand Z, scroll B, Elbereth (single monsters only), stairs. Prayer available (prayer_check() first).
 - **u: GRAY STONE from the Catacombs NE closet (70,10) = LUCKSTONE or FLINT (50/50; price-ID it in Minetown: luckstone sell offer 30, flint ~0; or read an identify scroll). The other spots (3,17)/(3,19) hold the other stone + nothing.**
-- **Gems carried (unidentified): p black, q 2 green, s 3 red, t 2 orange** (Catacombs seeds diamonds/emeralds/rubies/amethysts). **PICK-AXE back in the BoH. W: MAGIC LAMP (lit, in the main pack; lighting is free).** Wand S striking: 5 charges used. r: scroll NR 9 (= earth?), o: amnesia (sell).
+- **Gems carried (unidentified): p black, q 2 green, s 3 red, t 2 orange** (Catacombs seeds diamonds/emeralds/rubies/amethysts). **PICK-AXE = b, in the MAIN PACK since T:10990 (bag_put it before any shop). W: blessed OIL LAMP (the ex-magic lamp, lit; djinni spent T:10728).** Wand S striking: 5 charges used. r: scroll NR 9 (= earth?), o: amnesia (sell).
 - Left behind: Mines 2 `<` (25,5): 11 cursed darts, 2 eggs. Minetown altar (33,4): cursed elven dagger, burnt studded leather. Hardware store: my old sack. DL6 (8,5): scale mail. DL3 `<` room: +0 dagger etc. Soko3 (33,9): elf gear (elven shield/bow/arrows/broadsword...). Mines 1 (18,15): a ring.
 
 ## Identified appearances
@@ -48,7 +48,7 @@
 | 5 | main | `<` (59,16). `>` (70,16). Route between them is roundabout (north room, doors (59,7)/(64,4)). |
 | 6 | main | ORACLE LEVEL. `<` (9,7). `>` (65,10) (water demon KILLED T:8820). Fountains (38,12) (39,11) (39,13) (40,12) — use them to dilute potions into WATER for holy water. Peaceful Oracle. Scale mail at (8,5). |
 | 7 | main (Sokoban entry) | `<` (5,7). `>` (13,8) in room B. Sokoban `<` = (14,15) under the hill-orc statue. Orc gear (57,4),(58,8). |
-| Mines 1 (Dlvl 4) | Mines | `<` (6,20), `>` (27,6). Ring at (18,15). Pit (4,7). |
+| Mines 1 (Dlvl 4) | Mines | `<` (6,20), `>` (27,6). Pit (4,7). Dug bypass (9,19)-(8,19) into the stair nook (the corridor (6-13,18) gets blocked by peaceful gnomes). |
 | Mines 2 (Dlvl 5) | Mines | `<` (25,5), `>` (16,10). Iron piercer near (20,11). |
 | **Mines 3 (Dlvl 6) = MINETOWN = GROTTO TOWN** | Mines | **`>` (48,4)** in the closet room (48-52,4) behind door (52,7) (unlocked with my key; lock pick left on (52,4)). `<` (3,2) (arrival ambush by 3 soldier ants, all killed). **TEMPLE OF ODIN (neutral, cross-aligned; never #offer/pray there): altar (33,4), door (33,6), peaceful priestess.** **General store (Asidonhopo) (61-69,10-11), door (68,9): 4 food rations @68, scimitar, sling.** **Hardware store (Nosalnef) (59-62,14-16), door (58,15): key 15, large box 12, blindfold 30, leash 30, tin opener 45, drum 38, lock pick 30.** Fountains (12,16) (52,10) (68,19) — never use (Watch). Doors not yet opened: (73,4), (73,7), (71,19), (60,7), (52,7), (9,12), (22,17), (27,15). Door (71,19) locked (chest closet per wiki). |
 | Mines 4 (Dlvl 7) | Mines | `<` (6,12), `>` (73,17). TELEPORT TRAP (7,12), land mine->pit (13,3), bear trap (70,7), blue jelly (64,7). |
@@ -62,7 +62,10 @@
 - Soldier ants (speed 18, bite 2d4 + sting 3d4; NOT stalkers): fight from a staircase square, climb at ~55% HP. Black lights (2 met): invisible, explode -> ~60-100 turns Hallu: stand still, attack only what attacks you.
 - Sokoban levels are no-teleport. Cockatrices exist in this dungeon (wield a weapon; never eat/touch). Elves/humans ignore Elbereth. Dust Elbereth erodes one letter per scared monster (3.6): single-monster tool only.
 - Minetown: no fountain use, no door kicking, no digging, no theft. Cross-aligned temple: no prayer/offering there.
-- No MR/reflection: never the Castle/Gehennom; avoid soldiers with wands.
+- MR now covered (GDSM). Still NO REFLECTION: avoid lining up with wand users; Castle only with reflection too (PLAYBOOK A1 prefers both).
+
+## WISH DONE (T:10728, Minetown temple)
+- Lamp W was already BLESSED (bought so; never altar-tested before). First #rub: djinni "I am in your debt" -> wished `blessed +2 gray dragon scale mail` -> got it blessed +2 (amber flash; AC -5 -> -10). Holy water i NOT used. Prayer timeout +50..149 from the wish (irrelevant: 7300 turns since the last prayer).
 
 ## Objective and plan
 1. **Next shift, first**: decide whether u (gray stone) is the luckstone. Option A: go up to Minetown (5 levels: `<` (44,12) -> Mines 7 `<` (20,14) -> Mines 6 `<` (68,13) -> Mines 5 `<` (73,6) -> Mines 4 `<` (6,12) -> Minetown `>` (48,4)), sell the amnesia scroll (100) + spellbook + gems, price-ID u in the general store (drop, read the offer, decline), altar-test the 2 clear potions (blessed = holy water). Option B first: cross the Catacombs maze west to the SW closets (3,17)/(3,19) (secret doors (4,17)/(4,19)), search for the trap from the corridor, and take the second gray stone the same way (force step; ~50% random-level teleport). One vampire remains on the level. The (70,10) level teleporter is still armed (avoid()).

@@ -318,14 +318,40 @@ def test_kernel_monster_filter_limits_new_monster_pauses():
     k._check_events(before, after)
     assert reasons and "jackal" in reasons[-1] and "red dragon" in reasons[-1]
     reasons.clear()
+    k._announced.clear()          # (the same newcomers again: not a swarm repeat for this test)
     with k.ns["monster_filter"](lambda m: m["desc"] != "jackal"):
         k._check_events(before, after)
     assert reasons and "jackal" not in reasons[-1] and "red dragon" in reasons[-1]
     reasons.clear()
+    k._announced.clear()
     with k.ns["monster_filter"](lambda m: False):
         k._check_events(before, after)
     assert reasons == []
     assert k.new_monster_filter is None
+
+
+def test_kernel_swarm_pauses_once_per_species_group():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def step(turn, cells_new, cells_old=(), desc="killer bee"):
+        s = snap({}, turn)
+        s.monsters = ([{"ch": "a", "x": x, "y": y, "desc": desc, "new": True} for x, y in cells_new]
+                      + [{"ch": "a", "x": x, "y": y, "desc": desc, "new": False} for x, y in cells_old])
+        reasons.clear()
+        k._check_events(snap({}, turn - 1), s)
+        return reasons[-1] if reasons else ""
+
+    assert "killer bee" in step(11, [(41, 10)])
+    assert step(12, [(42, 11)], [(41, 10)]) == ""                  # the next bee of the swarm: no pause
+    assert step(13, [(43, 12), (44, 12)], [(41, 10), (42, 11)]) == ""
+    assert "killer bee" in step(14, [(70, 3)], [(41, 10)])           # a bee from elsewhere still pauses
+    assert "soldier ant" in step(14, [(42, 12)], desc="soldier ant")  # another species pauses
+    assert "killer bee" in step(30, [(42, 12)], [(41, 10)])          # long after: pauses again
 
 
 def test_were_change_is_relooked_not_renamed():

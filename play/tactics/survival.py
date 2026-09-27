@@ -237,23 +237,88 @@ def prayer_check() -> dict:
             "p_safe": round(p_safe, 3), "advice": " ".join(advice)}
 
 
+# pray.c: what a successful prayer says (pleased(), fix_worst_trouble(), water_prayer())
+_PRAYER_OK = [r"^You begin praying to ", r"^You are surrounded by a shimmering light", r"^You finish your prayer",
+              r"^You feel that \w+ is (?:well-pleased|pleased|satisfied|pleased as punch|ticklish|full)\.",
+              r"potions? on the altar glows? light blue", r"^You feel (?:much )?better\.",
+              r"^Your \w+ feels content\.", r"^You can breathe again\.", r"^You feel in good health again",
+              r"^You feel more limber", r"^The slime disappears", r"^Your surroundings change",
+              r"^You feel purified", r"^You are back on solid ground", r"^Your .* softly glows? amber",
+              r"^You feel a hopeful feeling", r"^You feel (?:much )?(?:stronger|slimmer)", r"^Looks like you are back",
+              r"^Your amulet vanishes", r"^Your chain disappears", r"^There's a tiger in your tank",
+              r"^Your .* no longer slippery", r"^You are surrounded by a golden glow"]
+_PRAYER_VERDICT = [
+    (r"is (?:displeased|bummed)\.", "FAILED: your god is displeased (prayed too soon / Luck < 0) — no help; "
+                                     "don't pray again for ~1000 turns"),
+    (r"relearn thy lessons", "FAILED: god ANGRY — you lost a level and Wisdom"),
+    (r"black glow surrounds you", "FAILED: god ANGRY — some of your items were CURSED"),
+    (r"Thou durst", "FAILED: god ANGRY — a hostile minion was sent: fight or flee"),
+    (r"bolt of lightning|disintegration beam", "FAILED: divine WRATH"),
+    (r"Since you are in Gehennom", "no help in Gehennom (and your god may be angry)"),
+]
+
+
 def pray(force: bool = False):
     """Pray, if prayer_check() says it's sensible (major trouble, timeout very
-    likely OK, not in Gehennom); force=True overrides. Confirms the prompt.
-    Returns the final snap."""
+    likely OK, not in Gehennom); force=True overrides. Confirms the prompt;
+    the prayer's own good messages don't pause. Prints a one-line verdict
+    (success/failure, holy water made, troubles fixed). Returns the final
+    snap."""
     chk = prayer_check()
     if not force and (chk["trouble"] != "major" or chk["p_safe"] < 0.8):
         raise PermissionError("pray() refused: " + chk["advice"] + " (pray(force=True) to override)")
     s = ctx.do("#pray<CR>", quiet=True)
+    msgs = list(s.messages)
     for _ in range(4):
         p = s.state.prompt
         if s.state.kind == "yn" and "pray" in p:
-            s = ctx.do("y")
+            s = ctx.do("y", ok=_PRAYER_OK)
         elif s.state.kind in ("getlin", "yn", "object") and "yes" in p.lower() and "pray" in p:
-            s = ctx.do("yes<CR>")
+            s = ctx.do("yes<CR>", ok=_PRAYER_OK)
+        elif s.state.kind == "yn" and "Force the gods to be pleased" in p:
+            s = ctx.do("y", ok=_PRAYER_OK)          # wizard-mode test games only
         else:
             break
+        msgs += s.messages
+    print("pray(): " + prayer_verdict(msgs))
     return s
+
+
+def prayer_verdict(msgs) -> str:
+    """One line from a prayer's messages."""
+    joined = " | ".join(msgs)
+    bits = []
+    m = re.search(r"You feel that (\w+) is (well-pleased|pleased|satisfied|pleased as punch|ticklish|full)\.",
+                  joined)
+    if m:
+        bits.append(f"SUCCESS: {m.group(1)} is {m.group(2)} (prayer timeout reset to ~50-1000: prayer_check() "
+                    "before the next)")
+    else:
+        for pat, v in _PRAYER_VERDICT:
+            if v and re.search(pat, joined):
+                bits.append(v)
+                break
+    w = re.search(r"(Some of the|One of the|The) potions? on the altar glows? (light blue|black)", joined)
+    if w:
+        bits.append(("HOLY" if w.group(2) == "light blue" else "UNHOLY") + " water made from the water on the "
+                    "altar (" + ("some of the potions" if w.group(1) == "Some of the" else
+                                 "one potion" if w.group(1) == "One of the" else "all of it") + ")")
+    fixed = [f for pat, f in ((r"You feel much better", "HP restored"),
+                              (r"feels content", "hunger fixed"),
+                              (r"You can breathe again", "strangulation fixed"),
+                              (r"You feel in good health again|You feel purified", "illness/lycanthropy cured"),
+                              (r"You feel more limber", "stoning cured"),
+                              (r"The slime disappears", "sliming cured"),
+                              (r"You are back on solid ground", "out of the lava"),
+                              (r"softly glows? amber", "an item uncursed"),
+                              (r"golden glow", "golden glow (HP/level restored)"))
+             if re.search(pat, joined)]
+    if fixed:
+        bits.append("fixed: " + ", ".join(fixed))
+    gift = re.search(r"grant thee the gift of ([\w ]+)|I crown thee|appears at your feet", joined)
+    if gift:
+        bits.append("GIFT: " + gift.group(0))
+    return "; ".join(bits) or ("no verdict message seen: " + joined[-200:])
 
 
 def rest_on_elbereth(turns: int = 100, until_hp: int | None = None, burst: int = 10):

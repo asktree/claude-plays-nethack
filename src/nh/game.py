@@ -55,6 +55,7 @@ class Snap:
     engulfed: bool = False     # the hero is inside a monster (the /-\\ ring is drawn around '@')
     paused: str = ""           # set when the exec paused on this step and the player resumed it
     gone: list = field(default_factory=list)   # dangerous monsters that left view in the last ~20 turns
+    wield_note: str = ""       # set when you are known to wield a non-weapon / nothing (Game.wield_note)
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -231,6 +232,53 @@ def _engulfed(scr: Screen, hero) -> bool:
     return sum(1 for dx, dy, ch in want if scr.at(x + dx, y + dy) == ch) >= 3
 
 
+def feature_at(scr: Screen, x: int, y: int) -> str | None:
+    """The map feature ('<', '>', '{', '_', '\\') drawn at (x, y), or None.
+    A '\\' counts as a throne only in its gold colour (drawing.c HI_GOLD):
+    ray animations and the corners of the engulf ring also draw '\\'. A cyan
+    '_' is an iron chain, not an altar."""
+    ch = scr.at(x, y)
+    if ch not in "<>{_\\":
+        return None
+    col = scr.color_at(x, y)
+    if ch == "\\" and col != 11:
+        return None
+    if ch == "_" and col == 6:
+        return None
+    return ch
+
+
+_WEAPON_NAMES: list | None = None
+
+
+def is_weapon_text(text: str) -> bool:
+    """Does an inventory/wield text name a weapon or weapon-tool (pick-axe,
+    unicorn horn...)? 'a blessed +6 long sword named Excalibur' -> True,
+    'a blessed lamp' -> False. Names and unidentified appearances come from
+    the object data."""
+    global _WEAPON_NAMES
+    if _WEAPON_NAMES is None:
+        import json
+        from pathlib import Path
+        try:
+            objs = json.loads((Path(__file__).parent / "data" / "objects.json").read_text())["objects"]
+            names = {n for o in objs if o.get("weapon") and o.get("class") != "GEM_CLASS"   # (sling ammo)
+                     for n in (o.get("name"), o.get("appearance")) if n}
+        except Exception:  # noqa: BLE001
+            names = set()
+        _WEAPON_NAMES = [re.compile(r"\b" + re.escape(n) + r"(?:e?s)?\b", re.I)
+                         for n in sorted(names, key=len, reverse=True)]
+    core = re.sub(r"\s+(?:named|called)\s.*$", "", text or "")
+    core = re.sub(r"\s*\([^)]*\)", "", core)
+    return any(rx.search(core) for rx in _WEAPON_NAMES)
+
+
+# "(weapon in hand)", "(weapon in hands)" (two-handed), "(tethered weapon in hand)" (aklys),
+# "(weapon in hand, glowing light blue)" (Sting), "(wielded)" for a wielded stack
+# (objnam.c doname_base); not "(wielded in other hand)" / "(alternate weapon; not wielded)"
+WIELDED_RE = re.compile(r"\((?:tethered )?weapon in \w+|\(wielded\)")
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
@@ -271,6 +319,7 @@ class Game:
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
+        self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
         self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
@@ -390,6 +439,42 @@ class Game:
                 out.append({"desc": d, "x": r["x"], "y": r["y"], "ago": turn - r.get("turn", 0)})
         return out[:4]
 
+    _WIELD_NOW = re.compile(r"^You now wield (.+?)\.$")          # wield_tool(): #rub, apply a pick-axe
+    _WIELD_INV = re.compile(r"^[a-zA-Z] - (.+?)\.?$")          # 'w'/'x' echo the inventory line
+
+    def _note_wield(self, messages: list[str]) -> None:
+        """Keep self.wielded current from the messages: "You now wield a
+        blessed lamp." (#rub / applying a pick-axe wields the tool),
+        "a - ... (weapon in hand)." ('w'), "You are empty handed."; anything
+        else about wielding makes it unknown (re-checked by inventory())."""
+        for m in messages:
+            mm = self._WIELD_NOW.search(m)
+            if mm:
+                self.wielded = mm.group(1)
+                continue
+            mm = self._WIELD_INV.search(m)
+            if mm and WIELDED_RE.search(m):
+                self.wielded = mm.group(1)
+                continue
+            if re.search(r"^You are (?:now |already )?empty.handed", m):
+                self.wielded = ""
+            elif re.search(r"wield|slips from your|welded|disarm|wrested|snatches|You are now empty", m):
+                self.wielded = None     # re-check the weapon next time it matters
+            if re.search(r"\b(?:gloves|gauntlets)\b", m):
+                self.gloves = None      # put on / taken off / stolen / destroyed: re-check
+
+    def wield_note(self) -> str:
+        """A warning when you are known to wield something that isn't a
+        weapon (a lamp after #rub, nothing at all), else ''."""
+        w = self.wielded
+        if w is None:
+            return ""
+        if w == "":
+            return "you are EMPTY-HANDED (w + letter to wield your weapon)"
+        if not is_weapon_text(w):
+            return f"you WIELD {w} — not a weapon (w + letter to wield your weapon again)"
+        return ""
+
     def _here_text(self, snap: Snap, cell=None) -> str:
         cell = cell or snap.hero
         if cell is None or not snap.status.ok:
@@ -405,7 +490,7 @@ class Game:
         for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
             row = snap.screen.row(y)
             for x, ch in enumerate(row):
-                if ch in self.FEATURE_CHARS:
+                if ch in self.FEATURE_CHARS and feature_at(snap.screen, x, y):
                     feats[(x, y)] = ch
         for c in list(feats):
             if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
@@ -665,6 +750,17 @@ class Game:
                                 f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
                                 f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
                                 "Use ranged attacks or go around. force=True overrides.")
+                        if name in ("cockatrice", "chickatrice") and not m.get("tame") \
+                                and not self.gloves and not self.wielded:
+                            # uhitm.c passive(): AD_STON stones you when you hit it with no weapon
+                            # wielded and no gloves (attk_protection -> W_ARMG)
+                            raise PermissionError(
+                                f"refusing to attack/move into the {name} at {(tx, ty)}: "
+                                + ("you are EMPTY-HANDED without gloves — hitting it bare-handed is instant "
+                                   "stoning. Wield your weapon first." if self.wielded == "" else
+                                   "the harness doesn't know whether you wield a weapon (bare-handed = instant "
+                                   "stoning): run inventory() first, then attack again.")
+                                + " force=True overrides.")
         elif k == "yn" and unit[:1] in (b"y", b"Y") and "Eat it?" in (snap.state.prompt or "") \
                 and "Hallu" in (snap.status.conditions if snap.status.ok else ()) \
                 and self._TIN_SMELL.search((snap.state.prompt or "") + "  " + "  ".join(snap.messages or [])):
@@ -923,9 +1019,7 @@ class Game:
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
                         # moves or erases the engraving here without a word (zap.c)
                         self.engr_seen.get(self.level_key(snap.status), {}).pop(snap.hero, None)
-                    if any(re.search(r"wield|empty.handed|slips from your|welded|disarm|wrested", m)
-                           for m in messages):
-                        self.wielded = None     # re-check the weapon next time it matters
+                    self._note_wield(messages)
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
                     if arrive:
                         # only a real staircase: not a hole you dug ('>' answered the dig
@@ -946,6 +1040,7 @@ class Game:
                         self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
+            snap.wield_note = self.wield_note()
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
@@ -1099,7 +1194,7 @@ class Game:
                         for x, ch in enumerate(row):
                             if ch == "^" or ch == '"':
                                 found["traps"].add((x, y))
-                            elif ch in self.FEATURE_CHARS:
+                            elif ch in self.FEATURE_CHARS and feature_at(s.screen, x, y):
                                 found["features"][(x, y)] = ch
                 self._leave_getpos(s, in_getpos=browsing)
                 self.log_event({"ev": "terrain_traps", "ts": round(time.time(), 3),
@@ -1195,6 +1290,7 @@ class Game:
                 self.hero_pos = snap.hero
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
                 self._remember_terrain(snap, [])
+            snap.wield_note = self.wield_note()
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)

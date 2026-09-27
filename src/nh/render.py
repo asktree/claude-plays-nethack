@@ -83,6 +83,8 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append("msgs: " + " | ".join(snap.messages))
     if getattr(snap, "unsent", ""):
         lines.append(f"!! NOT SENT: {snap.unsent!r} — {snap.stop_reason}")
+    if getattr(snap, "wield_note", "") and snap.state.kind == "command":
+        lines.append(f"!! {snap.wield_note}")
     k = snap.state.kind
     if k != "command":
         if snap.state.prompt:

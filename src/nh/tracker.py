@@ -135,16 +135,17 @@ class Tracker:
                                 heard.append(what)
             lv["last_turn"] = st.turn
             lv["ldesc"] = st.ldesc
-            feats = lv.setdefault("features", {})
-            for y in range(MAP_TOP, MAP_BOTTOM + 1):
-                row = snap.screen.row(y)
-                for x, ch in enumerate(row):
-                    if ch in "<>{_\\":
-                        name = FEATURE_CHARS[ch]
-                        lst = feats.setdefault(name, [])
-                        if [x, y] not in lst:
-                            lst.append([x, y])
-            lv["map"] = [snap.screen.row(y).rstrip() for y in range(MAP_TOP, MAP_BOTTOM + 1)]
+            if not getattr(snap, "engulfed", False):
+                # the game's per-level feature memory (colour-checked, pruned when a fountain dries
+                # up; the engulf ring's corners and ray animations are no thrones)
+                seen = getattr(self.game, "terrain_seen", {}).get(key, {})
+                feats: dict = {}
+                for (x, y), ch in sorted(seen.items(), key=lambda kv: (kv[0][1], kv[0][0])):
+                    name = FEATURE_CHARS.get(ch)
+                    if name:
+                        feats.setdefault(name, []).append([x, y])
+                lv["features"] = feats
+                lv["map"] = [snap.screen.row(y).rstrip() for y in range(MAP_TOP, MAP_BOTTOM + 1)]
             for attr in ("traps", "avoid"):
                 cells = sorted(getattr(self.game, attr).get(key, ()))
                 if cells or attr in lv:

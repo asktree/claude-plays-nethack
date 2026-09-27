@@ -183,3 +183,88 @@ def test_pick_stairs_by_branch(monkeypatch):
     assert nav._pick_stairs(">", cells, None, s)[0] == (74, 17)
     with pytest.raises(nav.NavError):
         nav._pick_stairs(">", cells, "Sokoban", s)
+
+
+def test_movement_helpers_never_step_onto_monsters(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or _snap({}, (11, 5), []))
+    row = {5: "        ......"}
+    cock = {"x": 11, "y": 5, "ch": "c", "desc": "cockatrice", "dist": 1}
+    s = _snap(row, (10, 5), [cock])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    with pytest.raises(nav.NavError, match="cockatrice"):
+        nav._final_step(s, (11, 5))                 # travel's last step: the cockatrice moved onto the target
+    with pytest.raises(nav.NavError):
+        nav.walk_path([(11, 5)])
+    with pytest.raises(nav.NavError):
+        nav.step("l")
+    unseen = {"x": 11, "y": 5, "ch": "I", "desc": "remembered, unseen monster", "unseen": True, "dist": 1}
+    with pytest.raises(nav.NavError, match="unseen"):
+        nav._final_step(_snap(row, (10, 5), [unseen]), (11, 5))
+    assert sent == []
+    # your pet just swaps places
+    cat = {"x": 11, "y": 5, "ch": "f", "desc": "tame kitten", "tame": True, "pet": True, "dist": 1}
+    nav._final_step(_snap(row, (10, 5), [cat]), (11, 5))
+    assert sent == ["l"]
+
+
+def test_keep_pet_waits_then_reports_lost(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    cat = {"x": 14, "y": 5, "ch": "f", "desc": "tame kitten", "tame": True, "pet": True, "dist": 4}
+    frames = [_snap({}, (10, 5), [dict(cat, x=13, dist=3)]), _snap({}, (10, 5), [dict(cat, x=12, dist=2)])]
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return frames[min(len(sent), len(frames)) - 1]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    s = nav._keep_pet(_snap({}, (10, 5), [cat]), [12])
+    assert sent == [".", "."] and s.monsters[0]["dist"] == 2
+    # the pet never shows up again: waits out the budget, then PetLost
+    sent.clear()
+    frames[:] = [_snap({}, (10, 5), [])]
+    with pytest.raises(nav.PetLost):
+        nav._keep_pet(_snap({}, (10, 5), []), [3])
+    assert sent == [".", ".", "."]
+    # a hostile within 3: no waiting
+    sent.clear()
+    jackal = {"x": 12, "y": 6, "ch": "d", "desc": "jackal", "dist": 2}
+    nav._keep_pet(_snap({}, (10, 5), [cat, jackal]), [12])
+    assert sent == []
+
+
+def test_discoveries_and_looks():
+    from tactics.items import parse_discoveries, with_looks
+    text = ("Discoveries\n\nPotions\n* potion of water (clear)\n  potion of paralysis (white)\n"
+            "  potion called fruit (pink)\nScrolls\n  scroll of identify (KIRJE)\nWands\n  wand of digging (iron)\n"
+            "Tools\n  magic lamp (lamp)\nGems/Stones\n  luckstone (gray)\n  emerald (green)\n"
+            "Amulets\n  amulet of life saving (circular)")
+    d = parse_discoveries([text])
+    for pair in (("potion of paralysis", "white potion"), ("potion of water", "clear potion"),
+                 ("potion called fruit", "pink potion"), ("scroll of identify", "scroll labeled KIRJE"),
+                 ("wand of digging", "iron wand"), ("magic lamp", "lamp"), ("luckstone", "gray stone"),
+                 ("emerald", "green gem"), ("amulet of life saving", "circular amulet")):
+        assert pair in d, pair
+    assert with_looks("2 uncursed potions of paralysis", d).endswith("[white potion]")
+    assert "[clear potion]" in with_looks("2 blessed potions of holy water", d)
+    assert "[pink potion]" in with_looks("a potion called fruit", d)
+    assert with_looks("a food ration", d) == "a food ration"
+
+
+def test_prayer_verdict_and_quiet_patterns():
+    import re
+    from tactics.survival import _PRAYER_OK, prayer_verdict
+    good = ["You begin praying to Tyr.", "You are surrounded by a shimmering light.", "You finish your prayer.",
+            "The potions on the altar glow light blue for a moment.", "You feel that Tyr is well-pleased."]
+    v = prayer_verdict(good)
+    assert v.startswith("SUCCESS: Tyr is well-pleased") and "HOLY water" in v, v
+    assert all(any(re.search(p, m) for p in _PRAYER_OK) for m in good)
+    assert prayer_verdict(["You begin praying to Tyr.", "You feel that Tyr is displeased."]).startswith("FAILED")
+    v = prayer_verdict(["You begin praying to Tyr.", "You finish your prayer.", "You feel much better.",
+                        "You feel that Tyr is pleased."])
+    assert "HP restored" in v
+    bad = ["You feel that Tyr is displeased.", "Thou durst call upon me?"]
+    assert not any(any(re.search(p, m) for p in _PRAYER_OK) for m in bad)
