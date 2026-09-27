@@ -631,6 +631,15 @@ _CH_NAME = {"-": "wall", "|": "wall", ".": "floor", "B": "floor", "S": "secret d
 UNCERTAIN_COST = 12      # extra steps for a variant square not settled yet, times its chance of being a wall
 
 
+_STUCK_BOULDERS: dict = {}      # level key -> boulder squares a push failed at ("You try to move the boulder, but in vain.")
+
+
+def _stuck_boulders(s) -> set:
+    g = getattr(ctx, "game", None)
+    key = g.level_key(s.status) if g is not None and hasattr(g, "level_key") and s.status.ok else None
+    return {c for c in _STUCK_BOULDERS.get(key, set()) if s.screen.at(*c) == "0"}
+
+
 def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_cost: int = 30) -> dict:
     """Cheapest path from you to (x, y) over what you have seen AND the identified map (unseen and dark parts
     included). Known traps and the map's fixed traps cost `trap_cost` extra steps each (crossed only when there
@@ -651,8 +660,11 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
     traps = {(ft["x"], ft["y"]) for ft in feats if ft["kind"] == "trap"} | set(bad_squares(s))
     goal = (x, y)
     water_hit = [False]
+    stuck = _stuck_boulders(s)
 
     def passable(c) -> bool:
+        if c in stuck and c != goal:
+            return False                         # a boulder that wouldn't move (something behind it)
         ch = lay.get(c)
         chs = unc[c][0] if c in unc else {ch}
         shown = s.screen.at(*c)
@@ -780,6 +792,7 @@ def _let_pass(s, blk, target, chunk, walk_path, NavError):
 def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight_trivial):
     s = ctx.last()
     steps = fights = opened = backoffs = 0
+    stuck_at = None                      # the boulder this walk found immovable (re-planned around once)
     while steps < max_steps:
         s = ctx.last()
         if s.state.kind != "command" or s.hero == (x, y):
@@ -795,7 +808,13 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
                                                          for m in adj[:3])
                   + " next to you (not a trivial one): fight it or get away yourself, then walk again")
             return s
-        r = route(x, y, s=s, names=names, allow_water=allow_water)
+        try:
+            r = route(x, y, s=s, names=names, allow_water=allow_water)
+        except RuntimeError as e:
+            if stuck_at is None:
+                raise
+            raise NavError(f"desmap.walk: the boulder at {stuck_at} won't move (something behind it) and there "
+                           f"is no way around it ({e}) — dig/force-fight it apart, or another way") from None
         path = r["path"]
         stop = len(path)
         for i, c in enumerate(path):
@@ -830,6 +849,20 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
             if any("door opens" in m for m in s.messages or []) and opened < 4:
                 opened += 1
                 continue                         # the step opened a door in the way: walk on through it
+            if any(re.search(r"You try to move the boulder, but in vain|Perhaps that's why you cannot move "
+                             r"past it|You don't have enough leverage to push", m) for m in s.messages or []) \
+                    and chunk and s.status.ok:
+                # (p1 shift 36 #546: 18 walks in a row pushed the same immovable boulder while fire giants
+                # zapped) — never that square again while the boulder is there: re-plan around it, or say so
+                b = tuple(chunk[0])
+                key = ctx.game.level_key(s.status)
+                if b not in _STUCK_BOULDERS.setdefault(key, set()):
+                    _STUCK_BOULDERS[key].add(b)
+                    stuck_at = b
+                    print(f"desmap.walk: the boulder at {b} won't move — re-planning around it")
+                    continue
+                raise NavError(f"desmap.walk: the boulder at {b} won't move (something behind it) and the "
+                               "fixed map has no way around it — dig/force-fight it apart, or another way")
             print(f"desmap.walk: no progress at {s.hero} ({s.messages or 'no message'})")
             return s
         if s.messages and any("locked" in m for m in s.messages):

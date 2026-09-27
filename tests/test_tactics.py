@@ -1307,6 +1307,25 @@ def test_arrival_next_to_the_stairs_moves_the_memory(monkeypatch):
     monkeypatch.setattr(g, "terrain_scan", lambda: {"traps": set(), "features": {(8, 17): ">", (20, 3): "<"}})
     g._verify_arrival(s2, {"n": s2.n, "hero": (9, 16), "ch": ">", "old_key": "Dlvl:18"})
     assert g.terrain_seen[key] == {(8, 17): ">"}
+    # p2 shift 34 #83: a portal arrival with a minotaur on the portal put the hero next to it — a squeaky board
+    # was filed as "magic portal (under you)"
+    pk = "Dlvl:49"
+    s3 = _snap({12: "     |.....@H.|"}, (11, 12), [])
+    s3.status.ldesc = pk
+    g.terrain_seen[pk] = {(11, 12): "^"}
+    monkeypatch.setattr(g, "_quiet_look", lambda: "There is a squeaky board here. You see no objects here.")
+    g._verify_arrival(s3, {"n": s3.n, "hero": (11, 12), "ch": "^", "old_key": None})
+    assert g.terrain_seen[pk] == {(12, 12): "^"}
+    g.terrain_seen[pk] = {(11, 12): "^"}
+    monkeypatch.setattr(g, "_quiet_look", lambda: "There is a magic portal here.")
+    g._verify_arrival(s3, {"n": s3.n, "hero": (11, 12), "ch": "^", "old_key": None})
+    assert g.terrain_seen[pk] == {(11, 12): "^"}                    # on it after all
+    # a remembered portal where a look found another trap goes
+    g.feature_desc[pk] = {(11, 12): "squeaky board"}
+    s4 = _snap({12: "     |......H.|"}, (8, 12), [])
+    s4.status.ldesc = pk
+    g._prune_features(s4, pk)
+    assert (11, 12) not in g.terrain_seen[pk]
 
 
 def test_stairs_retry_after_a_wrong_memory(monkeypatch):
@@ -1829,6 +1848,16 @@ def test_travel_falls_back_to_head_to_without_a_known_path(monkeypatch):
     assert nav._travel(40, 12, 40, None, 3, 0, False) is s
     assert called == [(40, 12)]
     assert nav._HEADING[0] is False
+    # p1 shift 36 #96: on an identified special level the fixed map's route comes first
+    from tactics import desmap
+    ctx.game.desmap_ids = {"L": {"level": "Val-loca", "ox": 1, "oy": 1}}
+    walked = []
+    monkeypatch.setattr(desmap, "route", lambda x, y, s=None, **kw: {"path": [(11, 5), (12, 6)], "secret": [],
+                                                                    "traps": [], "uncertain": []})
+    monkeypatch.setattr(desmap, "walk", lambda x, y, fight=True, **kw: walked.append((x, y)) or s)
+    called.clear()
+    assert nav._travel(40, 12, 40, None, 3, 0, False) is s
+    assert walked == [(40, 12)] and called == []
 
 
 def test_hidden_drowners_eel_levels_and_fight_at_the_water(monkeypatch):
@@ -3779,6 +3808,11 @@ def test_zap_notes_a_reflected_ray_a_restricted_teleport_and_closes_probing(monk
     cur["s"] = base
     combat.zap("M", "l")
     assert "REFLECTS" not in capsys.readouterr().out                 # it was hit: no reflection
+    # p1 shift 36 #940: a ray that KILLS prints only "You kill ...!", then bounces back at you
+    back.messages = ["You kill the demilich!", "The bolt of fire bounces!", "The bolt of fire hits you!"]
+    cur["s"] = base
+    combat.zap("M", "l")
+    assert "REFLECTS" not in capsys.readouterr().out
     # teleportation at a monster inside the fake tower's chamber (desmap placed fakewiz1 at (30, 6))
     g.desmap_ids = {"L": {"level": "fakewiz1", "ox": 8, "oy": 3}}
     back.messages = []
@@ -3921,3 +3955,444 @@ def test_tunnel_steps_digs_and_rewields(monkeypatch):
     world["s"] = mk2()
     r = items.tunnel(14, 5)
     assert r["reason"].startswith("hostile next to you") and sent == []
+
+
+def test_explore_walks_around_a_boulder_nethacks_travel_stops_at(monkeypatch):
+    # p4 shift 1 #427/#1191: NetHack's travel plans THROUGH a boulder and then stops in front of it ("A boulder
+    # blocks your path."); explore() called the frontiers beyond it unreachable (with a bogus squeeze reason)
+    from tactics import ctx, explore, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(explore, "_STALE", {})
+    rows = {3: "        ------------", 4: "        |..........|", 5: "        |...0......|",
+            6: "        |..........|", 7: "        |..........|", 8: "        ------------"}
+    cur = {"s": _snap(rows, (11, 5), [])}
+    sent, walked = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == "." and cur["s"].hero == (11, 5):
+            s2 = _snap(rows, (11, 5), [])
+            s2.messages = ["A boulder blocks your path."]
+            cur["s"] = s2
+        return cur["s"]
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        s2 = _snap(rows, tuple(cells[-1]), [])
+        cur["s"] = s2
+        return s2
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    monkeypatch.setattr(nav, "leg_cap", lambda s=None: 8)
+    monkeypatch.setattr(nav, "travel_hazards", lambda s, a, b: [])
+    monkeypatch.setattr(explore, "_pick_target", lambda skip, bad, why: (15, 5) if cur["s"].hero != (15, 5) else None)
+    monkeypatch.setattr(explore, "screen_frontiers", lambda s: [])
+    monkeypatch.setattr(explore, "_hidden_stairs_hint", lambda: "")
+    monkeypatch.setattr(explore, "dead_ends", lambda s=None, limit=8: [])
+    monkeypatch.setattr(explore, "_boulder_leads", lambda s=None: [])
+    r = explore._explore(4, set())
+    assert walked and all((12, 5) not in w for w in walked)          # our own route, around the boulder
+    assert cur["s"].hero == (15, 5) and not r["unreachable"] and r["reason"].startswith("explored")
+    assert "squeeze" not in r["reason"]
+
+
+def test_fight_wields_the_usual_weapon_again_over_a_dig_tool(monkeypatch):
+    # p3 shift 17 #231: after a paused tunnel() the pick-axe was still in hand and fight() bashed a long worm
+    from tactics import combat, ctx, items
+    g = _G()
+    g.main_weapon = {"letter": "a", "text": "a blessed +6 Excalibur"}
+    g.wielded, g.wield_tool = "an uncursed pick-axe", True
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "        ....."}, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    inv = [{"letter": "a", "text": "a blessed +6 Excalibur", "class": "Weapons", "buc": "blessed"},
+           {"letter": "x", "text": "an uncursed pick-axe (weapon in hand)", "class": "Tools", "buc": "uncursed"}]
+    monkeypatch.setattr(items, "inventory", lambda: inv)
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        s.messages = ["a - a blessed +6 Excalibur (weapon in hand)."]
+        g.wield_tool = False
+        return s
+    monkeypatch.setattr(ctx, "do", fake_do)
+    assert combat.rewield_main() is s and sent == ["wa"]
+    sent.clear()
+    assert combat.rewield_main() is None and sent == []           # the weapon is in hand: nothing to do
+    g.wield_tool, g.main_weapon = True, None
+    assert combat.rewield_main() is None and sent == []           # no usual weapon known: leave it
+    g.main_weapon = {"letter": "q", "text": "a dagger"}
+    assert combat.rewield_main() is None and sent == []           # not in the pack any more
+
+
+def test_stairs_never_leave_the_pet_without_asking(monkeypatch):
+    # p4 shift 1 #739: go_down() said "going on without it" while the kitten was a few squares behind; #1700: it
+    # stayed behind unnoticed (the arrival pause hid the message)
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    kitten = {"x": 13, "y": 5, "ch": "f", "desc": "tame kitten", "tame": True, "pet": True, "dist": 3}
+    at = _snap({5: "        ..>.."}, (10, 5), [kitten])
+    at.status.ldesc, at.status.turn = "Dlvl:1", 500
+    cur = {"s": at}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [(10, 5)])
+    monkeypatch.setattr(nav, "_pick_stairs", lambda ch, cells, to, s: (cells[0], ""))
+    monkeypatch.setattr(nav, "_wait_for_pet", lambda s, turns: s)          # it didn't come
+    down = _snap({}, (40, 10), [])
+    down.status.ldesc, down.status.turn = "Dlvl:2", 501
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == ">":
+            cur["s"] = down
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    with pytest.raises(nav.PetLost, match=r"tame kitten, at \(13,5\), 3 squares away.*with_pet=False"):
+        nav._use_stairs(">", wait_pet=6)
+    assert sent == []                                                  # nothing pressed
+    s = nav._use_stairs(">", wait_pet=6, with_pet=False)               # the player's choice: leave it
+    assert sent == [">"] and s is down
+    assert g.pet_left["desc"] == "tame kitten" and g.pet_left["ldesc"] == "Dlvl:1"
+    # out of view now, but seen on this level 20 turns ago
+    sent.clear()
+    cur["s"] = at2 = _snap({5: "        ..>.."}, (10, 5), [])
+    at2.status.ldesc, at2.status.turn = "Dlvl:1", 520
+    g.pet_seen = {"key": "L", "ldesc": "Dlvl:1", "turn": 500, "desc": "tame kitten", "at": (30, 8)}
+    with pytest.raises(nav.PetLost, match=r"last seen at \(30, 8\) 20 turns ago"):
+        nav._use_stairs(">", wait_pet=6)
+    at2.status.turn = 700                                              # long ago: not "around" any more
+    assert nav._use_stairs(">", wait_pet=6) is down and sent == [">"]
+    # next to you: it follows, no question
+    sent.clear()
+    kitten1 = dict(kitten, x=11, dist=1)
+    cur["s"] = at3 = _snap({5: "        ..>.."}, (10, 5), [kitten1])
+    at3.status.ldesc, at3.status.turn = "Dlvl:1", 800
+    g.pet_left = None
+    assert nav._use_stairs(">", wait_pet=6) is down and sent == [">"] and g.pet_left is None
+
+
+def test_pet_left_behind_note_on_arrival():
+    # the note is on the arrival snapshot (a pause there must show it), for 30 turns, never back on that level
+    from nh.game import Game, Timing
+    from nh.parse import State, Status
+    g = Game(term=None, timing=Timing.local())
+    g.pet_left = {"ldesc": "Dlvl:2", "turn": 1690, "desc": "tame kitten", "at": (20, 7)}
+    s = _snap({}, (40, 10), [])
+    s.status = Status(ok=True, ldesc="Dlvl:3", turn=1691)
+    assert "did NOT come along" in g.pet_left_note(s) and "Dlvl:2 at (20, 7)" in g.pet_left_note(s)
+    s.status = Status(ok=True, ldesc="Dlvl:3", turn=1730)
+    assert g.pet_left_note(s) == ""                                    # 40 turns later: quiet
+    s.status = Status(ok=True, ldesc="Dlvl:2", turn=1695)
+    assert g.pet_left_note(s) == ""                                    # back on its level
+    # "The kitten is still eating." as you take the stairs (dog.c keepdogs)
+    g.pet_left = None
+    prev = _snap({}, (10, 5), [])
+    prev.status = Status(ok=True, ldesc="Dlvl:2", turn=1700)
+    new = _snap({}, (40, 10), [])
+    new.status = Status(ok=True, ldesc="Dlvl:3", turn=1701)
+    g._note_pet_stays(prev, new, ["The kitten is still eating."], True)
+    assert g.pet_left["desc"] == "kitten" and "still eating" in g.pet_left_note(new)
+
+
+def test_confused_or_stunned_travel_refuses_a_route_beside_lava(monkeypatch):
+    # p1 shift 36 #434/#495/#737: potions of confusion next to Surtur's lava; hack.c confdir() has no lava check
+    import pytest
+    from nh.parse import Status
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {4: "        ..........", 5: "        ..}}......", 6: "        .........."}
+    s = _snap(rows, (8, 4), [])
+    s.status = Status(ok=True, conditions=["Conf"])
+    with pytest.raises(PermissionError, match=r"Conf.*lava/water at \[\(10, 5\)"):
+        nav._dizzy_water_check(s, (16, 4), "travel()")
+    nav._dizzy_water_check(s, (16, 4), "travel()", ok=True)          # near_water=True: your call
+    s.status = Status(ok=True, conditions=["Conf", "Lev"])
+    nav._dizzy_water_check(s, (16, 4), "travel()")                    # levitating: nothing to fall into
+    s.status = Status(ok=True, conditions=[])
+    nav._dizzy_water_check(s, (16, 4), "travel()")                    # clear-headed
+    far = _snap({4: "        ..........", 9: "        ..}}......"}, (8, 4), [])
+    far.status = Status(ok=True, conditions=["Stun"])
+    nav._dizzy_water_check(far, (16, 4), "travel()")                  # the water is far from the way
+
+
+def test_desmap_walk_goes_round_a_boulder_that_wont_move(monkeypatch):
+    # p1 shift 36 #546: desmap.walk() pushed the same immovable boulder 18 times while fire giants zapped
+    import pytest
+    from tactics import ctx, desmap, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(desmap, "_STUCK_BOULDERS", {})
+    rows = {6: " " * 20 + ".....", 7: " " * 20 + "...0.", 8: " " * 20 + "....."}
+
+    def snap_at(h):
+        s = _snap(rows, h, [])
+        s.hostiles = lambda radius=None: []
+        return s
+    cur = {"s": snap_at((22, 7))}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    walked = []
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        if (23, 7) in cells:
+            cur["s"] = snap_at(cur["s"].hero)
+            cur["s"].messages = ["You try to move the boulder, but in vain."]
+            return cur["s"]
+        cur["s"] = snap_at(tuple(cells[-1]))
+        return cur["s"]
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    around = [True]
+
+    def fake_route(x, y, s=None, **kw):
+        if (23, 7) not in desmap._stuck_boulders(s):
+            return {"path": [(23, 7), (24, 7)], "secret": [], "traps": [], "uncertain": []}
+        if not around[0]:
+            raise RuntimeError("desmap.route: no way to (24, 7) on the map either")
+        return {"path": [(23, 6), (24, 7)], "secret": [], "traps": [], "uncertain": []}
+    monkeypatch.setattr(desmap, "route", fake_route)
+    s = desmap.walk(24, 7)
+    assert s.hero == (24, 7) and walked == [[(23, 7), (24, 7)], [(23, 6), (24, 7)]]
+    # no way round: a NavError naming the boulder (a caller's loop stops), not 18 more pushes
+    monkeypatch.setattr(desmap, "_STUCK_BOULDERS", {})
+    around[0] = False
+    cur["s"] = snap_at((22, 7))
+    walked.clear()
+    with pytest.raises(nav.NavError, match=r"boulder at \(23, 7\) won't move"):
+        desmap.walk(24, 7)
+    assert walked == [[(23, 7), (24, 7)]]
+
+
+def test_fight_swings_at_a_warning_digit(monkeypatch):
+    # p2 shift 34 #172: fight(49, 16) on a '5' (an unseen iron golem, blindfolded) did nothing six times
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    s = _snap({5: "        ..@5."}, (10, 5), [])
+    s.status.hp, s.status.hpmax = 100, 100
+    after = _snap({5: "        ..@.."}, (10, 5), [])
+    after.status.hp, after.status.hpmax = 100, 100
+    after.messages = ["You kill it!"]
+    cur = {"s": s}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = after
+        return after
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    combat.fight(11, 5)
+    assert sent[:1] == ["Fl"]
+
+
+def test_dip_calls_a_town_fountain_warning_a_stop(monkeypatch):
+    # p3 shift 17 #1275/#1321: "The flow reduces to a trickle." read as "fountain dried up" and the watch
+    # captain's "Hey, stop using that fountain!" as "nothing special" — one more dry-up angers the Watch
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    base = _snap({5: "        ..@.."}, (10, 5), [])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    monkeypatch.setattr(items, "inventory", lambda: [{"letter": "a", "text": "a +1 long sword", "class": "Weapons"}])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to dip? [a or ?*]")
+    yn = _snap({}, (10, 5), [])
+    yn.state = State("yn", prompt="Dip the long sword into the fountain? [yn] (n)")
+    for lines, want in ((["The flow reduces to a trickle."], "TOWN FOUNTAIN WARNING"),
+                        (["A watch captain yells:", "\"Hey, stop using that fountain!\""], "TOWN FOUNTAIN WARNING"),
+                        (["The fountain dries up!"], "fountain dried up")):
+        done = _snap({5: "        ..@.."}, (10, 5), [])
+        done.messages = lines
+        frames = {"#dip<CR>": obj, "a": yn, "y": done}
+        monkeypatch.setattr(ctx, "do", lambda keys, frames=frames, **kw: frames[keys])
+        r = items.dip("a")
+        assert r["outcome"].startswith(want), (lines, r["outcome"])
+        assert ("dried up" in r["outcome"]) == (want == "fountain dried up")
+
+
+def test_stairs_wait_for_a_peaceful_on_them(monkeypatch):
+    # p3 shift 17 #1225: a peaceful gnome lord in the corridor, then on the '>' — go_down() raised twice
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    start = _snap({5: "        @.>"}, (8, 5), [])
+    start.status.ldesc = "Dlvl:3"
+    cur = {"s": start}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [(10, 5)])
+    monkeypatch.setattr(nav, "_pick_stairs", lambda ch, cells, to, s: (cells[0], ""))
+    blocked = [2]
+    on = _snap({5: "        ..@"}, (10, 5), [])
+    on.status.ldesc = "Dlvl:3"
+    down = _snap({}, (40, 10), [])
+    down.status.ldesc = "Dlvl:4"
+
+    def fake_travel(x, y, **kw):
+        if blocked[0]:
+            blocked[0] -= 1
+            raise nav.NavError("travel target (10, 5) is occupied by peaceful gnome lord (travelling there would "
+                               "bump into it and waste a turn)")
+        cur["s"] = on
+        return on
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == ">":
+            cur["s"] = down
+        return cur["s"]
+    monkeypatch.setattr(nav, "travel", fake_travel)
+    monkeypatch.setattr(ctx, "do", fake_do)
+    s = nav._use_stairs(">", wait_pet=0)
+    assert s is down and sent == ["s", "s", ">"]
+
+
+def test_travel_climbs_out_of_a_pit(monkeypatch):
+    # p4 shift 1 #2612: "You are still in a pit." ended travel() with a NavError
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    row = {5: "        ......"}
+    cur = {"s": _snap(row, (10, 5), [])}
+    tries = [3]
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys in ("l", "ml"):
+            if tries[0]:
+                tries[0] -= 1
+                s2 = _snap(row, (10, 5), [])
+                s2.messages = ["You are still in a pit."] if tries[0] else ["You crawl to the edge of the pit."]
+            else:
+                s2 = _snap(row, (11, 5), [])
+            cur["s"] = s2
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    s = nav._travel(11, 5, 40, None, 3, None, False)
+    assert s.hero == (11, 5) and len(sent) == 4
+
+
+def test_pickup_everything_leaves_heavy_things(monkeypatch, capsys):
+    # p4 shift 1 #2159: pickup() with no pattern took a 350-weight large box
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({}, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    sent = []
+    monkeypatch.setattr(items, "here", lambda: "You see here a large box.")
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    assert items.pickup() == [] and sent == []
+    assert "left a large box (about 350 weight)" in capsys.readouterr().out
+    menu = _snap({}, (10, 5), [])
+    menu.state = State("menu", prompt="Pick up what?",
+                       menu=Menu(title="Pick up what?", items=[MenuItem("a", "a large box"),
+                                                               MenuItem("b", "2 daggers"),
+                                                               MenuItem("c", "a gnome lord corpse")]))
+    monkeypatch.setattr(items, "here", lambda: "Things that are here: | a large box | 2 daggers | a gnome lord corpse")
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or (menu if keys in (",", "b") else s))
+    items.pickup()
+    assert sent == [",", "b", "<CR>"] and "left the heavy a large box; a gnome lord corpse" in capsys.readouterr().out
+    sent.clear()
+    items.pickup("large box")                              # named: taken
+    assert sent[:2] == [",", "a"]
+
+
+def test_call_type_names_an_object_type(monkeypatch):
+    # p4 shift 1 #2554: the "Call a marble wand:" prompt paused the script — a helper answers it
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    base = _snap({}, (10, 5), [])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    menu = _snap({}, (10, 5), [])
+    menu.state = State("menu", prompt="What do you want to name?",
+                       menu=Menu(title="What do you want to name?", items=[MenuItem("o", "the type of an object")]))
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to call? [hjknp-ux or ?*]")
+    getlin = _snap({}, (10, 5), [])
+    getlin.state = State("getlin", prompt="Call a marble wand:")
+    frames = {"#name<CR>": menu, "o": obj, "x": getlin, "polymorph<CR>": base}
+    sent, oks = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        oks.append(kw.get("ok"))
+        return frames[keys]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    items.call_type("x", "polymorph")
+    assert sent == ["#name<CR>", "o", "x", "polymorph<CR>"] and oks[2] == [r"^Call "]
+
+
+def test_force_box_pries_with_a_spare_blade_and_wields_the_weapon_again(monkeypatch, capsys):
+    # p4 shift 1 #2172-#2215: 15 kicks gave THUD; #force with a spare dagger paused before the re-wield line
+    import pytest
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    base = _snap({5: "        ..@.."}, (10, 5), [])
+    base.status.turn = 1000
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    inv = [{"letter": "a", "text": "a +1 long sword (weapon in hand)", "class": "Weapons", "buc": ""},
+           {"letter": "b", "text": "an uncursed +0 dagger", "class": "Weapons", "buc": "uncursed"},
+           {"letter": "c", "text": "a crude dagger", "class": "Weapons", "buc": ""}]
+    monkeypatch.setattr(items, "inventory", lambda: inv)
+    yn = _snap({}, (10, 5), [])
+    yn.state = State("yn", prompt="There is a large box here; force its lock? [ynq] (q)")
+    done = _snap({5: "        ..@.."}, (10, 5), [])
+    done.status.turn = 1012
+    done.messages = ["You force your dagger into a crack and pry.", "You succeed in forcing the lock."]
+    wb = _snap({5: "        ..@.."}, (10, 5), [])
+    wb.messages = ["b - an uncursed +0 dagger (weapon in hand)."]
+    wa = _snap({5: "        ..@.."}, (10, 5), [])
+    wa.messages = ["a - a +1 long sword (weapon in hand)."]
+    wa.status.turn = 1013
+    frames = {"wb": wb, "#force<CR>": yn, "y": done, "wa": wa}
+    cur = {"s": base}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    r = items.force_box()
+    assert sent == ["wb", "#force<CR>", "y", "wa"] and r["reason"] == "forced" and r["turns"] == 13
+    assert "wielded again" in capsys.readouterr().out
+    # an error inside (back at the command prompt): the weapon still comes back (a DROPPED paused exec can't
+    # send keys any more — the obs "not your usual weapon" line covers that case)
+    sent.clear()
+
+    def boom(keys, **kw):
+        sent.append(keys)
+        if keys == "y":
+            cur["s"] = base
+            raise RuntimeError("boom")
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", boom)
+    cur["s"] = base
+    with pytest.raises(RuntimeError, match="boom"):
+        items.force_box()
+    assert sent == ["wb", "#force<CR>", "y", "wa"]
+    # no spare known uncursed (the crude dagger's BUC is unknown): refuse, never the main weapon
+    inv[1]["text"] = "a +0 dagger"
+    monkeypatch.setattr(ctx, "do", fake_do)
+    sent.clear()
+    with pytest.raises(RuntimeError, match="UNKNOWN BUC.*allow_main=True"):
+        items.force_box()
+    assert sent == []
+    # Excalibur in hand: pry with it, no swap
+    inv[0]["text"] = "a blessed rustproof +6 long sword named Excalibur (weapon in hand)"
+    frames["y"] = done
+    cur["s"] = base
+    r = items.force_box()
+    assert sent == ["#force<CR>", "y"] and r["reason"] == "forced"

@@ -1476,3 +1476,101 @@ def test_history_reloads_from_the_event_log(tmp_path):
     assert g.load_history() == 2
     assert g.history == [(10, "You hit the newt!"), (11, "You kill the newt!")]
     assert g.load_history(max_bytes=60) <= 1                         # (a partial first line is skipped)
+
+
+def test_wield_message_at_a_direction_prompt_is_noted():
+    # p3 shift 17 #196: applying a pick-axe prints "You now wield ..." with the dig-direction prompt (the cursor
+    # on the prompt, no hero on the map) — the wield note must still learn it (fight() then bashed with it)
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify, parse_status
+    g = Game(term=None, timing=Timing.local())
+    base = {5: "          @", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    scr = mk(base, cursor=(10, 5))
+    g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    g._note_wield(["a - a +1 long sword (weapon in hand)."], 5)
+    assert g.main_weapon == {"letter": "a", "text": "a +1 long sword"}     # the first weapon seen in hand
+    rows1 = dict(base)
+    rows1[0] = "You now wield an uncursed pick-axe.--More--"
+    rows2 = dict(base)
+    rows2[0] = "In what direction do you want to dig? [ln>]"
+    screens = [mk(rows1, cursor=(43, 0)), mk(rows2, cursor=(44, 0))]
+
+    def fake_send(data):
+        s2 = screens.pop(0) if len(screens) > 1 else screens[0]
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send
+    s = g.step("e")
+    assert s.state.kind == "direction" and "You now wield an uncursed pick-axe." in s.messages
+    assert g.wielded == "an uncursed pick-axe" and g.wield_tool
+    assert "digging tool" in s.wield_note or "digging tool" in g.wield_note()
+
+
+def test_usual_weapon_note_and_promotion():
+    # p4 shift 1 #2208: a pause between "w + spare dagger, #force" and the re-wield left the dagger in hand, and
+    # the obs said nothing
+    g = _guard_game()
+    g._note_wield(["a - a +1 long sword (weapon in hand)."], 100)
+    assert g.main_weapon["letter"] == "a" and g.wield_note() == ""
+    # (the live 'w' echo with pushweapon: the old weapon's "alternate weapon; not wielded" line comes after)
+    g._note_wield(["b - an orcish dagger (weapon in hand).", "a - a +1 long sword (alternate weapon; not wielded)."],
+                  200)
+    assert "not your usual weapon (a - a +1 long sword)" in g.wield_note() and "wa" in g.wield_note()
+    g._promote_weapon(230)
+    assert g.main_weapon["letter"] == "a"                     # 30 turns: still a temporary weapon
+    g._promote_weapon(250)
+    assert g.main_weapon == {"letter": "b", "text": "an orcish dagger"} and g.wield_note() == ""
+    g._note_wield(["You now wield a pick-axe."], 260)        # applied to dig: a tool, never the usual weapon
+    assert g.wield_tool and "digging tool" in g.wield_note()
+    g._promote_weapon(400)
+    assert g.main_weapon["letter"] == "b"
+    g._note_wield(["You are empty handed."], 401)
+    assert "EMPTY-HANDED" in g.wield_note()
+
+
+def test_guard_confused_steps_next_to_lava_or_water():
+    import pytest
+    g = _guard_game()
+    s = _cmd_snap([], conditions=["Stun"])
+    s.screen.chars[6] = (" " * 11 + "}").ljust(80)
+    s.screen.fg[6][11] = 1                                           # red: lava
+    with pytest.raises(PermissionError, match="Stun next to lava"):
+        g._guard(s, b"h", force=False)                               # ANY step can go astray while stunned
+    with pytest.raises(PermissionError):
+        g._guard(s, b"_", force=False)                               # travel too
+    with pytest.raises(PermissionError):
+        g._guard(s, b"H", force=False)                               # and a rush
+    g._guard(s, b"Fh", force=False)                                  # a blow never moves you
+    g._guard(s, b"s", force=False)
+    g._guard(s, b"h", force=True)
+    g._guard(_cmd_snap([], conditions=["Stun", "Lev"]), b"h", force=False)
+    s2 = _cmd_snap([], conditions=["Conf"])
+    g._guard(s2, b"h", force=False)                                  # no water/lava next to you
+
+
+def test_grave_is_a_feature_not_a_wall():
+    # p3 shift 17 #438: a bright white '|' inside a room is a grave (walkable), not a wall
+    from nh.game import Snap
+    from nh.mapscan import features_in_view
+    from nh.parse import State, parse_status
+    scr = mk({4: "      -------", 5: "      |.@.|.|", 6: "      -------", 22: STATUS1,
+              23: "Dlvl:13 $:0 HP:10(10) Pw:1(1) AC:6 Xp:5/200 T:900"}, cursor=(8, 5))
+    scr.fg[5][10] = 15                                    # the '|' at (10,5): bright white
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+    graves = [f for f in features_in_view(s) if f["name"].startswith("grave")]
+    assert [(f["x"], f["y"]) for f in graves] == [(10, 5)]
+
+
+def test_hero_next_to_a_stale_position_is_not_a_monster():
+    # p3 shift 17 #53: stepping onto a level teleporter opened "To what level do you want to teleport?" with the
+    # last known square one behind — the hero's own '@' was listed as an adjacent unidentified @
+    from nh.game import Snap
+    from nh.mapscan import monsters_in_view
+    from nh.parse import State, parse_status
+    scr = mk({0: "To what level do you want to teleport?", 20: "      |.....|", 21: "      |..@..|",
+              22: STATUS1, 23: "Dlvl:19 $:0 HP:10(10) Pw:1(1) AC:6 Xp:5/200 T:900"}, cursor=(39, 0))
+    scr.fg[21][9] = 15
+    s = Snap(screen=scr, state=State("getlin", prompt="To what level do you want to teleport?"),
+             status=parse_status(scr))
+    assert monsters_in_view(s, hero=(9, 20)) == []
+    scr.fg[21][9] = 7                                    # a gray '@' (a human monster): listed
+    assert [m["ch"] for m in monsters_in_view(s, hero=(9, 20))] == ["@"]

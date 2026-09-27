@@ -216,6 +216,30 @@ def _danger_rank(desc: str) -> tuple:
     return (0 if bn in NOTES and bn not in INFO_NOTES else 1, -(rec.get("difficulty") or 0))
 
 
+def rewield_main(who: str = "fight()"):
+    """A tool a helper applied into your hands (a dig's pick-axe, a #rubbed lamp: "You now wield ...") is
+    still there and your usual weapon is known and in the pack: wield the weapon again (one turn). p3 shift
+    17 #231: after a paused tunnel(), fight() bashed a long worm with the pick-axe. Returns the snap after
+    the swap, or None when nothing was done."""
+    g = ctx.game
+    mw = getattr(g, "main_weapon", None)
+    s = ctx.last()
+    if not mw or not getattr(g, "wield_tool", False) or not getattr(g, "wielded", None) \
+            or s is None or s.state.kind != "command":
+        return None
+    from .items import inventory
+    it = next((i for i in inventory() if i["letter"] == mw["letter"]), None)
+    if it is None or not it["class"].startswith("Weapons") or not getattr(g, "wield_tool", False):
+        return None
+    tool = g.wielded
+    s = ctx.do("w" + mw["letter"], ok=[r"^[a-zA-Z] - ", r"welded to your"])
+    if any("welded" in m for m in s.messages):
+        print(f"{who}: {tool} is WELDED to your hand (cursed) — fighting with it")
+    else:
+        print(f"{who}: wielded your weapon ({mw['letter']} - {it['text']}) again first — {tool} was in hand")
+    return ctx.last()
+
+
 def _wielding() -> bool:
     """Do you wield something? (cached by inventory(); asks once if unknown)"""
     w = getattr(ctx.game, "wielded", None)
@@ -269,6 +293,8 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
     engulf_warned = False
     inside = False                   # swung from inside an engulfer during this call
     seen_notes: set = set()
+    if s.state.kind == "command" and not getattr(s, "engulfed", False):
+        s = rewield_main("fight()") or s
     t_first = s.status.turn if s.status.ok and s.status.turn is not None else 0
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
@@ -351,8 +377,11 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 print(f"fight: ({x},{y}) holds a STATUE, not a monster — nothing to fight there")
                 return s
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]
-            if not targets and s.screen.at(x, y) == "I" and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
-                # an unseen (invisible) monster you asked for by square: swing at it
+            if not targets and (s.screen.at(x, y) == "I" or s.screen.at(x, y) in "12345") \
+                    and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
+                # an unseen (invisible) monster you asked for by square: swing at it — or a WARNING digit
+                # (display.c display_warning(): only ever a hostile; p2 shift 34 #172: fight(49, 16) on a '5',
+                # an iron golem next to a blindfolded hero, did nothing six times)
                 s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])], ok=ROUTINE, force=force)
                 seen.extend(s.messages)
                 continue
@@ -390,8 +419,16 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                         print(f"fight: the {locked_on} stepped away from ({x},{y}) to ({m2['x']},{m2['y']}) "
                               f"(d={m2.get('dist')}) — NOT killed; hunt(({m2['x']}, {m2['y']})) goes after it")
                     else:
-                        print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed (it teleported, fled out "
-                              "of view or hid): look around (a covetous one teleports to heal and comes back)")
+                        stair = (getattr(s, "feature_mem", None) or {}).get((x, y))
+                        if stair in ("<", ">"):
+                            # (p2 shift 34 #483: the hurt demilich on wizard3's up ladder fled up it)
+                            print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed: it stood on the "
+                                  f"{'up' if stair == '<' else 'down'} stairs/ladder and probably took them (it "
+                                  "waits at the arrival point on that level)")
+                        else:
+                            print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed (it teleported, fled "
+                                  "out of view or hid): look around (a covetous one teleports to heal and comes "
+                                  "back)")
                 return s
         if not targets:
             if "Blind" in st.conditions and any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
@@ -826,6 +863,10 @@ def _reflected_note(before: list, s, s0=None) -> None:
     if not before or not any(re.match(rf"^The {_RAY} ", m) for m in msgs):
         return
     if any(_RAY_AT_MON.search(m) for m in msgs) or not any(_RAY_BACK.search(m) for m in msgs):
+        return
+    if any(re.match(r"^You (?:kill|destroy) ", m) for m in msgs):
+        # dobuzz(): a ray that KILLS prints only xkilled()'s "You kill the Wizard of Yendor!" — then it
+        # bounced off the wall behind and came back (p1 shift 36 #940/#999: a false REFLECTS note on the Wizard)
         return
     m = before[0]
     h = s0.hero if s0 is not None else None

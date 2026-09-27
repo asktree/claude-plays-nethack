@@ -83,6 +83,15 @@ def monsters_in_view(snap, radius: int | None = None, hero=None) -> list[dict]:
         return []
     scr = snap.screen
     hero = _hero(snap, hero)
+    if snap.hero is None and hero and scr.at(*hero) != "@":
+        # a prompt holds the cursor right after a step (a level teleporter's "To what level do you want to
+        # teleport?"): the last known square is stale, and the hero is the bright white '@' next to it — not an
+        # unidentified adjacent '@' (p3 shift 17 #53)
+        near = [(hero[0] + dx, hero[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                if (dx or dy) and scr.at(hero[0] + dx, hero[1] + dy) == "@"
+                and scr.color_at(hero[0] + dx, hero[1] + dy) == 15]
+        if len(near) == 1:
+            hero = near[0]
     res = []
     for y in _rows(snap):
         row = scr.row(y)
@@ -186,6 +195,10 @@ def features_in_view(snap, hero=None) -> list[dict]:
                     name = "closed door"
                 elif ch in "|-" and col == BROWN:
                     name = "open door"
+                elif ch == "|" and col == 15:
+                    # drawing.c S_grave: a bright white '|' (walls are gray) — walkable, no cover, blocks no
+                    # line of fire (p3 shift 17 #438: read as a wall)
+                    name = "grave (walkable: not a wall)"
                 elif ch == "#" and col == 2:
                     name = "tree"
                 elif ch == "#" and col == 10:

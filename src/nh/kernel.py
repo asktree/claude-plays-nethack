@@ -52,6 +52,11 @@ COND_HINTS = {
 # noises). They're still shown in the output; they just don't pause an exec.
 DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You feel full of energy\.$",            # allmain.c: Pw back to max (interrupts a rest)
+    # (p2 shift 34: each paused a crowd fight) uhitm.c passive(): a fire elemental's fire, resisted — no damage;
+    # mhitu.c AD_LEGS: a xan's prick stopped by your boots (dmg 0); zap.c zap_over_floor(): your cold ray froze
+    # water out of your sight
+    r"^You feel mildly warm\.$", r"^(?:The |It ).*scratches your (?:left |right )?boot!$",
+    r"^You hear a crackling sound\.$",
     # invent.c look_here() while blind: stepping on objects (p1 shift 30: hunt() paused on every pile)
     r"^You feel here ", r"^You feel no objects here\.", r"^Things that you feel here:",
     r"^Suddenly, .+ disappears out of sight\.$",   # teleport.c: a monster took a level teleporter/trap door away

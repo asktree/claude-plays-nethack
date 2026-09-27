@@ -1040,6 +1040,7 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
             print("travel(with_pet): no pet in view — travelling without waiting for one")
     _medusa_check(s0, (x, y), "travel()", medusa_ok)
     _leader_check(s0, (x, y), "travel()", quest_ok)
+    _dizzy_water_check(s0, (x, y), "travel()", near_water)
     tr = _trap_target(s0, (x, y))
     if tr is not None:
         print(f"travel: {(x, y)} is a known trap square — going next to it, {tr}; step onto it yourself with "
@@ -1169,6 +1170,38 @@ def _keep_pet(s, budget: list):
         raise PetLost(f"travel(with_pet): your pet is out of view (you are at {s.hero}) — go back for it, "
                       "or travel(x, y) without with_pet to leave it")
     return s
+
+
+def _in_pit(messages) -> bool:
+    """trap.c climb_pit(): a step out of a pit (or a spiked pit) fails for a few turns."""
+    return any(m.startswith(("You are still in a pit", "You crawl to the edge of the pit")) for m in messages or [])
+
+
+def _dizzy_water_check(s, target, who: str, ok: bool = False) -> None:
+    """Confused or stunned (not levitating/flying): a route passing next to lava or water can go astray into
+    it — hack.c domove() -> confdir() moves stunned heroes at random every step (confused: 1 in 5) with no
+    lava/water check, and a lava fall burns the bag of holding with all in it (p1 shift 36, Surtur's fire
+    giants throwing potions of confusion). Raises PermissionError; ok=True (near_water) goes anyway."""
+    st = s.status
+    if ok or not st.ok or s.hero is None:
+        return
+    conds = set(st.conditions)
+    if not conds & {"Conf", "Stun"} or conds & {"Lev", "Fly"}:
+        return
+    route = bfs_path(s, s.hero, tuple(target), allow_monsters=True) or []
+    wet: list = []
+    for c in [s.hero] + list(route):
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                w = (c[0] + dx, c[1] + dy)
+                if s.screen.at(*w) == "}" and w not in wet:
+                    wet.append(w)
+    if wet:
+        raise PermissionError(
+            f"{who}: you are {'/'.join(sorted(conds & {'Conf', 'Stun'}))} and the way to {tuple(target)} passes "
+            f"next to lava/water at {wet[:4]} — a step can go astray into it (stunned: every step; confused: 1 in "
+            "5): lava burns your bag and everything in it. Wait it out (do('s') / hold(n)) or apply a unicorn horn "
+            "first; near_water=True to go anyway")
 
 
 def engulfed_check(s, who: str):
@@ -1422,7 +1455,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     if not auto_fight or fight_trivial(ctx.last()) is None:
                         raise                  # not a trivial monster in the way: your call
             raise NavError(f"travel to {(x, y)}: the detour kept being blocked")
-    waits = sidesteps = backoffs = fallbacks = fights = 0
+    waits = sidesteps = backoffs = fallbacks = fights = pit_tries = 0
     start = s.hero
     lvl0 = s.status.ldesc if s.status.ok else None
     for _ in range(max_legs):
@@ -1467,6 +1500,9 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             s = _final_step(s, (x, y))
             if s.hero == (x, y) or s.state.kind != "command":
                 return s
+            if s.hero == h0 and _in_pit(s.messages) and pit_tries < 10:
+                pit_tries += 1              # climbing out of a pit takes a few turns (trap.c: u.utrap 2-7)
+                continue
             if s.hero == h0:
                 if _pet_in_way(s.messages) and waits < wait_peaceful + 2:
                     waits += 1
@@ -1503,6 +1539,10 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             s = _final_step(s, (tx, ty))
             if s.state.kind != "command" or s.hero == (x, y):
                 return s
+            if s.hero == h0 and _in_pit(s.messages) and pit_tries < 10:
+                # (p4 shift 1 #2612: "You are still in a pit." ended travel() with a NavError) — keep climbing
+                pit_tries += 1
+                continue
             if s.hero == h0:
                 raise NavError(f"travel to {(x, y)}: the step to {(tx, ty)} failed"
                                + (f"; messages: {s.messages}" if s.messages else ""))
@@ -1641,7 +1681,21 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if not _HEADING[0] and s.state.kind == "command" and s.hero is not None \
                     and bfs_path(s, s.hero, (x, y), allow_monsters=True) is None:
                 # the way there runs through ground you haven't seen (a dark hall): NetHack's travel only
-                # guesses; go frontier by frontier toward it instead
+                # guesses; an identified special level's fixed map knows the way (p1 shift 36 #96: 44 turns
+                # toward the wrong frontier of Val-loca while desmap.route() had 58 steps) — else go frontier by
+                # frontier toward it
+                ids = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) \
+                    if s.status.ok else None
+                if ids and not ids.get("ambiguous"):
+                    from . import desmap
+                    try:
+                        way = desmap.route(x, y, s=s).get("path") or []
+                    except Exception:  # noqa: BLE001 — not on the fixed map either
+                        way = []
+                    if way:
+                        print(f"travel: no known path to {(x, y)} from {s.hero} — the identified special-level "
+                              f"map has a {len(way)}-step way: walking it with desmap.walk()")
+                        return desmap.walk(x, y, fight=auto_fight)
                 from .explore import head_to
                 print(f"travel: no known path to {(x, y)} from {s.hero} — making for it across unexplored ground "
                       "(head_to)")
@@ -2095,9 +2149,17 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
     others = [c for c in cells + fallback if c != target] if not to else []
     had_pet = [m for m in _pets(s) if m.get("dist") is not None and m["dist"] <= 7]
     auto = with_pet is None
+    # pet-keeping by default: never leave the pet without asking (p4 shift 1 #739: "going on without it" while
+    # the kitten was a few squares behind; #1700: it stayed behind unnoticed) — with_pet=False / wait_pet=0 leave it
+    keep = wait_pet > 0 if auto else bool(with_pet)
     if auto:
         with_pet = bool(wait_pet and had_pet)       # it's with you now: keep it in tow
-    for _ in range(tries):
+    who = "go_down" if ch == ">" else "go_up"
+    leave = (f"{who}(with_pet=False) leaves it on this level; or fetch it (travel next to it) / wait for it "
+             f"(hold(n)) and {who}() again")
+    attempts = peace_waits = 0
+    while attempts < tries:
+        attempts += 1
         if s.hero == target:
             break
         try:
@@ -2105,11 +2167,20 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         except PetLost as e:
             if not auto:
                 raise
-            print(f"stairs: {e} — going on without it")
-            with_pet = False
-            s = ctx.last()
-            continue
+            raise PetLost(f"stairs: {e} — {leave}") from None
         except NavError as e:
+            if re.search(r"is occupied by peaceful|peaceful .* (?:blocks|stays)", str(e)) and peace_waits < 8 \
+                    and ctx.last().state.kind == "command":
+                # (p3 shift 17 #1225: a peaceful gnome lord in the corridor, then ON the '>', moved off after 2-3
+                # more turns — go_down() had raised twice) — wait for it, a turn at a time
+                if not peace_waits:
+                    print(f"stairs: {str(e)[:90]} — waiting for it to move off")
+                peace_waits += 1
+                attempts -= 1
+                s = ctx.do("s", ok=BENIGN)
+                if s.state.kind != "command":
+                    return s
+                continue
             if others and _UNREACHABLE.search(str(e)):
                 nxt = others.pop(0)
                 print(f"stairs: can't get to the {ch} at {target} ({str(e)[:90]}) — trying the {ch} at {nxt}")
@@ -2128,9 +2199,15 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         s = _wait_for_pet(s, wait_pet)
         if s.state.kind != "command" or s.hero != target:
             return s
-    if had_pet and not any(m.get("dist") == 1 for m in _pets(s)):
-        print(f"stairs: your pet ({had_pet[0].get('desc') or had_pet[0]['ch']}) is not next to you — "
-              f"taking the {ch} without it (it stays on this level)")
+    left = _pet_left_behind(s, had_pet)
+    if left is not None:
+        if keep:
+            raise PetLost(f"stairs: your pet ({left['desc']}{', ' + left['where'] if left['where'] else ''}) is "
+                          f"not next to you, so it would stay on this level — {leave}")
+        ctx.game.pet_left = {"ldesc": s.status.ldesc if s.status.ok else None,
+                             "turn": s.status.turn if s.status.ok else None, "desc": left["desc"], "at": left["at"]}
+        print(f"stairs: your pet ({left['desc']}) is not next to you — taking the {ch} without it (it stays on "
+              "this level)")
     ld0 = s.status.ldesc if s.status.ok else None
     d0 = s.status.dlvl if s.status.ok else None
     s = ctx.do(ch, expect=("level",), ok=_STAIRS_OK)   # the level change is the point: no pause for it
@@ -2156,6 +2233,31 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         raise NavError(f"pressed {ch!r} at {target} but you are still on {ld0}"
                        + (f": {cur.messages}" if cur.messages else "") + " — look at why before going on")
     return s
+
+
+PET_FRESH = 60        # turns a pet sighting on this level still counts as "your pet is around here"
+
+
+def _pet_left_behind(s, had_pet) -> dict | None:
+    """At the stairs: the pet that would stay on this level ({"desc", "at", "where"}), or None — it is next
+    to you (it follows), or no pet was around: in view within 7 when the trip began (`had_pet`), in view now,
+    or last seen on this level within PET_FRESH turns."""
+    pets = _pets(s)
+    if any(m.get("dist") == 1 for m in pets):
+        return None
+    if pets:
+        p = min(pets, key=lambda m: m.get("dist") if m.get("dist") is not None else 99)
+        return {"desc": p.get("desc") or p["ch"], "at": (p["x"], p["y"]),
+                "where": f"at ({p['x']},{p['y']}), {p.get('dist')} squares away"}
+    if had_pet:
+        p = had_pet[0]
+        return {"desc": p.get("desc") or p["ch"], "at": (p["x"], p["y"]), "where": "out of view"}
+    seen = getattr(ctx.game, "pet_seen", None)
+    if seen and s.status.ok and s.status.turn is not None and seen.get("turn") is not None \
+            and seen.get("key") == ctx.game.level_key(s.status) and 0 <= s.status.turn - seen["turn"] <= PET_FRESH:
+        return {"desc": seen.get("desc") or "your pet", "at": seen.get("at"),
+                "where": f"last seen at {seen.get('at')} {s.status.turn - seen['turn']} turns ago, out of view now"}
+    return None
 
 
 def _ways_down_hint(s) -> str:
@@ -2217,7 +2319,13 @@ def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostil
     wait_pet: if your pet is in view nearby but not next to you, wait up to
     this many turns for it (0: don't). with_pet: travel in pet-keeping legs
     (see travel()); default: yes when wait_pet and your pet is within 7
-    squares at the start. Says so when it leaves the pet behind.
+    squares at the start. It never leaves your pet without asking: when the
+    pet was around (within 7 at the start, in view now, or seen on this
+    level in the last 60 turns) but isn't next to you at the stairs — or it
+    drops out of view on the way — it raises PetLost, pressing nothing;
+    go_down(with_pet=False) (or wait_pet=0) leaves it, and the next obs
+    say "PET: ... did NOT come along" for 30 turns (so does a pet that was
+    still eating/trapped next to you).
     pass_hostile=True: walk past a hostile that stops the trip (see travel())."""
     return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet, pass_hostile=pass_hostile)
 

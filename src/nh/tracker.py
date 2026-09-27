@@ -81,6 +81,8 @@ class Tracker:
             game.intrinsics = set(self.state["intrinsics"])
         if self.state.get("quest_given"):
             game.quest_given = True
+        if self.state.get("main_weapon") and hasattr(game, "main_weapon"):
+            game.main_weapon = dict(self.state["main_weapon"])
         # restore level identity and per-level trap/avoid memory
         if self.state.get("current_level") and self.state.get("current_ldesc"):
             game.level_name = self.state["current_level"]
@@ -277,6 +279,10 @@ class Tracker:
         intr = sorted(getattr(self.game, "intrinsics", ()))
         if intr != self.state.get("intrinsics"):
             self.state["intrinsics"] = intr
+            changed = True
+        mw = getattr(self.game, "main_weapon", None)
+        if mw and mw != self.state.get("main_weapon"):
+            self.state["main_weapon"] = dict(mw)
             changed = True
         if changed:
             self.save()

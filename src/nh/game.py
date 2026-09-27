@@ -73,6 +73,7 @@ class Snap:
     wand_users: dict = field(default_factory=dict)  # {monster name: {"kind", "wand", "turn"}} zappers here
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
+    pet_note: str = ""         # for a while after the stairs: your pet didn't come along (Game.pet_left_note)
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
     no_squeeze: bool = False   # a diagonal squeeze between rock failed (pack over 600): planners avoid them
     room_note: str = ""        # set on the step that entered a special room (zoo, anthole, beehive...)
@@ -321,6 +322,13 @@ def ignores_elbereth(m: dict) -> bool:
     return m.get("ch") == "@" or bool(_ELBERETH_IGNORERS.search(desc))
 
 
+def _item_core(text: str) -> str:
+    """An inventory text without its state suffixes: 'a blessed +6 Excalibur (weapon in hand)' ->
+    'a blessed +6 Excalibur'."""
+    return re.sub(r"\s*\((?:weapon in \w+|wielded|alternate weapon; not wielded|in quiver[^)]*|"
+                  r"tethered weapon in \w+)\)", "", text or "").strip()
+
+
 def is_weapon_text(text: str) -> bool:
     """Does an inventory/wield text name a weapon or weapon-tool (pick-axe,
     unicorn horn...)? 'a blessed +6 long sword named Excalibur' -> True,
@@ -461,12 +469,18 @@ class Game:
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
         self.wielded_class: str | None = None     # inventory() class header of the wielded item ("Weapons")
+        self.wielded_letter: str | None = None    # its inventory letter (None: unknown, or nothing wielded)
+        self.wield_since: int | None = None       # the turn it was wielded (main_weapon promotion)
+        self.wield_tool: bool = False             # a tool applied into your hands ("You now wield ...": a dig)
+        self.main_weapon: dict | None = None      # {"letter", "text"}: the weapon you usually fight with
         self.shops: dict[str, list] = {}          # level key -> [[x1, y1, x2, y2, "Name's shop type"]] interiors
         self.locked_doors: dict[str, set] = {}    # level key -> doors found locked (travel walks around them)
         self.feature_desc: dict[str, dict] = {}   # level key -> {(x, y): "trap door" / "lawful altar"} (farlook)
         self.intrinsics: set = {"cold", "stealth"}   # Valkyrie start; more learned from messages (_note_intrinsics)
         self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
         self.last_theft: dict | None = None       # {"turn", "msg", "what"}: the latest theft from you
+        self.pet_seen: dict | None = None         # {"key", "ldesc", "turn", "desc", "at"}: your pet, last in view
+        self.pet_left: dict | None = None         # {"ldesc", "turn", "desc", "at"}: a pet that didn't follow you
         self.level_flags: dict[str, set] = {}     # level key -> {"rogue"}: levels drawn differently
         self.floor_seen: dict[str, set] = {}      # Rogue level: squares once shown as floor/corridor/doorway
         self.water_seen: dict[str, set] = {}      # level key -> squares last shown as water ('}' not red): an 'I'
@@ -850,7 +864,35 @@ class Game:
                                  or (cur.hero is not None and snap.hero is not None and cur.hero != snap.hero)):
             self.held_trap = ""
 
-    def _note_wield(self, messages: list[str]) -> None:
+    MAIN_WEAPON_TURNS = 50        # a weapon wielded this long becomes your usual one (a dagger for #force doesn't)
+
+    def set_wielded(self, text, cls, letter, tool: bool, turn=None) -> None:
+        """Record what you wield (from a message or inventory()); the first
+        weapon seen in hand is your usual one (main_weapon) until another
+        has been wielded MAIN_WEAPON_TURNS turns."""
+        if letter is None or letter != self.wielded_letter:
+            self.wield_since = turn
+        self.wielded, self.wielded_class, self.wielded_letter, self.wield_tool = text, cls, letter, tool
+        if self.main_weapon is None and letter and text and not tool and (
+                (cls or "").startswith("Weapons") or (cls is None and is_weapon_text(text))):
+            self.main_weapon = {"letter": letter, "text": _item_core(text)}
+
+    def _promote_weapon(self, turn) -> None:
+        """The weapon in hand for MAIN_WEAPON_TURNS turns is your usual one now."""
+        if turn is None or not self.wielded or not self.wielded_letter or self.wield_tool:
+            return
+        if self.wield_since is None:
+            self.wield_since = turn
+            return
+        mw = self.main_weapon
+        if turn - self.wield_since < self.MAIN_WEAPON_TURNS or (mw and mw["letter"] == self.wielded_letter
+                                                                 and mw["text"] == _item_core(self.wielded)):
+            return
+        if (self.wielded_class or "").startswith("Weapons") or (self.wielded_class is None
+                                                                and is_weapon_text(self.wielded)):
+            self.main_weapon = {"letter": self.wielded_letter, "text": _item_core(self.wielded)}
+
+    def _note_wield(self, messages: list[str], turn=None) -> None:
         """Keep self.wielded current from the messages: "You now wield a
         blessed lamp." (#rub / applying a pick-axe wields the tool),
         "a - ... (weapon in hand)." ('w'), "You are empty handed."; anything
@@ -858,16 +900,19 @@ class Game:
         for m in messages:
             mm = self._WIELD_NOW.search(m)
             if mm:
-                self.wielded, self.wielded_class = mm.group(1), None
+                self.set_wielded(mm.group(1), None, None, True, turn)
                 continue
             mm = self._WIELD_INV.search(m)
             if mm and WIELDED_RE.search(m):
-                self.wielded, self.wielded_class = mm.group(1), None
+                self.set_wielded(mm.group(1), None, m[0], False, turn)
                 continue
+            if mm:
+                continue     # another inventory line ('w' with pushweapon: "a - ... (alternate weapon; not wielded).")
             if re.search(r"^You are (?:now |already )?empty.handed", m):
-                self.wielded, self.wielded_class = "", None
+                self.set_wielded("", None, None, False, turn)
             elif re.search(r"wield|slips from your|welded|disarm|wrested|snatches|You are now empty", m):
                 self.wielded, self.wielded_class = None, None     # re-check the weapon next time it matters
+                self.wielded_letter, self.wield_tool = None, False
             if re.search(r"\b(?:gloves|gauntlets)\b", m):
                 self.gloves = None      # put on / taken off / stolen / destroyed: re-check
 
@@ -928,6 +973,52 @@ class Game:
                 if core and core.lower() in m.lower():
                     self.last_theft = None        # picked it back up
 
+    PET_NOTE_TURNS = 30       # the arrival obs says the pet stayed behind this long (it survives a pause)
+
+    def _note_pet(self, snap: Snap, messages: list) -> None:
+        """Where your pet was last in view (the stairs helpers must not leave it without a word: p4 shift 1
+        #739/#1700)."""
+        if any(m.startswith("You have a sad feeling for a moment") for m in messages):
+            self.pet_seen = None                  # mon.c monkilled(): your pet died out of your sight
+            return
+        if snap.state.kind != "command" or not snap.status.ok:
+            return
+        pets = [m for m in snap.monsters or [] if (m.get("tame") or m.get("pet")) and not m.get("statue")]
+        if pets:
+            p = min(pets, key=lambda m: m.get("dist") if m.get("dist") is not None else 99)
+            self.pet_seen = {"key": self.level_key(snap.status), "ldesc": snap.status.ldesc,
+                             "turn": snap.status.turn, "desc": p.get("desc") or p.get("ch"), "at": (p["x"], p["y"])}
+            pl = self.pet_left
+            if pl and snap.status.ldesc == pl.get("ldesc"):
+                self.pet_left = None              # back with it
+
+    _PET_STAYS = re.compile(r"^(?P<who>.+?) is still (?P<why>eating|trapped)\.$")
+
+    def _note_pet_stays(self, cur: Snap, snap: Snap, messages: list, moved: bool) -> None:
+        """dog.c keepdogs(): a pet next to you that is eating or trapped stays behind ("The kitten is still
+        eating."): the arrival obs says so."""
+        if not moved or cur is None or not cur.status.ok:
+            return
+        for m in messages:
+            mm = self._PET_STAYS.match(m)
+            if mm:
+                who = re.sub(r"^The ", "", mm.group("who"))
+                seen = self.pet_seen or {}
+                self.pet_left = {"ldesc": cur.status.ldesc, "turn": snap.status.turn, "desc": who,
+                                 "at": seen.get("at") if seen.get("ldesc") == cur.status.ldesc else None,
+                                 "why": f"it was still {mm.group('why')}"}
+
+    def pet_left_note(self, snap: Snap) -> str:
+        pl = self.pet_left
+        if not pl or not snap.status.ok or snap.status.turn is None or pl.get("turn") is None:
+            return ""
+        if snap.status.ldesc == pl["ldesc"] or not 0 <= snap.status.turn - pl["turn"] <= self.PET_NOTE_TURNS:
+            return ""
+        return (f"your pet ({pl['desc']}) did NOT come along — it stayed on {pl['ldesc']}"
+                + (f" at {pl['at']}" if pl.get("at") else "") + (f" ({pl['why']})" if pl.get("why") else "")
+                + f", T:{pl['turn']}: go back for it (a pet follows only from a square next to you), or go on "
+                  "without it")
+
     def theft_note(self, turn) -> str:
         lt = self.last_theft
         if not lt or turn is None or lt.get("turn") is None or not 0 <= turn - lt["turn"] <= self.THEFT_TURNS:
@@ -951,10 +1042,16 @@ class Game:
             # applying it to dig wields it (apply.c wield_tool); dig() wields your weapon again, but a
             # paused/abandoned dig or a pick-axe applied by hand leaves it in your hands
             return f"you WIELD {w} (a digging tool) — w + letter to wield your weapon again"
-        if (self.wielded_class or "").startswith("Weapons"):
-            return ""
-        if not is_weapon_text(w):
+        if not (self.wielded_class or "").startswith("Weapons") and not is_weapon_text(w):
             return f"you WIELD {w} — not a weapon (w + letter to wield your weapon again)"
+        mw = self.main_weapon
+        if mw and self.wielded_letter and self.wielded_letter != mw["letter"]:
+            # (p4 shift 1 #2208: a pause between "w + spare dagger, #force" and the re-wield left the dagger in
+            # hand with no word about it)
+            return (f"you wield {self.wielded_letter} - {_item_core(w)}, not your usual weapon ({mw['letter']} - "
+                    f"{mw['text']}): "
+                    f"w{mw['letter']} to wield it again (after {self.MAIN_WEAPON_TURNS} turns in hand this one "
+                    "counts as your usual weapon)")
         return ""
 
     # shk.c u_entered_shop(): "Velkommen, p2!  Welcome to Carignan's antique weapons outlet!"
@@ -1089,6 +1186,11 @@ class Game:
                 feats[snap.hero] = "~"          # (only on the vibrating square itself)
             elif m.startswith("You activated a magic portal!") and snap.status.ldesc not in self.ENDGAME:
                 feats[snap.hero] = "^"          # you arrive on the other end (not so on the Planes)
+                if any(snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) in MONSTER_CHARS
+                       for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
+                    # do.c u_collide_m(): a monster on the portal puts you NEXT TO it half the time (p2 shift 34
+                    # #83: a squeaky board filed as the portal) — look once the step is done (_verify_arrival)
+                    self._arrival_check = {"n": snap.n, "hero": snap.hero, "ch": "^", "old_key": None}
             elif self._INVOKED.search(m):
                 # mkinvokearea(): the square becomes the down stairs, the area around is rebuilt (a ring
                 # of fire traps, a moat): old traps there are gone, the tracker re-reads #terrain
@@ -1131,7 +1233,11 @@ class Game:
                     and not ({"rogue", "forgotten"} & self.level_flags.get(key, set())))
         hx, hy = snap.hero
         gone = []
+        fd = self.feature_desc.get(key) or {}
         for c, v in feats.items():
+            if v == "^" and fd.get(c) and "portal" not in fd[c]:
+                gone.append(c)    # a look found another trap there (p2 shift 34: a squeaky board as the portal)
+                continue
             if v in "^~" or c == snap.hero or not top <= c[1] <= MAP_BOTTOM:
                 continue      # (portals never go away; on the Plane of Air unseen squares are '#' clouds)
             now, col = scr.at(*c), scr.color_at(*c)
@@ -1468,6 +1574,25 @@ class Game:
                         + ", ".join(f"the {m.get('desc')} at ({m['x']},{m['y']})" for m in near)
                         + ": it can go astray into it, and NetHack attacks without asking while you "
                         "are confused/stunned. Wait ('s') until it wears off, or force=True.")
+            run = len(unit) == 1 and chr(unit[0]).lower().encode()[0] in self._MOVE and chr(unit[0]).isupper()
+            if (step in self._MOVE or unit[:1] == b"_" or run) and snap.hero is not None \
+                    and conds & {"Conf", "Stun"} and not conds & {"Lev", "Fly"}:
+                # hack.c domove() -> confdir(): stunned, EVERY step goes in a random direction (confused, 1 in 5),
+                # with no lava/water check — a lava fall burns the bag of holding and all in it even with fire
+                # resistance; water blanks scrolls and can drown you (p1 shift 36: fire giants' potions of
+                # confusion next to Surtur's lava)
+                hx, hy = snap.hero
+                wet = sorted((hx + dx, hy + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                             if (dx or dy) and snap.screen.at(hx + dx, hy + dy) == "}")
+                if wet:
+                    what = "lava" if all(snap.screen.color_at(*c) == 1 for c in wet) else \
+                        "water" if not any(snap.screen.color_at(*c) == 1 for c in wet) else "lava/water"
+                    raise PermissionError(
+                        "refusing to move while " + "/".join(sorted(conds & {"Conf", "Stun"})) + f" next to {what} "
+                        f"at {wet[:4]}: a step goes astray (stunned: always; confused: 1 in 5) with no check — "
+                        "lava burns your bag and everything in it, water blanks scrolls and can drown you. Don't "
+                        "move: fight()/F and searching are fine; apply a unicorn horn or wait it out (do('s')), "
+                        "then go. force=True if you must.")
             if key in self._MOVE and snap.hero is not None and "Blind" not in conds:
                 dx, dy = self._MOVE[key]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
@@ -1808,7 +1933,7 @@ class Game:
                         # or the corpse guard can't tell it's fresh (corpse_age() matches any corpse there)
                         dx, dy = self._MOVE[mv]
                         self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
-                    self._note_wield(messages)
+                    self._note_wield(messages, snap.status.turn)
                     self._note_wand_zaps(snap, messages, cur)
                     self._note_held(cur, snap, messages)
                     self._note_monster_hole(cur, snap, messages)
@@ -1818,8 +1943,17 @@ class Game:
                     self._note_forgetting(snap, messages)
                     self._note_quest(messages)
                     self._note_arrival(cur, snap, data, messages, old_key, moved)
+                    self._note_pet_stays(cur, snap, messages, moved)
                     if moved:
                         self._note_fall(cur, messages, old_key)
+            if (snap.hero is None or not snap.status.ok) and messages:
+                # a prompt holds the cursor: the notes that only read messages still run (applying a pick-axe
+                # prints "You now wield ..." together with the dig-direction prompt — p3 shift 17 #196: the
+                # pick-axe warning never showed, and fight() bashed a long worm with it)
+                self._note_wield(messages, snap.status.turn if snap.status.ok else None)
+                self._note_intrinsics(messages)
+                self._note_theft(messages, snap.status.turn if snap.status.ok else None)
+                self._note_quest(messages)
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             elif snap.state.kind == "getpos" and snap.status.ok:
@@ -1838,6 +1972,7 @@ class Game:
                     (self.last.monsters if self.last is not None else [])
                 if prev:
                     snap.monsters = prev
+            self._note_pet(snap, messages)
             if snap.status.ok:
                 snap.mimic_mem = dict(self.mimics.get(self.level_key(snap.status), {}))
             for m in messages:
@@ -2107,6 +2242,7 @@ class Game:
 
     def _annotate(self, snap: Snap) -> None:
         """Harness memory the obs shows with a snapshot."""
+        self._promote_weapon(snap.status.turn if snap.status.ok else None)
         snap.wield_note = self.wield_note()
         snap.shop = self.shop_at(snap.hero, snap.status) if snap.status.ok else ""
         snap.last_pos = snap.hero or self.hero_pos
@@ -2114,6 +2250,7 @@ class Game:
         snap.feature_desc = self.feature_desc.setdefault(key, {}) if key is not None else {}
         snap.feature_mem = dict(self.terrain_seen.get(key, {})) if key is not None else {}
         snap.theft_note = self.theft_note(snap.status.turn if snap.status.ok else None)
+        snap.pet_note = self.pet_left_note(snap)
         snap.rogue = key is not None and "rogue" in self.level_flags.get(key, ())
         snap.medusa_risk = self._medusa_risk(snap, key)
         bags = getattr(self, "bags", None) or []
@@ -2183,6 +2320,7 @@ class Game:
             self._arrival_check = {"n": snap.n, "hero": snap.hero, "ch": arrive, "old_key": old_key}
 
     _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
+    _ON_PORTAL = re.compile(r"There is a magic portal here")
 
     def _note_fall(self, cur: Snap, messages: list, old_key) -> None:
         """trap.c fall_through(): "A trap door opens up under you!" / "There's a gaping hole under you!" — the
@@ -2239,10 +2377,10 @@ class Game:
             return
         finally:
             self.last = snap
-        if self._ON_STAIRS.search(text):
+        hero, ch = chk["hero"], chk["ch"]
+        if (self._ON_STAIRS if ch in "<>" else self._ON_PORTAL).search(text):
             return
         key = self.level_key(snap.status)
-        hero, ch = chk["hero"], chk["ch"]
         mem = self.terrain_seen.setdefault(key, {})
         if mem.get(hero) == ch:
             del mem[hero]
@@ -2256,8 +2394,14 @@ class Game:
         if spot is None:
             found = self.terrain_scan()
             self.last = snap
-            spot = next((c for c, v in ((found or {}).get("features") or {}).items()
-                         if v == ch and max(abs(c[0] - hero[0]), abs(c[1] - hero[1])) == 1), None)
+            if ch == "^":                           # (#terrain draws the portal as a trap '^')
+                near = [c for c in (found or {}).get("traps") or () if max(abs(c[0] - hero[0]),
+                                                                            abs(c[1] - hero[1])) == 1
+                        and "portal" in (self.feature_desc.get(key, {}).get(c) or "portal")]
+                spot = near[0] if len(near) == 1 else None
+            else:
+                spot = next((c for c, v in ((found or {}).get("features") or {}).items()
+                             if v == ch and max(abs(c[0] - hero[0]), abs(c[1] - hero[1])) == 1), None)
         if spot is not None:
             mem[spot] = ch
             if dest:

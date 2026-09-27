@@ -47,8 +47,14 @@ def inventory():
         items = _parse_menu_pages(s)[0] if s.state.kind == "menu" else None
     if items is not None:
         ctx.game.inv_items = items          # (helpers that only need a name look here: zap() notes)
-        ctx.game.wielded = next((it["text"] for it in items if _wielded(it["text"])), "")
-        ctx.game.wielded_class = next((it["class"] for it in items if _wielded(it["text"])), "")
+        w = next((it for it in items if _wielded(it["text"])), None)
+        if hasattr(ctx.game, "set_wielded"):
+            st = ctx.last().status
+            ctx.game.set_wielded(w["text"] if w else "", w["class"] if w else "", w["letter"] if w else None,
+                                 bool(w) and w["class"].startswith("Tools"), st.turn if st.ok else None)
+        else:
+            ctx.game.wielded = w["text"] if w else ""
+            ctx.game.wielded_class = w["class"] if w else ""
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         ctx.game.reflecting = any("(being worn)" in it["text"] and _REFLECT.search(it["text"]) for it in items)
@@ -294,7 +300,12 @@ _DIP_OUTCOMES = [
     (r"You unleash", "WATER DEMON (dangerous: flee or Elbereth; it may have granted a wish)"),
     (r"You attract", "WATER NYMPH (steals: kill it fast or keep away)"),
     (r"stream of snakes|Snakes!", "WATER MOCCASINS (poisonous: retreat, fight one at a time)"),
-    (r"dries up|reduces to a trickle", "fountain dried up"),
+    (r"fountain dries up", "fountain dried up"),
+    # fountain.c dryup() in a town: the first dry-up roll only WARNS — the fountain stays, and the next one
+    # dries it AND angers the Watch (p3 shift 17 #1275/#1321: both lines were read as harmless)
+    (r"reduces to a trickle|stop using that fountain|earnestly (?:shakes|waves)",
+     "TOWN FOUNTAIN WARNING — STOP dipping/quaffing here: the next dry-up ANGERS THE WATCH (the fountain is "
+     "still there)"),
     (r"freezing mist", "CURSED item (you are not lawful?!)"),
     (r"(rusts|rusty|corrode)", "item rusted"),
     (r"spot a gem", "gem"),
@@ -1056,10 +1067,43 @@ def kick_test(x: int, y: int) -> dict:
             "to": to, "messages": msgs}
 
 
+_HEAVY_NAMES: list | None = None
+
+
+def heavy_weight(text: str) -> int | None:
+    """The base weight of a heavy thing named in an object text (200 or more: a large box/chest/ice box, heavy
+    armor, a statue, an iron ball, a big corpse — a gnome lord's is 700), or None."""
+    global _HEAVY_NAMES
+    if _HEAVY_NAMES is None:
+        import json
+        from pathlib import Path
+        import nh
+        try:
+            objs = json.loads((Path(nh.__file__).parent / "data" / "objects.json").read_text())["objects"]
+        except Exception:  # noqa: BLE001
+            objs = []
+        _HEAVY_NAMES = sorted(((o["name"], o["weight"]) for o in objs if o.get("name") and (o.get("weight") or 0) >= 200),
+                              key=lambda p: -len(p[0]))
+    t = (text or "").lower()
+    m = re.search(r"\b(?:an? |\d+ |the )?(?:partly eaten )?(.+?) corpses?\b", t)
+    if m:
+        from nh.danger import monster_record
+        rec = monster_record(re.sub(r"^(?:an?|the|\d+|uncursed|blessed|cursed) ", "", m.group(1))) or {}
+        w = rec.get("weight") or 0
+        return w if w >= 200 else None
+    for name, w in _HEAVY_NAMES:
+        if re.search(rf"\b{re.escape(name)}(?:e?s)?\b", t):
+            return w
+    return None
+
+
 def pickup(pattern: str | None = None) -> list:
     """Pick up the objects here whose text matches `pattern` (regex,
-    case-insensitive), or everything if None. Looks first (no game time), so
-    a lone object that doesn't match is left alone. Returns the messages."""
+    case-insensitive), or everything if None — except, with no pattern,
+    heavy things (a large box/chest/ice box, heavy armor, statues, big
+    corpses: heavy_weight() 200+), which it leaves and names (p4 shift 1: a
+    350-weight large box came along). Looks first (no game time), so a lone
+    object that doesn't match is left alone. Returns the messages."""
     ctx.require_command("pickup()")
     look = here()
     if "You see no objects here" in look or not look:
@@ -1080,6 +1124,11 @@ def pickup(pattern: str | None = None) -> list:
         print(f"pickup({pattern!r}): nothing matching here — the floor has only {single.group(1)} "
               "(a pet or a monster may have moved it: obs.objects)")
         return []
+    if single and "Things that" not in look and rx is None and heavy_weight(single.group(1)):
+        print(f"pickup(): left {single.group(1)} (about {heavy_weight(single.group(1))} weight) — name it in a "
+              "pattern to take it anyway (loot a box/chest where it stands: loot_all())")
+        return []
+    skipped: list = []
     enc0 = ctx.last().status.encumbrance or ""
     s = ctx.do(",", quiet=True, expect=_TAKE)
     msgs = list(s.messages)
@@ -1088,6 +1137,9 @@ def pickup(pattern: str | None = None) -> list:
         for _page in range(8):
             for it in s.state.menu.selectable():
                 seen.append(it.text)
+                if rx is None and heavy_weight(it.text):
+                    skipped.append(it.text)
+                    continue
                 if not it.selected and (rx is None or rx.search(it.text)):
                     s = ctx.do(it.letter, quiet=True)
                     chosen += 1
@@ -1105,6 +1157,8 @@ def pickup(pattern: str | None = None) -> list:
             ctx.do("<Esc>", quiet=True)          # a guard refused (loadstone? cockatrice?): don't leave the menu open
             raise
         msgs += s.messages
+    if skipped:
+        print("pickup(): left the heavy " + "; ".join(skipped[:4]) + " — name them in a pattern to take them")
     if s.state.kind != "command":
         ctx.pause(f"pickup(): unexpected {s.state.kind} {s.state.prompt!r}")
     _warn_full(msgs, "pickup")
@@ -1310,6 +1364,180 @@ def tunnel(x: int, y: int, max_steps: int = 80, tool: str | None = None) -> dict
     return {"reason": reason, "at": s.hero, "digs": digs, "steps": steps}
 
 
+def call_type(letter: str, name: str) -> list:
+    """Name an object TYPE (#name -> "the type of an object in inventory"): call_type('x', 'polymorph') makes
+    every marble wand show as "a wand called polymorph" — the way to remember an engrave-test verdict that
+    didn't identify the wand (p4 shift 1 #2554: the "Call a marble wand:" prompt paused the script). No game
+    time. Returns the messages."""
+    ctx.require_command("call_type()")
+    s = ctx.do("#name<CR>", quiet=True)
+    if s.state.kind == "menu":
+        s = ctx.do("o", quiet=True)            # "the type of an object in inventory"
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"call_type(): expected 'What do you want to call?', got {s.state.kind} "
+                           f"{s.state.prompt!r}")
+    s = ctx.do(letter, quiet=True, ok=[r"^Call "])
+    if s.state.kind != "getlin":
+        msgs = list(s.messages)
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"call_type({letter!r}): no naming prompt ({s.state.kind} {s.state.prompt!r}; {msgs}) "
+                           "— an identified type or one that can't be named")
+    s = ctx.do(name + "<CR>", quiet=True)
+    print(f"call_type({letter!r}, {name!r}): done")
+    return s.messages
+
+
+_BLADES: list | None = None
+# artifacts show by their own name once identified ("the blessed +6 Excalibur"): their base weapon
+_ARTI_BASE = {"Excalibur": "long sword", "Stormbringer": "runesword", "Cleaver": "battle-axe",
+              "Grimtooth": "orcish dagger", "Orcrist": "elven broadsword", "Sting": "elven dagger",
+              "Magicbane": "athame", "Frost Brand": "long sword", "Fire Brand": "long sword",
+              "Dragonbane": "broadsword", "Demonbane": "long sword", "Werebane": "silver saber",
+              "Grayswandir": "silver saber", "Giantslayer": "long sword", "Vorpal Blade": "long sword",
+              "Snickersnee": "katana", "Sunsword": "long sword", "Tsurugi of Muramasa": "tsurugi"}
+
+
+_ARTIFACT_BLADE = re.compile(r"\b(?:" + "|".join(_ARTI_BASE) + r")\b")
+
+
+def blade_chance(text: str) -> int | None:
+    """#force with this weapon: its chance per turn, in percent, to pry a box's lock open — lock.c doforce():
+    twice the weapon's large-monster damage (dagger 6%, long sword 24%) — when it is a BLADE (the dagger..saber
+    skills, axes included, not a pick-axe/mattock); None for anything else (blunt weapons bash, and can smash
+    the box and its potions)."""
+    global _BLADES
+    if _BLADES is None:
+        import json
+        from pathlib import Path
+        import nh
+        try:
+            objs = json.loads((Path(nh.__file__).parent / "data" / "objects.json").read_text())["objects"]
+        except Exception:  # noqa: BLE001
+            objs = []
+        found = {}
+        for o in objs:
+            r = o.get("raw") or {}
+            if r.get("oc_class") == 2 and 1 <= (r.get("oc_subtyp") or 0) <= 10 and r.get("oc_subtyp") != 4:
+                for n in (o.get("name"), o.get("appearance")):
+                    if n:
+                        found[n.lower()] = r.get("oc_wldam") or 0
+        _BLADES = sorted(found.items(), key=lambda p: -len(p[0]))
+    t = text or ""
+    if re.search(r"\bpick-axe|\bmattock|\bbroad pick\b", t, re.I):
+        return None                    # lock.c is_pick(): digging tools bash, they don't pry
+    for arti, base in _ARTI_BASE.items():
+        if re.search(rf"\b{arti}\b", t):
+            t = base
+            break
+    t = t.lower()
+    for name, ldam in _BLADES:
+        if re.search(rf"\b{re.escape(name)}(?:e?s)?\b", t):
+            return 2 * ldam
+    return None
+
+
+_FORCE_OK = [r"^You force .* into a crack and pry", r"^You succeed in forcing the lock", r"broke!$",
+             r"^You give up your attempt to force the lock", r"^You resume your attempt to force the lock",
+             r"^There is .* here, but its lock is already", r"^You decide not to force the issue",
+             r"^[a-zA-Z] - "]
+
+
+def force_box(blade: str | None = None, allow_main: bool = False, tries: int = 3) -> dict:
+    """#force open the locked box/chest you stand on with a BLADE, prying (lock.c: each turn succeeds with
+    twice the blade's large-monster damage in percent — a dagger 6%, a long sword 24%; the attempt gives up
+    after 50 turns and is retried up to `tries` times). A +0 blade breaks 0.7% of the prying turns, less
+    when enchanted; an ARTIFACT only 1% as often (obj_resists: Excalibur +6 about once in 100,000 turns), and
+    a cursed one never. Which blade: `blade` (a letter) if given; else your wielded weapon when it is an
+    artifact blade; else a spare blade whose BUC you know is uncursed/blessed (a cursed one would WELD to
+    your hand), the fastest first — wielded for the job, and your weapon wielded again at the end (in a
+    finally: also when it stops early); else your own non-artifact blade only with allow_main=True (about 3%
+    per box to lose it). Blunt weapons are never used (bashing can destroy the box and its potions). A
+    trapped box doesn't go off from forcing, only when opened (check_box() first). Returns {"reason", "blade",
+    "turns", "messages"}; reason: "forced", "not locked", "broke", "gave up", "stopped" or "no box"."""
+    s = ctx.require_command("force_box()")
+    inv = inventory()
+    wield = next((i for i in inv if _wielded(i["text"])), None)
+    pick = None
+    if blade is not None:
+        pick = next((i for i in inv if i["letter"] == blade), None)
+        if pick is None or not blade_chance(pick["text"]):
+            raise RuntimeError(f"force_box(): {blade!r} is not a blade in your pack "
+                               f"({pick['text'] if pick else 'no such letter'})")
+    elif wield is not None and _ARTIFACT_BLADE.search(wield["text"]) and blade_chance(wield["text"]):
+        pick = wield
+    else:
+        spares = [i for i in inv if i is not wield and i["class"].startswith("Weapons") and blade_chance(i["text"])
+                  and re.search(r"\b(?:uncursed|blessed)\b", i["text"]) and not re.search(r"\btwo-handed\b|"
+                                                                                           r"\btsurugi\b", i["text"])]
+        if spares:
+            pick = max(spares, key=lambda i: blade_chance(i["text"]))
+        elif wield is not None and blade_chance(wield["text"]) and allow_main:
+            pick = wield
+        else:
+            unknown = [f"{i['letter']} - {i['text']}" for i in inv if i is not wield
+                       and i["class"].startswith("Weapons") and blade_chance(i["text"])
+                       and not re.search(r"\b(?:un)?cursed\b|\bblessed\b", i["text"])]
+            raise RuntimeError(
+                "force_box(): no blade to pry with — " + (
+                    f"the spare blades {unknown[:3]} have UNKNOWN BUC (a cursed one welds to your hand: altar-test "
+                    "first, or force_box(blade=letter) to take the risk)" if unknown else
+                    "no spare dagger/knife/short sword known uncursed")
+                + (f"; your own {wield['text']} works with allow_main=True (about 3% per box to break it)"
+                   if wield is not None and blade_chance(wield["text"]) else "")
+                + "; or kick it (dokick: 1 in 5 kicks breaks the lock, and each kick may shatter potions inside)")
+    t0 = s.status.turn if s.status.ok else None
+    swapped = wield is None or pick["letter"] != wield["letter"]
+    msgs: list = []
+    reason = "stopped"
+    try:
+        if swapped:
+            s = ctx.do("w" + pick["letter"], ok=[r"^[a-zA-Z] - "])
+            msgs += s.messages
+            if not any(m.startswith(f"{pick['letter']} - ") for m in s.messages):
+                raise RuntimeError(f"force_box(): couldn't wield {pick['text']}: {s.messages}")
+        for _ in range(tries):
+            s = ctx.do("#force<CR>", quiet=True, ok=_FORCE_OK)
+            msgs += s.messages
+            for _q in range(6):
+                p = s.state.prompt or ""
+                if s.state.kind in ("yn", "ynq") and "force its lock" in p:
+                    s = ctx.do("y", ok=_FORCE_OK)
+                    msgs += s.messages
+                elif s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                    s = ctx.last()
+                    break
+                else:
+                    break
+            text = " | ".join(msgs)
+            if "You succeed in forcing the lock" in text:
+                reason = "forced"
+            elif re.search(r"but its lock is already", text):
+                reason = "not locked"
+            elif re.search(r"decide not to force the issue", text):
+                reason = "no box"
+            elif re.search(r"broke!", text):
+                reason = "broke"
+            elif "give up your attempt" in text and s.state.kind == "command":
+                msgs.append("(gave up after 50 turns: trying again)")
+                reason = "gave up"
+                continue
+            break
+    finally:
+        if swapped and wield is not None and ctx.last().state.kind == "command":
+            ctx.do("w" + wield["letter"], quiet=True, ok=[r"^[a-zA-Z] - "])
+    now = ctx.last()
+    turns = (now.status.turn - t0) if t0 is not None and now.status.ok and now.status.turn is not None else None
+    name = re.sub(r"\s*\((?:weapon in \w+|alternate weapon; not wielded|in quiver[^)]*)\)", "", pick["text"])
+    print(f"force_box(): {reason} with {name}" + (f" in {turns} turns" if turns is not None else "")
+          + (f"; your weapon ({wield['letter']}) is wielded again" if swapped and wield is not None else "")
+          + (" — loot_all() opens it now" if reason in ("forced", "not locked") else ""))
+    return {"reason": reason, "blade": name, "turns": turns, "messages": msgs}
+
+
 _KEYS = re.compile(r"skeleton key|\bkey\b|lock pick|credit card|Master Key of Thievery", re.I)
 _UNLOCK_OK = [r"^You succeed in (?:unlocking|picking)", r"^You stop (?:unlocking|picking)",
               r"^Hmmm, it turns out to be locked", r"^It is locked", r"^There is .* here; (?:un)?lock"]
@@ -1329,7 +1557,8 @@ def unlock(x: int | None = None, y: int | None = None, tool: str | None = None, 
     if tool is None:
         t = next((i for i in inventory() if _KEYS.search(i["text"])), None)
         if t is None:
-            raise RuntimeError("unlock(): no key, lock pick or credit card in the inventory — kick or #force")
+            raise RuntimeError("unlock(): no key, lock pick or credit card in the inventory — force_box() (a box "
+                               "under you) or kick_door(x, y)")
         tool = t["letter"]
     s = ctx.last()
     if x is None:
@@ -1432,7 +1661,7 @@ def loot_all(unlock_with_key: bool = True, take_gray_stones: bool = False, check
     take_gray_stones=True to take them anyway). Returns the messages. A
     locked box: unlocked with your key/lock pick/credit card first when you
     carry one (unlock(); unlock_with_key=False to skip), else it says so
-    (kick it or #force with a blade). Pauses on anything else."""
+    (force_box() pries it open with a blade). Pauses on anything else."""
     s = ctx.require_command("loot_all()")
     if s.status.ok and "Lev" in s.status.conditions:
         raise RuntimeError("loot_all(): you are levitating — you can't reach the floor; remove the levitation "

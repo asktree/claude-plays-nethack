@@ -104,6 +104,8 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append(f"!! {snap.wield_note}")
     if getattr(snap, "theft_note", ""):
         lines.append(f"!! {snap.theft_note}")
+    if getattr(snap, "pet_note", "") and snap.state.kind == "command":
+        lines.append(f"PET: {snap.pet_note}")
     if getattr(snap, "held_trap", ""):
         lines.append(f"!! you are HELD in a {snap.held_trap}: escape_trap() pulls DIAGONALLY (hack.c: a diagonal "
                      "try always loosens it, an orthogonal one only 1 in 5); travel/explore can't move you till then")

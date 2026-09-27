@@ -548,9 +548,10 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                     s = walk_path(own[:8])
                 except NavError as e:
                     # (p3 shift 10: "can't squeeze diagonally" with a pack over 600 escaped explore() —
-                    # skip that frontier and name the squeeze in the verdict)
+                    # skip that frontier and name the squeeze in the verdict; only once the game has refused
+                    # one: p4 shift 1's 250-weight pack got that advice for a boulder)
                     from .mapview import squeeze_steps
-                    sq = squeeze_steps(ctx.last(), own, hero)
+                    sq = squeeze_steps(ctx.last(), own, hero) if getattr(ctx.game, "no_squeeze", False) else []
                     why["squeeze"].extend(sq)
                     if not sq:
                         print(f"explore: our own route to {target} failed ({e}) — skipping it")
@@ -563,13 +564,27 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         if any(h in text for h in FAIL_HINTS) or s.hero == hero:
             if "boulder" in text and s.hero is not None:
                 hx, hy = s.hero
-                for dx in (-1, 0, 1):
-                    for dy in (-1, 0, 1):
-                        if (dx or dy) and s.screen.at(hx + dx, hy + dy) == "0" and (hx + dx, hy + dy) not in boulders_hit:
-                            boulders_hit.append((hx + dx, hy + dy))
+                hit = [(hx + dx, hy + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                       if (dx or dy) and s.screen.at(hx + dx, hy + dy) == "0"]
+                # hack.c test_move(TEST_TRAV): NetHack's travel plans THROUGH a boulder, then stops in front of
+                # it ("A boulder blocks your path.") every time — walk our own route around it before giving the
+                # target up (p4 shift 1 #427/#1191: two whole parts of a level called unreachable). A boulder
+                # we got around blocked nothing: it stays out of the verdict.
+                from .nav import walk_path
+                own = bfs_path(ctx.last(), s.hero, target, avoid=frozenset(bad_squares() - {target}),
+                               allow_monsters=False, allow_pets=True)
+                if own:
+                    try:
+                        s2 = walk_path(own[:8])
+                    except NavError:
+                        s2 = None
+                    if s2 is not None and s2.hero != hero:
+                        stuck = 0
+                        continue
+                boulders_hit.extend(b for b in hit if b not in boulders_hit)
             unreachable.append(target)
             skip.add(target)
-            if s.hero is not None:
+            if s.hero is not None and getattr(ctx.game, "no_squeeze", False):
                 from .mapview import squeeze_steps
                 own = bfs_path(ctx.last(), s.hero, target, allow_monsters=True)
                 why["squeeze"].extend(squeeze_steps(ctx.last(), own, s.hero))
