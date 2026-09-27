@@ -27,3 +27,4 @@ from tactics.explore import object_frontiers, search_until_change  # noqa: E402,
 from tactics.nav import avoid, bad_squares, blockers, walk_path  # noqa: E402,F401
 from tactics.combat import fight, throw, zap  # noqa: E402,F401
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))
+from tactics.town import buy_protection  # noqa: E402,F401

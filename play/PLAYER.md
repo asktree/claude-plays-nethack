@@ -95,6 +95,7 @@ Available in the kernel:
 | `throw('o', 'l')`, `zap('f', 'h')` | throw item o east / zap wand f west, checking each prompt (a zap sends the direction only if asked — an empty wand won't turn it into a move); the thrown item's own hit/miss message doesn't pause |
 | `dip('a')` | one `#dip` into the fountain/pool you stand on, prompts answered, outcome classified (EXCALIBUR, WISH, WATER DEMON, fountain dried up, sword rusted...). Excalibur odds: 1/6 per dip at XL5+; a fountain dries up ~1 dip in 3, so expect 2–3 fountains |
 | `engrave_test('f')` | engrave-identify wand f in one call (writes a dust "x" first if nothing is engraved here, answers the prompts, writes Elbereth); returns/prints the verdict ("sleep or death", "digging", ...). Refuses on a burned/permanent engraving; pauses on a wish prompt. Not in shops |
+| `buy_protection()` | next to a peaceful temple priest: donates exactly 400 x XL gold (the protection band is 400–599 x XL) and reports the outcome and AC change; never leaves the offer prompt empty (that angers the priest) |
 | `threat('gnome lord')` | `trivial` / `normal` / `dangerous` vs you now (difficulty vs XL, worst-case hit vs HP, notes) — use it to ignore harmless monsters consistently |
 | `last_seen('gas spore')` | monsters that recently left view: last position, turn, turns ago |
 | `prayer_check()`, `pray(force=False)` | trouble class (major/minor/none) + estimated chance the timeout is low enough + advice; `pray()` refuses without major trouble and ≥80% odds (force=True overrides). Read §3! |
