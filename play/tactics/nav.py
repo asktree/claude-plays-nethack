@@ -228,6 +228,16 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
         cap = leg_cap(s) if leg is None else (leg or None)
         tx, ty = waypoint(s, (x, y), cap)
         if (tx, ty) == (x, y) and h0 is not None and max(abs(x - h0[0]), abs(y - h0[1])) == 1:
+            # a peaceful stepped onto the target: wait for it (a plain step into it is refused)
+            peace = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and m.get("peaceful")
+                     and not m.get("tame") and not m.get("pet")]
+            if peace:
+                if waits < wait_peaceful:
+                    waits += 1
+                    print(f"travel: waiting a turn for {_mdesc(peace)} to leave the target square")
+                    s = ctx.do(".", ok=BENIGN)
+                    continue
+                raise NavError(f"travel to {(x, y)}: {_mdesc(peace)} stays on the target square")
             # last square by a plain step: NetHack's travel never picks anything up
             # (it sets 'nopick'), a plain move autopicks gold and thrown weapons
             s = _final_step(s, (x, y))

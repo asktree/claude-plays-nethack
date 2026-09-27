@@ -10,6 +10,13 @@ pause = None   # pause(reason)
 note = None    # note(text)
 game = None    # nh.game.Game
 monster_filter = None   # with monster_filter(fn): only newcomers with fn(m) true pause
+_set_activity = None    # set_activity(text): shown with any pause while a helper works
+
+
+def activity(text: str = "") -> None:
+    """Tell the kernel what the running helper is doing (no-op outside it)."""
+    if _set_activity is not None:
+        _set_activity(text)
 
 
 def last():

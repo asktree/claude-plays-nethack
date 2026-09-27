@@ -148,6 +148,7 @@ class Kernel:
         self.autocontinue: list[re.Pattern] = []
         self.pause_on_monsters = True
         self.new_monster_filter: Callable | None = None   # set by monster_filter(): which newcomers pause
+        self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
         self.parked = False        # True while an exec worker waits at a pause point
         self.hp_pause = 0.7        # pause on HP loss when HP < this fraction of max...
         self.hp_hit_pause = 0.15   # ...or when one step costs >= this fraction of max
@@ -201,7 +202,13 @@ class Kernel:
             finally:
                 k.new_monster_filter = old
 
-        self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter)
+        def set_activity(text: str = "") -> None:
+            """What a long helper is doing right now (e.g. 'sokoban step 25/26, 12 pushes done'):
+            shown after the reason of any pause until changed or cleared."""
+            k.activity = text or ""
+
+        self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
+                       set_activity=set_activity)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -311,6 +318,8 @@ class Kernel:
             snap.paused = reason       # helpers: the player has seen this step (don't stop again for it)
         except Exception:  # noqa: BLE001
             pass
+        if self.activity:
+            reason = f"{reason}  [during: {self.activity}]"
         where = _user_frames()
         self.events.put(("paused", PauseInfo(reason=reason, snap=snap, where=where)))
         self.resume.clear()
@@ -339,6 +348,7 @@ class Kernel:
         self.autocontinue = [re.compile(p) for p in (autocontinue or [])]
         self.pause_on_monsters = monsters
         self.new_monster_filter = None
+        self.activity = ""
         self.hp_pause = 0.7 if hp_pause is None else float(hp_pause)
         self.code_counter += 1
         fname = f"<exec-{self.code_counter}>"

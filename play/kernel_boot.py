@@ -12,6 +12,7 @@ _ctx.pause = pause    # noqa: F821
 _ctx.note = note      # noqa: F821
 _ctx.game = game      # noqa: F821
 _ctx.monster_filter = globals().get("monster_filter")   # absent in daemons started before it existed
+_ctx._set_activity = globals().get("set_activity")
 _ctx.game_name = GAME_NAME  # noqa: F821
 
 from tactics.nav import (NavError, cursor_to, farlook, go_down, go_up, step,  # noqa: E402,F401

@@ -148,7 +148,7 @@ Medusa, green slime, were-creatures, Riders, **dwarves** — cannibalism, dogs/c
 the harness records every kill (monster, square, turn), so a corpse you saw die less than ~50 turns ago is
 fine, while an older one or one of unknown age (you didn't see it die there) is refused — tainted meat is
 fatal food poisoning. Lichens and lizards never rot. `corpse(name, age)` explains a verdict;
-`game.kills` lists the records; confirming
+`game.kills[game.level_key()]` lists this level's records `(name, (x, y), turn)`; confirming
 "Really attack ...?" (NetHack asks that only about **peaceful** monsters); a plain step onto a **known trap**
 (NetHack doesn't ask; go around, or force=True to jump into a hole/trap door or enter a magic portal on
 purpose); **while hallucinating**, attacking/moving into any monster (NetHack doesn't ask "Really attack?"

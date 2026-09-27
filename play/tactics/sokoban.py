@@ -391,6 +391,8 @@ def solve(max_steps: int | None = None):
             print(f"  (resuming step {i + 1} after {part['pushes_done']} of its pushes)")
         print(f"  step {i + 1}/{len(lv['steps'])}: boulder {st['boulder']} at ({bx},{by}) {st['moves']}"
               + (" (fills a hole)" if st["fills"] else ""))
+        ctx.activity(f"sokoban.solve() step {i + 1}/{len(lv['steps'])}: boulder {st['boulder']} from ({bx},{by}) "
+                     f"moves {''.join(k for k in keys)} — call solve() again after dealing with it (it resumes)")
         s, pos = push(bx, by, keys)
         want = None if st["fills"] else (st["to"][0] + ox, st["to"][1] + oy)
         if pos != want:
@@ -402,4 +404,5 @@ def solve(max_steps: int | None = None):
             ctx.pause(f"sokoban: after step {i + 1} the board differs from the plan: {_diff(cur, want, ox, oy)}")
             return progress()
         n += 1
+    ctx.activity("")
     return progress()
