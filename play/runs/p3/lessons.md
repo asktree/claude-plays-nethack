@@ -72,3 +72,7 @@
 - A snake hiding under an item: "It snaps wildly and misses! / It strikes at thin air!" with nothing in view = a hidden/invisible attacker: one search (s) reveals an adjacent hider.
 - A MUMAK butts for up to 48 (33 seen): don't let it get a free round; it has ~22 HP (one Excalibur blow).
 - A temple priest takes a donation from an invisible hero (T:9418); standing on the temple altar afterwards is a free BUC test.
+- LEVEL DRAIN is cheap in 3.6 (exper.c losexp: u.uexp = newuexp(new level) - 1): the next kill gives the level back (only the HP roll changes). A graveyard/morgue full of SLEEPING wraiths + intrinsic stealth is a level farm: kill them one at a time (ghouls first while all sleep: their paralysis is only deadly with something awake). D21: 9 wraiths -> 2 corpses -> XL11 to XL13 in 40 turns, no drain.
+- A manual avoid() box around a special room must cover its WALLS AND DOORS: my box ended at y=8 and explore() entered through the south door at y=9. Better: let the harness's special-room memory do it (it marks the room once you get the entry message) and remember avoid(clear=True) afterwards — a manual box around the room later blocks the way OUT.
+- Engrave-test "the engraving vanishes" (cancellation / teleportation / make invisible): drop a junk gem, zap the wand DOWN at it — gone = teleportation. Never zap an unknown one of these at yourself (cancellation ruins your gear).
+- Monsters drinking potions identify them for free: watch the messages ("seems more experienced" = gain level, "suddenly moving faster" = speed).

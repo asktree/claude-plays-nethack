@@ -2,7 +2,7 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:10126 / Dlvl 20 ON THE DOWN STAIRS (72,14) / XL10 (Exp 9226; XL11 at 10000) / 110/118 / 18/18 / AC-7 (divine protection: 3 bought T:7328 + 1 bought T:9418 for 4000 at the D16 Odin priestess)
+- Turn / Dlvl / XL / HP / Pw / AC: T:10503 / Dlvl 21 next to the DOWN STAIRS (62,15) / XL13 (Exp 40295; XL14 at 80000 or one more wraith corpse / potion of gain level) / 142/142 / 22/22 / AC-7 (divine protection: 3 bought T:7328 + 1 bought T:9418 for 4000 at the D16 Odin priestess)
 - Attributes: St18 Dx13 Co19 In9 Wi11 Ch10 (exercise gains seen T:9067; Ch10 = shop prices x4/3)
 - Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7, T:4938) + VERY FAST from speed boots. NOT poison resistant. Excalibur: +2 to searching.
 - Luck notes: +1 at T:8033 and +1 at T:8074 (sacrifice four-leaf clovers) -> Luck ~2 (times out 1 per 600 turns without a luckstone). Prayer timeout proven 0 at T:8074. Alignment fine (possibly -1 if the Soko3 pocket monster was peaceful: unlikely, it was probably a mimic).
@@ -25,12 +25,13 @@
 
 ## Key inventory (letters)
 - Food: D 3 uncursed food rations + C 1 food ration (BUC unknown, anthole floor) + F candy bar; E uncursed cram ration (never rots: emergency food)
-- STONING CURE: u uncursed LIZARD CORPSE (never rots; eat when Stone appears; also Medusa's bite)
+- STONING CURE: u uncursed LIZARD CORPSE + Y 2nd lizard corpse (D21) (never rot; eat when Stone appears; also Medusa's bite)
 - Ranged: t 2 uncursed elven daggers (quiver them), b +0 dagger.
 - Scrolls: o uncursed REMOVE CURSE (reserve; also cures punishment); G 3 uncursed TELEPORTATION (escape!); magic mapping: NONE left (read on D18); d uncursed UNLABELED = blank paper (for a magic marker); g uncursed VELOX NEB (unknown); Q 2 uncursed NR 9 (unknown; NOT scare monster: survived a 2nd pickup); K uncursed VE FORBRYDERNE (unknown). Unknown pool: gold/food detection, confuse monster, blank, destroy armor, fire, punishment, genocide, charging, taming (+scare monster for g/K). Stinking cloud: none left. No identify.
 - Spellbooks: none (thin + light green dropped at D18 (43,7): Int 9, too heavy).
 - Potions: H uncursed MILKY (unknown; milky can hold a ghost); I 1 uncursed EXTRA HEALING (emergency! the 2nd one froze T:8043); s BLESSED smoky (unknown); x CURSED smoky (same unknown type); l uncursed emerald (unknown); r uncursed SEE INVISIBLE. (dark u and object detection F froze.) COLD BREATH (winter wolves) shatters potions: drop them out of its line or kill it fast.
 - Rings: J PROTECTION FROM SHAPE CHANGERS now WORN (left hand, T:8137: stops lycanthropy, forces weres to @ form and vampires out of bat/fog form); N uncursed FIRE RESISTANCE (identified T:8173, the engagement ring); B uncursed REGENERATION (silver; identified T:8456 — wear for healing, costs extra hunger); Z uncursed LEVITATION (topaz; identified T:8456 — Medusa/Castle/escape; uncursed = removable); k uncursed TELEPORT CONTROL; (see above)
+- W WAND OF TELEPORTATION (copper; D21 morgue; BUC unknown; 2 charges used: engrave + test zap -> ~2-6 left). Zapped at a monster it teleports it away EVEN on no-teleport levels (Medusa, Castle); zap self = teleport (not on no-teleport levels; ring k = control).
 - Wands (all altar-tested uncursed): n WAND OF DIGGING (found D18 T:9062; used: 1 engrave + 2 zaps (vault) -> 1-5 charges left: KEEP 1 for Medusa's level: zap down (>) there to skip her island); V WAND OF PROBING (0:4); R WAND OF SECRET DOOR DETECTION (spiked; formally identified T:6579: it UNMASKS MIMICS within 8 squares, even on traps); (undead turning + light wands dropped at D12)
 - Tools: f uncursed UNICORN HORN (apply for conf/stun/blind/sick); h blindfold (yellow light trick!); v skeleton key
 - Gems: S black gem (D20, unknown); T uncursed AMETHYST (base 600: sell/keep); e uncursed yellow gem (citrine/chrysoberyl/glass); y 5 orange, z 4 violet, A 7 yellowish brown gems (from hill giants: unknown, maybe glass)
@@ -38,9 +39,9 @@
 
 ## Identified appearances
 - scrolls: ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
-- potions: puce = oil; orange = extra healing; white = object detection; golden = see invisible; swirly = blindness; YELLOW = INVISIBILITY; CLOUDY = FULL HEALING (seen quaffed by leprechauns)
+- potions: puce = oil; orange = extra healing; white = object detection; golden = see invisible; swirly = blindness; YELLOW = INVISIBILITY; CLOUDY = FULL HEALING (seen quaffed by leprechauns); FIZZY = GAIN LEVEL, MILKY = SPEED (seen quaffed by D21 undead) -> H is a potion of SPEED
 - rings: ivory = teleport control; agate = invisibility; emerald = protection from shape changers
-- wands: steel = undead turning; tin = slow monster; spiked = secret door detection; runed = light; hexagonal = probing
+- wands: steel = undead turning; tin = slow monster; spiked = secret door detection; runed = light; hexagonal = probing; forked = digging; COPPER = TELEPORTATION
 - armor: opera cloak = invisibility; mud boots = speed; riding gloves = fumbling; faded pall = elven cloak. whistle = tin.
 - Price rules: HUNGRY doubles food prices. Wonotobo (Minetown) lowballs unID'd items (3/8 base).
 
@@ -57,6 +58,7 @@
 | 8 | Dungeons | up (17,6), down (70,10). **VAULT (2-3,17-18): ~$1650 of MINE + the vault's gold (~4x450)**: dig in with a pick-axe/wand of digging, grab it, leave in <30 turns. WEREWOLF (@) seen near (56,13). |
 | 9 | Dungeons = ORACLE | up (61,8), down (19,3). Fountains (38-40,11-13). Monkey with my remove curse fled west. |
 | 17 | Dungeons | up (5,8), DOWN (69,3). SPOTTED JELLY (46,7) (sessile; travel passes next to it). Explored: 5 rooms, dead door (63,5), stuck boulder corridor (27,15). Empty large box (5,10). |
+| 21 | Dungeons | up (39,18), DOWN (62,15) (room 61-65,13-17). GRAVEYARD (63-71,4-8), doors S (63,9), W (62,7): 9 wraiths + 3 vampires + ghouls killed; still ASLEEP inside: 2 MARILITHS, 4 ghosts, ~12 zombies; 2 unlooted LARGE BOXES (67,4), (69,6). Fountain (4,3) in the W room (2-11,2-8). A winter wolf cub roams the SW. |
 | 20 | Dungeons | up (28,13), DOWN (72,14) (room 72-76,14-17, doors (71,15) west, (75,13) top). Fountain (25,5) in room (22-30,4-7). **GIANT BEEHIVE** (killer bees, asleep) below the doorway (3,14) in the SW: avoided (x0-11,y15-20) — never enter without poison resistance. Roaming soldier ants (2 killed). Partly explored (north-east, south). |
 | 19 | Dungeons | up (33,9), DOWN (76,12). Fountain (33,17). Trapped closet (32,21) behind (32,20): vault teleporter or LEVEL TELEPORTER (avoided); an unfound VAULT (~4000 gold: dig in with the wand if charges allow). Locked door (61,13) north of the room (52-61,14-17) unexplored; locked (8,14), (32,10). Spellbook (15,19) left. |
 | 18 | Dungeons | up (42,6) (room 42-44,5-7; my junk at (43,7): 2 spellbooks, spare wand of secret door detection). **DOWN (6,13) is INSIDE AN ANTHOLE** (room 4-9,13-17, SOLDIER ANTS asleep, ~food on many squares; doors (10,13) (closed by me) and doorless (10,16)). Plan: open (10,13) from (11,13), kill the sleeping ants on (9,13),(8,13),(7,13) one blow each, step onto `>`. VAULT (9-10,4-5) emptied via a dug tunnel from the NW room (19,4). Gold in rock (15,3). Rooms: NW (19-34,3-6), NE (55-70,7-12), SW (15-24,15-20), S (38-41,16-18). |

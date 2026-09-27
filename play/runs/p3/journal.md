@@ -154,3 +154,10 @@ T:9822 DL20 — arrived (28,13). Killed a vampire bat, a WEREWOLF (kept in @ for
 T:10037 DL20 — "You enter a giant beehive!" at its doorway (3,14): backed out at once (killer bees = poison), avoided the area (x0-11, y15-20).
 T:10050 DL20 — a MUMAK butted me for 33 in one hit (118->85); killed it with one blow. Two awake soldier ants on the way to `>` killed (no stings landed).
 T:10110 DL20 — END OF SHIFT 10 on the down stairs (72,14): HP 105/118, XL10 (Exp 9226), AC-7, $452, no monsters in view.
+
+## Shift 11
+T:10127 DL21 — arrived (39,18) (not Medusa's level: rooms + corridors). Killed a Green-elf (U elven dagger), soldier ant, troll (ate its corpse after it revived once mid-meal), xan (wounded legs -> Burdened ~50 turns), horse, ape, tiger, 4 rothes.
+T:10292 DL21 — explore() walked into a GRAVEYARD's south door (63,9) (my manual avoid box ended at y=8). All asleep (stealth): killed 9 WRAITHS, 2 vampires, the VAMPIRE LORD, 3 ghouls, zombies one at a time. No level drained. 2 WRAITH CORPSES eaten: XL11 (exp) -> XL12 (T:10325) -> XL13 (T:10334), HP 142. Left 2 mariliths, 4 ghosts, ~12 zombies ASLEEP and 2 large boxes (67,4)/(69,6) unlooted.
+T:10307 DL21 — monsters quaffed: FIZZY = GAIN LEVEL ("seems more experienced"), MILKY = SPEED ("suddenly moving faster") -> my H milky is a potion of speed. A wraith read create monster -> peaceful golden naga.
+T:10325 DL21 — W copper wand (morgue): engrave "engraving vanishes", zap down at a dropped gem -> gem gone = WAND OF TELEPORTATION (2 charges used). X 4th scroll of teleportation (70,4). Y 2nd LIZARD CORPSE (44,9).
+T:10474 DL21 — `>` (62,15) (room 61-65,13-17). Winter wolf cub frost blast missed the potions.
