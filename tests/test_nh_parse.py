@@ -696,3 +696,15 @@ def test_door_at_corridor_end_is_a_door():
     assert not _door_like(scr, 5, 5)                  # a book lying in the room
     scr = mk({4: "  ---+---", 5: "  |.....|"})
     assert _door_like(scr, 5, 4)                      # in a wall line
+
+
+def test_default_benign_pet_kills_and_traps():
+    from nh.kernel import DEFAULT_BENIGN
+
+    def benign(m):
+        return any(p.search(m) for p in DEFAULT_BENIGN)
+    for m in ["The large cat kills the gnome!", "The kitten kills the newt.", "You are still in a pit.",
+              "You crawl to the edge of the pit.", "Pardon me, large cat.", "You are caught in a bear trap."]:
+        assert benign(m), m
+    for m in ["The soldier ant kills you!", "The large cat is killed!", "You feel feverish."]:
+        assert not benign(m), m

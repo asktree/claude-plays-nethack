@@ -40,6 +40,7 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     # swallowing still pauses
     r"^(?:The |Your )?[\w' -]+? (?:misses|bites|stings|butts|touches|hits|squeezes) "
     r"(?:the [\w' -]+|it|itself|himself|herself)\.$",
+    r"^(?:The |Your )[\w' -]+? (?:kills|destroys) (?!you\b)(?:the |an? )?[\w' -]+[.!]$",   # your pet's kills
     r"^You stop\. .* is in your way",
     r"^You stop\.$",                                   # "You stop.  Your kitten is in your way." is split
     r"^(Your|The) .* is in your way\.$",
