@@ -938,6 +938,29 @@ def _hunt_hidden_mimic(target, stop_hp, out, kills) -> dict:
     return out("killed" if gone else f"fought the {name} at {target} (not dead yet: fight({tx}, {ty}) again)")
 
 
+def _desmap_step(s, goal, avoid=frozenset()):
+    """The first step of desmap.route() toward goal when this level's fixed map is identified: a walkable
+    square next to you, not a trap, an undiscovered secret door, a water-edge square to avoid or a monster.
+    None otherwise."""
+    ids = (getattr(ctx.game, "desmap_ids", None) or {}).get(ctx.game.level_key(s.status)) if s.status.ok else None
+    if not ids or ids.get("ambiguous") or s.hero is None:
+        return None
+    try:
+        from . import desmap
+        r = desmap.route(goal[0], goal[1], s=s)
+    except Exception:  # noqa: BLE001  (no route on the map either)
+        return None
+    from nh.parse import MONSTER_CHARS
+    path = r.get("path") or []
+    if len(path) < 2:
+        return None
+    c = path[0]
+    if c in (r.get("secret") or ()) or c in (r.get("traps") or ()) or c in avoid \
+            or s.screen.at(*c) in MONSTER_CHARS or max(abs(c[0] - s.hero[0]), abs(c[1] - s.hero[1])) != 1:
+        return None
+    return c
+
+
 def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_water: bool = False) -> dict:
     """Close in on one hostile and fight it: target = part of its label
     ('pyrolisk') or its square (x, y). Each turn: adjacent -> fight() it
@@ -1077,8 +1100,12 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                                "away from the water, fight it at range, or hunt(..., near_water=True) if you "
                                "levitate / wear a greased or oilskin cloak / accept that")
             if not path or len(path) < 2:
-                nxt = _greedy_step(s, goal, bad_squares(s) | set(zone)) if m["dist"] is not None and m["dist"] <= 6 \
-                    else None
+                # an identified special level: its fixed map knows the dark, never-seen floor between you and it
+                # (p2 shift 29 #221: sleepers deep in the Valley's dark graveyard)
+                nxt = _desmap_step(s, goal, set(zone))
+                if nxt is None:
+                    nxt = _greedy_step(s, goal, bad_squares(s) | set(zone)) \
+                        if m["dist"] is not None and m["dist"] <= 6 else None
                 if nxt is None:
                     # far off, just past the edge of the map you know: go to the frontier nearest to it
                     from .explore import screen_frontiers

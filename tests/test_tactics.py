@@ -2933,3 +2933,21 @@ def test_desmap_walk_stops_before_an_unsettled_variant_square(monkeypatch):
     monkeypatch.setattr(desmap, "route", lambda x, y, **kw: routes.pop(0))
     s = desmap.walk(26, 7)
     assert walked == [[(23, 7), (24, 7)], [(25, 7), (26, 7)]] and s.hero == (26, 7)
+
+
+def test_hunt_desmap_step_over_dark_unseen_floor(monkeypatch):
+    # p2 shift 29 #221: sleepers deep in the Valley's dark graveyard — the fixed map knows the floor
+    from tactics import combat, ctx, desmap
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "        ..@"}, (10, 5), [])
+    assert combat._desmap_step(s, (20, 5)) is None                  # no identified map: nothing
+    g.desmap_ids = {"L": {"level": "valley", "ox": 2, "oy": 2}}
+    monkeypatch.setattr(desmap, "route", lambda x, y, s=None, **kw: {
+        "path": [(11, 5), (12, 5), (20, 5)], "secret": [], "traps": [], "uncertain": []})
+    assert combat._desmap_step(s, (20, 5)) == (11, 5)
+    monkeypatch.setattr(desmap, "route", lambda x, y, s=None, **kw: {
+        "path": [(11, 5), (12, 5), (20, 5)], "secret": [(11, 5)], "traps": [], "uncertain": []})
+    assert combat._desmap_step(s, (20, 5)) is None                  # an undiscovered secret door: search first
+    g.desmap_ids["L"]["ambiguous"] = True
+    assert combat._desmap_step(s, (20, 5)) is None
