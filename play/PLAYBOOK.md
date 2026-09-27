@@ -56,6 +56,15 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   on stairs a third of what you drop falls to the level below. Fight them in `@` form or at range.
 - Don't let a far-away travel target burn dozens of turns (use `travel(x, y, max_dist=N)`), and check that
   a target square isn't shop stock before "fetching" it.
+- **Special rooms** (hack.c check_special_room). The entry message appears only once per room: treasure zoo,
+  anthole, beehive, barracks, cockatrice nest, throne room, leprechaun hall, graveyard. Their monsters start
+  asleep. The harness pauses (SPECIAL ROOM) and from then on keeps explore()/travel() out of the room and
+  its other doorways.
+  - Step back out unless the room is worth it.
+  - To clear it, fight at the doorway (`fight_until_clear()` at full HP, one sleeper at a time, with
+    `fight(x, y)`), then `forget_room()` to go in.
+  - Soldier ants and killer bees are deadly early without poison resistance.
+  - A cockatrice nest means stoning: gloves, a wielded weapon and a lizard corpse, or leave it.
 - **Gold vaults and their teleporter** (vault.c, mklev.c). A vault is a closed 2x2 room holding 4 piles of
   gold. It has no door. A guard shows up on your 30th turn inside, asks "Hello stranger, who are you?", and
   makes you drop **all** your gold, including gold in bags.
