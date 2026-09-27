@@ -236,3 +236,16 @@
 - **T:10327 SOKOBAN PRIZE: north closet (42,15): "a bag" = BAG OF HOLDING (i, BUC unknown)** under a cursed scroll of scare monster (left there) on a burnt Elbereth. No amulet of reflection.
 - T:10328–10365 — zoo gold ($2283 on me), scroll STRC PRST SKRZ KRK (l); grid bugs killed. An owlbear + grid bug in the rows 8-9 room with the iron ring (29,8); giant mimic still at (29,6).
 - SHIFT 14 END T:10365 Soko 4 (Dlvl 2) — at (36,5) in the top corridor, HP 121/121, XL10 (Exp 7851), AC -2. No prayer used (timeout proven 0 since T:7281).
+
+## Shift 15
+- T:10368–10378 Soko 4 — hunting the owlbear, found the FIRE ELEMENTAL 2 squares away behind a grid bug in the ring-room doorway (33,7). Bagged scrolls b, l and potion K first (fire claw burns them). Held (33,6) above the doorway: owlbear, pit viper, grid bug killed; then the fire elemental: 2 blows each cost ~22 HP (passive "suddenly very hot" + claw), HP 121 → 75; a deliberate 3rd blow (`fight(max_blows=1, allow_passive=True)`) killed it (Exp 8142).
+- T:10379–10397 — giant zombie (1 blow), INVISIBLE STALKER (hunt(), 2 blows), grid bug, giant beetle, quivering blob killed. IRON RING (b) taken at (29,8); 53 gold + a LEMBAS WAFER at (32,11).
+- T:10402–10423 — ate the fresh owlbear corpse (killed T:10373) at (33,7): Satiated.
+- T:10430–10495 — down through Soko 3, 2 (xan killed; my boots took its leg stings), 1 to D6.
+- **T:10501 D6 — a LEPRECHAUN stole 1635 gold ($2336 → $701)** while a killer bee distracted me (the zoo gold was still in my purse, not in the sack). Bagged the rest (sack n: 1092). Found a SCROLL OF IDENTIFY (K). Slowed the leprechaun with wand r (T:10519) and hit it once, but it READ A SCROLL OF TELEPORTATION and escaped (T:10522). Gave up.
+- T:10549–10631 — D7, D8, D9, D10 (Big Room: Green-elf, floating eye, peaceful tengu far away), D11. **D11 arrival: "You again sense the Norn pleading for help" = QUEST PORTAL LEVEL.**
+- T:10641–10651 D11 LAWFUL ALTAR (44,6): BUC test — **bag of holding i UNCURSED**; bronze ring, IRON ring, hexagonal wand, 3 fire wands, slow monster, unicorn horn, food, identify scroll uncursed; CURSED: agate ring o, sapphire ring S, ring of teleportation X (left on the altar), OAK wand R (teleportation). **Elven mithril-coat: "You can't. It is cursed."**
+- **T:10649 PRAYER (3rd of the game) on the altar with 2 waters: SUCCESS, "Tyr is well-pleased", 2 HOLY WATER.** The cursed coat was not fixed. Prayer timeout reset.
+- T:10650 read identify: **bronze ring B = SEE INVISIBLE** (uncursed) → put on (left hand).
+- T:10651 `#name` the type of bag i "holding" → bag s ALSO shows "bag called holding": **TWO BAGS OF HOLDING (i empty, s full). Never nest them.** Holy water stored in s.
+- SHIFT 15 END T:10651 D11 — on the altar (44,6), HP 121/121, XL10 (Exp 8543), AC -2, $0 carried (1092 in sack n). Prayer on timeout (~T:11650). Plan: D12 shop (food, price-ID), D13, then new levels for MR/reflection.

@@ -31,6 +31,10 @@ def is_door(s, x, y) -> bool:
         return True          # you stand in a doorway with a door (the '@' hides it)
     if (getattr(s, "feature_mem", None) or {}).get((x, y)) == "D":
         return True          # a door seen before, now under an object pile or a monster
+    if getattr(s, "rogue", False) and cell(s, x, y) == "+":
+        from nh.mapscan import _door_like
+        if _door_like(s.screen, x, y):
+            return True      # a Rogue-level doorway: no door, but no diagonal moves either (doorless_door)
     return is_open_door(s, x, y) or is_closed_door(s, x, y)
 
 

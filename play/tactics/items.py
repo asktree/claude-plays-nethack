@@ -51,6 +51,14 @@ def inventory():
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
         ctx.game.reflecting = any("(being worn)" in it["text"] and _REFLECT.search(it["text"]) for it in items)
+        ctx.game.cursed_worn = [it["text"] for it in items if re.search(r"\bcursed\b", it["text"])
+                                and not re.search(r"\buncursed\b", it["text"])
+                                and re.search(r"\((?:being worn|on (?:left|right) hand|weapon in \w+|"
+                                              r"wielded)", it["text"])]
+        # pray.c worst_cursed_item() also counts a cursed luckstone, and a cursed loadstone once Strained
+        ctx.game.cursed_stones = [it["text"] for it in items if re.search(r"\bcursed (?:luck|load)stone", it["text"])]
+        ctx.game.bags = [it["letter"] for it in items if re.search(r"\b(?:sack|bag)\b", it["text"])
+                         and "tricks" not in it["text"]]
         ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
@@ -631,7 +639,9 @@ def discoveries() -> list:
     ctx.require_command("discoveries()")
     with ctx.no_monster_pauses():
         s = ctx.do("\\", quiet=True)
-    return parse_discoveries(s.messages)
+    out = parse_discoveries(s.messages)
+    s.messages = []            # the whole list would otherwise show as the exec's last `msgs:` line
+    return out
 
 
 def parse_discoveries(blocks) -> list:
@@ -680,7 +690,10 @@ def bag_take(bag: str, pattern: str | None = None) -> list:
     "potions called water"), so the pattern is also tried against their
     unidentified look from discoveries() ('white' finds the paralysis
     potion). Raises LookupError listing the contents if nothing matches.
-    Returns the messages."""
+    Returns the messages. 'gold' or '$' means the coins only (not golden
+    potions or gold rings)."""
+    if pattern is not None and pattern.strip().lower() in ("gold", "$", "coins", "gold pieces", "zorkmids"):
+        pattern = r"\bgold pieces?\b"
     disco = discoveries() if pattern else []
     s = _apply_container(bag, r"take something out")
     msgs = list(s.messages)
@@ -767,22 +780,32 @@ def pickup(pattern: str | None = None) -> list:
     ctx.require_command("pickup()")
     look = here()
     if "You see no objects here" in look or not look:
+        print(f"pickup({pattern!r}): there are no objects here" + (f" ({look})" if look else ""))
         return []
     rx = re.compile(pattern, re.I) if pattern else None
     single = re.search(r"You (?:see|feel) here (.+?)\.(?: \||$)", look)
     if single and "Things that" not in look and rx is not None and not rx.search(single.group(1)):
+        print(f"pickup({pattern!r}): nothing matching here — the floor has only {single.group(1)} "
+              "(a pet or a monster may have moved it: obs.objects)")
         return []
     s = ctx.do(",", quiet=True)
     msgs = list(s.messages)
     if s.state.kind == "menu":
+        chosen, seen = 0, []
         for _page in range(8):
             for it in s.state.menu.selectable():
+                seen.append(it.text)
                 if not it.selected and (rx is None or rx.search(it.text)):
                     s = ctx.do(it.letter, quiet=True)
+                    chosen += 1
             if s.state.menu and s.state.menu.page < s.state.menu.pages:
                 s = ctx.do(">", quiet=True)
             else:
                 break
+        if not chosen:
+            ctx.do("<Esc>", quiet=True)
+            print(f"pickup({pattern!r}): nothing matching here — the floor has: " + "; ".join(seen))
+            return msgs
         s = ctx.do("<CR>", quiet=True)
         msgs += s.messages
     if s.state.kind != "command":

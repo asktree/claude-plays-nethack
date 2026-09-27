@@ -88,11 +88,17 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You hear an? [A-G][\w ]* squeak (?:nearby|in the distance)\.",   # a monster on a squeaky board (trap.c)
     r"^The poison doesn't seem to affect you\.",       # poison resistance at work
     r"^A mysterious force prevents (?:the |an? )?[\w' -]+ from teleporting!$",   # a no-teleport level (Sokoban)
+    # your own armor/accessory changes (a cursed one still pauses: "You can't. It is cursed.")
+    r"^You were wearing (?!.*\bcursed\b)", r"^You are now wearing (?!.*\bcursed\b)",
+    r"^You finish (?:taking off|your dressing maneuver)",
     # exercise (attrib.c exerchk): gains are good news; the status line shows the attribute
     r"^You feel (?:very )?(?:strong|smart|wise|agile|tough|charismatic)!$",
     r"^You must have been (?:exercising diligently|very observant|working on your reflexes|leading a healthy)",
     # dropping things on an altar to learn their BUC (the flash/landing is the answer, not an event)
     r" lands? on the altar\.$", r"^There is an? (?:amber|black) flash as .* hits? the altar\.$",
+    # a shopkeeper's greeting (shk.c u_entered_shop; the snapshot's `shop` names the shop) — "leave your
+    # pick-axe outside" and "Invisible customers are not welcome!" still pause
+    r'^"?[A-Z][\w ]*, [^!]+!\s+Welcome(?: again)? to [^!]+!"?$',
 )]
 
 

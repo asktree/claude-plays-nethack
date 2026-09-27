@@ -96,6 +96,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append(f"!! {snap.wield_note}")
     if getattr(snap, "theft_note", ""):
         lines.append(f"!! {snap.theft_note}")
+    gold_warn = getattr(snap, "gold_note", "")
+    if gold_warn and snap.state.kind == "command":
+        lines.append(f"!! {gold_warn}")
     k = snap.state.kind
     if k != "command":
         if snap.state.prompt:
@@ -139,11 +142,14 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append("out of view: " + "; ".join(f"{g['desc']} last at ({g['x']},{g['y']}) {g['ago']} turn(s) ago"
                                                   for g in snap.gone))
     lim = None if mode == "full" else 2 * radius
-    objs = [o for o in snap.objects if lim is None or (o["dist"] is not None and o["dist"] <= lim)]
-    if objs:
+    allo = snap.objects
+    objs = [o for o in allo if lim is None or o["dist"] is None or o["dist"] <= lim]   # (None: no hero seen)
+    far = len(allo) - len(objs)
+    if objs or far:
         lines.append("objects: " + "; ".join(
             f"{o['ch']} {o['kind']}{' (pile)' if o['pile'] else ''} ({o['x']},{o['y']})" for o in objs[:14])
-            + (f"; ... {len(objs) - 14} more" if len(objs) > 14 else ""))
+            + (f"; ... {len(objs) - 14} more" if len(objs) > 14 else "")
+            + (f"{'; ' if objs else ''}+{far} farther away (obs --full / obs.objects)" if far else ""))
     allf = snap.features
     liquid = [f for f in allf if f["name"] in ("water", "lava")]
     feats = [f for f in allf if f["name"] not in ("water", "lava")
@@ -175,7 +181,7 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
                        "going back up is always allowed)")
     if getattr(snap, "rogue", False):
         lines.append("ROGUE LEVEL (no colours): '%' = stairs (up or down: see features), '+' in a wall = doorway "
-                     "(diagonal moves OK), ':' = food or a lizard/newt, ']' armor, ',' amulet, '*' gold or gem, "
+                     "(NO diagonal moves into or out of it), ':' = food or a lizard/newt, ']' armor, ',' amulet, '*' gold or gem, "
                      "'`' boulder")
     if plane == "Air":
         lines.append("Plane of Air: blank = open air, '#' = cloud (both passable, clouds block sight; without "

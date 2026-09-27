@@ -1059,3 +1059,281 @@ def test_bounce_risk_breather_in_line_with_wall_behind(monkeypatch):
     assert combat.bounce_risk(s2) == []                       # open floor behind: no bounce
     s3 = _snap({5: "         |@.........."}, (10, 5), [dict(naga, y=7, dist=10)])
     assert combat.bounce_risk(s3) == []                       # not lined up
+
+
+def test_prayer_check_counts_cursed_worn_items_and_stones(monkeypatch):
+    from tactics import ctx, survival
+    g = _G()
+    g.history = []
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(survival, "_harness_state", lambda: {})
+    s = _snap({}, (10, 5), [])
+    s.status.hp, s.status.hpmax, s.status.turn, s.status.xl = 90, 90, 5000, 10
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert survival.prayer_check()["trouble"] == "none"
+    g.cursed_worn = ["m - a cursed +0 elven mithril-coat (being worn)"]
+    r = survival.prayer_check()
+    assert r["trouble"] == "minor" and "mithril" in r["reasons"][0]
+    g.cursed_worn, g.cursed_stones = [], ["k - a cursed loadstone"]
+    assert survival.prayer_check()["trouble"] == "none"        # a loadstone counts only once Strained
+    s.status.encumbrance = "Strained"
+    assert survival.prayer_check()["trouble"] == "minor"
+
+
+def test_gold_note_only_with_a_bag_and_real_gold():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    s = _snap({5: "     .@."}, (6, 5), [])
+    s.status.ldesc, s.status.gold = "Dlvl:6", 1635
+    g._annotate(s)
+    assert s.gold_note == ""                    # no bag known: nothing to put it in
+    g.bags = ["n"]
+    g._annotate(s)
+    assert "$1635" in s.gold_note and "bag_put('n', '$')" in s.gold_note
+    s.status.gold = 40
+    g._annotate(s)
+    assert s.gold_note == ""
+
+
+def test_descend_goes_down_several_levels_and_stops_short(monkeypatch):
+    from tactics import ctx, nav
+    levels = iter(["Dlvl:6", "Dlvl:7", "Dlvl:7"])
+    cur = {"s": _snap({}, (10, 5), [])}
+    cur["s"].status.ldesc = "Dlvl:5"
+    calls = []
+
+    def fake_go_down(wait_pet=6, to=None):
+        calls.append(to)
+        s = _snap({}, (10, 5), [])
+        s.status.ldesc = next(levels)
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(nav, "go_down", fake_go_down)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "defer_far", None)
+    s = nav.descend(5)
+    assert len(calls) == 3 and s.status.ldesc == "Dlvl:7"      # the third go_down stayed on Dlvl:7: stop
+
+
+def test_stationary_hostiles_are_avoided_and_not_waited_for(monkeypatch):
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    mold = {"x": 12, "y": 5, "ch": "F", "desc": "brown mold", "dist": 2}
+    lichen = {"x": 13, "y": 5, "ch": "F", "desc": "lichen", "dist": 3}
+    tame = {"x": 11, "y": 6, "ch": "F", "desc": "tame brown mold", "tame": True, "dist": 1}
+    s = _snap({5: "        ........"}, (10, 5), [mold, lichen, tame])
+    bad = nav.bad_squares(s)
+    assert (12, 5) in bad and (13, 5) not in bad and (11, 6) not in bad
+
+
+def test_pickup_says_why_nothing_was_picked_up(monkeypatch, capsys):
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({}, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(items, "here", lambda: "You see here a tripe ration.")
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    assert items.pickup("blindfold") == [] and sent == []
+    assert "only a tripe ration" in capsys.readouterr().out
+    monkeypatch.setattr(items, "here", lambda: "You see no objects here.")
+    assert items.pickup("blindfold") == [] and "no objects here" in capsys.readouterr().out
+    # a pile: the menu has no match -> Esc, and the floor is listed
+    menu = _snap({}, (10, 5), [])
+    menu.state = State("menu", prompt="Pick up what?",
+                       menu=Menu(title="Pick up what?", items=[MenuItem("a", "a tripe ration"),
+                                                               MenuItem("b", "2 daggers")]))
+    monkeypatch.setattr(items, "here", lambda: "Things that are here: | a tripe ration | 2 daggers")
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or (menu if keys == "," else s))
+    items.pickup("blindfold")
+    assert sent == [",", "<Esc>"] and "2 daggers" in capsys.readouterr().out
+
+
+def test_bag_take_gold_means_coins_not_golden_potions(monkeypatch):
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    what = _snap({}, (10, 5), [])
+    what.state = State("menu", prompt="Take out what?",
+                       menu=Menu(title="Take out what?", items=[MenuItem("a", "6044 gold pieces"),
+                                                                MenuItem("b", "2 golden potions"),
+                                                                MenuItem("c", "a gold ring")]))
+    done = _snap({}, (10, 5), [])
+    sent = []
+    monkeypatch.setattr(items, "_apply_container", lambda bag, action: what)
+    monkeypatch.setattr(items, "discoveries", lambda: [])
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or (done if keys == "<CR>" else what))
+    items.bag_take("D", "gold")
+    assert sent == ["a", "<CR>"]
+
+
+def test_discoveries_leave_no_message_dump(monkeypatch):
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({}, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    shown = _snap({}, (10, 5), [])
+    shown.messages = ["Discoveries\nPotions\n  potion of paralysis (white)"]
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: shown)
+    assert items.discoveries() == [("potion of paralysis", "white potion")]
+    assert shown.messages == []
+
+
+def test_shop_greeting_and_stair_climbs_are_routine():
+    import re
+    from nh.kernel import DEFAULT_BENIGN
+    from tactics.nav import _STAIRS_OK
+
+    def benign(m):
+        return any(p.search(m) for p in DEFAULT_BENIGN)
+    assert benign('"Velkommen, p1!  Welcome to Asidonhopo\'s general store!"')
+    assert benign('"Hello, Agent!  Welcome again to Izchak\'s lighting store!"')
+    assert not benign('"Will you please leave your pick-axe outside?"')
+    assert not benign('"Invisible customers are not welcome!"')
+    stairs = [re.compile(p) for p in _STAIRS_OK]
+    for m in ("You climb up the stairs.", "You descend the stairs.", "You fly down the stairs.",
+              "With great effort, you climb up the stairs.", "You climb down the ladder."):
+        assert any(p.search(m) for p in stairs), m
+    assert not any(p.search("You have a sad feeling for a moment, then it passes.") for p in stairs)
+
+
+def test_arrival_snapshot_is_reannotated_once_the_level_is_named():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    name = "The Dungeons of Doom / Level 18"
+    g.level_flags[name] = {"rogue"}
+    s = _snap({5: "     +.@.]"}, (7, 5), [{"x": 9, "y": 5, "ch": "]", "mimic": True, "desc": "mimic"}])
+    s.status.ldesc = "Dlvl:18"
+    g._annotate(s)                    # the arrival: filed under the provisional "Dlvl:18"
+    assert not s.rogue
+    g.level_name, g.level_name_ldesc = name, "Dlvl:18"      # the tracker's ^O named it
+    g.reannotate(s)
+    assert s.rogue and "rogue" in s.flags and s.monsters == []     # ']' is armor on the Rogue level
+
+
+def test_travel_waits_for_a_peaceful_on_the_next_square(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    row = {5: "        ........."}
+    gnome = {"x": 11, "y": 5, "ch": "G", "desc": "peaceful gnomish wizard", "peaceful": True, "dist": 1}
+    s = _snap(row, (10, 5), [gnome])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    with pytest.raises(nav.NavError, match="stays on"):
+        nav._travel(12, 5, 5, None, 3, 0, False)
+    assert sent == [".", ".", "."]              # waited, never stepped into it
+
+
+def test_arrival_next_to_the_stairs_moves_the_memory(monkeypatch):
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    key = "Dlvl:17"
+    s = _snap({16: "     |...@..|", 17: "     |..8...|"}, (9, 16), [])
+    s.status.ldesc = key
+    g.terrain_seen[key] = {(9, 16): ">"}          # recorded on arrival: you stand on the other end
+    g.stair_links[key] = {(9, 16): "Dlvl:18"}
+    s.under = ">"
+    monkeypatch.setattr(g, "_quiet_look", lambda: "You see no objects here.")
+    g._verify_arrival(s, {"n": s.n, "hero": (9, 16), "ch": ">", "old_key": "Dlvl:18"})
+    assert g.terrain_seen[key] == {(8, 17): ">"} and g.stair_links[key] == {(8, 17): "Dlvl:18"}
+    assert s.under is None
+    # on the stairs after all: nothing changes
+    g.terrain_seen[key] = {(9, 16): ">"}
+    monkeypatch.setattr(g, "_quiet_look", lambda: "There is a staircase down here. You see here a dagger.")
+    g._verify_arrival(s, {"n": s.n, "hero": (9, 16), "ch": ">", "old_key": "Dlvl:18"})
+    assert g.terrain_seen[key] == {(9, 16): ">"}
+    # two monsters next to you: #terrain decides
+    s2 = _snap({16: "     |..d@..|", 17: "     |..8...|"}, (9, 16), [])
+    s2.status.ldesc = key
+    monkeypatch.setattr(g, "_quiet_look", lambda: "You see no objects here.")
+    monkeypatch.setattr(g, "terrain_scan", lambda: {"traps": set(), "features": {(8, 17): ">", (20, 3): "<"}})
+    g._verify_arrival(s2, {"n": s2.n, "hero": (9, 16), "ch": ">", "old_key": "Dlvl:18"})
+    assert g.terrain_seen[key] == {(8, 17): ">"}
+
+
+def test_stairs_retry_after_a_wrong_memory(monkeypatch):
+    from tactics import ctx, nav
+
+    class G(_G):
+        def __init__(self):
+            super().__init__()
+            self.terrain_seen = {"L": {(10, 5): ">", (12, 6): ">"}}
+            self.stair_links = {"L": {(10, 5): "Dlvl:6"}}
+
+        def terrain_scan(self):
+            return {"traps": set(), "features": {(12, 6): ">", (10, 5): ">"}}
+    g = G()
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "        ..@..", 6: "        ....>"}, (10, 5), [])
+    s.status.ldesc = "Dlvl:5"
+    cur = {"s": s}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False:
+                        sorted((c for c, v in g.terrain_seen["L"].items() if v == ch),
+                               key=lambda c: abs(c[0] - 10) + abs(c[1] - 5)))
+    monkeypatch.setattr(nav, "_pick_stairs", lambda ch, cells, to, s: (cells[0], ""))
+    moved = _snap({6: "        ....@"}, (12, 6), [])
+    moved.status.ldesc = "Dlvl:5"
+    down = _snap({}, (40, 10), [])
+    down.status.ldesc = "Dlvl:6"
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == ">":
+            if cur["s"].hero == (10, 5):
+                r = _snap({5: "        ..@..", 6: "        ....>"}, (10, 5), [])
+                r.status.ldesc = "Dlvl:5"
+                r.messages = ["You can't go down here."]
+                cur["s"] = r
+                return r
+            cur["s"] = down
+            return down
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(nav, "travel", lambda x, y, **kw: cur.__setitem__("s", moved) or moved)
+    s = nav._use_stairs(">", wait_pet=0)
+    assert s.status.ldesc == "Dlvl:6" and sent == [">", ">"]
+    assert (10, 5) not in g.terrain_seen["L"] and (10, 5) not in g.stair_links["L"]
+
+
+def test_travel_stops_short_on_a_free_square(monkeypatch):
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {4: "        |.....|", 5: "        |..8@.|", 6: "        |.....|"}
+    ghost = {"x": 11, "y": 5, "ch": "8", "desc": "ghost", "dist": 1}
+    s = _snap(rows, (12, 5), [ghost])
+    cur = {"s": s}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    steps = []
+
+    def fake_do(keys, **kw):
+        steps.append(keys)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(nav, "_final_step", lambda s, c: steps.append(("step", c)) or s)
+    try:
+        nav._travel(10, 6, 5, None, 0, 0, False)
+    except nav.NavError:
+        pass
+    assert ("step", (11, 5)) not in steps and ("step", (11, 6)) in steps
+
+
+def test_rogue_doorways_forbid_diagonal_moves():
+    from tactics.mapview import bfs_path, is_door
+    rows = {4: "     ---+---",
+            5: "     |.....|",
+            3: "        #   "}
+    s = _snap(rows, (7, 5), [])
+    s.rogue = True
+    assert is_door(s, 8, 4)
+    path = bfs_path(s, (7, 5), (8, 3))
+    assert path is not None and path[0] == (8, 5) and path[1] == (8, 4)     # straight in, straight out
+    s.rogue = False                                   # elsewhere a gray '+' in a wall is a doorless doorway
+    assert not is_door(s, 8, 4)

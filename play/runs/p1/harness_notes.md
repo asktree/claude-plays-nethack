@@ -466,3 +466,18 @@ Format: step `#N` — command — expected — what happened.
 1. Ghost (blank glyph) invisible to the monster list; step() attacked it — `#125`.
 2. Ghoul lacks a paralysis danger note; zap() doesn't warn about floor potions beyond the target (lost a potion of gain level) — `#783`.
 3. explore() still blocked next to a floating eye (`#777`); hunt() "no route" across unexplored squares 3 away (`#65`).
+
+## Shift 18 (T:16547 -> 18126; DL20 -> DL18 -> Minetown -> DL12; step numbers from #0)
+- `#6`, `#15`, `#913`, `#943`, `#961`, ... — **go_up()/go_down() pause on every level change** ("message; level: Dlvl:20 -> Dlvl:19" + "You climb up the stairs."): `_use_stairs` calls `ctx.do(ch)` without `expect=("level",)`. One wasted `cont` per level; a 17-level trip cost ~17 extra calls until I wrote my own loop with `do('<', expect=('level',), ok=[r'You climb'])`. Suggest: pass expect/ok in `_use_stairs` (new monsters on arrival still pause).
+- `#750` — **the Rogue level ghost was still a BLANK** ("You hit Michael Toy's ghost!"): the new `8` ghost symbol doesn't apply on the Rogue level (it uses its own symset). The new "YOUR MOVE ATTACKED something you didn't see" pause worked perfectly, though.
+- `#1004` — after a LEVEL TELEPORT onto the Rogue level (cursed teleport scroll), the first obs had no `ROGUE LEVEL` line, listed the `+` doorways as `+ spellbook`, the known pit (35,12) as "trap: falling rock/rolling boulder/statue trap", and flagged the chain mail `]` (27,19) as "mimic (posing as a strange object ']')". It corrected itself after the next command. Rogue detection should run before the arrival snapshot's monster/object parse (and `]` is armor there, not a mimic).
+- `#1391` — `bag_take('D', 'gold')` took the 6044 gold AND two golden potions (speed) — the look-name matching is surprising for 'gold'. Maybe treat `'gold'`/`'$'` as coins only.
+- `#1452`, `#1513` — travel() into/out of a shop: "Nosalnef blocks your path" and 3x "waiting a turn for peaceful Nosalnef" — fine, but each shop visit paused once on the greeting (a message pause). The greeting could be routine.
+- `#1583`/`#1587` — travel(67,11) to a shop pile occupied by a peaceful gnome lord ended silently at (68,10) (no NavError text visible after `tail`); I had to wait by hand. A clear "target occupied by peaceful X — waited N turns" return would help.
+- `#1866` — travel's last step refused because a peaceful gnomish wizard stood on the doorway (11,6) in front of the `>`: correct, but a `wait_peaceful` on the final step (like the start) would save a call.
+- Worked well: the new Rogue-level support (explore() swept all 6 dark rooms, `%` stairs listed, dead end -> hidden corridor), `fight()` inside an air elemental, `buy_protection()` (AC -12 -> -13, exact 4800), `pay()`, farlook prices in the shop ("a blindfold"), `pickup(pattern)`, `hunt()`, the `!!` yellow-light note, fight_until_clear() vs 4 wargs.
+
+### Shift 18 — ranked summary
+1. go_up()/go_down() pause on every level change (no `expect=("level",)` in `_use_stairs`) — ~17 wasted calls.
+2. Rogue level: ghost still blank (`#750`); after a level teleport the first obs misses the Rogue context (`+ spellbook`, `]` = mimic) (`#1004`).
+3. `bag_take('D','gold')` also takes golden potions (`#1391`); travel's last step next to a peaceful gives up instead of waiting (`#1866`).

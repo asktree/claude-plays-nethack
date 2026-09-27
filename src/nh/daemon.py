@@ -95,8 +95,11 @@ class Daemon:
     def render(self, snap, mode="crop") -> str:
         if snap is not None and snap.state.kind == "command" and self.memory.need_overview \
                 and (not self.kernel.busy() or self.kernel.parked):
+            key0 = self.game.level_key(snap.status) if snap.status.ok else None
             try:
                 self.memory.refresh_overview()
+                if key0 is not None and self.game.level_key(snap.status) != key0:
+                    self.game.reannotate(snap)
             except Exception as e:  # noqa: BLE001
                 self.game.log_event({"ev": "overview_error", "err": repr(e)})
         text = render.render(snap, mode=mode, mons=snap.monsters if snap is not None else None,

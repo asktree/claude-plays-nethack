@@ -204,6 +204,15 @@ def prayer_check() -> dict:
     cured = max((i for i, m in enumerate(hist) if "You feel purified" in m), default=-1)
     if fever > cured:
         reasons_major.append("lycanthropy")
+    cw = getattr(ctx.game, "cursed_worn", None) or []
+    if cw:
+        # pray.c worst_cursed_item(): cursed worn armor/rings/amulet/blindfold or a welded weapon (known
+        # from the last inventory() — inventory() refreshes it)
+        reasons_minor.append("cursed worn: " + "; ".join(cw[:3]))
+    stones = [t for t in getattr(ctx.game, "cursed_stones", None) or []
+              if "luckstone" in t or st.encumbrance in ("Strained", "Overtaxed", "Overloaded")]
+    if stones and not cw:
+        reasons_minor.append("cursed stone: " + stones[0])
     trouble = "major" if reasons_major else "minor" if reasons_minor else "none"
     limit = {"major": 200, "minor": 100, "none": 0}[trouble]
     hs = _harness_state()

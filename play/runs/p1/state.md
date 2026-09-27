@@ -2,88 +2,81 @@
 
 ## Character
 - Name/role: P1 the Woman-at-arms — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
-- Turn / Dlvl / XL / HP / Pw / AC: **T:16547 / DL20 (main dungeon), standing ON THE DL20 `<` (49,17) at shift-17 end** / **XL12** (Exp 31002; XL13 at 40000, XL14 at 80000) / **137/137** / 26/26 / **AC -12** (blessed +2 GRAY DRAGON SCALE MAIL + +3 small shield + orcish helm + elven cloak + blessed leather gloves + low boots + 3 points of divine protection). Wielding blessed rustproof **+6 EXCALIBUR** (long sword EXPERT; never enchant it again).
-- **Rings worn: f prot. from shape changers (RIGHT), u SLOW DIGESTION (LEFT, since T:16436 — hunger is now negligible).**
-- **Gold: $0 carried, $6044 IN THE BAG D** (bagged against leprechauns). Protection from a temple priest costs 400 x XL = 4800 at XL12 / 5200 at XL13 (take it out of the bag first).
-- Food: last meal a rock troll corpse T:16311. Carried: J 2 food rations, B C-ration, O K-ration, y 6 royal jelly, X orange, Q pancake, j candy bar, U slime mold. With slow digestion this lasts thousands of turns.
+- Turn / Dlvl / XL / HP / Pw / AC: **T:18126 / DL12 (main dungeon), standing ON THE DL12 `>` (11,5) at shift-18 end** / **XL12** (Exp 32853; XL13 at 40000, XL14 at 80000) / **137/137** / 26/26 / **AC -13** (blessed +2 GRAY DRAGON SCALE MAIL + +3 small shield + orcish helm + elven cloak + blessed leather gloves + low boots + **4 points of divine protection** — 4th bought T:17770 in Minetown for 4800). Wielding blessed rustproof **+6 EXCALIBUR** (long sword EXPERT; never enchant it again).
+- **Rings worn: f prot. from shape changers (RIGHT), u SLOW DIGESTION (LEFT).**
+- **Gold: $1371 carried, $0 in the bag.** Next protection: 400 x XL = 4800 (XL12) / 5200 (XL13).
+- Food: last meal rock troll T:16311; slow digestion worn, not hungry. Carried: J 2 food rations, B C-ration, O K-ration, y 6 royal jelly, X orange, Q pancake, j candy bar, U slime mold.
 - Attributes: St 18/10, Dx 16, Co20 In10 Wi11 Ch7.
-- Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf), speed (XL7), POISON RES, FIRE RES, TELEPATHY (blind only). **MAGIC RESISTANCE (GDSM)**. Excalibur: auto-search, drain res. NO sleep res, NO shock res (ring of shock res in the bag), NO reflection.
-- Luck 0, or +3 if the gray stone v is a luckstone (unknown; uncursed either way). Alignment record high; no peacefuls killed.
+- Intrinsics: cold res, stealth, infravision, speed (XL7), POISON RES, FIRE RES, TELEPATHY (blind only), **MAGIC RESISTANCE (GDSM)**. Excalibur: auto-search, drain res. NO sleep res, NO shock res (ring in the bag), **NO reflection**.
+- Luck 0 (or +3 if the gray stone v is a luckstone). Alignment record high; no peacefuls killed.
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
-| T:1271 | welded cursed orcish dagger (MINOR trouble — mistake) | accepted, trouble NOT fixed, timeout reset |
-| T:2016 | lycanthropy (MAJOR) | "well-pleased ... You feel purified" CURED |
-| T:3401 | Weak from hunger (MAJOR; prayer_check 98%) | "well-pleased. Your stomach feels content." |
-- The wish (T:10728) added 50-149; **the prayer timeout has certainly been 0 since ~T:10880**. Prayer available for major trouble (HP <= 22 at 137 max, XL12: max/6).
-- **Stoning cures: S = LIZARD CORPSE (got T:16108, never rots), then prayer.**
+| T:1271 | welded cursed dagger (MINOR — mistake) | accepted, trouble NOT fixed |
+| T:2016 | lycanthropy (MAJOR) | CURED |
+| T:3401 | Weak from hunger (MAJOR) | fixed |
+- The wish (T:10728) added 50-149; **prayer timeout certainly 0 since ~T:10880**. Prayer available (HP <= 22 = max/6 at XL12 is major trouble).
+- **Stoning cure: S = uncursed LIZARD CORPSE, then prayer.**
 
 ## Equipment worn/wielded
-- a: blessed rustproof +6 EXCALIBUR (wielded). c: uncursed +3 small shield. x: blessed +2 GRAY DRAGON SCALE MAIL (MR). n: uncursed +0 orcish helm. V: uncursed +0 faded pall = ELVEN CLOAK. r: blessed +0 leather gloves. z: uncursed +0 low boots. Rings f (right) + u slow digestion (left). H: uncursed elven dagger (quivered — THROW it at floating eyes; see lessons: a force bolt shatters floor potions in its path).
+- a: blessed rustproof +6 EXCALIBUR (wielded). c: uncursed +3 small shield. x: blessed +2 GDSM (MR). n: uncursed +0 orcish helm. V: uncursed +0 elven cloak. r: blessed +0 leather gloves. z: uncursed +0 low boots. Rings f (right) + u (left). H: uncursed elven dagger (quivered — throw at floating eyes).
 
-## Key inventory (letters as of T:16547, 46 letters used — pack limit 52)
-- **A: uncursed UNICORN HORN.** **S: LIZARD CORPSE.** **t: BLESSED POTION OF FULL HEALING.**
-- **Escapes: G and Z = WAND OF TELEPORTATION** (Z 2 charges used of 4-8, G unknown). **g = WAND OF DIGGING** (1 charge spent) — zap `>` = hole to the next level at once. **Scrolls of teleportation: k x3 (uncursed), L x3, R x1 (BUC unknown).** Elbereth. Stairs. Prayer.
-- **o: WAND OF FIRE** (charges unknown, 1 used) — SLIMING CURE, burns permanent Elbereth.
-- E: wand of lightning (0:3). Wands of striking: C (3+ used), Y (1 used).
-- **T: uncursed MAGIC MARKER (0:22)**. Blanks: q uncursed, M (BUC unknown). Write only KNOWN types (REMOVE CURSE by label `write_scroll('XOR OTA')`). Keep one blank for remove curse.
-- p: scroll of ENCHANT WEAPON (NOT for Excalibur). s: uncursed scroll of FIRE. (Scroll of identify l USED T:16433 — identified 4 rings at once.)
-- Potions: i uncursed black + h black (BUC?) = almost surely OBJECT DETECTION (both black ones came from nymphs, whose starting kit is a potion of object detection); K clear potion (water, BUC unknown — could be holy); F dark green, N murky unknown.
-- v: gray stone (flint, touchstone or LUCKSTONE; not a loadstone).
-- Tools: d uncursed KEY, b pick-axe (`bag_put('D','b')` before any shop), **D: uncursed BAG OF HOLDING ("BoH prize"), 28 items**: $6044, scroll ELAM EBOW (unknown), 2 scrolls of FIRE, scroll of LIGHT, scroll of CREATE MONSTER, yellow spellbook, potions: SWIRLY = HEALING, booze, sky blue = confusion, blessed + unknown-BUC MONSTER DETECTION, uncursed + cursed SPEED; wand of lightning (0:2), wand of CREATE MONSTER, can of grease, blessed (oil) lamp; rings: REGENERATION, **POLYMORPH CONTROL (uncursed)**, **SHOCK RESISTANCE (uncursed)**, unknown bronze (blessed, base 100), ivory (100), wire (100), coral (150); gems (black, 2 green, 2 orange, 3 red).
-- No holy water known (K might be).
+## Key inventory (T:18126, ~44 letters, limit 52)
+- **m: uncursed MAGIC LAMP** (found free on the Minetown street (24,16) T:17767; altar-tested uncursed T:17769) = a WISH once BLESSED (blessed: djinni 1/3 per rub, 80% wish; uncursed only 20%).
+- **l: BLINDFOLD** (bought 30 zm in Minetown T:17722) — for Medusa (put on with `P`, remove with `R`; blind + telepathy shows minded monsters).
+- **A: uncursed UNICORN HORN.** **S: uncursed LIZARD CORPSE.** **t: BLESSED POTION OF FULL HEALING.**
+- **K: uncursed CLEAR POTION = plain water** (altar T:17189) — to become HOLY WATER by praying on the DL15 lawful altar with it on the altar.
+- Escapes: **G and Z = WAND OF TELEPORTATION (both uncursed)** (Z 2 charges used of 4-8). **g = uncursed WAND OF DIGGING** (zap `>` = hole down). **k: 6 uncursed scrolls of teleportation.** (Cursed R was read T:17190: random level teleport DL15 -> DL18.) Confusion potion (bag) + a teleport scroll = random level teleport. Elbereth. Stairs. Prayer.
+- **o: uncursed WAND OF FIRE** (sliming cure, burns Elbereth). E: uncursed wand of lightning (0:3). Wands of striking C, Y (both uncursed).
+- **T: uncursed MAGIC MARKER (0:22)**. Blanks: q 2 uncursed, **e 3 unlabeled (BUC unknown, from DL6 (36,5))**. Write only KNOWN types (remove curse via its label `write_scroll('XOR OTA')`).
+- p: uncursed scroll of ENCHANT WEAPON (not for Excalibur). s: uncursed scroll of FIRE.
+- Potions: i 2 uncursed black (= probably object detection), F dark green, N murky (unknown, uncursed), **P uncursed SPEED, h cursed SPEED** (came out of the bag with the gold).
+- v: gray stone (flint/touchstone/luckstone; not a loadstone). d: uncursed KEY.
+- **D: uncursed BAG OF HOLDING ("BoH prize")**: **the PICK-AXE b is inside** (`bag_take('D','pick-axe')` before digging), scroll ELAM EBOW, 2 scrolls of fire, scroll of light, scroll of create monster, yellow spellbook, potions: swirly = HEALING, booze, sky blue = CONFUSION, 2 MONSTER DETECTION; wand of lightning (0:2), wand of CREATE MONSTER, can of grease, blessed oil lamp; rings REGENERATION, POLYMORPH CONTROL, SHOCK RESISTANCE, bronze (blessed, base 100), ivory (100), wire (100), coral (150); gems.
+- `bag_take('D', 'gold')` also matches GOLDEN potions (speed) — use `'gold piece'`.
 
 ## Identified appearances
 - Scrolls: ZELGO MER identify, EIRIS SAZUN IDISI amnesia, GARVEN DEH light, HACKEM MUCHE fire, TEMOV teleportation, FOOBIE BLETCH enchant weapon, KERNOD WEL scare monster, THARR create monster, ZLORFIK gold detection, **XOR OTA = REMOVE CURSE** (named). NR 9 (200) = earth or taming. ELAM EBOW, DUAM XNAHT (100) unknown.
 - Potions: yellow sickness, brilliant blue blindness, cyan oil, pink GAIN LEVEL, swirly HEALING, golden SPEED, ruby FULL HEALING, dark MONSTER DETECTION, orange BOOZE, sky blue CONFUSION; black probably object detection; dark green, murky unknown.
 - Wands: marble lightning, iridium striking, oak magic missile, crystal speed monster, short TELEPORTATION, zinc nothing, ebony CREATE MONSTER, balsa FIRE, platinum DIGGING.
-- Rings: diamond fire resistance, iron protection from shape changers, engagement REGENERATION, agate = base 150, **twisted POLYMORPH CONTROL, clay SHOCK RESISTANCE, opal SLOW DIGESTION, topaz GAIN CONSTITUTION** (a cursed -1 one dropped DL20 (48,7)).
-- Amulets: spherical = STRANGULATION (a cursed one dropped on DL16 (4,7)).
-- Armor: etched helmet = one of helmet/brilliance/opposite alignment/telepathy. faded pall = elven cloak.
-- Tools: "bag" = sack, BoH is D; "lamp" = oil lamp or magic lamp. looking glass = mirror.
+- Rings: diamond fire res, iron prot. from shape changers, engagement REGENERATION, agate = base 150, twisted POLYMORPH CONTROL, clay SHOCK RES, opal SLOW DIGESTION, topaz GAIN CON.
+- Amulets: spherical = STRANGULATION. Tools: magic lamp (formally identified). Armor: etched helmet (one of helmet/brilliance/opp. alignment/telepathy; blessed one left on the DL15 altar). faded pall = elven cloak.
 
 ## Dungeon map
 | Dlvl | branch | features |
 |---|---|---|
 | 1 | main | `<` (76,4). `>` (54,7). SINK (55,6). |
-| 2 | main | `<` (46,16). `>` (48,7). FOUNTAIN (25,6). TRAP DOOR (71,8) = shaft to DL5. |
-| 3 | main + Mines branch | `<` (19,9). General store NW (3-7,5-8). Main `>` (29,16); MINES `>` (46,18). |
-| 4 | main | `>` (20,14); hidden door (17,14) -> W room with `<` (5,9). Sleeping gas trap (58,15). |
+| 2 | main | `<` (46,16). `>` (48,7). FOUNTAIN (25,6). TRAP DOOR (71,8). |
+| 3 | main + Mines | `<` (19,9). General store NW. Main `>` (29,16); MINES `>` (46,18). |
+| 4 | main | `<` (5,9), `>` (20,14). Sleeping gas trap (58,15). |
 | 5 | main | `<` (59,16). `>` (70,16). |
-| 6 | main | ORACLE. `<` (9,7). `>` (65,10). Fountains (38,12) (39,11) (39,13) (40,12). |
-| 7 | main (Sokoban up) | `<` (5,7). `>` (13,8). Sokoban `<` (14,15) under the hill-orc statue. |
-| 8 | main | `<` (7,8). `>` (47,8). Fountains (42,8) and (48,16). SINK (22,3). Pit (7,11). |
-| 9 | main | `<` (64,5). `>` (72,13) in a closet behind door (71,12). |
-| 10 | main | `<` (19,7). NEUTRAL ALTAR (Odin) (16,7). `>` NOT FOUND; dug down from (39,16). Green mold (43,13). |
+| 6 | main | ORACLE. `<` (9,7). `>` (65,10). Fountains. Gray unicorn killed T:17569 (its horn left at ~(27,6)). |
+| 7 | main (Sokoban up) | `<` (5,7). `>` (13,8). Sokoban `<` (14,15) under the hill-orc statue. Magic trap (18,15). |
+| 8 | main | `<` (7,8). `>` (47,8). |
+| 9 | main | `<` (64,5). `>` (72,13). |
+| 10 | main | `<` (19,7). NEUTRAL ALTAR (16,7). **`>` (4,10) (under a lizard statue)**. |
 | 11 | main | `<` (18,5), `>` (10,14). |
-| 12 | main | `<` (9,16), `>` (11,5). Mountain nymph with a wand of teleportation roams it. |
-| **13** | main | **QUEST PORTAL: MAGIC PORTAL at (73,17) in the SE room** (not entered). `<` (34,16), `>` (6,13). Rolling boulder trap (17,13), anti-magic field (47,4), pit (51,19). |
-| 14 | main | `<` (54,5), `>` (35,7). Closed VAULT at (75-76,17-18) (not dug). |
-| **15** | main | `<` (11,4). **`>` (58,5)** (via hidden door (57,6)). **LAWFUL ALTAR to Tyr (48,19)** (SE room). ZOO (71-76,16-19) CLEARED; junk + spare spellbooks/fire-res ring at (71,19). Teleport trap (35,18). |
-| 16 | main | `<` (8,17) in a closet (5-8,15-17); **`>` (3,7)** in the tiny west room (2-4,5-7) behind the closet's west door (4,15) -> corridor north. Teleport trap (49,11), bear trap (67,12), land mine (71,14). Yellow molds (2,5), (52,8). Cursed amulet of strangulation at (4,7). |
-| 17 | main | `<` (30,15), **`>` (71,16)** (SE room). BEEHIVE (2-10,16-20) cleared. FOUNTAIN (64,4). Burned ELBERETH at (42,5). Trap (34,15). |
-| **18** | main | **ROGUE LEVEL** (`%` stairs, `+` doors; the harness now handles it). `<` (37,4), **`>` (16,2)** in a tiny NW room. Mostly unexplored (dark rooms). |
-| **19** | main | `<` (45,17), **`>` (34,19)**. FULLY EXPLORED. Court (59-70,17-19) CLEARED, throne gone. Engraved Elbereth (70,19). **TRAP DOOR (64,7)**. Leprechaun roams. |
-| **20** | main | **`<` (49,17)** (room 46-55,16-18; $ at (55,18) left). **`>` (39,10)** (room 33-39,8-13). **GRAVEYARD (70-75,15-17) CLEARED** T:15985-16011 (graves e.g. (74,15); graves hold CURSED random items, digging one = -1 alignment for lawfuls); empty large box (75,16); hidden door (74,14) opened. Rooms: NE (49-60,4-5), N-mid (13-22,4-7), NW (2-6,4-6), SW (8-19,15-18). Traps: TELEPORT (59,4) and (21,5); **POLYMORPH TRAP (9,16)** (MR blocks it; avoid anyway). Unexplored pockets behind boulders (23,16), (36,16) (south of the long row-15 corridor) and dead ends (52,13), (49,14), (54,20), (13,13). Junk: empty wand of striking + mirror (60,4), cursed -1 gain con ring (48,7). **One rock-troll corpse is still near (69,13)/(71,14): it may revive and come hunting (kill it; eat it at once).** NOT Medusa. |
-| Mines 1-8 | Mines | Minetown = Mines 3 (DL6): temple of Odin (neutral) (33,4), general store, hardware store; `>` (48,4) behind door (52,7). Mines' End (DL11): LUCKSTONE still in a SW closet (3,17)/(3,19). |
-| Sokoban | Sokoban | ALL SOLVED, prize (BoH) taken. |
+| 12 | main | `<` (9,16), `>` (11,5) (door (11,6) below it). Peaceful gnomish wizard. |
+| **13** | main | **QUEST PORTAL (73,17)**. `<` (34,16), `>` (6,13). **YELLOW LIGHT near the `<` (last at (44,16), T:18125)** — see plan. Anti-magic field (47,4). |
+| 14 | main | `<` (54,5), `>` (35,7). Closed VAULT (75-76,17-18). |
+| **15** | main | `<` (11,4). `>` (58,5). **LAWFUL ALTAR to Tyr (48,19)**. Teleport trap (35,18). |
+| 16 | main | `<` (8,17); `>` (3,7). Yellow mold (2,5). Cursed amulet of strangulation (4,7). |
+| 17 | main | `<` (30,15), `>` (71,16) (peaceful ALEAX there; squeaky board (70,17)). Fountain (64,4). |
+| **18** | main | **ROGUE LEVEL — FULLY EXPLORED (T:16928)**: `<` (37,4), `>` (16,2). Rooms NW, N-mid, W-mid, centre (32-41,9-13, pit (35,12)), S-mid (26-50,18-21), SE (57-71,16-21). Rogue ghost pile at (38,10): FAKE Amulet of Yendor, ring mail, bow, arrows, two-handed sword, food ration. Chain mail (27,19). No reflection here. |
+| 19 | main | `<` (45,17), `>` (34,19). FULLY EXPLORED. Trap door (64,7). |
+| 20 | main | `<` (49,17), `>` (39,10). Graveyard cleared. Teleport traps (59,4), (21,5); POLYMORPH TRAP (9,16). Heard a VAULT. NOT Medusa. |
+| Mines 1-2 | Mines | DL4 `<` (6,20) `>` (27,6); DL5 `<` (25,5) `>` (16,10). |
+| Minetown | Mines 3 = DL6 | GROTTO TOWN. `<` (3,2), `>` (48,4). Temple of ODIN (neutral) altar (33,4) — never pray there. Hardware store (59-62,14-16): large box, tin opener, leash, bag. General store (61-69,10-11): 2 oil. Black unicorn roams (hostile). |
+| Mines' End | DL11 | LUCKSTONE in a SW closet (3,17)/(3,19). |
+| Sokoban | | ALL SOLVED. |
 
 ## Threats / known dangers
-- Booby-trapped doors fire on OPENING as well as on unlocking; near sleepers, dig through the wall beside the door instead.
-- Nymphs: drop the bag D and horn A on your square before she reaches you, or kill her asleep (worked T:15956).
-- Fire gazes/breath burn scrolls and boil potions even with fire resistance: important ones in the BoH.
-- Demons gate in more demons (barbed devil T:16004): kill them fast.
-- Quantum mechanics: every hit teleports you around the level (harmless with MR? NO — MR does not stop it); never eat the corpse (toggles speed).
-- Energy vortices, ravens, incubi/succubi, cockatrices (lizard S now carried). No sleep resistance.
+- Booby-trapped doors fire on opening as well as on unlocking. Nymphs/monkeys: drop D and A first.
+- Fire gazes/breath burn scrolls/potions: bag the important ones. Demons gate demons.
+- Quantum mechanics teleport (MR doesn't stop it). Yellow lights: strike when adjacent (one blow; a kill never explodes), or be Blind (blindfold l) first.
 
-## Depth decision (shift 17)
-- **Staying at DL20** (orchestrator rule: no descending without reflection, or a blindfold/towel + a water crossing). Medusa is DL21-24.
-- **Wiki facts for the plan (Medusa's_Island.txt): every Medusa variant has a DIGGABLE FLOOR.** "If crossing the water is not an option, you may dig a hole to the next level and then come back up by the staircase" — the wand of digging g (or pick-axe) can bypass her island entirely; the Castle below still needs reflection (black dragons' disintegration) per rule A1. Perseus' statue (on her level) holds a shield of reflection (chance) and sometimes levitation boots.
-
-## Objective and plan (after shift 17)
-1. Reflection is the blocker. Sources: random amulets/shields on DL16-20 leftovers and DL18 (Rogue level, mostly unexplored dark rooms); shops (none known below Minetown); Perseus' statue on Medusa's level (needs a water crossing or blindness + the island).
-2. Blindfold/towel: look in the Minetown hardware/general stores (DL6 via the Mines) — also buy protection from the Minetown priest there (4800 at XL12; $6044 in the bag). Price-identify the 4 unknown rings (bronze/ivory/wire 100, coral 150) and the potions there.
-3. XP toward XL13/14 (quest portal DL13 (73,17)): wraiths (the DL20 one left no corpse), pink potions (gain level).
-4. Altar DL15 (48,19) for BUC tests (K clear potion = holy water?, h black, M blank).
-5. Luckstone at Mines' End still there (v might already be one).
+## Objective and plan (after shift 18)
+1. **THE WISH (next shift, first thing):** go down DL12 -> DL13 -> DL14 -> DL15 (on DL13 the yellow light waits near the `<`: kill it when adjacent or put on the blindfold first). At the DL15 altar (48,19): `prayer_check()` (expect "no trouble"; timeout 0 since ~T:10880), drop **K** on the altar, `#pray` (yes<CR>) -> K becomes HOLY WATER (co-aligned altar, p_type 3 = water_prayer(TRUE)). Pick K up, `dip_into('m', 'K')` -> "glows with a light blue aura" = lamp blessed. Then `rub('m', max_rubs=12)` -> djinni -> answer the wish with `cont --reply 'blessed +2 shield of reflection<CR>'` (same AC as the +3 small shield; keeps the amulet slot for life saving) — or `blessed amulet of reflection` if the orchestrator prefers.
+2. With reflection: back to DL20 and the Medusa plan (blindfold l + reflection; water crossing still needed: levitation/water walking, or dig down on her level and come back up the Castle's `<` onto her island).
+3. XP toward XL14 (quest portal DL13 (73,17)); `piety()` needs a stethoscope.

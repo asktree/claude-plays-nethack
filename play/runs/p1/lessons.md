@@ -107,3 +107,7 @@
 - Troll corpses can revive in the middle of your meal (revive timer: any age 2-50; eating a 1200-wt troll takes ~21 turns). Kill, eat at once, expect 1-2 more kills (~180 Exp each).
 - Before reading identify, take every high-uncertainty item OUT of the bag: the bonus rounds (1/5 chance of several items) only reach what is in the pack — one uncursed scroll identified all 4 unknown rings.
 - Medusa's level has a diggable floor in all variants (wiki): digging a hole there skips her island (then her `>` room is reached from the Castle's up stairs). The Castle itself still needs reflection (black dragons).
+- A cursed scroll of teleportation (or any, read confused) = RANDOM level teleport: 1/5 nothing, else uniform over 1..cur+3 minus the current level. From DL15 that is 3/17 to go DOWN; it sent me to DL18 and cost ~20 tool calls to recover. Only use it as an escape, not as a shortcut.
+- The Rogue level's ghost (named after a Rogue author) sleeps ON its tribute pile; the `,` "amulet" there is usually the CHEAP PLASTIC IMITATION (50%). Don't count it as a reflection lead.
+- Look at every item on a town street: a MAGIC LAMP lay free under an acid blob in Minetown. An uncursed lamp is only a 20% wish per djinni; bless it first (holy water from praying on a co-aligned altar with plain water on it).
+- `bag_take('D', 'gold')` also takes GOLDEN potions (the pattern is tried against unidentified looks): spell it `'gold piece'`.

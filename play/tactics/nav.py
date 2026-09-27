@@ -100,7 +100,9 @@ def bad_squares(s=None) -> set:
     for the current level. Both persist across daemon restarts."""
     s = s or ctx.last()
     lv = ctx.game.level_key(s.status)
-    mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")}
+    from nh.monitor import _stationary
+    mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")
+              or (not m.get("tame") and not m.get("peaceful") and _stationary(m.get("desc") or ""))}
     return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics
 
 
@@ -124,6 +126,12 @@ def occupants(s, cell) -> list:
     cell = tuple(cell)
     return [m for m in (s.monsters or []) if (m["x"], m["y"]) == cell and not m.get("tame")
             and not m.get("pet") and not m.get("statue")]
+
+
+def _peacefuls_at(s, cell) -> list:
+    """Peaceful (not tame) monsters standing on `cell`."""
+    return [m for m in (s.monsters or []) if (m["x"], m["y"]) == tuple(cell) and m.get("peaceful")
+            and not m.get("tame") and not m.get("pet")]
 
 
 def _check_free(s, cell, who: str):
@@ -402,10 +410,19 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     if bad and s.hero is not None:
         direct = bfs_path(s, s.hero, (x, y), allow_monsters=True)
         if direct and any(c in bad for c in direct):
-            detour = bfs_path(s, s.hero, (x, y), avoid=frozenset(bad), allow_monsters=False)
-            if detour is None:
-                raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square {sorted(bad)}")
-            return walk_path(detour)
+            for _try in range(6):
+                cur = ctx.last()
+                detour = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad), allow_monsters=False)
+                if detour is None:
+                    raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square "
+                                   f"{sorted(bad)}")
+                try:
+                    return walk_path(detour)
+                except NavError:
+                    from .combat import fight_trivial
+                    if not auto_fight or fight_trivial(ctx.last()) is None:
+                        raise                  # not a trivial monster in the way: your call
+            raise NavError(f"travel to {(x, y)}: the detour kept being blocked")
     waits = sidesteps = backoffs = fallbacks = fights = 0
     start = s.hero
     lvl0 = s.status.ldesc if s.status.ok else None
@@ -437,15 +454,15 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                                "travel(..., near_exploders=True)")
         if (tx, ty) == (x, y) and h0 is not None and max(abs(x - h0[0]), abs(y - h0[1])) == 1:
             # a peaceful stepped onto the target: wait for it (a plain step into it is refused)
-            peace = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and m.get("peaceful")
-                     and not m.get("tame") and not m.get("pet")]
+            peace = _peacefuls_at(s, (x, y))
             if peace:
                 if waits < wait_peaceful:
                     waits += 1
                     print(f"travel: waiting a turn for {_mdesc(peace)} to leave the target square")
                     s = ctx.do(".", ok=BENIGN)
                     continue
-                raise NavError(f"travel to {(x, y)}: {_mdesc(peace)} stays on the target square")
+                raise NavError(f"travel to {(x, y)}: {_mdesc(peace)} stays on the target square (waited "
+                               f"{waits} turns; you are next to it at {h0})")
             # last square by a plain step: NetHack's travel never picks anything up
             # (it sets 'nopick'), a plain move autopicks gold and thrown weapons
             s = _final_step(s, (x, y))
@@ -462,13 +479,24 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                                + (f"; messages: {s.messages}" if s.messages else ""))
             continue
         if (tx, ty) == (x, y) and h0 is not None:
-            path = bfs_path(s, h0, (x, y), allow_monsters=True)
+            # stop one short (the last step is a plain move) — on a free square when one will do
+            path = bfs_path(s, h0, (x, y), allow_monsters=False) or bfs_path(s, h0, (x, y), allow_monsters=True)
             if path and len(path) >= 2:
-                tx, ty = path[-2]          # stop one short; the last step is a plain move
+                tx, ty = path[-2]
         if h0 is not None and dist((tx, ty), h0) == 1:
             # findtravelpath(): "if travel to adjacent, just go there" — a plain move with travel's
             # nopick flag: a monster there gets "You move right into it" (a wasted turn; an engulfer
             # engulfs you). Step there ourselves, checked
+            peace = _peacefuls_at(s, (tx, ty))
+            if peace:
+                # e.g. a peaceful in the doorway in front of the stairs: it usually moves on
+                if waits < wait_peaceful:
+                    waits += 1
+                    print(f"travel: waiting a turn for {_mdesc(peace)} to move off {(tx, ty)}")
+                    s = ctx.do(".", ok=BENIGN)
+                    continue
+                raise NavError(f"travel to {(x, y)}: {_mdesc(peace)} stays on {(tx, ty)}, the next square "
+                               f"(waited {waits} turns) — wait longer or go around")
             s = _final_step(s, (tx, ty))
             if s.state.kind != "command" or s.hero == (x, y):
                 return s
@@ -519,7 +547,8 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     if s2.hero != h0:
                         s = s2
                         continue
-            if blk and waits < wait_peaceful:
+            from nh.monitor import _stationary
+            if blk and waits < wait_peaceful and not all(_stationary(m.get("desc") or "") for m in blk):
                 waits += 1
                 print(f"travel: waiting a turn for {_mdesc(blk)} to move")
                 s = ctx.do(".", ok=BENIGN)      # give the peaceful a turn to move off
@@ -581,8 +610,11 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     continue
             raise NavError(_no_path_msg(s, h0, (x, y), start))
         if _notable(s.messages) and not s.paused:
-            return s   # something happened en route; let the caller look (unless the exec
-                       # already paused on it and the player chose to go on)
+            # something happened en route; let the caller look (unless the exec
+            # already paused on it and the player chose to go on)
+            print(f"travel: stopped at {s.hero} short of {(x, y)} on {_notable(s.messages)} — look, then "
+                  "travel again")
+            return s
     return s
 
 
@@ -841,7 +873,34 @@ def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
     return cells[0], ""
 
 
-def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None, with_pet=None):
+# do.c goto_level(): the climb itself (verbose); falling down while Burdened costs 1-3 HP (the HP rules
+# still apply) — anything else on arrival still pauses
+_STAIRS_OK = [r"^(?:With great effort, you|You) (?:climb|float|fly) up(?: along)? the (?:stairs|ladder)\.$",
+              r"^You (?:fly|float) down (?:along )?the (?:stairs|ladder)\.$", r"^You fall down the (?:stairs|ladder)\.$",
+              r"^You (?:descend the stairs|climb down the ladder)\.$",
+              r"^You can't go (?:down|up) here\.$",      # handled below: the stairs memory was wrong
+              r"^(?:The |Your )?[\w' -]+ is still eating\.$"]   # your pet stays behind (said above)
+
+
+def _forget_stairs(cell, ch: str) -> None:
+    """The stairs memory was wrong ("You can't go down here."): forget that
+    square and read the game's own map (#terrain, no game time) again."""
+    g = ctx.game
+    key = g.level_key(ctx.last().status)
+    mem = g.terrain_seen.get(key, {})
+    if mem.get(tuple(cell)) == ch:
+        del mem[tuple(cell)]
+    g.stair_links.get(key, {}).pop(tuple(cell), None)
+    found = g.terrain_scan() if hasattr(g, "terrain_scan") else None
+    if found:
+        g.terrain_seen.setdefault(key, {}).update(
+            {c: v for c, v in found["features"].items() if not (v == ch and c == tuple(cell))})
+    if hasattr(g, "_annotate"):
+        g._annotate(ctx.last())          # the obs shows the corrected memory at once
+
+
+def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None, with_pet=None,
+                _retried: bool = False):
     s = ctx.last()
     engulfed_check(s, "go_down()" if ch == ">" else "go_up()")
     if s.status.ok and "Lev" in s.status.conditions:
@@ -889,9 +948,16 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
         print(f"stairs: your pet ({had_pet[0].get('desc') or had_pet[0]['ch']}) is not next to you — "
               f"taking the {ch} without it (it stays on this level)")
     ld0 = s.status.ldesc if s.status.ok else None
-    s = ctx.do(ch)
+    s = ctx.do(ch, expect=("level",), ok=_STAIRS_OK)   # the level change is the point: no pause for it
     cur = ctx.last()
     if cur.state.kind == "command" and ld0 is not None and cur.status.ok and cur.status.ldesc == ld0:
+        if not _retried and any(m.startswith(("You can't go down here", "You can't go up here"))
+                                for m in cur.messages):
+            # the remembered stairs were not there (e.g. you had arrived NEXT TO them: a monster took the
+            # arrival square): forget that square, re-read the map, try once more
+            print(f"stairs: no {ch} at {target} after all — forgetting it and re-reading the map (#terrain)")
+            _forget_stairs(target, ch)
+            return _use_stairs(ch, tries, wait_pet, to, with_pet, _retried=True)
         raise NavError(f"pressed {ch!r} at {target} but you are still on {ld0}"
                        + (f": {cur.messages}" if cur.messages else "") + " — look at why before going on")
     return s
@@ -930,8 +996,9 @@ def _wait_for_pet(s, turns: int):
             print(f"stairs: your pet ({far[0].get('desc') or far[0]['ch']} at ({far[0]['x']},{far[0]['y']})) is "
                   f"{far[0].get('dist')} squares away — not waiting (only for a pet within 7)")
         return s
+    from nh.monitor import _stationary
     for i in range(turns):
-        if s.hostiles(2):
+        if [m for m in s.hostiles(2) if not _stationary(m.get("desc") or "")]:
             print("stairs: a hostile is close — not waiting for the pet")
             return s
         s = ctx.do(".", ok=BENIGN)
@@ -957,6 +1024,26 @@ def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None):
     (see travel()); default: yes when wait_pet and your pet is within 7
     squares at the start. Says so when it leaves the pet behind."""
     return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet)
+
+
+def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None):
+    """go_down() `levels` times in a row (the Dungeons' main stairs by default,
+    or toward `to`). The level changes don't pause; newcomers farther than 6
+    squares without a danger note wait until they come near (defer_far);
+    anything dangerous, adjacent, HP loss or a message still pauses. Stops
+    early (returns) at a prompt or when a go_down() stops short. Returns the
+    last snap."""
+    import contextlib
+    far = getattr(ctx, "defer_far", None)
+    s = ctx.last()
+    with (far(6) if far is not None else contextlib.nullcontext()):
+        for i in range(levels):
+            ld0 = ctx.last().status.ldesc
+            s = go_down(wait_pet=wait_pet, to=to)
+            if s.state.kind != "command" or ctx.last().status.ldesc == ld0:
+                return s
+            print(f"descend(): {ld0} -> {ctx.last().status.ldesc} ({i + 1}/{levels})")
+    return s
 
 
 def go_up(wait_pet: int = 6, to: str | None = None, with_pet=None):

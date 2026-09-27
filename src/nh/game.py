@@ -65,6 +65,7 @@ class Snap:
     floor_mem: set = field(default_factory=set)   # Rogue level: floor seen before (dark rooms forget it)
     flags: set = field(default_factory=set)       # this level's flags ("rogue", "castle", "medusa?", "medusa"...)
     medusa_risk: bool = False  # probably Medusa's level and you are neither blind nor known to reflect
+    gold_note: str = ""        # loose gold while you carry a bag (leprechauns take the purse, not the bag)
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -332,6 +333,7 @@ class Game:
         # (autodescribe rewrites the top line), so we track it: set when a
         # position prompt appears, cleared by a pick key or ESC.
         self.getpos_active = False
+        self._arrival_check: dict | None = None   # a stairs arrival with a monster next to you (see step())
         self.tracker = None   # MonsterTracker, attached by the daemon
         self.visited: dict[str, set] = {}   # level (ldesc) -> hero positions seen in command state
         self.traps: dict[str, set] = {}     # level (ldesc) -> squares known to hold traps
@@ -659,6 +661,10 @@ class Game:
                 for x, ch in enumerate(row):
                     if ch in ".#%" or (ch == "+" and _door_like(snap.screen, x, y)):
                         floor.add((x, y))
+                    if ch == "+" and _door_like(snap.screen, x, y):
+                        # hack.c doorless_door(): Rogue-level doorways have no door but still forbid
+                        # diagonal moves into and out of them
+                        feats[(x, y)] = "D"
             floor.add(snap.hero)
         for c, v in list(feats.items()):
             if v not in "^~" and c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
@@ -1269,6 +1275,11 @@ class Game:
                         new_key = self.level_key(snap.status)
                         self.stair_links.setdefault(old_key, {})[cur.hero] = new_key
                         self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
+                    if arrive and any(snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) in MONSTER_CHARS
+                                      for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy):
+                        # a monster came along (or stood there): you may be NEXT TO the stairs — checked
+                        # with a look once this step is done (_verify_arrival)
+                        self._arrival_check = {"n": snap.n, "hero": snap.hero, "ch": arrive, "old_key": old_key}
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             elif snap.state.kind == "getpos" and snap.status.ok:
@@ -1293,11 +1304,18 @@ class Game:
                 del self.history[: len(self.history) - self.max_history]
             self.last = snap
             self._log(snap)
+            key0 = self.level_key(snap.status) if snap.status.ok else None
+            # (taken before the callbacks: the tracker's ^O runs nested steps of its own)
+            chk, self._arrival_check = self._arrival_check, None
             for cb in list(self.on_step):
                 try:
                     cb(snap)
                 except Exception:
                     pass
+            if key0 is not None and self.level_key(snap.status) != key0:
+                self.reannotate(snap)
+            if chk is not None and chk["n"] == snap.n and snap.state.kind == "command" and snap.hero == chk["hero"]:
+                self._verify_arrival(snap, chk)
             return snap
 
     # Messages meaning the hero is standing on a trap *now* (teleporters, trap
@@ -1524,8 +1542,83 @@ class Game:
         snap.theft_note = self.theft_note(snap.status.turn if snap.status.ok else None)
         snap.rogue = key is not None and "rogue" in self.level_flags.get(key, ())
         snap.medusa_risk = self._medusa_risk(snap, key)
+        bags = getattr(self, "bags", None) or []
+        snap.gold_note = (f"${snap.status.gold} loose in your purse — a leprechaun takes it all: "
+                          f"bag_put('{bags[0]}', '$')"
+                          if bags and snap.status.ok and (snap.status.gold or 0) >= 200 else "")
         snap.flags = set(self.level_flags.get(key, ())) if key is not None else set()
         snap.floor_mem = (self.floor_seen.get(key, set()) | self.visited.get(key, set())) if snap.rogue else set()
+
+    _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
+
+    def _quiet_look(self) -> str:
+        """':' (no game time) read straight off the screen, outside the step machinery (no history, no
+        pauses); the next command clears the message line."""
+        s = self.send_bytes(b":")
+        texts = []
+        for _ in range(6):
+            if s.state.kind not in ("more", "text"):
+                break
+            if s.state.more_text:
+                texts.append(s.state.more_text)
+            s = self.send_bytes(s.state.dismiss.encode())
+        if s.state.kind == "command":
+            top = s.screen.row(0).strip()
+            if top:
+                texts.append(top)
+        else:
+            self.send_bytes(b"\x1b")
+        return " ".join(texts)
+
+    def _verify_arrival(self, snap: Snap, chk: dict) -> None:
+        """do.c goto_level()/u_collide_m(): when a monster holds the arrival square (a pet or a follower
+        that came along, or one standing there) NetHack puts you on a square NEXT TO the stairs half the
+        time, and the monster stays on them. With a monster next to you after taking the stairs, look
+        (':', no game time); if the stairs aren't under you, move their memory (and where they lead) to
+        the square under that monster (#terrain decides when several monsters could be on them)."""
+        try:
+            text = self._quiet_look()
+        except Exception as e:  # noqa: BLE001
+            self.log_event({"ev": "arrival_look_error", "err": repr(e)})
+            return
+        finally:
+            self.last = snap
+        if self._ON_STAIRS.search(text):
+            return
+        key = self.level_key(snap.status)
+        hero, ch = chk["hero"], chk["ch"]
+        mem = self.terrain_seen.setdefault(key, {})
+        if mem.get(hero) == ch:
+            del mem[hero]
+        links = self.stair_links.setdefault(key, {})
+        dest = links.pop(hero, None) or chk.get("old_key")
+        if snap.under == ch:
+            snap.under = None
+        cands = [(hero[0] + dx, hero[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                 if (dx or dy) and snap.screen.at(hero[0] + dx, hero[1] + dy) in MONSTER_CHARS]
+        spot = cands[0] if len(cands) == 1 else None
+        if spot is None:
+            found = self.terrain_scan()
+            self.last = snap
+            spot = next((c for c, v in ((found or {}).get("features") or {}).items()
+                         if v == ch and max(abs(c[0] - hero[0]), abs(c[1] - hero[1])) == 1), None)
+        if spot is not None:
+            mem[spot] = ch
+            if dest:
+                links[spot] = dest
+        self.log_event({"ev": "arrival_next_to_stairs", "hero": list(hero), "stairs": list(spot) if spot else None,
+                        "look": text[:200]})
+        self._annotate(snap)
+
+    def reannotate(self, snap: Snap) -> None:
+        """The tracker named the level (^O) after `snap` was annotated — the arrival step on a new
+        level, filed under its provisional ldesc until then: read that level's memory again (the Rogue
+        level's symbols, Medusa, remembered features and traps) so the arrival obs is already right."""
+        self._annotate(snap)
+        if snap.rogue and snap.monsters:
+            # ']' is armor on the Rogue level, not a mimic's "strange object" (random monsters there
+            # are upper-case letters only: no mimics)
+            snap.monsters = [m for m in snap.monsters if not (m["ch"] == "]" and m.get("mimic"))]
 
     def _medusa_risk(self, snap: Snap, key) -> bool:
         """Probably Medusa's level (Dungeons of Doom, Dlvl 21+, water all around — or Medusa seen here)
