@@ -169,6 +169,10 @@ def cmd_start_local(a) -> int:
         if om.get("kind") != "local":
             continue
         alive = _tmux("has-session", "-t", f"={om['tmux_session']}", check=False).returncode == 0
+        if alive:
+            # (a session whose game saved or ended keeps its dead pane: that holds no lock)
+            panes = _tmux("list-panes", "-t", f"={om['tmux_session']}", "-F", "#{pane_dead}", check=False)
+            alive = "0" in (getattr(panes, "stdout", "") or "").split()
         if alive and _lock_name(om.get("player", ""), bool(om.get("wizard"))) == mine:
             why = 'wizard-mode games all lock as "wizard"' if a.wizard else "same player"
             raise SystemExit(f"refusing: running game {other.parent.name!r} uses the same NetHack lock name "
