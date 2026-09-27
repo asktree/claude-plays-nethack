@@ -42,3 +42,11 @@
 - Zapping a "no effect" wand at yourself ('.') is harmless (no boxes/trap/punishment); "You shudder in dread" = undead turning. In 3.6.7 probing yourself does NOT reveal BUC (only dknown). No direction prompt at all = secret door detection.
 - monster_filter takes a PREDICATE (True = pause): `with monster_filter(lambda m: 'cave spider' not in (m.get('desc') or '')):` — a string raises TypeError inside the pause logic.
 - Sokoban: cave spiders hide under objects ("It strikes at thin air!" while invisible); F toward the object square next to you kills them. The stair room of a Sokoban level can be locked: unlock() with the key.
+- THROWN NON-WEAPONS NEVER HIT (3.6.7 dothrow.c thitmonst): only weapons, gems/glass/rocks, iron balls, boulders, eggs/cream pies/venom and potions (Dex > rnd(25)) can hit; food, scrolls, wands, rings, tools just "miss". Don't waste junk as missiles.
+- A thrown object that reaches a monster (hit OR miss) drops on the monster's square, even behind a boulder. If that square is a Sokoban HOLE, a boulder plugging it later BURIES everything there (hack.c bury_objs).
+- A lit potion of oil explodes (4d4 fire, radius 1) wherever it breaks: a miss still explodes on the target's square. Great vs things you can't reach (killed the Soko3 pocket monster).
+- Check `mon()` flags before a stinking cloud: breathless (mimics, vortices, spheres, lights, golems, undead) and poison-resistant monsters ignore it. Wasted both scrolls on gas-immune targets.
+- SOKOBAN MIMICS: a "boulder" on a hole square or one that wasn't there before = a mimic (they pose as boulders outside rooms). Unmask them with a wand of secret door detection (radius 8, works on trap squares in 3.6.7) or search next to them, and KILL THEM BEFORE the solver pushes a boulder next to them: a monster sitting on a hole behind a boulder can never be reached in melee (Sokoban monsters never step into known holes), and the boulder can't be pushed into it.
+- "You hear a monster behind the boulder" in Sokoban with nothing moving = probably a mimic; the push fails at no time cost, so retrying is free.
+- Probing (wand) shows a monster's exact HP: zap it before committing resources to a ranged kill.
+- A disguised mimic that re-hides (it re-disguises when out of sight) is attacked with F+direction from the adjacent square; hunt() loses it as "out of view".

@@ -99,13 +99,43 @@ def _farlook(x, y) -> str:
 def bad_squares(s=None) -> set:
     """Known trap squares (incl. ones hidden under objects; read from the
     game's own memory via #terrain on each level) + the player's avoid set
-    for the current level. Both persist across daemon restarts."""
+    for the current level + mimics (in view, or remembered hiding as an
+    object: obs 'mimics remembered here') and sessile hostiles. All but the
+    ones in view persist across daemon restarts."""
     s = s or ctx.last()
     lv = ctx.game.level_key(s.status)
     from nh.monitor import _stationary
     mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")
               or (not m.get("tame") and not m.get("peaceful") and _stationary(m.get("desc") or ""))}
+    mimics |= set(known_mimics(s))
     return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics
+
+
+def known_mimics(s=None) -> dict:
+    """{(x, y): 'giant mimic'} mimics remembered on this level (seen unmasked; one hides again as an
+    object, a boulder or stairs where it sits and never moves while hiding). Forgotten when seen killed,
+    or when a look from next to the square shows it gone. forget_mimic(x, y) drops one by hand."""
+    s = s or ctx.last()
+    mem = getattr(s, "mimic_mem", None)
+    if mem is None:          # (a daemon without the memory)
+        store = getattr(ctx.game, "mimics", None) or {}
+        mem = store.get(ctx.game.level_key(s.status), {}) if s.status.ok else {}
+    return dict(mem)
+
+
+def forget_mimic(x: int, y: int) -> bool:
+    """Drop a remembered mimic at (x, y) on this level (you know it's gone). Returns whether one was there."""
+    s = ctx.last()
+    store = getattr(ctx.game, "mimics", None)
+    if not isinstance(store, dict) or not s.status.ok:
+        return False
+    key = ctx.game.level_key(s.status)
+    hit = store.get(key, {}).pop((x, y), None) is not None
+    if key in store and not store[key]:
+        del store[key]
+    if hit and isinstance(getattr(s, "mimic_mem", None), dict):
+        s.mimic_mem.pop((x, y), None)
+    return hit
 
 
 def squeaky_boards(s=None) -> set:

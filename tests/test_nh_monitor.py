@@ -833,3 +833,44 @@ def test_kernel_blocked_teleport_resisted_poison_and_more_newcomers():
     after.monsters = [{"ch": "Z", "x": 40 + i, "y": 10, "desc": f"zombie{i}", "new": True} for i in range(7)]
     k._check_events(snap({}, 11), after)
     assert reasons and "+3 more" in reasons[-1]
+
+
+def test_unmasked_mimic_is_remembered_while_hiding_until_seen_gone():
+    g = FakeGame()
+    g.mimics = {}
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "giant mimic", (45, 12): "large mimic"}
+    t.update(snap({(41, 10): "m", (45, 12): "m"}, 100))
+    (key, mem), = g.mimics.items()
+    assert mem == {(41, 10): "giant mimic", (45, 12): "large mimic"}
+    # the large mimic crawls one square: remembered where it is now, not where it was
+    g.truth = {(41, 10): "giant mimic", (46, 12): "large mimic"}
+    t.update(snap({(41, 10): "m", (46, 12): "m"}, 104))
+    assert mem == {(41, 10): "giant mimic", (46, 12): "large mimic"}
+    # out of sight both hide again as objects ('%', ']' is still a disguise): remembered
+    t.update(snap({(41, 10): "%", (46, 12): "0"}, 150))
+    assert g.mimics[key] == {(41, 10): "giant mimic", (46, 12): "large mimic"}
+    # next to you, the square shows floor: nothing hides there any more
+    t.update(snap({(41, 10): ".", (46, 12): "0"}, 160))
+    assert g.mimics[key] == {(46, 12): "large mimic"}
+    # unmasked again and killed: forgotten
+    g.truth = {(46, 12): "large mimic"}
+    t.update(snap({(46, 12): "m"}, 170))
+    s = snap({(46, 12): "%"}, 171)
+    s.messages = ["You kill the large mimic!"]
+    t.update(s)
+    assert key not in g.mimics
+
+
+def test_hiding_mimic_next_to_you_stays_remembered():
+    g = FakeGame()
+    g.mimics = {}
+    t = MonsterTracker(g)
+    g.truth = {(41, 11): "giant mimic"}
+    t.update(snap({(41, 11): "m"}, 100))
+    for ch in "%0]>+":         # objects, a boulder, a strange object, stairs, a door: all disguises
+        t.update(snap({(41, 11): ch}, 200))
+        assert list(g.mimics.values()) == [{(41, 11): "giant mimic"}], ch
+    g.truth = {(41, 11): "jackal"}
+    t.update(snap({(41, 11): "d"}, 210))          # another monster stands there: the mimic is gone
+    assert g.mimics == {}

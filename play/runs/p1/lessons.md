@@ -152,3 +152,9 @@
 - A sleeping monster (sleep ray) on one of the squares next to a chokepoint is a plug: it leaves a single front square.
 - Wraith corpses: only 1 in 8 kills left one this time; don't count on levels. They have 0 nutrition: eating one while Satiated cannot choke (the harness needs force=True for 'e' and "Continue eating?").
 - Check state.md's identified-appearances list before engrave-testing (crystal = speed monster was already known).
+- COVETOUS DEMON LORDS (M3_WANTSAMUL: Juiblex, Asmodeus, Orcus, Baalzebub, Yeenoghu, Demogorgon...) "harass" by jumping next to you (wizard.c tactics: mnexto 1/5 per move) EVEN ON NO-TELEPORT LEVELS. On their level a rest on the stairs is not safe from them: expect "X suddenly appears!".
+- JUIBLEX: speed 3, ~88 HP, engulf = terminal illness whose timer drops to a third on each of HIS moves. Attacks from inside an engulfer always hit: kill him from inside at once (4 Excalibur hits, before his next move), THEN apply the unicorn horn ("You feel cured"). Never apply the horn first while still inside.
+- On a graveyard level (the Valley) undead leave a corpse only 1 time in 6 (LEVEL_SPECIFIC_NOCORPSE rn2(3) x corpse_chance 1/2): hunting wraiths for levels there isn't worth the cursed-create-monster risk.
+- Known traps give the 1/5 "You escape" roll, unseen ones don't: Excalibur's auto-search found the Valley's sleeping gas trap from the adjacent doorway. Stepped on with force=True: slept only 3 turns, pocket sealed by locking the first secret door behind me (apply key, "Lock it?" y).
+- Asmodeus's lair puts the `<` in a far-left strip outside the lair and the `>` in his own room: without a reason to fight him, dig down one square off the stairs at once (the level has no hard floor).
+- Minotaur behind rock in a corridor maze: stand where every open neighbour is on a straight line from you; when it steps into one, zap sleep along that line (bounces hit it twice), then kill it asleep.

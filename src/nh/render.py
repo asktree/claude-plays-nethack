@@ -103,6 +103,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     if k != "command":
         if snap.state.prompt:
             lines.append(f"PROMPT ({k}): {snap.state.prompt}")
+        if k == "getpos":
+            cx, cy = snap.screen.cursor
+            lines.append(f"  cursor at ({cx},{cy}) — cursor_to(x, y) moves it; then '.' or ',' picks that square")
         if k == "yn" and snap.state.choices:
             lines.append(f"  answer with one of [{snap.state.choices}]"
                          + (f", default {snap.state.default!r}" if snap.state.default else ""))
@@ -141,6 +144,13 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     if getattr(snap, "gone", None):
         lines.append("out of view: " + "; ".join(f"{g['desc']} last at ({g['x']},{g['y']}) {g['ago']} turn(s) ago"
                                                   for g in snap.gone))
+    mim = getattr(snap, "mimic_mem", None) or {}
+    if mim and snap.state.kind == "command":
+        shown = {(m["x"], m["y"]) for m in (mons or []) if "mimic" in (m.get("desc") or "")}
+        hidden = sorted((c, n) for c, n in mim.items() if c not in shown)
+        if hidden:
+            lines.append("mimics remembered here (hiding as the object/boulder/stairs shown there — don't walk "
+                         "or push into them): " + "; ".join(f"{n} ({x},{y})" for (x, y), n in hidden))
     lim = None if mode == "full" else 2 * radius
     allo = snap.objects
     objs = [o for o in allo if lim is None or o["dist"] is None or o["dist"] <= lim]   # (None: no hero seen)

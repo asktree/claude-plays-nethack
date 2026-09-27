@@ -55,9 +55,33 @@ def _blocked(s, x, y, allow_goal=None):
     return False
 
 
+def _known_mimics(s) -> dict:
+    """{(x, y): 'giant mimic'} (screen coordinates): mimics remembered on this level — seen unmasked,
+    now hiding again as the object/boulder shown on their square (they never move while hiding)."""
+    g = getattr(ctx, "game", None)
+    mem = getattr(s, "mimic_mem", None)
+    if mem is None:
+        try:
+            mem = (getattr(g, "mimics", None) or {}).get(g.level_key(s.status), {})
+        except Exception:  # noqa: BLE001
+            mem = {}
+    out = dict(mem)
+    tr = getattr(g, "tracker", None)
+    if tr is not None and hasattr(tr, "gone"):
+        try:
+            for r in tr.gone():          # (out of view now: disguised, or behind a wall)
+                if "mimic" in (r.get("desc") or "") and not r.get("statue"):
+                    out.setdefault((r["x"], r["y"]), r["desc"])
+        except Exception:  # noqa: BLE001
+            pass
+    return out
+
+
 def route(s, start, goal, ignore_monsters=False):
-    """Shortest walk avoiding boulders/holes/monsters, honoring the Sokoban
-    'no diagonal squeeze' rule. Returns a string of move keys, or None."""
+    """Shortest walk avoiding boulders/holes/monsters (and mimics remembered
+    hiding as objects), honoring the Sokoban 'no diagonal squeeze' rule.
+    Returns a string of move keys, or None."""
+    mim = set(_known_mimics(s))
     q = deque([start])
     prev = {start: None}
     while q:
@@ -71,7 +95,7 @@ def route(s, start, goal, ignore_monsters=False):
             return "".join(reversed(keys))
         for (dx, dy), key in DIR_KEY.items():
             nx, ny = cur[0] + dx, cur[1] + dy
-            if (nx, ny) in prev:
+            if (nx, ny) in prev or (nx, ny) in mim:
                 continue
             if _blocked(s, nx, ny, allow_goal=goal) and not (ignore_monsters and _occupied(s, nx, ny)):
                 continue
@@ -126,16 +150,24 @@ def walk(keys: str):
     return s
 
 
-def _sessile_on_route(s, b, dirs):
-    """A monster that won't step aside on the squares the boulder at `b`
-    will move through: a mimic (disguised ']' or known), a sessile monster,
-    or an unseen 'I'. Returns (monster, square) or None."""
-    from nh.monitor import _stationary
-    route, cur = [], b
+def _push_squares(b, dirs):
+    """(squares the boulder at `b` moves into, squares you push it from) for the pushes `dirs`."""
+    route, stands, cur = [], [], b
     for d in dirs:
         dx, dy = _ORTHO[d]
+        stands.append((cur[0] - dx, cur[1] - dy))
         cur = (cur[0] + dx, cur[1] + dy)
         route.append(cur)
+    return route, stands
+
+
+def _sessile_on_route(s, b, dirs):
+    """A monster that won't step aside on the squares the boulder at `b`
+    will move through: a mimic (disguised ']', known, or remembered hiding
+    as an object — also on a square you must push from), a sessile monster,
+    or an unseen 'I'. Returns (monster, square) or None."""
+    from nh.monitor import _stationary
+    route, stands = _push_squares(b, dirs)
     for m in s.monsters or []:
         sq = (m["x"], m["y"])
         if sq not in route or m.get("tame") or m.get("pet"):
@@ -143,6 +175,14 @@ def _sessile_on_route(s, b, dirs):
         desc = m.get("desc") or ""
         if m.get("mimic") or "mimic" in desc or m.get("unseen") or m["ch"] in "I]" or _stationary(desc):
             return m, sq
+    shown = {(m["x"], m["y"]) for m in s.monsters or []}
+    for sq, name in _known_mimics(s).items():
+        if sq in shown:
+            continue
+        if sq in route or sq in stands:
+            ch = s.screen.at(*sq)
+            return {"ch": ch, "x": sq[0], "y": sq[1], "mimic": True,
+                    "desc": f"{name} (remembered: hiding as the {ch!r} there)"}, sq
     return None
 
 
@@ -162,10 +202,14 @@ def push(bx: int, by: int, dirs: str):
         stuck = _sessile_on_route(s, b, [_norm(e) for e in dirs[i:]])
         if stuck:
             m, sq = stuck
-            ctx.pause(f"push: the {m.get('desc') or m['ch']} at {sq} sits on boulder {b}'s route ({dirs[i:]}) and "
-                      "won't move out of the way (a mimic, or something unseen) — pushing the boulder against it "
-                      "strands it or the monster behind the boulder (no diagonal squeezing in Sokoban). Kill it "
-                      "first (fight()/hunt()/throw from a square you can reach), then solve() again")
+            where = ("on a square you must push from" if sq in _push_squares(b, [_norm(e) for e in dirs[i:]])[1]
+                     and sq not in _push_squares(b, [_norm(e) for e in dirs[i:]])[0]
+                     else f"on boulder {b}'s route ({dirs[i:]})")
+            ctx.pause(f"push: the {m.get('desc') or m['ch']} at {sq} sits {where} and won't move out of the way "
+                      "(a mimic, or something unseen) — pushing the boulder against it strands it or the monster "
+                      "behind the boulder (no diagonal squeezing in Sokoban). Kill it first (fight()/hunt(), or "
+                      "throw weapons / zap an attack wand from a square in line with it), then solve() again. "
+                      "If it's gone (killed out of sight), forget_mimic(x, y)")
             return ctx.last(), b
         if s.hero is None:
             ctx.pause(f"push: not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
@@ -347,9 +391,12 @@ _ITEM_GLYPHS = set(")[%?/=!\"(*$`+")
 
 def _state(s, lv, ox, oy):
     """(boulders, traps, covered) in level coordinates; covered = squares a
-    monster or the hero hides (they match anything)."""
+    monster, an object, the hero or a remembered hiding mimic hides (they
+    match anything)."""
     h, w = len(lv["rows"]), max(len(r) for r in lv["rows"])
     boulders, traps, covered = set(), set(), set()
+    for (mx, my) in _known_mimics(s):
+        covered.add((mx - ox, my - oy))
     for y in range(h):
         row = s.screen.row(y + oy)
         for x in range(w):
@@ -373,8 +420,10 @@ def _diff(state, want, ox, oy) -> str:
     extra = (boulders - covered) - wb
     missing = (wb - covered) - boulders
     if extra:
-        bits.append(f"unexpected boulders {scr(extra)} (a boulder that appeared from nowhere is often a MIMIC: "
-                    "farlook/search before touching it)")
+        bits.append(f"unexpected boulders {scr(extra)} (a boulder that appeared from nowhere is often a MIMIC — "
+                    "farlook can't tell (it says 'boulder'): search (s) from a square next to it, or zap a wand "
+                    "of secret door detection (unmasks every mimic within 8 squares in view); once unmasked the "
+                    "harness remembers it)")
     if missing:
         bits.append(f"boulders missing at {scr(missing)}")
     tm = (wt - covered) - traps
@@ -490,6 +539,18 @@ def _solve(max_steps):
     lv = _levels()[p["level"]]
     ox, oy = p["ox"], p["oy"]
     print(f"sokoban: {p['wiki']} ({p['level']}), offset ({ox},{oy}), step {p['done']}/{p['total']}")
+    mim = _known_mimics(ctx.last())
+    if mim:
+        for i in range(max(p["done"], 0), len(lv["steps"])):
+            st = lv["steps"][i]
+            b0 = (st["at"][0] + ox, st["at"][1] + oy)
+            rt, stands = _push_squares(b0, [_UDLR[c] for c in st["moves"]])
+            hit = [(c, mim[c]) for c in rt + stands if c in mim]
+            if hit:
+                (hx, hy), name = hit[0]
+                print(f"  note: step {i + 1} needs ({hx},{hy}), where a {name} is remembered hiding — the solver "
+                      f"stops before that step: kill it first (it never leaves that square while hiding)")
+                break
     n = 0
     part = p.get("partial")
     for i in range(p["done"], len(lv["steps"])):

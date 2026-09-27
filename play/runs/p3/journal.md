@@ -97,3 +97,13 @@ T:6452 SOKO3 — last push (step 15/15) blocked: "You hear a monster behind the 
 T:6566 SOKO3 — lit the blessed potion of oil and threw it: "misses... You hear something shatter! You kill it!" (+55 exp; the fire explosion did it). Never saw what it was.
 T:6457 — the SPIKED wand R zapped: NO direction prompt + engrave "no effect" = WAND OF SECRET DOOR DETECTION. U: runed wand = LIGHT (engrave auto-ID, Soko3 (37,12)). n undead turning now (0:0) presumably.
 T:6568 SOKO3 — SOLVED (the boulder plugged the last hole). Got back the daggers, darts (4 of 7; 3 broke), whistle, card, cookies from the pocket.
+T:6569 SOKO3 — the stair room door (48,14) was locked: unlock() with the key. Auto-fought a dwarf zombie.
+T:6575 SOKO4 (Dlvl 6, soko1-1 = Level 4a, prize + zoo) — solver refused: a "boulder" on the hole (40,5) = GIANT MIMIC. Zapped the spiked wand from (33,5): "You find a giant mimic" -> wand of SECRET DOOR DETECTION formally identified (it unmasks mimics even on trap squares, 3.6.7 findone()).
+T:6585-6598 SOKO4 — killed a winter wolf (hunt, 2 turns), got V hexagonal wand (34,18); a 2nd giant mimic posing as a boulder at (37,12) broke the board: unmasked it with the wand, killed it (F-fight then fight(); +171 exp, no damage). Killed a jaguar.
+T:6814 SOKO4 — sokoban.solve() did steps 2-16 (holes 34-39 filled), then pushed boulder L to (39,5) against the mimic on the hole (40,5): now stuck (boulder can't move, mimic unreachable). Vampire bat around (bit me twice, no poison).
+T:6825 SOKO4 — read my 2nd stinking cloud centered on the boulder: NO EFFECT — giant mimics are BREATHLESS (should have checked mon flags first).
+T:6835 SOKO4 — zapped V at it: WAND OF PROBING: "giant mimic Level 10 HP 50(50) AC 7".
+T:6836-6851 SOKO4 — threw 26 things: only weapons/glass can hit (6 hits); NON-WEAPONS ALWAYS MISS when thrown (dothrow.c thitmonst -> tmiss). Lost: 4 cursed daggers, 4 darts, 5 glass, whistle, credit card, wands of light + slow monster, 2 create monster, 2 earth, ring of invisibility, cookies, candy bar (all on the hole square (40,5)). Mimic still ~35/50.
+T:6859-6915 — gave up Soko4 for now; went down Soko3 -> Soko2 (stepped past the nymph) -> Soko1 (killed a grid bug; took scroll of magic mapping X and a crossbow bolt at (42,7); left the crossbow + 3 bolts) -> D10 (4,8).
+T:6919 D10 — end of shift 7: HP 102/102, XL8 (Exp 2056), AC-3, safe at (9,7), no monsters in view.
+T:6938 D10 — altar test at the temple (38,5): Q (NR 9), N (engagement ring), magic mapping, wands V/R, food rations, bolt: all UNCURSED. T:6949 picked up 11 arrows (26,10). End of shift 7 in the doorway (26,10), HP 102/102.

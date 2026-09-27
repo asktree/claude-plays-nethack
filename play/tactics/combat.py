@@ -606,14 +606,65 @@ def _refuse_friendly_fire(what: str, direction: str, ray: bool, force: bool) -> 
     return True
 
 
+# dothrow.c thitmonst(): what can hit a monster when thrown — weapons (ammo, missiles, daggers...),
+# weapon-tools, gems/rocks/gray stones, iron balls, boulders, eggs, cream pies, venom; a potion shatters
+# on it (a Dex roll); food thrown at a dog, cat or horse can tame or pacify it. ANYTHING ELSE ALWAYS
+# MISSES (tmiss()) and just lands there.
+_THROW_CLASSES = ("Weapons", "Gems/Stones", "Potions", "Iron balls", "Boulders/Statues", "Venoms", "Coins")
+_WEPTOOL = re.compile(r"\b(?:pick-axe|dwarvish mattock|broad pick|unicorn horns?|grappling hook|iron hook)\b")
+_HIT_FOOD = re.compile(r"\b(?:eggs?|cream pies?)\b")
+_DOMESTIC = re.compile(r"\b(?:little dog|dog|large dog|kitten|housecat|large cat|pony|horse|warhorse)\b")
+
+
+def throw_can_hit(text: str, cls: str, target: str = "") -> bool:
+    """Can this inventory item (its text and class header) hit a monster when thrown (thitmonst)?"""
+    if cls in _THROW_CLASSES or _WEPTOOL.search(text or ""):
+        return True
+    if cls == "Comestibles":
+        return bool(_HIT_FOOD.search(text or "")) or bool(_DOMESTIC.search(target or ""))
+    return False
+
+
+def _first_in_line(direction: str, s=None, maxlen: int = 13):
+    """The first monster (not an unseen 'I') a thrown object would meet in `direction`, or None."""
+    from .mapview import KEY_DIR
+    s = s or ctx.last()
+    d = KEY_DIR.get(direction)
+    if d is None or s.hero is None:
+        return None
+    mons = {(m["x"], m["y"]): m for m in (s.monsters or [])}
+    x, y = s.hero
+    for _ in range(maxlen):
+        x, y = x + d[0], y + d[1]
+        m = mons.get((x, y))
+        if m is not None and not m.get("unseen"):
+            return m
+        if m is None and s.screen.at(x, y) in " |-" and s.screen.color_at(x, y) != 3:
+            return None
+    return None
+
+
 def throw(item: str, direction: str, count: bool = False, force: bool = False):
     """Throw inventory item `item` (a letter) in `direction` (y k u h l b j n
     < >), verifying each prompt. Refuses (pauses) when your pet or a
-    peaceful stands between you and the first hostile in that direction
-    (force=True to throw anyway). Returns the final Snap."""
+    peaceful stands between you and the first hostile in that direction,
+    and when a monster is in that line but the item can't hit anything
+    (not a weapon, weapon-tool, gem/rock, potion, egg or cream pie: such a
+    throw ALWAYS misses; food at a dog/cat/horse is fine) — force=True
+    throws anyway. Returns the final Snap."""
     ctx.require_command("throw()")
     if _refuse_friendly_fire("throw", direction, ray=False, force=force):
         return ctx.last()
+    target = _first_in_line(direction) if not force else None
+    if target is not None and not (target.get("tame") or target.get("pet")):
+        from .items import inventory
+        it = next((i for i in inventory() if i["letter"] == item), None)
+        if it is not None and not throw_can_hit(it["text"], it["class"], target.get("desc") or ""):
+            ctx.pause(f"throw: {item} - {it['text']} ({it['class']}) can't hit the "
+                      f"{target.get('desc') or target['ch']} at ({target['x']},{target['y']}): thrown non-weapons "
+                      "ALWAYS miss (dothrow.c thitmonst) and are lost on the floor. Throw weapons/daggers, "
+                      "gems/rocks, potions or eggs/cream pies instead (force=True throws it anyway)")
+            return ctx.last()
     s = ctx.do("t", quiet=True, force=force)
     if s.state.kind != "object":
         if s.state.kind != "command":

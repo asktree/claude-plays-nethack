@@ -67,6 +67,13 @@ _GROW_RE = re.compile(r"^(?P<the>Your |The )?(?P<old>.+?) (?:grows up into|becom
                       r"an? (?:male |female )?(?P<new>[a-z][a-z' -]*?)\.$")
 
 
+MIMICS = ("small mimic", "large mimic", "giant mimic")
+# makemon.c set_mimic_sym(): a hiding mimic looks like an object (any class, a boulder, gold, a statue: a
+# monster letter) or like furniture (stairs, a door, a fountain, an altar; a wall on the Rogue level) —
+# never like floor, a corridor, a trap, water or another monster
+_DISGUISE = set(")[%?/=!\"(*$0`]<>+{_|-I")
+
+
 def _stationary(desc: str) -> bool:
     """Monsters that never move (molds, lichens are slow but move): remember
     them at their square for the whole visit to the level."""
@@ -125,6 +132,7 @@ class MonsterTracker:
         self.rogue_objects: set = set()    # (level, x, y) of ':' found to be food on the Rogue level
         self.sessile: dict = {}            # level -> {(x, y): record}: hostiles that never move (molds...),
                                            # kept across level changes so a known mold isn't "new" on return
+        self._mimic_ids: dict = {}         # monster id -> (level key, square) of an unmasked mimic in view
 
     def reset(self, turn: int | None = None):
         self.known, self.recent = [], {}
@@ -413,8 +421,13 @@ class MonsterTracker:
                                         "y": m["y"], "desc": m["desc"], "statue": m.get("statue", False),
                                         "turn": turn}
         new_visible = {m["id"] for m in mons}
-        self._forget_killed(killed_names(getattr(snap, "messages", None)), self.visible_ids - new_visible,
-                            snap.hero, turn)
+        killed = killed_names(getattr(snap, "messages", None))
+        resolved = self._forget_killed(killed, self.visible_ids - new_visible, snap.hero, turn)
+        try:
+            self._note_mimics(snap, mons, hero, st, killed, resolved)
+        except Exception as e:  # noqa: BLE001  (never let the memory break the monster list)
+            if hasattr(self.game, "log_event"):
+                self.game.log_event({"ev": "mimic_memory_error", "err": repr(e)})
         self.visible_ids = new_visible
         stale = [i for i, r in self.recent.items()
                  if i not in self.visible_ids and turn - r.get("turn", 0) > SAME_SQUARE_TURNS
@@ -478,13 +491,15 @@ class MonsterTracker:
                     else:
                         del self.recent[k["id"]]
 
-    def _forget_killed(self, names: list[str], vanished: set, hero, turn: int | None = None) -> None:
+    def _forget_killed(self, names: list[str], vanished: set, hero, turn: int | None = None) -> list:
         """A killed monster must not be 're-seen' later: drop its record
         (prefer one that vanished this step, nearest the hero), so the next
         monster of that species counts as new. The kill (name, square, turn)
-        goes to the game's memory: it dates the corpse."""
+        goes to the game's memory: it dates the corpse. Returns [(name,
+        (x, y))] of the records dropped."""
         from .danger import base_name
         record = getattr(self.game, "record_kill", None)
+        out = []
         for name in names:
             cands = [(i, r) for i, r in self.recent.items() if base_name(r.get("desc", "")) == name
                      and i not in self.visible_ids - vanished]
@@ -494,8 +509,61 @@ class MonsterTracker:
             cands.sort(key=lambda ir: (ir[0] not in vanished, max(abs(ir[1]["x"] - hx), abs(ir[1]["y"] - hy)),
                                        -ir[1].get("turn", 0)))
             r = self.recent.pop(cands[0][0])
+            out.append((name, (r["x"], r["y"])))
             if record is not None and cands[0][0] in vanished:
                 record(name, (r["x"], r["y"]), turn)
+        return out
+
+    def _note_mimics(self, snap, mons, hero, st, killed, resolved) -> None:
+        """game.mimics[level] = {(x, y): 'giant mimic'}: mimics seen unmasked on this level. Out of sight
+        one hides again where it sits (mon.c restrap(): as an object, a boulder, stairs...) and a hiding
+        mimic never moves (movemon() skips its turns), so its square is remembered — across level changes
+        and daemon restarts — until it's seen killed, or a look from next to it shows something it can't
+        pose as (floor, a corridor, a trap, another monster), or you stand there."""
+        from .danger import base_name
+        store = getattr(self.game, "mimics", None)
+        if not isinstance(store, dict) or not st.ok:
+            return
+        key = self.game.level_key(st) if hasattr(self.game, "level_key") else st.ldesc
+        seen = {}
+        for m in mons:
+            d = m.get("desc") or ""
+            if d and not m.get("statue") and not _friendly(d) and base_name(d) in MIMICS:
+                seen[(m["x"], m["y"])] = (base_name(d), m.get("id"))
+        mem = store.get(key)
+        if seen:
+            mem = store.setdefault(key, {})
+            for c, (name, i) in seen.items():
+                old = self._mimic_ids.get(i)
+                if old is not None and old[0] == key and old[1] != c and old[1] not in seen:
+                    mem.pop(old[1], None)          # an unmasked mimic crawled on
+                mem[c] = name
+                if i is not None:
+                    self._mimic_ids[i] = (key, c)
+        if not mem:
+            return
+        for name, c in resolved:
+            if name in MIMICS:
+                mem.pop(tuple(c), None)
+        for name in killed:
+            if name in MIMICS and not any(n == name for n, _ in resolved):
+                # no record of it (killed while out of the tracker's view): the nearest one of that kind
+                near = [c for c, n in mem.items() if n == name and c not in seen and hero is not None
+                        and max(abs(c[0] - hero[0]), abs(c[1] - hero[1])) <= 8]
+                if near:
+                    mem.pop(min(near, key=lambda c: max(abs(c[0] - hero[0]), abs(c[1] - hero[1]))))
+        if hero is not None:
+            mem.pop(tuple(hero), None)
+            if "Blind" not in st.conditions:
+                shown = {(m["x"], m["y"]): m for m in mons}
+                for c in [c for c in mem if c not in seen
+                          and max(abs(c[0] - hero[0]), abs(c[1] - hero[1])) <= 1]:
+                    m = shown.get(c)
+                    if (m is not None and not m.get("statue")) or \
+                            (m is None and snap.screen.at(*c) not in _DISGUISE):
+                        del mem[c]
+        if not mem:
+            store.pop(key, None)
 
     def relabel(self, x: int, y: int, raw: str) -> str | None:
         """An explicit farlook at (x, y) said `raw`: the monster tracked there

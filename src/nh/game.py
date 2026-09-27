@@ -69,6 +69,7 @@ class Snap:
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
+    mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -399,6 +400,8 @@ class Game:
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
         self.niches: dict[str, dict] = {}         # level key -> {(x, y) of a trapped closet: 'teleport'/'trapdoor'}
+        self.mimics: dict[str, dict] = {}         # level key -> {(x, y): 'giant mimic'}: mimics seen unmasked,
+                                                  # hiding again as objects there (MonsterTracker._note_mimics)
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
         self.wielded_class: str | None = None     # inventory() class header of the wielded item ("Weapons")
@@ -443,7 +446,7 @@ class Game:
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
-                  self.niches):
+                  self.niches, self.mimics):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -1440,6 +1443,8 @@ class Game:
                     (self.last.monsters if self.last is not None else [])
                 if prev:
                     snap.monsters = prev
+            if snap.status.ok:
+                snap.mimic_mem = dict(self.mimics.get(self.level_key(snap.status), {}))
             for m in messages:
                 self.history.append((snap.status.turn, m))
             if len(self.history) > self.max_history:
@@ -1847,6 +1852,8 @@ class Game:
                     snap.monsters = self.tracker.update(snap)
                 except Exception as e:  # noqa: BLE001
                     self.log_event({"ev": "tracker_error", "err": repr(e)})
+            if snap.status.ok:
+                snap.mimic_mem = dict(self.mimics.get(self.level_key(snap.status), {}))
             self.last = snap
             return snap
 

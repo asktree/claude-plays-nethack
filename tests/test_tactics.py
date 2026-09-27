@@ -1884,3 +1884,68 @@ def test_desmap_identifies_and_routes_over_unseen_parts(monkeypatch):
     assert feats["stair"] == (28, 7)
     route = desmap.route(28, 7)
     assert route["path"][-1] == (28, 7) and route["secret"] == [(25, 7)]
+
+
+def test_sokoban_remembers_a_hiding_mimic_on_the_route(monkeypatch):
+    from tactics import ctx
+    from tactics.sokoban import _sessile_on_route, _state, route
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    # a giant mimic was unmasked on the hole at (8,5); now it hides as '%' there (no monster in view)
+    s = _snap({4: "   ------", 5: "   ..0..%.", 6: "   ------"}, (4, 5), [])
+    s.mimic_mem = {(8, 5): "giant mimic"}
+    m, sq = _sessile_on_route(s, (5, 5), ["l", "l", "l"])
+    assert sq == (8, 5) and "remembered" in m["desc"]
+    assert _sessile_on_route(s, (5, 5), ["l"]) is None
+    # pushing the boulder left from the east side needs (6,5)... and a mimic on a stand square blocks too
+    s2 = _snap({4: "   ------", 5: "   ..0%..", 6: "   ------"}, (9, 5), [])
+    s2.mimic_mem = {(6, 5): "giant mimic"}
+    assert _sessile_on_route(s2, (5, 5), ["h"])[1] == (6, 5)
+    # the walk to a stand square never steps into it
+    s3 = _snap({4: "   -------", 5: "   ...%...", 6: "   ...+...", 7: "   -------"}, (4, 5), [])
+    s3.mimic_mem = {(7, 5): "giant mimic"}
+    path = route(s3, (4, 5), (9, 5))
+    assert path is not None
+    x, y = 4, 5
+    from tactics.mapview import KEY_DIR
+    for k in path:
+        x, y = x + KEY_DIR[k][0], y + KEY_DIR[k][1]
+        assert (x, y) != (7, 5)
+    # its square counts as covered when matching the board to the plan (the hole under it isn't seen)
+    lv = {"rows": ["......"]}
+    s4 = _snap({5: "   ..0..%."}, (4, 5), [])
+    s4.mimic_mem = {(8, 5): "giant mimic"}
+    boulders, traps, covered = _state(s4, lv, 3, 5)
+    assert (5, 0) in covered
+
+
+def test_throw_refuses_non_weapons_at_monsters(monkeypatch):
+    from tactics import combat, ctx, items
+    assert combat.throw_can_hit("a +0 dagger", "Weapons")
+    assert combat.throw_can_hit("a gray stone", "Gems/Stones")
+    assert combat.throw_can_hit("an uncursed pick-axe", "Tools")
+    assert combat.throw_can_hit("2 cream pies", "Comestibles")
+    assert combat.throw_can_hit("a potion of sleeping", "Potions")
+    assert combat.throw_can_hit("a tripe ration", "Comestibles", "large dog")
+    assert not combat.throw_can_hit("a tripe ration", "Comestibles", "soldier ant")
+    assert not combat.throw_can_hit("a credit card", "Tools")
+    assert not combat.throw_can_hit("a wand of striking (0:4)", "Wands")
+    assert not combat.throw_can_hit("a scroll labeled FOO", "Scrolls")
+    s = _snap({5: "    .....    "}, (4, 5), [{"x": 7, "y": 5, "ch": "D", "desc": "red dragon"}])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    paused, sent = [], []
+    monkeypatch.setattr(ctx, "pause", lambda msg: paused.append(msg))
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "q", "text": "a credit card", "class": "Tools", "buc": ""},
+        {"letter": "d", "text": "4 +0 daggers", "class": "Weapons", "buc": ""}])
+    combat.throw("q", "l")
+    assert paused and "ALWAYS miss" in paused[0] and sent == []
+    paused.clear()
+    combat.throw("q", "l", force=True)         # (the fake game never shows the item prompt)
+    assert not any("ALWAYS miss" in p for p in paused) and sent[:1] == ["t"]
+    paused.clear()
+    sent.clear()
+    combat.throw("d", "l")                      # daggers: thrown
+    assert not any("ALWAYS miss" in p for p in paused) and sent[:1] == ["t"]

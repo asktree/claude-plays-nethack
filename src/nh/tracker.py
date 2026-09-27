@@ -94,6 +94,8 @@ class Tracker:
                 game.terrain_seen.setdefault(key, {}).setdefault(tuple(c), "D")
             if lv.get("niches") and hasattr(game, "niches"):
                 game.niches[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["niches"].items()}
+            if lv.get("mimics") and isinstance(getattr(game, "mimics", None), dict):
+                game.mimics[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["mimics"].items()}
             if lv.get("flags") and hasattr(game, "level_flags"):
                 game.level_flags.setdefault(key, set()).update(lv["flags"])
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
@@ -216,6 +218,9 @@ class Tracker:
             ni = getattr(self.game, "niches", {}).get(key)
             if ni:
                 lv["niches"] = {f"{c[0]},{c[1]}": k for c, k in ni.items()}
+            mi = getattr(self.game, "mimics", {}).get(key)
+            if mi or lv.get("mimics"):
+                lv["mimics"] = {f"{c[0]},{c[1]}": k for c, k in (mi or {}).items()}
             fl = getattr(self.game, "level_flags", {}).get(key)
             if fl:
                 lv["flags"] = sorted(fl)
