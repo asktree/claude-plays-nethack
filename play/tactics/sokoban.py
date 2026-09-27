@@ -187,3 +187,107 @@ def push_wiki(bx: int, by: int, moves: str):
     push_wiki(41, 9, 'rlll llll'). NOTE: wiki 'l' = LEFT (vi-key 'h')."""
     keys = "".join(_WIKI[c] for c in moves.lower() if c in _WIKI)
     return push(bx, by, keys)
+
+
+# ---- full-level solutions (scripts/gen_sokoban.py; verified in a simulator) ----
+
+_UDLR = {"u": "k", "d": "j", "l": "h", "r": "l"}
+
+
+def _levels():
+    from .sokoban_data import LEVELS
+    return LEVELS
+
+
+def identify(s=None):
+    """Which Sokoban level is on screen, and where: returns
+    {"level", "wiki", "ox", "oy", "score"} or None. Matches the level's wall
+    shape (NetHack draws some '|' of the .des as '-', so only wall/non-wall
+    counts); Sokoban levels are premapped, so all walls are visible."""
+    s = s or ctx.last()
+    walls = {(x, y) for y in range(1, 22) for x, c in enumerate(s.screen.row(y)) if c in "|-"}
+    if not walls:
+        return None
+    best = None
+    for name, lv in _levels().items():
+        lw = [(x, y) for y, r in enumerate(lv["rows"]) for x, c in enumerate(r) if c in "|-"]
+        x0, y0 = min(lw, key=lambda c: (c[1], c[0]))
+        for (sx, sy) in walls:
+            ox, oy = sx - x0, sy - y0
+            hit = sum(1 for (x, y) in lw if (x + ox, y + oy) in walls)
+            score = hit / len(lw)
+            if best is None or score > best["score"]:
+                best = {"level": name, "wiki": lv["wiki"], "ox": ox, "oy": oy, "score": round(score, 3)}
+    return best if best and best["score"] >= 0.9 else None
+
+
+def _state(s, lv, ox, oy):
+    h, w = len(lv["rows"]), max(len(r) for r in lv["rows"])
+    boulders, traps = set(), set()
+    for y in range(h):
+        row = s.screen.row(y + oy)
+        for x in range(w):
+            c = row[x + ox] if 0 <= x + ox < len(row) else " "
+            if c == "0":
+                boulders.add((x, y))
+            elif c == "^":
+                traps.add((x, y))
+    return boulders, traps
+
+
+def progress(s=None) -> dict:
+    """Where are we in this level's solution? Returns {"level", "wiki", "ox",
+    "oy", "done": k (steps already done), "total", "next": step or None}.
+    done is -1 if the board matches no point of the solution (boulders were
+    moved differently: solve by hand from `board()` and the wiki page)."""
+    s = s or ctx.last()
+    ident = identify(s)
+    if ident is None:
+        raise ValueError("this doesn't look like a Sokoban level (no known wall layout on screen)")
+    lv = _levels()[ident["level"]]
+    boulders, traps = _state(s, lv, ident["ox"], ident["oy"])
+    states = [(set(map(tuple, lv["boulders"])), set(map(tuple, lv["traps"])))]
+    states += [(set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"]))) for st in lv["steps"]]
+    done = -1
+    for k in range(len(states) - 1, -1, -1):
+        if states[k] == (boulders, traps):
+            done = k
+            break
+    nxt = lv["steps"][done] if 0 <= done < len(lv["steps"]) else None
+    return dict(ident, done=done, total=len(lv["steps"]), next=nxt)
+
+
+def solve(max_steps: int | None = None):
+    """Run this Sokoban level's verified solution from wherever the board is,
+    one boulder at a time, checking the board after every step. Pauses (and
+    stops) on anything unexpected. Returns progress() at the end.
+    When it finishes: the up stairs are reachable (top level: the door to the
+    treasure zoo — prepare for that fight before going in)."""
+    p = progress()
+    if p["done"] < 0:
+        ctx.pause(f"sokoban: the board of {p['wiki']} matches no point of the solution — solve the rest by "
+                  "hand (board(), push_wiki()) or ask for help")
+        return p
+    lv = _levels()[p["level"]]
+    ox, oy = p["ox"], p["oy"]
+    print(f"sokoban: {p['wiki']} ({p['level']}), offset ({ox},{oy}), step {p['done']}/{p['total']}")
+    n = 0
+    for i in range(p["done"], len(lv["steps"])):
+        if max_steps is not None and n >= max_steps:
+            break
+        st = lv["steps"][i]
+        bx, by = st["at"][0] + ox, st["at"][1] + oy
+        keys = "".join(_UDLR[c] for c in st["moves"])
+        print(f"  step {i + 1}/{len(lv['steps'])}: boulder {st['boulder']} at ({bx},{by}) {st['moves']}"
+              + (" (fills a hole)" if st["fills"] else ""))
+        s, pos = push(bx, by, keys)
+        want = None if st["fills"] else (st["to"][0] + ox, st["to"][1] + oy)
+        if pos != want:
+            ctx.pause(f"sokoban: step {i + 1} ended with the boulder at {pos}, expected {want}")
+            return progress()
+        b, t = _state(ctx.last(), lv, ox, oy)
+        if (b, t) != (set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"]))):
+            ctx.pause(f"sokoban: after step {i + 1} the board differs from the plan — check board()")
+            return progress()
+        n += 1
+    return progress()

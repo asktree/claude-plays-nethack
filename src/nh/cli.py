@@ -148,11 +148,31 @@ def _claim_current(name: str) -> None:
     set_current(name)
 
 
+def _lock_name(meta_or_player, wizard: bool) -> str:
+    # NetHack names wizard-mode (-D) games "wizard": all of them share one lock
+    return "wizard" if wizard else meta_or_player
+
+
 def cmd_start_local(a) -> int:
     name = a.name
     d = game_dir(name)
     if d.exists() and (d / "meta.json").exists() and not a.fresh:
         raise SystemExit(f"game {name!r} exists; use `nh daemon {name}` to reattach or --fresh to replace")
+    mine = _lock_name(a.player or name.replace("-", "")[:10] or "agent", a.wizard)
+    for other in sorted(RUN_DIR.glob("*/meta.json")):
+        if other.parent.name == name:
+            continue
+        try:
+            om = load_meta(other.parent.name)
+        except Exception:
+            continue
+        if om.get("kind") != "local":
+            continue
+        alive = _tmux("has-session", "-t", f"={om['tmux_session']}", check=False).returncode == 0
+        if alive and _lock_name(om.get("player", ""), bool(om.get("wizard"))) == mine:
+            raise SystemExit(f"refusing: running game {other.parent.name!r} uses the same NetHack lock name "
+                             f"{mine!r} ({'wizard-mode games all lock as "wizard"' if a.wizard else 'same player'}); "
+                             "starting would ask 'Destroy old game?' and answering y would wipe that game")
     if a.fresh:
         _tmux("kill-session", "-t", f"=nh-{name}", check=False)
         import shutil

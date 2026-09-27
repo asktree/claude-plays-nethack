@@ -110,8 +110,10 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   shops (price-identify; **buy a magic marker on sight**; buy candles — the Candelabrum needs 7), altar
   (drop items to learn B/U/C). Keep the Watch peaceful: no fountain dipping/quaffing, no door breaking,
   no theft.
-- **Sokoban** (4 levels, up): solutions in `knowledge/wiki/Sokoban_Level_{1a,1b,2a,2b,3a,3b,4a,4b}.txt`;
-  identify the variant by the map and follow the solution exactly with `sokoban.push(x, y, 'dirs')`.
+- **Sokoban** (4 levels, up): on arrival run `sokoban.solve()` (it identifies the variant and executes the
+  verified solution push by push); if it pauses, read why, deal with the monster/pet, and `cont` or call
+  `solve()` again (it resumes from the board as it is). Only if the board no longer matches the plan, solve
+  by hand from `knowledge/wiki/Sokoban_Level_*.txt` with `sokoban.push(x, y, 'dirs')`.
   Boulders only move orthogonally; you can't squeeze diagonally between boulders; breaking boulders or
   reading earth costs Luck. A monster behind a boulder blocks the push — wait or deal with it. The top
   level is a zoo; fight at a chokepoint. Prize: bag of holding or amulet of reflection.

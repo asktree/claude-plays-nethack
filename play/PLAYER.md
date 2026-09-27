@@ -105,7 +105,8 @@ Available in the kernel:
 | `corpse('killer bee', age=0, poison_res=False)` | is this corpse safe for us to eat? (SAFE/RISKY/DEADLY/NEVER + benefits) |
 | `obj('speed boots')`, `price_candidates('SCROLL_CLASS', 20)` | object facts; price-identification candidates |
 | `wiki('regex')`, `wiki_page('Floating eye')` | search/read the offline NetHack wiki (`knowledge/wiki/`) |
-| `sokoban.board()`, `sokoban.push(x, y, 'hhk')` | Sokoban: show the board; push the boulder at (x,y) left,left,up with checked walking |
+| `sokoban.solve()` | Sokoban: recognises which of the 8 levels you're on and how far along the board is, then runs the level's **verified** solution one boulder at a time, checking the board after every push (pauses on anything unexpected; `solve(max_steps=3)` for a few steps). `sokoban.progress()` shows level, step k/N and the next push. The solutions come from the wiki, replayed in a simulator of the 3.6 rules |
+| `sokoban.board()`, `sokoban.push(x, y, 'hhk')` | Sokoban by hand (if the board deviated from the plan): show the board; push the boulder at (x,y) left,left,up with checked walking |
 
 Also `bin/nh info`: the harness's own memory — current branch/level (from the game's `^O` overview),
 prayer log with turns-ago, per-level stairs/fountains/altars seen.
