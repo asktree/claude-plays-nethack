@@ -43,3 +43,20 @@ T:3638 DL7 — Wonotobo's general store (61-69,10-11): sell offers (he lowballs:
 T:3659 DL7 — read A (blessed identify): it identified EVERYTHING — ivory ring = TELEPORT CONTROL, u = BLACK OPAL, other gems glass, GNIK = remove curse, KERNOD = enchant armor, ETAOIN = stinking cloud, puce = oil, worn orcish helm CURSED +0, gnome daggers cursed -1.
 T:3660 DL7 — sold the black opal for 1054 (all Wonotobo's cash; full price 1250). Bought KO BATE (enchant weapon, 80) + a 3rd food ration (60): $934.
 T:3714-3732 DL7 — orc pack in south Minetown: killed 3 Uruk-hai + 3 hill orcs (Exp 194 -> 299). An orc threw a sleeping potion (slept a few turns). HP 63 -> 33/63 (lowest), no prayer. Loot: H iron shoes, I orange potion, gold ($953). Ate a fresh hill orc corpse (T:3753). End of shift 3 (HP 37/63, safe, only peaceful watchmen in view).
+
+## Shift 4
+T:3770 DL7 — altar test: F (enchant weapon), G (food ration), H (iron shoes), I (orange potion) all UNCURSED. Read F: Excalibur +1 -> +2. Wore H (+0 iron shoes): AC5 -> AC3.
+T:3907 DL7 — rested in the temple to 59/63; Hungry: ate an old food ration in the temple (not rotten). Full HP by T:3948.
+T:3951 DL7 — Stewe's hardware store (59-62,14-16), door (58,15): 3 lock picks 27, 2 oil lamps 18, crystal ball 80, mirror 13, tin whistle 13. No bag/marker.
+T:4003 DL7 — Izchak's lighting store (27-30,18-20), door (26,19): oil lamps 13/18, tallow candles 13, wax candles 27/36. No magic lamp. Bought L: oil lamp (13). $940.
+T:4025 DL7 — destroyed a straw golem (1 hit). Heading up to D4 with the dog for splint mail.
+T:4040 DL7 — left Minetown; the dog was out of view in the dark and stayed behind (accepted: a little dog is a nuisance in Sokoban).
+T:4146 DL5 — killed a rothe (HP 59/73... then 63). T:4239 DL4 killed a centipede hiding under an orcish helm -> XL6 (HP 73).
+T:4199 DL4 — bought SPLINT MAIL (107) at Fleac's: +0, AC3 -> AC-3.
+T:4282 DL3 — killed a 2nd straw golem. The planner now detours around the D3 red mold by itself.
+T:4348 DL2 — Ermenak's: wear-tested the mud boots in the shop = SPEED BOOTS (-1, "You feel yourself speed up") — bought 67. Riding gloves = GAUNTLETS OF FUMBLING (cursed -1, St/Dx unchanged): stuck; wore the faded pall (elven cloak) and read remove curse z: gloves AND the orcish helm uncursed; returned the gloves. Bought the cloak (107).
+T:4352 DL2 — read enchant armor i: small shield +3 -> +4. Sold the iron shoes (8). AC-3, very fast, $667.
+T:4420 DL5 (main) — new level. Booby-trapped door exploded at (72,6) (stunned briefly). Down stairs (76,6), fountain (74,5). Looted a locked large box (63,4) with the key: $208, 2 food rations (Q), stinking cloud (R), tan spellbook (S), violet gem (T). U: swirly potion.
+T:4564 DL6 (main) — killed kobold, iguana, giant beetle (2 hits, no damage), pony. Down stairs (9,16). Not the Oracle. A potion and gem shown in the stairs room were gone when I got there.
+T:4671 DL7 (main) — V: scroll of REMOVE CURSE and X: scroll of IDENTIFY picked up; $904. Garter snake nest auto-fought. Hungry T:4691: Elbereth (garbled twice) then ate a food ration (fine).
+T:4718 DL7 — end of shift 4: HP 73/73, AC-3, XL6, very fast, safe (no hostiles), near the up stairs (4,14).

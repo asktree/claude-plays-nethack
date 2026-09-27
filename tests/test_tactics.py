@@ -1431,3 +1431,4 @@ def test_price_id_learns_a_lowballing_shopkeeper(monkeypatch):
     assert both == {60, 80}                                   # an unknown shopkeeper: either rate
     low = {b for _n, b in info.price_id("SCROLL_CLASS", sell=30, exclude_known=False)}
     assert low == {80}                                        # Wonotobo lowballs: base 80 only
+

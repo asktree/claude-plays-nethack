@@ -123,11 +123,16 @@ class MonsterTracker:
         self.mimics_seen: set = set()      # (level, x, y) of ']' already reported
         self._relook_all = False           # set for one update after a were-creature shape change
         self.rogue_objects: set = set()    # (level, x, y) of ':' found to be food on the Rogue level
+        self.sessile: dict = {}            # level -> {(x, y): record}: hostiles that never move (molds...),
+                                           # kept across level changes so a known mold isn't "new" on return
 
-    def reset(self):
+    def reset(self, turn: int | None = None):
         self.known, self.recent = [], {}
         self.visible_ids = set()
         self.mixed: dict = {}    # (ch, color) -> {"friendly", "hostile"} labels seen on this level
+        for rec in self.sessile.get(self.level, {}).values():
+            i = self._new_id()
+            self.recent[i] = dict(rec, id=i, turn=turn or 0)
 
     def gone(self, turn: int | None = None) -> list[dict]:
         """Monsters seen recently on this level that are not in view now:
@@ -172,7 +177,7 @@ class MonsterTracker:
         st = snap.status
         if st.ldesc != self.level:
             self.level = st.ldesc
-            self.reset()
+            self.reset(st.turn)
             self.last_turn = None
         turn = st.turn or 0
         hero = getattr(snap, "hero", None)
@@ -419,6 +424,18 @@ class MonsterTracker:
             for i in sorted(self.recent, key=lambda i: self.recent[i].get("turn", 0))[: len(self.recent) - 80]:
                 del self.recent[i]
         self.known = [m for m in mons if m.get("desc")]
+        # sessile hostiles: remember them per level; forget one whose square you stand next to (always in
+        # sight) with no monster on it now (killed, or it was something else)
+        ses = self.sessile.setdefault(self.level, {})
+        for m in mons:
+            d = m.get("desc") or ""
+            if d and not m.get("statue") and not _friendly(d) and _stationary(d):
+                ses[(m["x"], m["y"])] = {"ch": m["ch"], "color": m["color"], "x": m["x"], "y": m["y"], "desc": d,
+                                         "statue": False}
+        if hero is not None and "Blind" not in st.conditions:
+            shown = {(m["x"], m["y"]) for m in mons}
+            for c in [c for c in ses if max(abs(c[0] - hero[0]), abs(c[1] - hero[1])) <= 1 and c not in shown]:
+                del ses[c]
         self.last_turn = turn
         pets = [m for m in mons if m.get("tame") or m.get("pet")]
         for m in special:

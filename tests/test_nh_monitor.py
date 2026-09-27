@@ -713,3 +713,22 @@ def test_sleepers_you_walk_up_to_are_not_approaching():
         assert step(21, [dict(ape, new=False, x=59, dist=4)]) == ""
         with k.ns["monster_filter"](lambda m: False):
             assert step(22, [dict(ape, new=False, x=58, dist=1)]) == ""
+
+
+def test_known_mold_is_not_new_when_you_come_back_to_its_level():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(48, 8): "yellow mold"}
+    m = t.update(snap({(48, 8): "F"}, 100, color=11))
+    assert m[0]["new"]
+    other = snap({}, 150)
+    other.status.ldesc = "Dlvl:4"
+    t.update(other)                                        # down to D4 and back
+    g.looked.clear()
+    m = t.update(snap({(48, 8): "F"}, 400, color=11))
+    assert not m[0]["new"] and m[0]["desc"] == "yellow mold" and g.looked == []
+    # killed: standing next to its square with nothing there forgets it
+    s = snap({}, 410)
+    s.screen.cursor = (47, 8)
+    t.update(s)
+    assert (48, 8) not in t.sessile.get("Dlvl:3", {})

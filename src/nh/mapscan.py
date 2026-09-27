@@ -117,8 +117,9 @@ def objects_in_view(snap, hero=None) -> list[dict]:
                 continue
             col = scr.color_at(x, y)
             if ch == "+" and col == BROWN and (_door_like(scr, x, y)
-                                                or (getattr(snap, "feature_mem", None) or {}).get((x, y)) == "D"):
-                continue  # a door (in a wall line, or known to be one: a dug wall beside it), not a spellbook
+                                                or (getattr(snap, "feature_mem", None) or {}).get((x, y)) == "D"
+                                                or "door" in (getattr(snap, "feature_desc", None) or {}).get((x, y), "")):
+                continue  # a door (in a wall line, known to be one — a dug wall beside it — or looked at)
             if ch == '"' and col in (7, 8):
                 kind = "web?"
             elif ch == "0" and col in (6, 14):

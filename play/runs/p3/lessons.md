@@ -21,3 +21,9 @@
 - Monster-dropped weapons: the gnome's 5 daggers were cursed -1. Always altar-test before wielding/wearing (iron shoes from an Uruk-hai: untested).
 - A tin whistle still calls a pet within ~10 squares (wake_nearby sets whistletime): the dog came in <10 turns.
 - Minetown orc packs: one of them threw a potion of sleeping — fight packs at full HP, in a spot where only 1-2 can reach you.
+- Wear-test unidentified shop armor INSIDE the shop before paying (wearing unpaid items is allowed): "You feel yourself speed up" = speed boots; "Your legs feel longer" = jumping; gauntlets of power set St 25; gauntlets of dexterity change Dx by their enchantment. A -1 pair of base-50 riding gloves with St and Dx unchanged = FUMBLING (and cursed).
+- Put on EVERY suspect item before reading remove curse: one uncursed scroll uncurses all worn/wielded items at once (it freed the fumbling gloves AND the stuck orcish helm at T:4350).
+- Farlook shows shop prices only while YOU stand inside the shop (shk.c get_cost_of_shop_item needs u.ushops). Armor is generated with its appearance known (mksobj dknown), so every armor price shows from anywhere inside; tools/potions/scrolls must be seen up close first.
+- After enchant armor made the small shield +4: TAKE IT OFF before reading another enchant armor (at +4 it evaporates 3 times in 4 if picked).
+- Dust Elbereth garbles each letter 1 time in 25 (engrave.c): ~28% of engravings come out broken. Always read it back (elbereth() does); two broken in a row happens.
+- Cross-aligned temple priests still sell protection (priest.c doesn't check alignment): 400*XL gold.

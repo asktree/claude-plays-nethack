@@ -338,6 +338,12 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             from .nav import _passive_only
             blk = blockers(s)
             hostile = [m for m in blk if not m.get("peaceful") and not _passive_only(m)]
+            if hostile and auto_fight and fights < 30:
+                from .combat import fight_trivial
+                fs = fight_trivial(ctx.last())      # it may have been labelled only now (a newcomer)
+                if fs is not None:
+                    fights += 1
+                    continue
             if hostile:
                 return result(f"blocked: hostile {_mdesc(hostile)} adjacent — travel never starts next to "
                               "one; fight() it or step away, then explore() again")

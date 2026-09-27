@@ -242,6 +242,11 @@ class Tracker:
                     todo.append((x, y))
                 elif ch == "%" and getattr(snap, "rogue", False):
                     todo.append((x, y))        # the Rogue level's stairs (up and down both '%')
+                elif ch == "+" and snap.screen.color_at(x, y) == 3 and not getattr(snap, "rogue", False):
+                    from .mapscan import _door_like
+                    if not _door_like(snap.screen, x, y) and \
+                            (getattr(snap, "feature_mem", None) or {}).get((x, y)) != "D":
+                        todo.append((x, y))    # a brown '+' out of a wall line: a closed door or a spellbook?
         if not todo:
             return
         h = snap.hero
@@ -268,6 +273,10 @@ class Tracker:
                     feats[c] = ">"
                 elif "staircase up" in d or "ladder up" in d:
                     feats[c] = "<"
+            elif d and snap.screen.at(*c) == "+":
+                known[c] = d                  # "closed door" / "broken door"... or a spellbook (asked once)
+                if "door" in d:
+                    feats[c] = "D"
 
     def refresh_overview(self):
         """Run ^O (no game time) and record branch/level; on a level not yet
