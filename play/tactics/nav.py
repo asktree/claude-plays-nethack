@@ -813,8 +813,19 @@ def _trek_blocked(s, goal, bad, allow, names) -> str:
     if worst is not None:
         tr = [c for c in worst if c in bad and c not in allow and c != goal]
         if tr:
-            return (f"trek{goal}: the only way crosses " + ", ".join(f"{c} {names.get(c, 'trap/avoided square')}"
-                                                                     for c in tr[:4])
+            fd = getattr(s, "feature_desc", None) or {}
+            av = set((getattr(ctx.game, "avoid", None) or {}).get(ctx.game.level_key(s.status), ())) \
+                if s.status.ok else set()
+
+            def what(c):
+                if c in names:
+                    return names[c]
+                if c in fd:
+                    return fd[c]
+                return ("a square you asked to avoid" if c in av else
+                        "a known trap of unknown type (an object or a monster hides its '^': look at it with ';', "
+                        "or #terrain)")
+            return (f"trek{goal}: the only way crosses " + ", ".join(f"{c} {what(c)}" for c in tr[:4])
                     + " — not allowed for you now (trap_crossable() says why; cross_traps=['<name>'] to cross "
                       "it anyway, or find another way)")
     blocking = sorted(c for c in bad if c in names)

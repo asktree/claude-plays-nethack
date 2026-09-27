@@ -820,6 +820,11 @@ def test_hunt_closes_in_then_fights(monkeypatch):
     monkeypatch.setattr(ctx, "pause", lambda r: None)
     r = combat.hunt("pyrolisk")
     assert sent == ["l", "l", "l", "Fl"] and r["reason"] == "killed" and r["kills"] == ["pyrolisk"]
+    # p1 shift 36 #284: hunt((x, y)) on the square it just stepped off: the one hostile beside it is the target
+    frames["s"] = mk((9, 5), 13)
+    sent.clear()
+    r = combat.hunt((14, 5))
+    assert r["reason"] == "killed" and sent[-1] == "Fl"
 
 
 def test_ascend_refuses_a_cross_aligned_altar(monkeypatch):

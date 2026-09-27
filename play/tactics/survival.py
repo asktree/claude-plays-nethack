@@ -22,7 +22,9 @@ def rest(n: int = 20):
     ctx.require_command("rest()")
     from .combat import warn_bounce
     warn_bounce("rest()")
-    return _counted(f"{int(n)}.", int(n), [r"turns to flee", r"^You stop searching"])
+    # ("You stop waiting.": a scared monster stepping into view ends the count — p1 shift 36 #589: every 2-7
+    # turns of rest_on_elbereth() paused on it while fire giants hovered around the Elbereth square)
+    return _counted(f"{int(n)}.", int(n), [r"turns to flee", r"^You stop searching", r"^You stop waiting"])
 
 
 def _counted(keys: str, n: int, ok):

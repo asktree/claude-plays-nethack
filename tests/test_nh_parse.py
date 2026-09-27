@@ -1574,3 +1574,14 @@ def test_hero_next_to_a_stale_position_is_not_a_monster():
     assert monsters_in_view(s, hero=(9, 20)) == []
     scr.fg[21][9] = 7                                    # a gray '@' (a human monster): listed
     assert [m["ch"] for m in monsters_in_view(s, hero=(9, 20))] == ["@"]
+
+
+def test_stairs_never_in_the_trap_memory():
+    # p1 shift 36 #1229: the Castle's up stairs (2,20) sat in DL25's trap memory; trek() refused it
+    g = _guard_game()
+    s = _cmd_snap([])
+    key = g.level_key(s.status)
+    g.terrain_seen[key] = {(10, 5): "<", (12, 7): "_"}
+    g.traps[key] = {(10, 5), (12, 7), (30, 9)}
+    g._note_traps(s, ["There is a bear trap here."])
+    assert g.traps[key] == {(30, 9)}

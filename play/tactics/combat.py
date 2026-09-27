@@ -1270,6 +1270,14 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                 if not hs and isinstance(target, tuple) and \
                         tuple(target) in (getattr(s, "mimic_mem", None) or {}):
                     return _hunt_hidden_mimic(tuple(target), stop_hp, out, kills)
+                if not hs and isinstance(target, tuple) and sensed is None:
+                    # (p1 shift 36 #284: the stone giant meant had just stepped from (23,11) to (22,12)) — ONE
+                    # hostile within 2 squares of the given square is the one that moved
+                    near = [m for m in hs0 if max(abs(m["x"] - target[0]), abs(m["y"] - target[1])) <= 2]
+                    if len(near) == 1:
+                        print(f"hunt: nothing at {tuple(target)} now — the {near[0].get('desc') or near[0]['ch']} "
+                              f"at ({near[0]['x']},{near[0]['y']}) beside it is taken for the one that moved")
+                        hs = near
                 if not hs and sensed is not None:
                     # p1 shift 35 #173: sensed by telepathy_scan() in the dark, gone from view with the blindfold
                     # off — walk toward that square until it shows (a monster next to you is seen, dark or not)

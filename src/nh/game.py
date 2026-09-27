@@ -2043,6 +2043,9 @@ class Game:
                 x = row.find("^", x + 1)
         if not moved_level and snap.hero is not None and any(self._TRAP_MSG.search(m) for m in messages):
             known.add(snap.hero)
+        # mklev.c/trap.c never put a trap on stairs, a ladder, an altar, a fountain or a throne (p1 shift 36: the
+        # Castle's up stairs sat in the trap memory and trek() refused them)
+        known.difference_update(c for c, v in self.terrain_seen.get(lv, {}).items() if v in "<>{_\\")
 
     def farlook(self, x: int, y: int) -> str:
         """Describe screen cell (x, y) via ';' without disturbing self.last.
