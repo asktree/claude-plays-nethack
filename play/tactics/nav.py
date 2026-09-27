@@ -80,7 +80,8 @@ def bad_squares(s=None) -> set:
     for the current level. Both persist across daemon restarts."""
     s = s or ctx.last()
     lv = ctx.game.level_key(s.status)
-    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set()))
+    mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")}
+    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics
 
 
 def avoid(*cells, clear=False):

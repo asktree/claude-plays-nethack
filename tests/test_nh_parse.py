@@ -306,3 +306,79 @@ def test_feature_under_hero_remembered():
     s2 = Snap(screen=on, state=State("command"), status=parse_status(on))
     g._remember_terrain(s2, ["The fountain dries up!"])
     assert s2.under is None
+
+
+def test_hostiles_exclude_unseen_and_hallucinated():
+    from nh.game import Snap
+    from nh.parse import State, Status
+    s = Snap(screen=mk({}), state=State("command"), status=Status(ok=True),
+             monsters=[{"x": 1, "y": 1, "dist": 1, "desc": "remembered, unseen monster", "unseen": True},
+                       {"x": 2, "y": 1, "dist": 1, "desc": "", "hallu": True},
+                       {"x": 3, "y": 1, "dist": 1, "desc": "jackal"}])
+    assert [m["desc"] for m in s.hostiles()] == ["jackal"]
+
+
+def test_engulfed_detection():
+    from nh.game import _engulfed
+    s = mk({9: "      /-\\", 10: "      |@|", 11: "      \\-/"}, cursor=(7, 10))
+    assert _engulfed(s, (7, 10))
+    assert not _engulfed(mk({10: "      .@."}, cursor=(7, 10)), (7, 10))
+
+
+def test_condition_guards():
+    import pytest
+    g = _guard_game()
+    hallu = _cmd_snap([], conditions=["Hallu"])
+    hallu.screen.chars[5] = hallu.screen.chars[5][:11] + "D" + hallu.screen.chars[5][12:]
+    with pytest.raises(PermissionError):
+        g._guard(hallu, b"Fl", force=False)
+    g._guard(hallu, b"h", force=False)
+    blind = _cmd_snap([], conditions=["Blind"])
+    blind.screen.chars[5] = blind.screen.chars[5][:11] + "I" + blind.screen.chars[5][12:]
+    with pytest.raises(PermissionError):
+        g._guard(blind, b"l", force=False)
+    conf = _cmd_snap([{"x": 11, "y": 5, "dist": 1, "desc": "peaceful watchman", "peaceful": True}],
+                     conditions=["Conf"])
+    with pytest.raises(PermissionError):
+        g._guard(conf, b"h", force=False)
+    g._guard(conf, b"s", force=False)
+
+
+def test_no_keys_after_death_or_in_lobby():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    g.last = Snap(screen=mk({0: "Do you want your possessions identified? [ynq] (n)"}),
+                  state=State("gameover", prompt="Do you want your possessions identified?"), status=Status())
+    with pytest.raises(PermissionError):
+        g.step("p")
+    g.last = Snap(screen=mk({}), state=State("dgl", prompt="p) Play last game"), status=Status())
+    with pytest.raises(PermissionError):
+        g.step("p")
+
+
+def test_quoted_speech_stays_whole():
+    from nh.game import _split_top
+    assert _split_top('"Velkommen, wizard!  Welcome to Izchak\'s lighting store!"  You see here a lamp.') == [
+        '"Velkommen, wizard!  Welcome to Izchak\'s lighting store!"', "You see here a lamp."]
+
+
+def test_direction_and_name_prompts():
+    from nh.parse import _classify_prompt
+    assert _classify_prompt("Talk to whom? (in what direction)").kind == "direction"
+    assert _classify_prompt("What monster do you want to genocide? [type the name]").kind == "getlin"
+
+
+def test_genocide_guard():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    p = "What class of monsters do you wish to genocide?"
+    snap = Snap(screen=mk({0: p}), state=State("getlin", prompt=p), status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"master mind flayer\r", force=False)
+    with pytest.raises(PermissionError):
+        g._guard(snap, b"h\r", force=False)
+    g._guard(snap, b"L\r", force=False)

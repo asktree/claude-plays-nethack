@@ -85,11 +85,11 @@ def login() -> str:
         return text()
     if st != "logged_out":
         raise LobbyError(f"not at the logged-out menu (state={st}):\n{text()}")
-    ctx.do("l", quiet=True)
+    ctx.do("l", quiet=True, force=True)
     wait_for(r"enter your username")
-    ctx.do(c["user"] + "<CR>", quiet=True)
+    ctx.do(c["user"] + "<CR>", quiet=True, force=True)
     wait_for(r"enter your password")
-    ctx.do(c["password"] + "<CR>", quiet=True, secret=True)
+    ctx.do(c["password"] + "<CR>", quiet=True, secret=True, force=True)
     t = wait_for(r"Logged in as:|l\) Login")
     if "Logged in as:" not in t:
         raise LobbyError("login failed (back at the logged-out menu): wrong password?")
@@ -105,19 +105,19 @@ def register() -> str:
         raise LobbyError("password must be 8-20 letters/digits (no ':')")
     if lobby_state() != "logged_out":
         raise LobbyError(f"not at the logged-out menu:\n{text()}")
-    ctx.do("r", quiet=True)
+    ctx.do("r", quiet=True, force=True)
     wait_for(r"Please enter a username")
-    ctx.do(c["user"] + "<CR>", quiet=True)
+    ctx.do(c["user"] + "<CR>", quiet=True, force=True)
     t = wait_for(r"enter a password|problem with your last entry|already|taken")
     if "enter a password" not in t:
         raise LobbyError(f"username rejected:\n{t}")
-    ctx.do(c["password"] + "<CR>", quiet=True, secret=True)
+    ctx.do(c["password"] + "<CR>", quiet=True, secret=True, force=True)
     wait_for(r"And again")
-    ctx.do(c["password"] + "<CR>", quiet=True, secret=True)
+    ctx.do(c["password"] + "<CR>", quiet=True, secret=True, force=True)
     t = wait_for(r"email address|don't match")
     if "email" not in t.lower():
         raise LobbyError(f"password step failed:\n{t}")
-    ctx.do(c["email"] + "<CR>", quiet=True)
+    ctx.do(c["email"] + "<CR>", quiet=True, force=True)
     return wait_for(r"Logged in as:|problem|abort", timeout=30)
 
 
@@ -131,7 +131,7 @@ def play_last_game() -> str:
     if "[nh367-hdf]" not in line:
         raise LobbyError(f"'p' would not launch nh367-hdf ({line.strip()!r}); use the versions menu "
                          "(1) by hand and pick NetHack 3.6.7 after reading it")
-    ctx.do("p", quiet=True)
+    ctx.do("p", quiet=True, force=True)
     time.sleep(3)
     return text()
 
@@ -141,7 +141,7 @@ def resume_last_save() -> str:
     line = next((l for l in t.splitlines() if "r) Resume last save" in l), "")
     if "[nh367-hdf]" not in line:
         raise LobbyError(f"no nh367-hdf save to resume ({line.strip()!r})")
-    ctx.do("r", quiet=True)
+    ctx.do("r", quiet=True, force=True)
     time.sleep(3)
     return text()
 

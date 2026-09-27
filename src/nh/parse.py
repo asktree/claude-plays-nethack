@@ -367,8 +367,10 @@ def _classify_prompt(text: str) -> State:
         return State("extcmd", prompt=t)
     if t.startswith("Count:"):
         return State("count", prompt=t)
-    if "In what direction?" in t or t.endswith("in what direction?"):
-        return State("direction", prompt=t)
+    if "In what direction?" in t or re.search(r"in what direction\)?\??\s*$", t, re.I):
+        return State("direction", prompt=t)      # also "Talk to whom? (in what direction)"
+    if re.search(r"\[type the name(?: or symbol)?\]\s*$", t):
+        return State("getlin", prompt=t)         # genocide / polymorph control / ^G: text, not an item
     if "[yes/no]" in t or re.search(r"\(yes\) \[no\]\s*$", t):
         # paranoid_confirmation prompts: type "yes<CR>" to confirm; anything else (or <Esc>) = no
         return State("yn", prompt=t, choices="yes/no", default="no")

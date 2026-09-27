@@ -74,6 +74,9 @@ class MonsterTracker:
         self.last_turn: int | None = None
         self.visible_ids: set[int] = set()
         self.mixed: dict = {}
+        self._was_hallu = False
+        self._engulfer: str | None = None
+        self.mimics_seen: set = set()      # (level, x, y) of ']' already reported
 
     def reset(self):
         self.known, self.recent = [], {}
@@ -126,11 +129,45 @@ class MonsterTracker:
             self.reset()
             self.last_turn = None
         turn = st.turn or 0
+        hero = getattr(snap, "hero", None)
+        if getattr(snap, "engulfed", False) and hero is not None:
+            # inside a monster: only its interior is drawn; keep the level memory as it is
+            if self._engulfer is None:
+                d = _clean(self.game.farlook(hero[0], hero[1] - 1)) if hasattr(self.game, "farlook") else ""
+                self._engulfer = d or "engulfing monster"
+            return [{"ch": "", "x": hero[0], "y": hero[1], "color": "", "pet": False, "dist": 0, "id": -1,
+                     "desc": self._engulfer, "new": False, "statue": False, "tame": False, "peaceful": False,
+                     "engulfer": True, "note": "you are ENGULFED by it: attack with F + any direction"}]
+        self._engulfer = None
+        if "Hallu" in st.conditions:
+            # names and glyphs are random: don't look, don't learn, don't flag anything new
+            self._was_hallu = True
+            mons = monsters_in_view(snap)
+            for m in mons:
+                m.update(id=None, desc="", new=False, statue=False, tame=False, peaceful=False, hallu=True,
+                         note="hallucinating: identity unknown (could be peaceful, or a floating eye)")
+            return mons
+        if self._was_hallu:
+            self._was_hallu = False
+            self.reset()                 # labels from before/while hallucinating: look at everything again
         dt = 1 if self.last_turn is None else max(1, turn - self.last_turn)
         radius = min(10, max(3, 2 * dt + 1))
-        mons = monsters_in_view(snap)
+        allm = monsters_in_view(snap)
+        special = [m for m in allm if m["ch"] in "I]"]
+        mons = [m for m in allm if m["ch"] not in "I]"]
         for m in mons:
             m.update(id=None, desc="", new=False, statue=False)
+        for m in special:
+            if m["ch"] == "I":
+                m.update(id=None, desc="remembered, unseen monster", new=False, statue=False, unseen=True,
+                         tame=False, peaceful=False,
+                         note="an unseen monster was here (blind/invisible): could be anything, even a peaceful")
+            else:
+                key = (self.level, m["x"], m["y"])
+                m.update(id=None, desc="mimic (posing as a strange object ']')", new=key not in self.mimics_seen,
+                         statue=False, tame=False, peaceful=False, mimic=True,
+                         note="MIMIC: touching it sticks you to it; kill it from range or keep away")
+                self.mimics_seen.add(key)
 
         groups: dict = {}
         for m in mons:
@@ -265,7 +302,9 @@ class MonsterTracker:
                 del self.recent[i]
         self.known = [m for m in mons if m.get("desc")]
         self.last_turn = turn
-        return mons
+        for m in special:
+            m["id"] = self._new_id()
+        return mons + special
 
     def _forget_killed(self, names: list[str], vanished: set, hero) -> None:
         """A killed monster must not be 're-seen' later: drop its record

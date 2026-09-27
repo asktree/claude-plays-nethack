@@ -207,3 +207,34 @@ def test_killed_names():
     assert killed_names(["You kill the jackal!", "The kitten kills the newt.", "The gnome lord is killed!",
                          "You kill it!", "You destroy the dwarf zombie!"]) == ["jackal", "newt", "gnome lord",
                                                                                  "dwarf zombie"]
+
+
+def _with_conditions(s, conds):
+    s.status.conditions = list(conds)
+    return s
+
+
+def test_hallucination_freezes_labels_then_relooks():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(50, 10): "peaceful gnome"}
+    t.update(snap({(50, 10): "G"}, 10))
+    g.looked.clear()
+    m = t.update(_with_conditions(snap({(51, 10): "D"}, 11), ["Hallu"]))
+    assert g.looked == [] and m[0]["hallu"] and not m[0]["new"] and not m[0]["peaceful"]
+    m = t.update(_with_conditions(snap({(52, 10): "q"}, 12), ["Hallu"]))
+    assert g.looked == []
+    g.truth = {(52, 10): "peaceful gnome"}
+    m = t.update(snap({(52, 10): "G"}, 13))
+    assert g.looked == [(52, 10)] and m[0]["peaceful"]
+
+
+def test_unseen_and_mimic_markers():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    m = by_pos(t.update(snap({(41, 10): "I", (45, 12): "]"}, 10)))
+    assert g.looked == []
+    assert m[(41, 10)]["unseen"] and not m[(41, 10)]["new"]
+    assert m[(45, 12)]["mimic"] and m[(45, 12)]["new"]
+    m = by_pos(t.update(snap({(41, 10): "I", (45, 12): "]"}, 11)))
+    assert not m[(45, 12)]["new"]

@@ -47,6 +47,17 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
         if s.state.kind != "command" or s.hero is None:
             return s
         st = s.status
+        if getattr(s, "engulfed", False):
+            # inside a monster: any direction hits it
+            if st.ok and st.hp < stop_hp * max(1, st.hpmax):
+                ctx.pause(f"fight: engulfed and HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} — pray if HP <= 1/7 max")
+                return ctx.last()
+            s = ctx.do("Fk", ok=ROUTINE + [r"^You (hit|miss) the ", r"^You get (expelled|regurgitated)"])
+            continue
+        if "Hallu" in st.conditions:
+            ctx.pause("fight: hallucinating — can't tell hostile from peaceful (and NetHack won't ask). Attack "
+                      "with do('F'+dir, force=True) only a monster that is attacking you, or retreat.")
+            return ctx.last()
         targets = s.adjacent_hostiles()
         if x is not None:
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]

@@ -73,6 +73,10 @@ EOF
 ```
 Later sessions: `server.login()` instead.
 
+The harness refuses plain keystrokes while the lobby is on screen (a stray key there can start a game or
+enter the TNNT tournament): the `tactics.server` helpers pass `force=True`; when you navigate a menu by hand,
+read the screen and use `bin/nh --game live do KEY --force`.
+
 **Install the rc file** (`play/hardfought.nethackrc` — tested on the local build; it presets the character,
 turns off in-game mail, and restores the screen layout the parser expects). From the logged-in lobby, open
 `j) Manage settings` and read the screen (`bin/nh --game live screen`) — this submenu has never been

@@ -28,9 +28,10 @@ def _rows(snap):
 
 
 def monsters_in_view(snap, radius: int | None = None, hero=None) -> list[dict]:
-    """Letters on the map other than the hero, with color and pet highlight.
-    Only meaningful when no menu/text window overlays the map."""
-    if snap.state.kind not in NO_OVERLAY:
+    """Letters on the map other than the hero, with color and pet highlight,
+    plus ']' (in 3.6 only a mimic posing as a "strange object" looks like
+    that). Only meaningful when no menu/text window overlays the map."""
+    if snap.state.kind not in NO_OVERLAY or getattr(snap, "engulfed", False):
         return []
     scr = snap.screen
     hero = _hero(snap, hero)
@@ -38,7 +39,7 @@ def monsters_in_view(snap, radius: int | None = None, hero=None) -> list[dict]:
     for y in _rows(snap):
         row = scr.row(y)
         for x, ch in enumerate(row):
-            if ch not in MONSTER_CHARS:
+            if ch not in MONSTER_CHARS and ch != "]":
                 continue
             if hero and (x, y) == hero:
                 continue
@@ -56,7 +57,7 @@ def monsters_in_view(snap, radius: int | None = None, hero=None) -> list[dict]:
 def objects_in_view(snap, hero=None) -> list[dict]:
     """Object glyphs on the map (what the game displays: the top item of a
     pile; piles are shown in inverse video with hilite_pile)."""
-    if snap.state.kind not in NO_OVERLAY:
+    if snap.state.kind not in NO_OVERLAY or getattr(snap, "engulfed", False):
         return []
     scr = snap.screen
     hero = _hero(snap, hero)
@@ -71,6 +72,8 @@ def objects_in_view(snap, hero=None) -> list[dict]:
                 continue  # a door, not a spellbook
             if ch == '"' and col in (7, 8):
                 kind = "web?"
+            elif ch == "0" and col in (6, 14):
+                kind = "iron ball"          # heavy iron ball (cyan); boulders are gray
             else:
                 kind = OBJECT_CLASSES[ch]
             d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None
@@ -81,7 +84,7 @@ def objects_in_view(snap, hero=None) -> list[dict]:
 
 
 def features_in_view(snap, hero=None) -> list[dict]:
-    if snap.state.kind not in NO_OVERLAY:
+    if snap.state.kind not in NO_OVERLAY or getattr(snap, "engulfed", False):
         return []
     scr = snap.screen
     hero = _hero(snap, hero)

@@ -136,7 +136,18 @@ Blind); answering `y` to eating a corpse that is certain death or permanent harm
 Medusa, green slime, were-creatures, Riders, **dwarves** — cannibalism, dogs/cats); confirming
 "Really attack ...?" (NetHack asks that only about **peaceful** monsters); a plain step onto a **known trap**
 (NetHack doesn't ask; go around, or force=True to jump into a hole/trap door or enter a magic portal on
-purpose); `#quit`; `y` to "Destroy old game?"; any key during the server's stale-process countdown.
+purpose); **while hallucinating**, attacking/moving into any monster (NetHack doesn't ask "Really attack?"
+then, and a peaceful or a floating eye looks like anything); **while blind**, attacking an `I` (remembered
+unseen monster: could be a shopkeeper/priest); **while confused/stunned**, any step next to a peaceful or a
+floating eye (your step can go astray into it); genocide answers that would genocide your own race or role
+(class `h`/`@`, "dwarf", "valkyrie" — `master mind flayer` at a *class* prompt means class `h`!); any key
+after death except the end-of-game answers; any key in the server lobby (use `tactics.server` helpers);
+`#quit`; `y` to "Destroy old game?"; any key during the server's stale-process countdown.
+
+What the monster list shows in odd states: while hallucinating every monster is `hallu` (no names, no
+"new monster" pauses; everything is looked at again when it ends); `I` markers are `unseen`; a `]` is a
+**mimic** (kept out of travel routes); when **engulfed**, `obs.engulfed` is True and the list holds just
+the engulfer — `fight()` attacks it with `F` + any direction.
 
 ## 3. Survival protocol (non-negotiable)
 

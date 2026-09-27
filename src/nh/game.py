@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .keys import describe_bytes, parse_keys
-from .parse import (MAP_BOTTOM, MAP_TOP, MORE, State, Status, classify, parse_status)
+from .parse import (MAP_BOTTOM, MAP_TOP, MONSTER_CHARS, MORE, State, Status, classify, parse_status)
 from .screen import Screen
 from .tmuxterm import TmuxTerminal
 
@@ -52,6 +52,7 @@ class Snap:
     stop_reason: str = ""
     monsters: list = field(default_factory=list)   # set by the MonsterTracker (command state)
     under: str | None = None   # remembered map feature under the hero ('<', '>', '{', '_', '\\')
+    engulfed: bool = False     # the hero is inside a monster (the /-\\ ring is drawn around '@')
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -76,11 +77,15 @@ class Snap:
         return self.state.menu
 
     def hostiles(self, radius: int | None = None) -> list:
-        """Monsters that are not tame/peaceful/statues, optionally within radius."""
+        """Monsters that are not tame/peaceful/statues, optionally within
+        radius. Excludes what can't be judged: 'I' markers (unseen, maybe a
+        peaceful) and anything seen while hallucinating."""
         out = []
         for m in self.monsters:
             d = m.get("desc", "")
             if m.get("statue") or m.get("pet") or d.startswith("tame ") or d.startswith("peaceful "):
+                continue
+            if m.get("unseen") or m.get("hallu"):
                 continue
             if radius is not None and (m.get("dist") is None or m["dist"] > radius):
                 continue
@@ -165,10 +170,59 @@ def _explosion_frame(scr: Screen) -> bool:
     return False
 
 
+HERO_RACE, HERO_ROLE = "dwarf", "valkyrie"
+# genociding your own race's base monster or your role's player-monster kills
+# you (read.c: i == urace.malenum || i == urole.malenum); class genocide of
+# their classes (h, @) includes them
+_SELF_CLASSES = {"h", "@"}
+_SELF_NAMES = {HERO_RACE, HERO_RACE + "s", "dwarves", HERO_ROLE, HERO_ROLE + "s"}
+
+
+def _genocide_danger(prompt: str, answer: str) -> str:
+    a = answer.replace("\r", "").replace("\n", "").strip().lower()
+    if not a or a.startswith("\x1b"):
+        return ""
+    if "class" in prompt.lower():
+        cls = a if len(a) == 1 else None
+        if cls is None:
+            from .danger import monster_record
+            name = a[:-1] if a.endswith("s") and monster_record(a[:-1]) else a
+            rec = monster_record(name) or monster_record(a.replace("ves", "f"))
+            cls = rec.get("symbol") if rec else None
+            if cls is None and name in _SELF_NAMES:
+                cls = "h"
+        if cls in _SELF_CLASSES:
+            return (f"refusing genocide answer {answer.strip()!r}: it resolves to class {cls!r}, which contains "
+                    f"your own race ({HERO_RACE}) or role ({HERO_ROLE}) — you would die. Blessed genocide: "
+                    "answer 'L' (liches) or ';' (sea monsters).")
+        return ""
+    if a in _SELF_NAMES:
+        return (f"refusing to genocide {a!r}: that is your own race/role — you would die. Uncursed genocide: "
+                "'master mind flayer' or 'mind flayer'.")
+    return ""
+
+
+def _engulfed(scr: Screen, hero) -> bool:
+    """The swallow display: a ring of / - \\ | around the hero (corners are
+    the tell, as for explosions, but the centre is '@')."""
+    if hero is None:
+        return False
+    x, y = hero
+    want = ((-1, -1, "/"), (1, -1, "\\"), (-1, 1, "\\"), (1, 1, "/"))
+    return sum(1 for dx, dy, ch in want if scr.at(x + dx, y + dy) == ch) >= 3
+
+
 def _split_top(text: str) -> list[str]:
     """tty packs several short messages on one line separated by 2+ spaces."""
     parts = [p.strip() for p in re.split(r"\s{2,}", text.strip()) if p.strip()]
-    return parts
+    out: list[str] = []
+    for p in parts:
+        # re-join quoted speech that contains a double space ("Hello!  Welcome...")
+        if out and out[-1].count('"') % 2 == 1:
+            out[-1] += "  " + p
+        else:
+            out.append(p)
+    return out
 
 
 class Game:
@@ -201,6 +255,7 @@ class Game:
         # overview name ("The Gnomish Mines / Level 3") for the ldesc it saw.
         self.level_name: str | None = None
         self.level_name_ldesc: str | None = None
+        self._settled_raw = -1            # raw-log size at the last settled capture
 
     def level_key(self, status: Status | None = None) -> str:
         """Key for per-level memory (traps, avoid, visited): the overview
@@ -226,7 +281,7 @@ class Game:
     def _remember_terrain(self, snap: Snap, messages: list[str]) -> None:
         """Remember stairs/fountains/altars/thrones per level so the one under
         the hero (hidden by the '@') is still known: sets snap.under."""
-        if snap.hero is None or not snap.status.ok:
+        if snap.hero is None or not snap.status.ok or _engulfed(snap.screen, snap.hero):
             return
         feats = self.terrain_seen.setdefault(self.level_key(snap.status), {})
         for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
@@ -299,6 +354,7 @@ class Game:
         first = t.first if expect_output else min(t.first, t.quiet * 4)
         self.term.wait_quiet(size0, first, t.quiet, t.max_wait)
         snap = self.capture()
+        self._settled_raw = self.term.raw_size()
         stable = 0
         for _ in range(t.recheck):
             if self._plausible(snap):
@@ -306,6 +362,7 @@ class Game:
             size1 = self.term.raw_size()
             self.term.wait_quiet(size1, t.quiet * 3, t.quiet, t.max_wait)
             prev, snap = snap, self.capture()
+            self._settled_raw = self.term.raw_size()
             # an implausible screen that no longer changes is the real one
             # (invisible hero with no '@' drawn, odd displays): stop waiting
             if snap.screen.chars == prev.screen.chars and snap.screen.cursor == prev.screen.cursor \
@@ -348,7 +405,33 @@ class Game:
                         f"refusing to step onto the known trap at {(tx, ty)} (NetHack doesn't ask). Go around "
                         "(travel() avoids traps), or force=True if you mean it (jumping into a hole/trap "
                         "door on purpose, entering a magic portal).")
-            if key in self._MOVE and snap.hero is not None and "Blind" not in snap.status.conditions:
+            conds = set(snap.status.conditions) if snap.status.ok else set()
+            if key in self._MOVE and snap.hero is not None:
+                dx, dy = self._MOVE[key]
+                tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
+                target = snap.screen.at(tx, ty)
+                if "Hallu" in conds and target in MONSTER_CHARS:
+                    raise PermissionError(
+                        f"refusing to attack/move into the monster at {(tx, ty)} while hallucinating: you can't "
+                        "tell what it is (a peaceful? a floating eye?) and NetHack does NOT ask 'Really attack?' "
+                        "while you hallucinate. Wait it out, cure it (unicorn horn), or force=True if it is "
+                        "certainly hostile (it attacked you).")
+                if "Blind" in conds and target == "I":
+                    raise PermissionError(
+                        f"refusing to attack the remembered unseen monster 'I' at {(tx, ty)} while blind: it may be "
+                        "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
+                        "it. force=True if it is attacking you.")
+            if step in self._MOVE and snap.hero is not None and conds & {"Conf", "Stun"}:
+                from .danger import base_name
+                near = [m for m in snap.monsters or [] if m.get("dist") == 1 and not m.get("tame")
+                        and (m.get("peaceful") or base_name(m.get("desc") or "") in self.NEVER_MELEE)]
+                if near:
+                    raise PermissionError(
+                        "refusing to move while " + "/".join(sorted(conds & {"Conf", "Stun"})) + " next to "
+                        + ", ".join(f"the {m.get('desc')} at ({m['x']},{m['y']})" for m in near)
+                        + ": your step can go astray into it, and NetHack attacks without asking while you "
+                        "are confused/stunned. Wait ('s') until it wears off, or force=True.")
+            if key in self._MOVE and snap.hero is not None and "Blind" not in conds:
                 dx, dy = self._MOVE[key]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
                 for m in snap.monsters or []:
@@ -360,6 +443,10 @@ class Game:
                                 f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
                                 f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
                                 "Use ranged attacks or go around. force=True overrides.")
+        elif k in ("getlin", "object") and "genocide" in (snap.state.prompt or "").lower():
+            why = _genocide_danger(snap.state.prompt, unit.decode(errors="replace"))
+            if why:
+                raise PermissionError(why + " force=True overrides.")
         elif k in ("yn", "getlin") and unit[:1] in (b"y", b"Y") and "Really attack" in (snap.state.prompt or ""):
             # NetHack only asks this about peaceful monsters
             raise PermissionError(
@@ -425,8 +512,22 @@ class Game:
             t0 = time.monotonic()
             self.n += 1
             messages: list[str] = []
-            cur = self.last if self.last is not None else self.capture()
+            cur = self.last
+            if cur is None or (self.term is not None and self.term.raw_size() != self._settled_raw):
+                cur = self.capture()      # output arrived since we last looked: decide on the real screen
             kind = cur.state.kind
+            if not force and data:
+                if kind == "dead":
+                    raise PermissionError("the game process has exited (terminal dead): nothing to send. "
+                                          "Look at `nh screen`; reconnect/restart per the runbook.")
+                if kind == "gameover" and any(b not in b"ynqYNQ \r\n\x1b" for b in data):
+                    raise PermissionError("the game is over: only y/n/q, space, Enter or Esc answer the end-of-game "
+                                          "questions. Never start a new game without the human's go-ahead. "
+                                          "force=True to send other keys.")
+                if kind == "dgl":
+                    raise PermissionError("this is the server lobby (dgamelaunch), not the game: a key here can "
+                                          "start a game, enter a tournament or change settings. Use the "
+                                          "tactics.server helpers, or force=True after reading the screen.")
             i = 0
             snap = cur
             unsent = b""
@@ -496,11 +597,16 @@ class Game:
                     moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
+            if snap.hero is not None:
+                snap.engulfed = _engulfed(snap.screen, snap.hero)
             if self.tracker is not None and snap.state.kind == "command":
                 try:
                     snap.monsters = self.tracker.update(snap)
                 except Exception as e:  # noqa: BLE001
                     self.log_event({"ev": "tracker_error", "err": repr(e)})
+            elif snap.state.kind in ("yn", "direction", "object", "getlin", "count", "getpos") \
+                    and cur is not None and cur.monsters:
+                snap.monsters = cur.monsters   # a prompt takes no time: the last labels still apply
             for m in messages:
                 self.history.append((snap.status.turn, m))
             if len(self.history) > self.max_history:
@@ -529,6 +635,8 @@ class Game:
     def _note_traps(self, snap: Snap, messages: list[str], moved_level: bool = False) -> None:
         """Remember trap squares per level: every displayed '^', and the hero's
         square when a trap message fires there (objects can hide a trap)."""
+        if snap.hero is not None and _engulfed(snap.screen, snap.hero):
+            return
         lv = self.level_key(snap.status)
         known = self.traps.setdefault(lv, set())
         # a seen trap stays drawn as '^' unless something stands/lies on it:
@@ -707,6 +815,7 @@ class Game:
                 snap.messages = []
             if snap.hero is not None:
                 self.hero_pos = snap.hero
+                snap.engulfed = _engulfed(snap.screen, snap.hero)
                 self._remember_terrain(snap, [])
             if self.tracker is not None and snap.state.kind == "command":
                 try:
