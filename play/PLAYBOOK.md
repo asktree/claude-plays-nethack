@@ -68,8 +68,8 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   not Confused, with nothing on the floor you care about. Blessed/uncursed genocide is the jackpot; an
   unknown scroll can also be amnesia (you forget the map and identities — note them in state.md first),
   fire, punishment, teleportation, create monster.
-- **Genocide answers** (as a *dwarf*): **never `h`, never "dwarf", never `@` / "human"** (h includes
-  dwarves = you → you die; @ includes the quest leader and every shopkeeper and priest → quest impossible).
+- **Genocide answers** (as a dwarven Valkyrie): **never `h`, "dwarf", `@` or "valkyrie"** — genociding
+  your own race (dwarf, class `h`) or role (the valkyrie player-monster, class `@`) kills you (read.c).
   Uncursed (one species): "master mind flayer", then "mind flayer". Blessed (a whole class): `L` (liches),
   then `;` (sea monsters: eels drown you). A *cursed* scroll creates the monsters instead: answer with
   something harmless ("lichen").
