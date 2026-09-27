@@ -154,9 +154,20 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   with `HELD — ...`. Stay 2 squares from water where eels swim.
 - **Poison**: without poison resistance every poisonous bite/sting (snakes, soldier ants, bees, rabid rats,
   quasits) can kill outright (1 in 30) — the harness rates them dangerous and never auto-fights them then.
-- **Castle** (the bottom level of the Dungeons, 1-4 levels below Medusa) — only per rule A1. Wand of wishing: in a chest in a **corner tower** (Astra:
-  NE once, NW once; check both). Approach from the back: levitate over the moat, use the trapdoor-side door,
-  conflict in the court, avoid the central hall and barracks. Minotaurs in the maze ignore Elbereth.
+- **Castle** (the bottom level of the Dungeons, 1-4 levels below Medusa) — only per rule A1. Facts from
+  castle.des / zap.c / dbridge.c (3.6.7): the raised drawbridge is in the moat on the WEST wall; **two giant
+  eels sit in the moat squares right north and south of it** (sharks at the corners) — the land square in front
+  of the bridge and the bridge square itself are next to both. A cold ray freezes each moat square it crosses:
+  under the raised bridge it becomes ice, and on an eel's square the eel is forced out onto ice (it can't
+  drown you there); the ice melts after a while. Then a force bolt / striking at the bridge: "The drawbridge
+  disintegrates!" leaves walkable ice and an open gateway (and wakes the whole castle). The passtune (5 notes,
+  prayer/Oracle or Mastermind with an instrument) opens it instead. Inside: 8 soldiers + a lieutenant in the
+  entry courtyard, 2 soldiers per corner tower, 4 dragons, a throne-room court; storerooms of weapons, armor,
+  food, gems. **The wand of wishing** is in a chest in ONE of the 4 corner towers (reached by doors from the
+  long halls along the top and bottom walls), on a square with a burned Elbereth and a CURSED scroll of scare
+  monster (leave it). No digging (all walls undiggable), no teleporting, soldiers ignore Elbereth. Its trap
+  doors (east corridor) are the only way down, into the Valley. Minotaurs in the surrounding mazes ignore
+  Elbereth.
 - **Wishes** (after MR/reflection are covered as needed): blessed +2 gray dragon scale mail (MR) → "2
   blessed scrolls of charging" (recharge the wand of wishing **exactly once**, to 3) → blessed +2 speed
   boots → "2 blessed scrolls of genocide" (genocide `L` liches first) → blessed magic marker → blessed
