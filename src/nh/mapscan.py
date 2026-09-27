@@ -90,6 +90,11 @@ def objects_in_view(snap, hero=None) -> list[dict]:
                 kind = "web?"
             elif ch == "0" and col in (6, 14):
                 kind = "iron ball"          # heavy iron ball (cyan); boulders are gray
+            elif ch == "*" and col == 7:
+                kind = "rock/gray stone"    # gems and glass are coloured; gray '*' is a rock or a gray
+                                            # stone (luck/load/touchstone, flint: kick before picking up)
+            elif ch == "*":
+                kind = "gem/glass"
             else:
                 kind = OBJECT_CLASSES[ch]
             d = max(abs(x - hero[0]), abs(y - hero[1])) if hero else None

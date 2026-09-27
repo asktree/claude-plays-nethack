@@ -390,7 +390,7 @@ def step(direction: str, n: int = 1):
     return s
 
 
-def _use_stairs(ch: str, tries: int = 4):
+def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0):
     s = ctx.last()
     cells = known_cells(ch, s, rescan=True)
     if not cells:
@@ -407,19 +407,49 @@ def _use_stairs(ch: str, tries: int = 4):
             return s                     # something happened on the way
     if s.hero != target:
         raise NavError(f"did not reach the {ch} at {target} (you are at {s.hero}); nothing pressed")
+    if wait_pet:
+        s = _wait_for_pet(s, wait_pet)
+        if s.state.kind != "command" or s.hero != target:
+            return s
     return ctx.do(ch)
 
 
-def go_down():
+def _wait_for_pet(s, turns: int):
+    """A pet only follows you down/up the stairs when it is next to you. If
+    one is in view nearby but not adjacent, wait up to `turns` turns for it
+    (it may be eating: "is still eating"); say what happened."""
+    def pets(snap):
+        return [m for m in (snap.monsters or []) if (m.get("tame") or m.get("pet")) and not m.get("statue")]
+    near = [m for m in pets(s) if m.get("dist") is not None and 1 < m["dist"] <= 7]
+    if not near or any(m.get("dist") == 1 for m in pets(s)):
+        return s
+    for i in range(turns):
+        if s.hostiles(2):
+            print("stairs: a hostile is close — not waiting for the pet")
+            return s
+        s = ctx.do("s", ok=BENIGN)
+        if s.state.kind != "command":
+            return s
+        if any(m.get("dist") == 1 for m in pets(s)):
+            print(f"stairs: waited {i + 1} turn(s); your pet is next to you and comes along")
+            return s
+    left = pets(s)
+    print("stairs: your pet " + (f"({left[0].get('desc')} at ({left[0]['x']},{left[0]['y']})) " if left else "")
+          + f"didn't come next to you in {turns} turns — it stays behind")
+    return s
+
+
+def go_down(wait_pet: int = 6):
     """Travel to the nearest '>' (re-travelling after routine stops), check
     you are on it, then descend. Raises NavError instead of pressing '>'
-    anywhere else."""
-    return _use_stairs(">")
+    anywhere else. wait_pet: if your pet is in view nearby but not next to
+    you, wait up to this many turns for it (0: don't)."""
+    return _use_stairs(">", wait_pet=wait_pet)
 
 
-def go_up():
+def go_up(wait_pet: int = 6):
     """Like go_down() for '<'."""
-    return _use_stairs("<")
+    return _use_stairs("<", wait_pet=wait_pet)
 
 
 def kick_door(x, y, tries: int = 8):
