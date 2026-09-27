@@ -129,3 +129,9 @@
 - dig() can leave the PICK-AXE wielded when its exec pauses on the new level and is dropped: after any dig, check "weapon in hand" before fighting (I fought a wolf with the pick-axe on D24).
 - Protection price is 400*XL at the moment of donating: reaching the next XL before a temple visit raises it by 400 (I hit XL12 one level before finding a co-aligned temple and was 29 gold short).
 - Magic mapping is worth more on the level BELOW Medusa (a maze or the Castle, where the `<` must be found) than on Medusa's own lit level.
+- CASTLE ENTRY WITHOUT AN OPENING WAND (T:15542): read an uncursed scroll of EARTH on the land square in front of the raised drawbridge while the eels sleep (Stealth): both eel squares AND the span underside filled (90% each) — a raised span over filled moat is FLOOR; then a force bolt east destroys the bridge ("The drawbridge disintegrates!") and leaves floor + a doorless gateway. The boulders ring you: an instant fort with 3 open squares (then 2 after pushing one boulder west).
+- SPELLCASTING MONSTERS READ SCROLLS: a castle lich read CREATE MONSTER (13 monsters) and a lich cast AGGRAVATE (whole castle awake). Kill liches fast, before they reach their scroll/spell rolls; the court is not asleep in the Castle (explicit MONSTER lines = awake).
+- SLEEP RAYS + REFLECTION: bounces are harmless to me; a sleeping hostile in a fort's attack square is a PLUG (don't kill it) — until something casts aggravate.
+- Towel telepathy census + farlook of every glyph from the Castle `<` gave the whole order of battle (lich types, peaceful naga, dragons) before committing; object detection (uncursed) shows the tower chest's scare-monster `?` = the wishing wand's tower.
+- A PEACEFUL TITAN (or any giant) picks up and moves boulders: boulder forts leak when giants are around.
+- The lieutenant hits for up to ~33 in one round (2 weapon attacks) even at AC -8: treat lieutenants/captains as priority targets.
