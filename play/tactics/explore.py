@@ -142,7 +142,7 @@ def _pick_target(skip, bad=frozenset(), why=None):
     return None
 
 
-def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = True):
+def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = True, medusa_ok: bool = False):
     """(skip: extra squares never to target; known traps and avoid() squares
     are always skipped. auto_fight: fight adjacent hostiles that are all
     trivial for you (combat.auto_fightable: newts, rats, jackals...) on the
@@ -151,8 +151,9 @@ def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = Tru
     import contextlib
     from .nav import bad_squares
     ctx.require_command("explore()")
-    from .nav import engulfed_check
+    from .nav import _medusa_check, engulfed_check
     engulfed_check(ctx.last(), "explore()")
+    _medusa_check(ctx.last(), (-1, -1), "explore()", medusa_ok)
     skip = set(skip or ()) | bad_squares()
     if auto_fight and ctx.monster_filter:
         from .combat import not_auto_fightable
@@ -321,14 +322,15 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
             return result("blocked: a shopkeeper won't let you in with a digging tool — bag_put() it or drop it "
                           "outside the door, then explore() again (or skip the shop)")
         if s.hero == hero and not text:
+            from .nav import _passive_only
             blk = blockers(s)
-            hostile = [m for m in blk if not m.get("peaceful")]
+            hostile = [m for m in blk if not m.get("peaceful") and not _passive_only(m)]
             if hostile:
                 return result(f"blocked: hostile {_mdesc(hostile)} adjacent — travel never starts next to "
                               "one; fight() it or step away, then explore() again")
             if blk:
-                # a peaceful next to you: NetHack's travel won't start, but plain steps along our
-                # own route (never into a monster) get you away from it
+                # a peaceful (or a floating eye / mold: no active attack) next to you: NetHack's travel
+                # won't start, but plain steps along our own route (never into a monster) get you away
                 from .mapview import bfs_path as _bfs
                 from .nav import walk_path
                 own = _bfs(ctx.last(), hero, target, avoid=frozenset(bad_squares() - {target}),

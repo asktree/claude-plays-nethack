@@ -28,9 +28,13 @@ NOTES = {
     "werejackal": "bite -> LYCANTHROPY (pray / holy water / wolfsbane).",
     "wererat": "bite -> LYCANTHROPY (pray / holy water / wolfsbane).",
     "werewolf": "bite -> LYCANTHROPY (pray / holy water / wolfsbane).",
-    "giant eel": "can DROWN you if you're next to water. Step away from water.",
-    "electric eel": "can DROWN you; shock. Step away from water.",
-    "kraken": "can DROWN you. Step away from water.",
+    "giant eel": "can DROWN you when you stand next to water: once it 'swings itself around you' its NEXT hit "
+                 "drowns you (levitation does NOT help) — engrave Elbereth at once (it flees and lets go), kill "
+                 "it, or teleport. Keep 2 squares from the water where eels are.",
+    "electric eel": "shock bite; can DROWN you like a giant eel once it 'swings itself around you' (levitation "
+                    "does NOT help) — Elbereth at once, kill it, or teleport. Keep away from the water's edge.",
+    "kraken": "can DROWN you once it 'swings itself around you' (levitation does NOT help) — Elbereth at once, "
+              "kill it, or teleport. Keep 2 squares from the water.",
     "shark": "hits hard from water; stay off the water edge.",
     "mind flayer": "tentacles eat your brain (Int loss, amnesia). Kill fast / flee; telepathic.",
     "master mind flayer": "tentacles eat your brain (Int loss, amnesia). Very dangerous; flee or burst it down.",
@@ -103,6 +107,9 @@ NOTES = {
     "Pestilence": "RIDER. Illness. Avoid.",
     "Famine": "RIDER. Hunger. Avoid.",
     "Wizard of Yendor": "steals the Amulet/quest artifact; curses; double trouble. Keep uncursing ready.",
+    "Lord Surtur": "QUEST NEMESIS (fire giant king): 2d10 weapon x2 and fire (you need fire resistance on his "
+                   "lava level); his claw STEALS the Orb of Fate / the Amulet and he TELEPORTS away to heal (often "
+                   "to the up stairs), then comes back; he carries the Bell of Opening (needed to ascend).",
     "Juiblex": "engulf -> illness, sliming risk. Fire kills slime.",
     "Orcus": "wand of death, spells. MR required.",
     "Asmodeus": "cold (you resist), spells.",
@@ -179,6 +186,37 @@ PLAYER_MONSTERS = {"archeologist", "barbarian", "caveman", "cavewoman", "healer"
                    "priestess", "rogue", "ranger", "samurai", "tourist", "valkyrie", "wizard"}
 PLAYER_MONSTER_NOTE = ("player-monster: on the Astral Plane level 15-30 with a +4..+8 weapon (half the time an "
                        "ARTIFACT), good armor, maybe wands; don't let several gang up on you.")
+# damage types of poisonous active attacks (mhitu.c AD_DRST/DRDX/DRCO -> poisoned(): Str/Dex/Con loss, or
+# death outright 1 time in 30 without poison resistance)
+POISON_AD = ("AD_DRST", "AD_DRDX", "AD_DRCO")
+POISON_NOTE = ("poisonous: without poison resistance each poisoned hit costs Str/Dex/Con — or kills outright "
+               "(1 in 30); fight it at range or with poison resistance")
+LEADER_NOTE = ("QUEST LEADER: never attack. Walking NEXT to it is your visit — go only at XL14+ and piously "
+               "aligned (alignment record 20+: check with a stethoscope on yourself, piety()): each visit with a "
+               "lower record counts, and after 7 you're expelled for good (no Bell = no ascension)")
+NEMESIS_NOTE = ("QUEST NEMESIS: strong, carries the Bell of Opening (needed to ascend); covetous ones steal your "
+                "quest artifact/Amulet and teleport away to heal")
+
+
+def poison_melee(name: str) -> bool:
+    """Does it have a poisonous active attack (bite/sting/weapon)?"""
+    rec = monster_record(name)
+    return bool(rec) and any(a.get("damage_type") in POISON_AD and a.get("type") not in ("AT_NONE", "AT_BOOM")
+                             for a in rec.get("attacks", []))
+
+
+def paralysing_melee(name: str) -> bool:
+    rec = monster_record(name)
+    return bool(rec) and any(a.get("damage_type") == "AD_PLYS" and a.get("type") not in ("AT_NONE", "AT_BOOM")
+                             for a in rec.get("attacks", []))
+
+
+def quest_role(name: str) -> str:
+    """'leader' / 'nemesis' / '' from the monster's sound (MS_LEADER / MS_NEMESIS)."""
+    rec = monster_record(name) or {}
+    return {"MS_LEADER": "leader", "MS_NEMESIS": "nemesis"}.get(rec.get("sound", ""), "")
+
+
 PEACEFUL_PRIEST_NOTE = ("peaceful temple priest: never anger it (protection: donate at least 400*XL but under "
                         "600*XL gold — buy_protection()); on Astral its god must be yours before you #offer the "
                         "Amulet.")
@@ -207,6 +245,7 @@ def base_name(desc: str) -> str:
     d = re.sub(r",? called .*$", "", d)
     d = re.sub(r"\s+named .*$", "", d)
     d = re.sub(r"\b(coyote) - .+$", r"\1", d)       # pager.c coyotename(): "coyote - Eatius-Slobbius"
+    d = re.sub(r"^.+'s ghost$", "ghost", d)            # a bones ghost: "Jay's ghost"
     d = _STRIP.sub("", d)
     d = re.sub(r"^(?:a|an|the) ", "", d)
     d = _STRIP.sub("", d.strip())          # "the invisible high priest ..."
@@ -243,8 +282,9 @@ def _lookalikes() -> dict:
         raw = list(_monsters().values())
     for m in raw:
         col = (m.get("color") or "").replace("_", " ")
+        sym = "8" if m.get("symbol") == " " else m.get("symbol")      # ghosts/shades: SYMBOLS=S_ghost:8
         for c in ([col, "dark gray", "blue"] if col == "black" else [col]):
-            out.setdefault((m.get("symbol"), c), set()).add(m["name"])
+            out.setdefault((sym, c), set()).add(m["name"])
     return out
 
 
@@ -277,10 +317,22 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
         n = PEACEFUL_PRIEST_NOTE
     elif name in PLAYER_MONSTERS and not desc.startswith("peaceful "):
         n = PLAYER_MONSTER_NOTE
+    elif not n and quest_role(name) == "leader":
+        n = LEADER_NOTE
+    elif not n and quest_role(name) == "nemesis":
+        n = NEMESIS_NOTE
+    if not n and "poison" not in resists and poison_melee(name):
+        n = POISON_NOTE
+    if not n and "free action" not in resists and paralysing_melee(name):
+        n = ("its hit can PARALYSE you (up to 10 turns, 1 in 3 hits; free action prevents it) — deadly with "
+             "other monsters around: fight it alone, or at range")
+    if n and "holding you" in desc and name in ("giant eel", "electric eel", "kraken"):
+        n = ("IT IS HOLDING YOU next to water: its next hit DROWNS you (levitation does NOT help) — engrave "
+             "Elbereth NOW (it flees and lets go; not possible while levitating), kill it this turn, or teleport")
     if n:
         bits.append(n)
     rec = monster_record(name)
-    if rec and hero_xl is not None:
+    if rec and hero_xl is not None and not desc.startswith("peaceful "):
         diff = rec.get("difficulty", 0)
         if diff >= hero_xl + 4:
             bits.append(f"much stronger than you (difficulty {diff} vs XL {hero_xl})")
@@ -437,10 +489,14 @@ def threat_level(desc: str, hero_xl: int | None = None, hp: int | None = None, r
     xl = hero_xl or 1
     diff = rec.get("difficulty", 0)
     mh = max_hit(name)
-    noted = (NOTES.get(name) or name in PLAYER_MONSTERS) and name not in INFO_NOTES \
+    noted = (NOTES.get(name) or name in PLAYER_MONSTERS or quest_role(name)) and name not in INFO_NOTES \
         and not (name in POISON_NOTES and "poison" in resists)
     if noted or any(dt in STOP_PASSIVES or dt == "AT_BOOM" for dt, _ in passive_attacks(name)):
         return "dangerous"
+    if "poison" not in resists and poison_melee(name):
+        return "dangerous"      # a snake's poisoned bite can kill outright without poison resistance
+    if "free action" not in resists and paralysing_melee(name):
+        return "dangerous"      # a ghoul's claw freezes you for up to 10 turns
     if diff >= xl + 3 or (hp is not None and mh * 4 >= hp * 3):
         return "dangerous"      # much stronger, or one worst-case round takes 3/4 of your HP
     if diff <= max(1, xl // 2) and (mh <= 4 or (hp is not None and mh * 5 < hp)):

@@ -415,7 +415,8 @@ def _classify_prompt(text: str) -> State:
             and not t.startswith("What do you want") and "or ?*" not in t:
         return State("yn", prompt=t, choices=m.group("choices"), default=m.group("default") or "")
     m = _OBJ.search(t)
-    if m:
+    if m and not (re.search(r"[\d,]", m.group("choices")) and "or ?*" not in m.group("choices")):
+        # (inventory letters "[abc or ?*]"; a text prompt's hint like the passtune's "[5 notes, A-G]" is not)
         return State("object", prompt=t, choices=m.group("choices"))
     return State("getlin", prompt=t)
 
@@ -492,7 +493,7 @@ def map_rows(scr: Screen) -> list[str]:
     return [scr.row(y) for y in range(MAP_TOP, MAP_BOTTOM + 1)]
 
 
-MONSTER_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@&';:~")
+MONSTER_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ@&';:~8")   # 8: ghosts (our rc)
 # ':' is also a dog/lizard class and ';' sea monsters; '~' long worm tail; 'I'
 # remembered unseen monster. Items/terrain use other symbols.
 OBJECT_CHARS = set(")[%?/=!\"(*+$`0")

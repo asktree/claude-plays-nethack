@@ -450,3 +450,19 @@ Format: step `#N` — command — expected — what happened.
 1. loot_all() takes unknown gray stones out of containers without the loadstone guard — `#931`.
 2. Stale/misclassified map memory: closed door shown as `+ spellbook` after a dig beside it (`#632`); throne kept in features after it vanished (`#1025`).
 3. travel() NavError next to a floating eye (`#553`, `#569`) and explore()'s empty `avoided` list when the only frontier is avoided (`#663`).
+
+## Shift 17 (T:15937 -> 16528; DL20; daemon restarted before the shift, step numbers from #1)
+- `#125` — **a GHOST (default symbol: blank ' ') stood at (71,15) inside the lit graveyard; it was not in the monster list, and `step('h', 1)` ATTACKED it ("You hit p1's ghost!")** instead of raising NavError. The "movement never attacks" guarantee depends on seeing the monster. Suggest: set a visible ghost symbol in the nethackrc (e.g. `SYMBOLS=S_ghost:X` or similar) so the parser sees it; and treat "You hit/miss/attack <X>" during a movement step as an unexpected-attack pause.
+- `#14`-`#118` — the GHOUL had no `!!` danger note, although its claw paralyses (up to 10 turns, 1/3 per hit without free action) — deadly with other monsters adjacent. Suggest a note: "PARALYSING claw — kill first / fight it alone".
+- `#783` — `zap('C','u')` killed the floating eye, and the bolt went on: "A potion of gain level shatters!" (an unseen floor potion). zap()'s friendly-in-line check could also warn that force bolts break potions/statues/boulders and fire/lightning burn scrolls/potions on the floor beyond the target (especially into unseen squares); at least document it.
+- `#777` — explore() returned "blocked: hostile floating eye at (30,10) adjacent — travel never starts next to one" — the new step-away rule is in travel() but not in explore(). One wasted call (I zapped it instead).
+- `#65` — `hunt('rock troll')` returned "no route ... on the map you know" with the troll 3 squares away across unlit, unexplored squares; the troll then left view and `fight_until_clear` returned 'clear'. hunt() could step toward the target through frontier squares (like head_to()) when it is within a few squares.
+- `#357`, `#372` — quantum mechanic teleports: the pause reason was just "message" ("Your position suddenly seems very uncertain!"). A reason like "TELEPORTED by <monster> — you are now at (x,y)" would read faster.
+- `#594`, `#715` — eat() of a troll corpse: "The bite-covered rock troll rises from the dead!" mid-meal. The pause was right; an eat() verdict line "troll revived — kill it, then eat the new corpse at once" would help (same family as the rotten-food verdicts).
+- Worked well: the stealth sweep with `fight(x, y)` per sleeper (my `run_plan` kernel helper: list of (stand-square, target)); `hunt('quantum mechanic')`/`hunt('rock troll')` when a route existed; `loot_all()` auto-unlocking a box; `read_identify(priority=[regexes])`; `bag_put('D', 'ewPuW')` / `bag_take('D', 'twisted|clay|opal|topaz')`; `pickup('lizard corpse')`; travel() gold sweep; explore()'s `dead_ends` and `boulders` report; the `!!` notes for the quantum mechanic, floating eye, barbed devil and wraith.
+- Missing helper idea: `kill_sleepers(room_rect, order=...)` — walk to a square adjacent to exactly one sleeper, strike, repeat (what my run_plan did by hand), skipping floating eyes/peacefuls and preferring ghouls/devils first.
+
+### Shift 17 — ranked summary
+1. Ghost (blank glyph) invisible to the monster list; step() attacked it — `#125`.
+2. Ghoul lacks a paralysis danger note; zap() doesn't warn about floor potions beyond the target (lost a potion of gain level) — `#783`.
+3. explore() still blocked next to a floating eye (`#777`); hunt() "no route" across unexplored squares 3 away (`#65`).

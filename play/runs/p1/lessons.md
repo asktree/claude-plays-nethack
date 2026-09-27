@@ -101,3 +101,9 @@
 - Near sleepers (court/zoo), don't open a possibly booby-trapped door: dig through the wall beside it (pick-axe; dig.c is silent for rock/walls; 3 turns as a dwarf).
 - Court stealth clearing works like the zoo one: 27 court monsters incl. yellow and white dragons for ~20 HP total. Sweep a row from the doorway so only 2-3 sleepers are ever adjacent; the dragon woke on the first blow but adjacent dragons only melee (no breath).
 - Kill a rock troll last in a clear-out, then eat its corpse at once (no revival); stand on it to eat.
+- A wand of striking's force bolt does not stop at the target: it continues and SHATTERS potions lying on the floor in its path (lost an unseen potion of gain level on DL20). Against a floating eye throw the quivered dagger instead, or zap only along a line whose far squares you have seen empty.
+- Graveyards ("You have an uncanny feeling...") are stealth-clearable like zoos and are wraith sources (~20% of morgue monsters): kill the ghoul(s) first while asleep (paralysing claw). GHOSTS DISPLAY AS A BLANK SQUARE: a blank inside a lit room is a monster (harmless, slow, AC -5), and movement helpers can't see it.
+- Demons summon demons: the first hit on a barbed devil gated in a second one. In a mixed room, kill the demons early and fast.
+- Troll corpses can revive in the middle of your meal (revive timer: any age 2-50; eating a 1200-wt troll takes ~21 turns). Kill, eat at once, expect 1-2 more kills (~180 Exp each).
+- Before reading identify, take every high-uncertainty item OUT of the bag: the bonus rounds (1/5 chance of several items) only reach what is in the pack — one uncursed scroll identified all 4 unknown rings.
+- Medusa's level has a diggable floor in all variants (wiki): digging a hole there skips her island (then her `>` room is reached from the Castle's up stairs). The Castle itself still needs reflection (black dragons).

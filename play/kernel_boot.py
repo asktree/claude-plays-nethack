@@ -42,7 +42,7 @@ from tactics import options  # noqa: E402,F401  (options.bool_options(), options
 from tactics.town import buy_protection, pay  # noqa: E402,F401
 from tactics.items import bag_put, bag_take, dig, eat, pickup  # noqa: E402,F401
 from tactics.items import dip_into, discoveries, read_identify, rub, unlock, with_looks  # noqa: E402,F401
-from tactics.items import write_scroll  # noqa: E402,F401
+from tactics.items import piety, write_scroll  # noqa: E402,F401
 from tactics.survival import offer, prayer_verdict  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401
 from tactics.combat import auto_fightable, hunt  # noqa: E402,F401

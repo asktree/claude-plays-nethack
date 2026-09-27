@@ -13,6 +13,9 @@ OPTIONS=runmode:teleport
 OPTIONS=mention_walls
 OPTIONS=paranoid_confirmation:quit attack wand-break eat pray Remove Were-change
 OPTIONS=boulder:0
+# ghosts and shades are a blank space by default: the harness (and the player) couldn't see one standing
+# in a room, and a plain step into it attacked it. Draw them as 8 (no object, feature or warning uses 8)
+SYMBOLS=S_ghost:8
 OPTIONS=disclose:+i +a +v +g +c +o
 OPTIONS=!implicit_uncursed
 OPTIONS=sortloot:full

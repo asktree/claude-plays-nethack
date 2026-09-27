@@ -186,6 +186,8 @@ def features_in_view(snap, hero=None) -> list[dict]:
                     continue
             if ch == "}":
                 name = "lava" if col in (1, 9) else "water"
+            if ch == "_" and col == 6:
+                continue                  # a cyan '_' is an iron chain (the drawbridge's debris), not an altar
             if ch == "^":
                 name = TRAP_BY_COLOR.get(col, "trap")
                 if col not in (1, 4, 9, 10, 13):

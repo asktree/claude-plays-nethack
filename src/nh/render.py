@@ -165,6 +165,14 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     if bits:
         lines.append("features: " + "; ".join(bits))
     plane = snap.status.ldesc if snap.status.ok else ""
+    if getattr(snap, "medusa_risk", False):
+        lines.append("!! " + ("MEDUSA IS ON THIS LEVEL" if "medusa" in getattr(snap, "flags", ()) else
+                              "PROBABLY MEDUSA'S LEVEL (Dlvl 21+, water all around)")
+                     + ": her gaze STONES you when you see each other (within ~8 squares). Before going on: be "
+                       "Blind (apply a blindfold/towel; telepathy shows monsters) or WEAR reflection (shield of "
+                       "reflection / silver dragon scale mail). She starts asleep: noise (kicking doors, fights) "
+                       "wakes her. travel()/explore()/kick_door() refuse here until then (medusa_ok=True overrides; "
+                       "going back up is always allowed)")
     if getattr(snap, "rogue", False):
         lines.append("ROGUE LEVEL (no colours): '%' = stairs (up or down: see features), '+' in a wall = doorway "
                      "(diagonal moves OK), ':' = food or a lizard/newt, ']' armor, ',' amulet, '*' gold or gem, "

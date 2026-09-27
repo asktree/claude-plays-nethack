@@ -951,3 +951,99 @@ def test_sokoban_adjust_applies_to_every_plan_state(monkeypatch):
     assert spare not in {tuple(b) for b in lv["boulders"]} and (1, 1) in {tuple(b) for b in lv["boulders"]}
     assert all((1, 1) in {tuple(b) for b in st["after"]["boulders"]} for st in lv["steps"])
     assert spare in {tuple(b) for b in LEVELS[name]["boulders"]}       # the plan itself is untouched
+
+
+def test_medusa_risk_and_guards(monkeypatch):
+    import pytest
+    from nh.game import Game, Timing
+    from tactics import ctx, nav
+    g = Game(term=None, timing=Timing.local())
+    g.level_name, g.level_name_ldesc = "The Dungeons of Doom / Level 23", "Dlvl:23"
+    rows = {y: "}" * 60 for y in (3, 4)}
+    rows[5] = "      .@.<"
+    s = _snap(rows, (7, 5), [], colors={(x, y): 4 for y in (3, 4) for x in range(60)})
+    s.status.ldesc = "Dlvl:23"
+    g.terrain_seen["The Dungeons of Doom / Level 23"] = {(9, 5): "<"}
+    g._annotate(s)
+    assert s.medusa_risk and "medusa?" in s.flags
+    monkeypatch.setattr(ctx, "game", g)
+    with pytest.raises(nav.NavError, match="MEDUSA"):
+        nav._medusa_check(s, (30, 12), "travel()", False)
+    nav._medusa_check(s, (9, 5), "travel()", False)          # back to the up stairs: allowed
+    s.status.conditions = ["Blind"]
+    g._annotate(s)
+    assert not s.medusa_risk                                   # blindfolded: protected
+    s.status.conditions = []
+    g.reflecting = True
+    g._annotate(s)
+    assert not s.medusa_risk
+    # a drawbridge in view: the Castle, not Medusa
+    g2 = Game(term=None, timing=Timing.local())
+    g2.level_name, g2.level_name_ldesc = "The Dungeons of Doom / Level 27", "Dlvl:27"
+    s2 = _snap(rows, (7, 5), [], colors={**{(x, y): 4 for y in (3, 4) for x in range(60)}, (8, 5): 3})
+    s2.screen.chars[5] = "      .@#<".ljust(80)
+    s2.status.ldesc = "Dlvl:27"
+    g2._annotate(s2)
+    assert not s2.medusa_risk and "castle" in s2.flags
+
+
+def test_quest_leader_and_level_change_guards(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    norn = {"x": 20, "y": 5, "ch": "@", "desc": "peaceful Norn", "peaceful": True, "dist": 10}
+    s = _snap({5: "   " + "." * 30}, (10, 5), [norn])
+    s.status.xl = 13
+    with pytest.raises(nav.NavError, match="XL13"):
+        nav._leader_check(s, (19, 5), "travel()", False)
+    nav._leader_check(s, (12, 5), "travel()", False)           # not near her: fine
+    s.status.xl = 14
+    with pytest.raises(nav.NavError, match="7 tries"):
+        nav._leader_check(s, (19, 5), "travel()", False)
+    g.piety = "piously"
+    nav._leader_check(s, (19, 5), "travel()", False)           # ready
+    # the level changes under a travel: stop
+    from nh.parse import State
+    a = _snap({5: "   " + "." * 30}, (10, 5), [])
+    a.status.ldesc = "Home 1"
+    b = _snap({5: "   " + "." * 30}, (12, 5), [])
+    b.status.ldesc = "Dlvl:14"
+    frames = {"s": a}
+
+    def do(keys, **kw):
+        if keys == "_":
+            gp = _snap({5: "   " + "." * 30}, (10, 5), [])
+            gp.state = State("getpos", prompt="Where do you want to travel to?")
+            frames["s"] = gp
+            return gp
+        frames["s"] = b
+        return b
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: frames["s"])
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y, rounds=5: frames["s"])
+    with pytest.raises(nav.NavError, match="level changed"):
+        nav._travel(25, 5, 5, None, 0, 0, False)
+
+
+def test_tune_prompt_is_text_and_cyan_underscore_is_a_chain():
+    from nh.parse import classify
+    from nh.screen import Screen
+    chars = ["What tune are you playing? [5 notes, A-G]".ljust(80)] + [" " * 80] * 23
+    scr = Screen(width=80, height=24, chars=chars, fg=[[7] * 80 for _ in range(24)],
+                 reverse=[[False] * 80 for _ in range(24)], bold=[[False] * 80 for _ in range(24)], cursor=(43, 0))
+    assert classify(scr).kind == "getlin"
+    chars[0] = "What do you want to wield? [a-c or ?*]".ljust(80)
+    assert classify(scr).kind == "object"
+    s = _snap({12: "    ._._."}, (4, 12), [], colors={(5, 12): 6})
+    names = [(f["x"], f["name"]) for f in s.features]
+    assert (5, 12) not in [(f["x"], f["y"]) for f in s.features] and (7, "altar") in names
+
+
+def test_hunt_steps_into_unexplored_dark_floor(monkeypatch):
+    from tactics.combat import _greedy_step
+    troll = {"x": 13, "y": 5, "ch": "T", "desc": "rock troll", "dist": 3}
+    s = _snap({5: "        ..@   "}, (10, 5), [troll])
+    assert _greedy_step(s, (13, 5), set()) == (11, 5)          # blank (unexplored) square toward it
+    assert _greedy_step(s, (13, 5), {(11, 5), (11, 4), (11, 6)}) is None

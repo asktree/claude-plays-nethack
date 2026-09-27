@@ -7,6 +7,8 @@ spores and green slime anyway.
 
 from __future__ import annotations
 
+import re
+
 from . import ctx
 from .mapview import DIR_KEY
 
@@ -83,7 +85,7 @@ def _key_toward(hero, m):
 
 
 def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max_blows: int = 25,
-          allow_passive: bool = False, only=None):
+          allow_passive: bool = False, only=None, force: bool = False):
     """Melee an adjacent hostile (the one at (x, y) if given) until it's gone,
     it moves out of reach, or HP falls below stop_hp * max (then pauses).
     Returns the final Snap.
@@ -99,6 +101,9 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
       steps into the square after the kill, it stops and says so.
     - only=predicate: stop as soon as an adjacent hostile fails it (auto-fight
       uses auto_fightable, so a python joining a snake fight isn't meleed).
+    - force=True: swing at an 'I' (unseen) square while blind — the guard
+      refuses that by default (it may be a peaceful): e.g. blindfolded
+      against Medusa, on the square telepathy/her last position shows.
     - HP pauses inside it follow the fight rules (kernel hp_rules): below
       stop_hp, a loss that would take you there in two more rounds, or a
       quarter of max HP in one step — not every blow below 70%."""
@@ -107,7 +112,7 @@ def fight(x: int | None = None, y: int | None = None, stop_hp: float = 0.45, max
     rules = getattr(ctx, "hp_rules", None)
     try:
         with (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
-            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only)
+            return _fight(x, y, stop_hp, max_blows, allow_passive, seen, only, force)
     finally:
         last = ctx.last()
         if seen and last is not None:
@@ -124,21 +129,28 @@ def _wielding() -> bool:
     return bool(w)
 
 
-def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None):
+def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False):
     """fight() body; `seen` collects every round's messages (so an early
     'You feel feverish' isn't lost behind later rounds)."""
     from nh.danger import STOP_PASSIVES, base_name, explodes_at_you, max_hit, passive_attacks, passive_max
     s = ctx.last()
     locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
+    engulf_warned = False
     for _ in range(max_blows):
         if s.state.kind != "command" or s.hero is None:
             return s
         st = s.status
         if getattr(s, "engulfed", False):
-            # inside a monster: any direction hits it
-            if st.ok and st.hp < stop_hp * max(1, st.hpmax):
-                ctx.pause(f"fight: engulfed and HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} — pray if HP <= 1/7 max")
+            # inside a monster: any direction hits it; walking away is impossible, so after one warning
+            # keep swinging down to the prayer line (prayer is the only other way out)
+            if st.ok and st.hp <= max(1, st.hpmax) // 7:
+                ctx.pause(f"fight: engulfed and HP {st.hp}/{st.hpmax} is at the prayer line (1/7) — PRAY now "
+                          "(pray()), or a teleport/escape item")
                 return ctx.last()
+            if st.ok and st.hp < stop_hp * max(1, st.hpmax) and not engulf_warned:
+                engulf_warned = True
+                ctx.pause(f"fight: engulfed and HP {st.hp}/{st.hpmax} is below {stop_hp:.0%} — cont() keeps "
+                          "swinging (you can't walk out) down to 1/7, then pray")
             s = ctx.do("Fk", ok=ROUTINE + [r"^You (hit|miss) the ", r"^You get (expelled|regurgitated)"])
             seen.extend(s.messages)
             continue
@@ -161,13 +173,22 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None):
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]
             if not targets and s.screen.at(x, y) == "I" and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
                 # an unseen (invisible) monster you asked for by square: swing at it
-                s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])], ok=ROUTINE)
+                s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])], ok=ROUTINE, force=force)
                 seen.extend(s.messages)
                 continue
+            if not targets and locked_on:
+                if not any(re.search(r"^You (?:kill|destroy) ", m) for m in seen):
+                    print(f"fight: the {locked_on} at ({x},{y}) is gone — NOT killed (it teleported, fled out of "
+                          "view or hid): look around (a covetous one teleports to heal and comes back)")
+                return s
         if not targets:
             if "Blind" in st.conditions and any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
-                print("fight: you are Blind — the monsters next to you show as 'I' (unseen, maybe peaceful): "
-                      "cure it (apply a unicorn horn) or fight(x, y) on an 'I' square you know is hostile")
+                if getattr(ctx.game, "blindfolded", None):
+                    print("fight: you are blindfolded — the monsters next to you show as 'I': fight(x, y, "
+                          "force=True) on the 'I' you know is hostile (keep the blindfold on near Medusa)")
+                else:
+                    print("fight: you are Blind — the monsters next to you show as 'I' (unseen, maybe peaceful): "
+                          "cure it (apply a unicorn horn) or fight(x, y, force=True) on an 'I' you know is hostile")
             return s
         if only is not None:
             bad = [t for t in s.adjacent_hostiles() if not t.get("statue") and not only(t)]
@@ -369,6 +390,24 @@ def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13
     return out
 
 
+def _objects_in_line(direction: str, maxlen: int = 13, s=None) -> list:
+    """Object squares on the straight line from you (up to a wall or rock)."""
+    from .mapview import KEY_DIR
+    s = s or ctx.last()
+    d = KEY_DIR.get(direction)
+    if d is None or s.hero is None:
+        return []
+    objs = {(o["x"], o["y"]) for o in s.objects if o["ch"] not in "0`"}
+    out, (x, y) = [], s.hero
+    for _ in range(maxlen):
+        x, y = x + d[0], y + d[1]
+        if s.screen.at(x, y) in " |-" and s.screen.color_at(x, y) != 3:
+            break
+        if (x, y) in objs:
+            out.append((x, y))
+    return out
+
+
 def _refuse_friendly_fire(what: str, direction: str, ray: bool, force: bool) -> bool:
     if force:
         return False
@@ -413,6 +452,12 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
     ctx.require_command("zap()")
     if direction and _refuse_friendly_fire("zap", direction, ray=True, force=force):
         return ctx.last()
+    if direction:
+        objs = _objects_in_line(direction)
+        if objs:
+            print(f"zap: objects on the line {objs[:4]} — a beam goes on past a monster: striking/force bolt "
+                  "BREAKS potions and glass there, fire burns scrolls/potions, teleportation sends them away, "
+                  "polymorph changes them, undead turning revives corpses")
     s = ctx.do("z", quiet=True, force=force)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -433,6 +478,25 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
 # confusing or sleep gaze still pauses — "gaze confuses you", "gaze makes you very sleepy")
 HUNT_OK = ROUTINE + [r" attacks you with a fiery gaze!$", r" spits venom!$", r"^The venom (?:hits|misses) you",
                      r"^You are hit by ", r"^The .+ (?:whizzes by|misses) you[.!]$"]
+
+
+def _greedy_step(s, goal, bad) -> tuple | None:
+    """A square next to you, closer to `goal`, that is known floor or blank (unexplored dark floor
+    may be there) and not a known trap, water, wall or monster."""
+    from .mapview import is_walkable, neighbors
+    h = s.hero
+    occupied = {(m["x"], m["y"]) for m in s.monsters or []}
+    best = None
+    for c in neighbors(*h):
+        if c in bad or c in occupied or c == goal:
+            continue
+        ch = s.screen.at(*c)
+        if not (is_walkable(s, *c, allow_monsters=False) or ch == " "):
+            continue
+        d = (max(abs(c[0] - goal[0]), abs(c[1] - goal[1])), abs(c[0] - goal[0]) + abs(c[1] - goal[1]))
+        if d[0] < max(abs(h[0] - goal[0]), abs(h[1] - goal[1])) and (best is None or d < best[0]):
+            best = (d, c)
+    return best[1] if best else None
 
 
 def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
@@ -500,9 +564,16 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
             goal = (m["x"], m["y"])
             path = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=False)
             if not path or len(path) < 2:
-                return out(f"no route to the {species or target} at {goal} on the map you know (across water, "
-                           "behind a wall or other monsters): travel near it, or wait for it")
+                nxt = _greedy_step(s, goal, bad_squares(s)) if m["dist"] is not None and m["dist"] <= 6 else None
+                if nxt is None:
+                    return out(f"no route to the {species or target} at {goal} on the map you know (across "
+                               "water, behind a wall or other monsters): travel near it, or wait for it")
+                path = [nxt, goal]           # a step into unexplored dark floor toward it
             _check_free(s, path[0], "hunt()")
+            h0 = s.hero
             s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])], ok=HUNT_OK + BENIGN)
             kills += killed_names(s.messages)
+            if s.hero == h0 and s.state.kind == "command" and not kills:
+                return out(f"no way toward the {species or target} at {goal}: the step to {path[0]} failed "
+                           f"({s.messages or 'rock or a wall'})")
     return out("max_turns")

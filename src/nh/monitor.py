@@ -194,6 +194,14 @@ class MonsterTracker:
             self.reset()                 # labels from before/while hallucinating: look at everything again
         self._relook_all = False
         self._apply_growth(getattr(snap, "messages", None))
+        if any(re.search(r" releases you\.$|^You (?:get|are) released|^You pull free", x)
+               for x in getattr(snap, "messages", None) or []):
+            for k in self.known:       # the "holding you" part of a label is stale now
+                if ", holding you" in (k.get("desc") or ""):
+                    k["desc"] = k["desc"].replace(", holding you", "")
+                    r = self.recent.get(k.get("id"))
+                    if r is not None:
+                        r["desc"] = k["desc"]
         dt = 1 if self.last_turn is None else max(1, turn - self.last_turn)
         radius = min(10, max(3, 2 * dt + 1))
         allm = monsters_in_view(snap)
@@ -363,6 +371,14 @@ class MonsterTracker:
                 if no_tele and "telep" in m["note"]:
                     m["note"] += " — BUT teleporting is blocked in Sokoban: corner it and kill it"
 
+        flags = getattr(self.game, "level_flags", None)
+        if flags is not None and hasattr(self.game, "level_key"):
+            lk = self.game.level_key()
+            if any(m.get("desc") and not m.get("statue") and "Medusa" in m["desc"] for m in mons):
+                flags.setdefault(lk, set()).add("medusa")
+            if any(re.search(r"(?:kill|destroy) Medusa|Medusa is (?:killed|turned to stone)|Medusa dies", x)
+                   for x in getattr(snap, "messages", None) or []):
+                flags.setdefault(lk, set()).add("medusa_dead")
         for m in mons:
             if m.get("desc") and not m.get("statue"):
                 self.mixed.setdefault((m["ch"], m["color"]), set()).add(

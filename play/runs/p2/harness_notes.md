@@ -177,3 +177,14 @@
 - #1092 "You feel strong! You must have been exercising diligently." paused solve() — attribute-gain messages could be benign for movement/push helpers.
 - #1430 "You hear a monster behind the boulder. Perhaps that's why you cannot move it." → pause text was clear; the `I` marker was placed. Fine.
 - Wasted calls (mine): #11 fight_until_clear waiting for a unicorn that doesn't approach (again); #579 waiting for a re-hidden mimic; #65 printing the whole sokoban_data module (55 KB).
+
+## Shift 14 (local p2, seed 202) — Soko 4 solved, zoo cleared, prize = bag of holding
+- GOOD: the persistent sokoban.adjust() patch worked — solve() finished steps 24–26 with only monster/hunger pauses; throw() over a boulder at an `I` (#8, #11); fight() struck the yellow light the moment it entered the doorway (#249: kill, no blindness); fight() inside an engulfer (#245, #308); fight()'s passive refusal on the fire elemental (#254) was exactly right; zap('R') at the doorway worked; rest_on_elbereth re-engraved garbled Elbereths and healed 49→108 (#409); unlock() + booby-trap note (#221).
+- #257–#414 NOISE: "A mysterious force prevents the tengu from teleporting!" paused step()/rest()/loops ~6 times (wasted calls). Appending it to combat.ROUTINE didn't cover step()/rest(); I appended `^A mysterious force prevents (?:the )?[\w' -]+ from teleporting!$` to nh.kernel.DEFAULT_BENIGN in the kernel (lost on restart) — please make permanent (a monster's failed self-teleport on a no-teleport level).
+- #307 BUG: hunt('fog cloud') while ENGULFED by that fog cloud returned {'reason': 'lost: the fog cloud is out of view'}; it should fight() the engulfer when obs.engulfed.
+- #261 SAFETY (suggestion): rest_on_elbereth()/fight_until_clear() at the dead end (50,17) in line with the zoo's row 17: a known RED NAGA (fire breath) breathed down the row and the ray bounced off the wall right behind me (2 hits). A warning "you stand in line with <breather/wand user> with a wall behind you: rays bounce back" (the harness knows breath attacks from monster data) would have saved ~22 HP and my cloak/boots AC.
+- #235 (suggestion): "Wait! There's something there you can't see!" + nothing shown by telepathy → note "invisible AND mindless: likely a BLACK LIGHT (explodes: hallucination) — step away". It exploded next turn and woke the zoo.
+- #298: hunt() stops with "blocked: yellow mold at (46,15) is next to you — your call" for every later target; an option to ignore adjacent SESSILE monsters (they can't follow) would help.
+- #412–#415: travel()/walk_path()/step() raised NavError 3 times for the same wandering PEACEFUL gnome lord on my route (3 calls); a `wait_peaceful` on the last step / a `wait_for_free(x, y, turns)` helper would help. (I wrote a small loop.)
+- #63 docs: pickup() returns a list of messages, not a snap (I called .messages on it).
+- #236: after hallucination ended, every monster re-paused as NEW in one pause — fine.

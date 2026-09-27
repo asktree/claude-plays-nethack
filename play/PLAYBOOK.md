@@ -127,11 +127,30 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   invisible to it — a dark corridor can still hold an exploding sphere.
 
 ## E. Midgame: D10–D25 (XL14+, MR and reflection, then the Castle)
-- **Quest portal** level (D11–16) gives a telepathic message. The quest needs **XL14**. Nemesis Lord Surtur
-  (fire giant) carries the **Bell of Opening** (required). Fire resistance helps.
+- **Quest portal** level (D11–16) gives a telepathic message; the portal room may sit behind a secret door
+  (search the corridor dead ends). **Walking NEXT to the quest leader (the Norn) is the visit** — no #chat.
+  It needs **XL14 AND alignment record 20+ ("piously")**: below XL14 she just sends you back; with a lower
+  record the rejection COUNTS, and after 7 you are expelled for good — no Bell of Opening, no ascension.
+  Check first with `piety()` (a stethoscope applied to yourself; also a wand of probing at yourself or
+  enlightenment); record grows +1 per hostile kill and drops with murders/hypocrisy/-5 Elbereth attacks.
+  travel()/step() refuse to end next to the leader until then (quest_ok=True overrides). Nemesis **Lord
+  Surtur** (fire giant king) carries the **Bell of Opening** (required): fire resistance for his lava level;
+  his claw STEALS the Orb of Fate / Amulet and he teleports away to heal (usually to the up stairs) — expect
+  him back. The Orb shows as "a glass orb named The Orb of Fate": `pickup('Orb of Fate')`.
 - **Medusa** (D21–24): reflection or a blindfold/towel (be blind before she comes into view), a way over
   water (levitation, water walking, cold wand ice bridge, scroll of earth). With reflection her gaze kills
-  her; otherwise fight blind.
+  her; otherwise fight blind (telepathy shows her; `fight(x, y, force=True)` on her square). She starts
+  ASLEEP: noise wakes her — in the QA run a kicked-open door revealed her, awake: stoned. The harness flags a
+  probable Medusa level (Dungeons of Doom 21+, water all around) with `!! PROBABLY MEDUSA'S LEVEL` and
+  refuses travel/explore/kick_door there until you are Blind or wear known reflection (inventory() learns a
+  worn shield of reflection / silver dragon scale mail; medusa_ok=True if you know better). Her level's
+  floor can be dug down (a wand of digging skips her island — but you come back up this way with the Amulet).
+- **Eels** (Medusa, the Castle moat, any water): "The giant eel swings itself around you!" = HELD: its NEXT
+  hit drowns you — LEVITATION DOES NOT HELP (QA death). That turn: engrave Elbereth (it flees and lets go;
+  impossible while levitating), kill it, or teleport (not on the Castle: no-teleport). The harness pauses
+  with `HELD — ...`. Stay 2 squares from water where eels swim.
+- **Poison**: without poison resistance every poisonous bite/sting (snakes, soldier ants, bees, rabid rats,
+  quasits) can kill outright (1 in 30) — the harness rates them dangerous and never auto-fights them then.
 - **Castle** (below Medusa) — only per rule A1. Wand of wishing: in a chest in a **corner tower** (Astra:
   NE once, NW once; check both). Approach from the back: levitate over the moat, use the trapdoor-side door,
   conflict in the court, avoid the central hall and barracks. Minotaurs in the maze ignore Elbereth.

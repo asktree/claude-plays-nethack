@@ -50,9 +50,53 @@ def inventory():
         ctx.game.wielded_class = next((it["class"] for it in items if _wielded(it["text"])), "")
         ctx.game.gloves = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:gloves|gauntlets)\b", it["text"])), "")
+        ctx.game.reflecting = any("(being worn)" in it["text"] and _REFLECT.search(it["text"]) for it in items)
+        ctx.game.blindfolded = any(re.search(r"\b(?:blindfold|towel)\b.*\(being worn\)", it["text"]) for it in items)
         return items
     # "Not carrying anything." or a tiny inventory shown on the message line
     return []
+
+
+# worn reflection, by identified name (or the shield of reflection's own look): an unidentified amulet
+# of reflection can't be told apart — the player passes medusa_ok=True then
+_REFLECT = re.compile(r"\b(?:shield of reflection|polished silver shield|silver dragon scale mail|"
+                      r"silver dragon scales|amulet of reflection)\b")
+
+
+def piety(letter: str | None = None) -> str | None:
+    """Your alignment record in words, from a stethoscope applied to
+    yourself ('Status of Brunhild (piously lawful): ...'; the first use
+    each turn is free): 'piously' = 20+, what the quest leader requires.
+    Remembered as game.piety. Returns the word ('' = exactly 3), or None
+    without a stethoscope (a wand of probing zapped at yourself or
+    enlightenment also tell)."""
+    s = ctx.require_command("piety()")
+    it = next((i for i in inventory() if (letter and i["letter"] == letter)
+               or (not letter and re.search(r"\bstethoscope\b", i["text"]))), None)
+    if it is None:
+        print("piety(): no stethoscope — a wand of probing zapped at yourself (.) or a potion/wand of "
+              "enlightenment tells too ('You are piously aligned')")
+        return None
+    s = ctx.do("a", quiet=True)
+    if s.state.kind != "object":
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+        raise RuntimeError(f"piety(): 'a' gave {s.state.kind}: {s.state.prompt!r}")
+    s = ctx.do(it["letter"], quiet=True)
+    if s.state.kind == "direction":
+        s = ctx.do(".", quiet=True)
+    text = " ".join(s.messages)
+    m = re.search(r"Status of .+? \((?:(\w+) )?(lawful|neutral|chaotic)\)", text)
+    if not m:
+        print(f"piety(): no status line in {s.messages}")
+        return None
+    word = m.group(1) or ""
+    ctx.game.piety = word
+    print(f"piety(): {word or 'plainly'} {m.group(2)}" + (" — ready for the quest leader (record 20+)"
+                                                          if word == "piously" else
+                                                          " — NOT yet 'piously': the quest leader would count a "
+                                                          "rejection (kill hostiles; no murders, no hypocrisy)"))
+    return word
 
 
 def inventory_text():
@@ -702,6 +746,9 @@ def eat(letter: str | None = None) -> list:
             s = ctx.last()
         msgs += s.messages
     text = " | ".join(msgs)
+    if re.search(r"rises from the dead", text):
+        print("eat(): the troll REVIVED mid-meal — kill it, then eat the new corpse at once (or tin it / keep "
+              "it off the floor)")
     if "Rotten" in text:
         # eat.c rottenfood(): passing out stops the meal and flags the corpse rotten (every new try
         # rolls again); the confusion/blindness branches finish it for a quarter of its nutrition
@@ -880,7 +927,10 @@ def loot_all(unlock_with_key: bool = True, take_gray_stones: bool = False) -> li
     locked box: unlocked with your key/lock pick/credit card first when you
     carry one (unlock(); unlock_with_key=False to skip), else it says so
     (kick it or #force with a blade). Pauses on anything else."""
-    ctx.require_command("loot_all()")
+    s = ctx.require_command("loot_all()")
+    if s.status.ok and "Lev" in s.status.conditions:
+        raise RuntimeError("loot_all(): you are levitating — you can't reach the floor; remove the levitation "
+                           "first (and mind water/traps where you land)")
     msgs = _loot_all_once(take_gray_stones)
     if unlock_with_key and any(re.search(r"turns out to be locked|^It is locked", m) for m in msgs) \
             and any(_KEYS.search(i["text"]) for i in inventory()):

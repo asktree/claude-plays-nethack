@@ -84,3 +84,10 @@
 - A "rotten" food ration gives half nutrition: Hungry ~330 turns later instead of ~800.
 - A monster behind a boulder in a 1-wide corridor: fire bolts over the boulder. A ray's range is 7–13 squares, so it can't bounce back from a wall 11+ squares away.
 - A hostile unicorn in Sokoban may still refuse to approach. Step next to it (a doorway is fine: diagonal attacks through doorways work both ways).
+- ZOO: stealth keeps zoo sleepers asleep, but plan for the WHOLE zoo waking at once. An invisible monster that telepathy doesn't show ("Wait! There's something there you can't see!") in a zoo is most likely a BLACK LIGHT: step AWAY from it at once (it explodes → hallucination; unicorn horn cures it, 1 apply here). Fight from the chokepoint from the start instead of wandering among sleepers.
+- DOORWAY CHOKEPOINT GEOMETRY: the dead end beside a door, IN LINE with the door's row, lets a breather/zapper inside hit you twice (the ray bounces off the wall behind you: red naga fire, T:10101). Stand diagonally off the door line (e.g. (50,16) for door (49,17)): only the doorway diagonal lines up, and at most 2 squares can reach you in melee.
+- WAND OF TELEPORTATION works on MONSTERS in Sokoban (only self-teleport is blocked): zap it at a dangerous monster in a doorway (fire elemental) to remove it for now. Sleep rays can be resisted (fire elemental, MR 30).
+- Kill a YELLOW LIGHT as it steps adjacent: one Excalibur blow worked in the doorway (T:10097).
+- A monster reading a scroll identifies it for you ("reads a scroll labeled KIRJE" + a jackal appears = create monster).
+- Sokoban prize closet: the closet whose floor shows a `?` (the scare monster scroll lies on top of the prize) is the one; a monster standing in a closet rules it out (it can't step on the scroll).
+- hunt(name) does not attack the monster that ENGULFS you — use fight().

@@ -63,6 +63,8 @@ class Snap:
     theft_note: str = ""       # set for a while after a monster stole something from you
     rogue: bool = False        # the Rogue level: no colours, '%' stairs, '+' doorways, ':' food, ']' armor...
     floor_mem: set = field(default_factory=set)   # Rogue level: floor seen before (dark rooms forget it)
+    flags: set = field(default_factory=set)       # this level's flags ("rogue", "castle", "medusa?", "medusa"...)
+    medusa_risk: bool = False  # probably Medusa's level and you are neither blind nor known to reflect
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -349,6 +351,8 @@ class Game:
         self.last_theft: dict | None = None       # {"turn", "msg", "what"}: the latest theft from you
         self.level_flags: dict[str, set] = {}     # level key -> {"rogue"}: levels drawn differently
         self.floor_seen: dict[str, set] = {}      # Rogue level: squares once shown as floor/corridor/doorway
+        self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
+        self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -1519,7 +1523,38 @@ class Game:
         snap.feature_mem = dict(self.terrain_seen.get(key, {})) if key is not None else {}
         snap.theft_note = self.theft_note(snap.status.turn if snap.status.ok else None)
         snap.rogue = key is not None and "rogue" in self.level_flags.get(key, ())
+        snap.medusa_risk = self._medusa_risk(snap, key)
+        snap.flags = set(self.level_flags.get(key, ())) if key is not None else set()
         snap.floor_mem = (self.floor_seen.get(key, set()) | self.visited.get(key, set())) if snap.rogue else set()
+
+    def _medusa_risk(self, snap: Snap, key) -> bool:
+        """Probably Medusa's level (Dungeons of Doom, Dlvl 21+, water all around — or Medusa seen here)
+        while you are neither blind nor known to wear reflection: her gaze stones you on sight."""
+        if key is None or not snap.status.ok or snap.state.kind not in ("command", "getpos"):
+            return False
+        flags = self.level_flags.setdefault(key, set())
+        if "medusa_dead" in flags:
+            return False
+        if key.startswith("The Dungeons of Doom /") and "medusa" not in flags:
+            m = re.search(r"Level (\d+)$", key)
+            if m and int(m.group(1)) >= 21:
+                scr = snap.screen
+                water = bridge = 0
+                for y in range(MAP_TOP + snap.state.msg_rows, MAP_BOTTOM + 1):
+                    row = scr.row(y)
+                    for x, ch in enumerate(row):
+                        if ch == "}" and scr.color_at(x, y) == 4:
+                            water += 1
+                        elif ch in "#." and scr.color_at(x, y) == 3:
+                            bridge += 1            # a drawbridge: the Castle, not Medusa
+                if bridge:
+                    flags.add("castle")
+                    flags.discard("medusa?")
+                elif water >= 40 and "castle" not in flags:
+                    flags.add("medusa?")
+        if not flags & {"medusa", "medusa?"}:
+            return False
+        return "Blind" not in snap.status.conditions and not self.reflecting
 
     def look(self) -> Snap:
         """Capture without sending anything."""

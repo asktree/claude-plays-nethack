@@ -34,7 +34,9 @@ _HUNGER_RANK = {"": 0, "Satiated": 0, "Hungry": 1, "Weak": 2, "Fainting": 3, "Fa
 # Messages that never need a human look by themselves (pets, routine
 # noises). They're still shown in the output; they just don't pause an exec.
 DEFAULT_BENIGN = [re.compile(p) for p in (
-    r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) ",
+    # (not when a monster picks up a wand — it may zap you with it — or something you need to win)
+    r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) (?!.*\b(?:wand|Amulet of Yendor|"
+    r"Orb of Fate|Bell of Opening|Candelabrum|Book of the Dead|silver bell|candelabrum|papyrus spellbook)\b)",
     r"^You swap places with ",
     # monster-vs-monster melee (mhitm.c), usually your pet's fights; a death, stoning or
     # swallowing still pauses
@@ -308,6 +310,7 @@ class Kernel:
         snap = self.game.step(data, multi=multi, secret=secret, force=force)
         self.ns["obs"] = snap
         if self.in_worker():
+            self._last_keys = data
             self._check_events(before, snap, quiet=quiet, ok=ok, expect=expect)
             if snap.state.kind == "command" and (self._steps >= self.budget_steps or
                                                  time.monotonic() - self._t0 >= self.budget_seconds):
@@ -336,6 +339,24 @@ class Kernel:
         lt = getattr(self.game, "last_theft", None)
         if lt and lt.get("msg") in snap.messages and getattr(snap, "theft_note", ""):
             reasons.insert(0, "THEFT — " + snap.theft_note)
+        keys = getattr(self, "_last_keys", b"") or b""
+        if len(keys) == 1 and chr(keys[0]) in "hjklyubn" and before is not None and before.state.kind == "command" \
+                and any(re.match(r"^You (?:hit|miss|smite|kill|destroy) ", m) for m in snap.messages):
+            # a plain move became an attack: something you couldn't see was there (an invisible monster,
+            # a ghost/shade drawn as a blank, a hider) — the movement helpers never attack on purpose
+            reasons.insert(0, "YOUR MOVE ATTACKED something you didn't see there (invisible? a hider? a ghost?) "
+                              "— look before the next step (it may be peaceful)")
+        if any("position suddenly seems very uncertain" in m for m in snap.messages):
+            reasons.insert(0, f"TELEPORTED by a monster's hit (quantum mechanic) — you are now at {snap.hero}")
+        grab = next((m for m in snap.messages if re.search(r" swings itself around you!$", m)), None)
+        if grab:
+            # mhitu.c AD_WRAP: held by an eel/kraken in water, its next wrap hit drowns you outright
+            reasons.insert(0, f"HELD — {grab!r}: if it is in water, its NEXT hit DROWNS you (levitation does NOT "
+                              "help). This turn: engrave Elbereth (E - Elbereth: it flees and lets go; impossible "
+                              "while levitating), or kill it, or teleport away (not on the Castle)")
+        if any(m.startswith("A mysterious force momentarily surrounds you") for m in snap.messages):
+            reasons.insert(0, "MYSTERIOUS FORCE (you carry the Amulet): the climb failed — you were moved on this "
+                              "level or sent down a few; climb again (1 in 4 climbs deep in the dungeon)")
         if trapmsg and snap.hero is not None and not quiet and not getattr(snap, "engulfed", False):
             # (inside an energy vortex "your magical energy drain away" is its attack, not a magic trap)
             reasons.append(f"trap at {snap.hero}")
@@ -495,7 +516,14 @@ class Kernel:
         self._t0 = time.monotonic()
         if self._pending_reply is not None:
             r, self._pending_reply = self._pending_reply, None
-            snap2 = self.game.step(parse_keys(r))
+            try:
+                snap2 = self.game.step(parse_keys(r))
+            except PermissionError as e:
+                # a guard refused the reply (Esc at a wish): the prompt is still open — stay paused
+                # there so the right answer can still go through `cont --reply`
+                self._maybe_pause(f"your reply {r!r} was REFUSED: {e} — the prompt is still open; answer again "
+                                  "with cont --reply", self.game.last or snap, force=True)
+                return
             self.ns["obs"] = snap2
             self._reply_sent = parse_keys(r)
 

@@ -569,3 +569,38 @@ def test_far_telepathic_and_deferred_newcomers_pause_when_they_approach():
         assert step(20, [ape]) == ""
         assert "approaching: ape" in step(21, [dict(ape, new=False, x=46, dist=6)])
     assert "ape" in step(30, [dict(ape, id=10)])                    # outside the block it pauses at once
+
+
+def test_kernel_held_move_attack_and_teleport_reasons():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    a, b = snap({}, 10), snap({}, 11)
+    b.messages = ["The giant eel bites!", "The giant eel swings itself around you!"]
+    k._check_events(a, b)
+    assert reasons[-1].startswith("HELD") and "Elbereth" in reasons[-1]
+    k._last_keys = b"h"
+    b.messages = ["You hit it."]
+    k._check_events(a, b)
+    assert "YOUR MOVE ATTACKED" in reasons[-1]
+    k._last_keys = b"Fh"
+    k._check_events(a, b)
+    assert "YOUR MOVE ATTACKED" not in reasons[-1]            # an F-attack is on purpose
+    b.messages = ["Your position suddenly seems very uncertain!"]
+    k._check_events(a, b)
+    assert reasons[-1].startswith("TELEPORTED")
+    b.messages = ["The gnome lord picks up a wand."]
+    reasons.clear()
+    k._check_events(a, b)
+    assert reasons and "message" in reasons[-1]               # a monster picking up a wand is news
+
+
+def test_poison_paralysis_and_quest_notes():
+    from nh.danger import note_for, threat_level
+    assert threat_level("snake", 13, 136) == "dangerous" and threat_level("snake", 13, 136, ("poison",)) == "trivial"
+    assert "PARALYSE" in note_for("ghoul", 12)
+    assert "QUEST LEADER" in note_for("peaceful Norn", 13) and "stronger" not in note_for("peaceful Norn", 13)
+    assert "Bell of Opening" in note_for("Lord Surtur", 14)
+    assert "DROWNS" in note_for("giant eel, holding you", 14)

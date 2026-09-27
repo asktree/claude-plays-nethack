@@ -206,7 +206,7 @@ def waypoint(s, target, cap):
 
 
 def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
-           fight_through=False, near_exploders=False, water_plane=False):
+           fight_through=False, near_exploders=False, water_plane=False, medusa_ok=False, quest_ok=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -232,7 +232,13 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     near_exploders=True overrides.
     On the Plane of Water it refuses (the air bubbles drift and travel walks
     you into the water: soaked scrolls/potions, rust, drowning without
-    magical breathing): step() inside your bubble; water_plane=True overrides."""
+    magical breathing): step() inside your bubble; water_plane=True overrides.
+    On a probable Medusa level it refuses while you are neither blind nor
+    wearing known reflection (medusa_ok=True overrides; back to the up stairs
+    is always allowed); it refuses to end next to the quest leader unless you
+    are ready (XL14+, piously aligned: piety(); quest_ok=True overrides). A
+    trap square as target: it stops next to it (step onto it yourself). It
+    stops (NavError) if the level changes under it."""
     import contextlib
     ctx.require_command("travel()")
     s0 = ctx.last()
@@ -254,9 +260,82 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
             leg = 3 if leg is None else leg
         else:
             print("travel(with_pet): no pet in view — travelling without waiting for one")
+    _medusa_check(s0, (x, y), "travel()", medusa_ok)
+    _leader_check(s0, (x, y), "travel()", quest_ok)
+    tr = _trap_target(s0, (x, y))
+    if tr is not None:
+        print(f"travel: {(x, y)} is a known trap square — going next to it, {tr}; step onto it yourself with "
+              f"step('{DIR_KEY[(x - tr[0], y - tr[1])]}', force=True) if you mean to (portal, trap door)")
+        x, y = tr
     with guard:
         return _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget,
                        fight_through, near_exploders)
+
+
+def _medusa_check(s, target, who: str, ok: bool) -> None:
+    """Refuse to move around a probable Medusa level unprotected (not blind, no known reflection)."""
+    if ok or not getattr(s, "medusa_risk", False):
+        return
+    mem = (getattr(s, "feature_mem", None) or {})
+    if mem.get(tuple(target)) == "<" or (s.hero is not None and dist(s.hero, target) <= 1):
+        return                         # back to the up stairs, or one square next to you
+    raise NavError(f"{who}: this is probably MEDUSA'S LEVEL and you are neither blind nor wearing known "
+                   "reflection — her gaze stones you the moment you see each other (within ~8 squares). Apply a "
+                   "blindfold/towel first (telepathy shows monsters), or wear a shield of reflection / silver "
+                   "dragon scale mail (inventory() records it), or pass medusa_ok=True if you know you are "
+                   "protected (an unidentified amulet of reflection) or Medusa is dead")
+
+
+def _quest_leader(s):
+    from nh.danger import base_name, quest_role
+    for m in s.monsters or []:
+        if m.get("peaceful") and quest_role(base_name(m.get("desc") or "")) == "leader":
+            return m
+    return None
+
+
+def _leader_check(s, target, who: str, ok: bool, route=None) -> None:
+    """Walking next to the quest leader IS the visit: only when ready (XL14+ and piously aligned —
+    each visit with a lower alignment record counts, 7 and you're expelled for good)."""
+    if ok:
+        return
+    ld = _quest_leader(s)
+    if ld is None or s.hero is None:
+        return
+    lp = (ld["x"], ld["y"])
+    cells = [tuple(target)] + list(route or bfs_path(s, s.hero, tuple(target), allow_monsters=True) or [])
+    if not any(dist(c, lp) <= 1 for c in cells):
+        return
+    xl = s.status.xl if s.status.ok else 0
+    piety = getattr(ctx.game, "piety", None)
+    if xl >= 14 and piety == "piously":
+        return
+    why = (f"you are XL{xl}: below XL14 it just sends you away (no harm, a wasted trip)" if xl < 14 else
+           f"your alignment is {'unknown' if piety is None else repr(piety)}: below 'piously' (record 20) the "
+           "visit counts as one of 7 tries — after 7 you're EXPELLED FOR GOOD (no Bell of Opening, no "
+           "ascension). Check with piety() (a stethoscope applied to yourself)")
+    raise NavError(f"{who}: the way passes next to the quest leader {ld.get('desc')} at {lp} — being next to it "
+                   f"is the visit. {why}; quest_ok=True to go anyway")
+
+
+def _trap_target(s, target):
+    """A known trap square as target (travel's last step would be refused): the best free square next
+    to it, or None."""
+    target = tuple(target)
+    traps = set(ctx.game.traps.get(ctx.game.level_key(s.status), set())) if hasattr(ctx.game, "traps") else set()
+    if s.hero is None or s.hero == target or not (target in traps or s.screen.at(*target) == "^"):
+        return None
+    from .mapview import is_walkable, neighbors
+    best = None
+    for c in neighbors(*target):
+        if c == s.hero:
+            return c
+        if c in traps or not is_walkable(s, *c, allow_monsters=False):
+            continue
+        p = bfs_path(s, s.hero, c, allow_monsters=True)
+        if p is not None and (best is None or len(p) < best[0]):
+            best = (len(p), c)
+    return best[1] if best else None
 
 
 def _pets(s) -> list:
@@ -322,8 +401,13 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             return walk_path(detour)
     waits = sidesteps = backoffs = fallbacks = fights = 0
     start = s.hero
+    lvl0 = s.status.ldesc if s.status.ok else None
     for _ in range(max_legs):
         h0 = s.hero
+        if lvl0 and s.status.ok and s.status.ldesc != lvl0:
+            raise NavError(f"travel to {(x, y)}: the level changed under you ({lvl0} -> {s.status.ldesc}: a trap "
+                           "door, a level teleporter, an expulsion...) — the target was on the old level; look "
+                           "around first")
         if h0 == (x, y):
             return s
         if auto_fight:
@@ -634,17 +718,18 @@ def _open_door_toward(s, target):
     door = min(doors, key=lambda d: dist(d, target))
     known = getattr(ctx.game, "locked_doors", {}).setdefault(ctx.game.level_key(s.status), set()) \
         if hasattr(ctx.game, "locked_doors") else set()
+    lev = "Lev" in (s.status.conditions if s.status.ok else ())
+    kick = ("unlock{0} with a key, zap striking/force bolt at it, or land first (levitating: no floor to brace "
+            "a kick on)" if lev else "unlock{0} with a key, kick_door{0} (never a shop door or in Minetown)").format(door)
     if door in known:
-        raise NavError(f"travel: the door at {door} is locked (known) — unlock{door} with a key, "
-                       f"kick_door{door} (never a shop door or in Minetown), or go another way")
+        raise NavError(f"travel: the door at {door} is locked (known) — {kick}, or go another way")
     key = DIR_KEY[(door[0] - h[0], door[1] - h[1])]
     for _ in range(6):
         s = ctx.do(key, ok=BENIGN + [r"^The door opens\.", r"^The door resists", r"^This door is locked"])
         text = " ".join(s.messages)
         if "locked" in text:
             known.add(door)
-            raise NavError(f"travel: the door at {door} is locked — unlock{door} with a key, kick_door{door} "
-                           "(never a shop door or in Minetown), or go another way")
+            raise NavError(f"travel: the door at {door} is locked — {kick}, or go another way")
         if "door opens" in text or not is_closed_door(s, *door):
             return s
     raise NavError(f"travel: the door at {door} won't open (stuck?)")
@@ -694,7 +779,7 @@ def travel_to(ch: str, index: int = 0, color_num: int | None = None):
     return travel(*cells[index])
 
 
-def step(direction: str, n: int = 1, force: bool = False):
+def step(direction: str, n: int = 1, force: bool = False, quest_ok: bool = False):
     """Move one square n times (direction: y k u h l b j n). Stops on messages
     (inside exec) like any do(). Never attacks: NavError if a monster (not
     your pet) is on the next square — do('F' + direction) to attack.
@@ -706,6 +791,7 @@ def step(direction: str, n: int = 1, force: bool = False):
         if s.hero is not None and direction in KEY_DIR:
             dx, dy = KEY_DIR[direction]
             _check_free(s, (s.hero[0] + dx, s.hero[1] + dy), "step()")
+            _leader_check(s, (s.hero[0] + dx, s.hero[1] + dy), "step()", quest_ok, route=[])
         s = ctx.do(direction, force=force)
     return s
 
@@ -809,7 +895,7 @@ def _ways_down_hint(s) -> str:
     Castle (the drawbridge level) they are the only way into Gehennom."""
     fd = getattr(s, "feature_desc", None) or {}
     holes = sorted(c for c, d in fd.items() if "trap door" in d or d.strip() == "hole" or d.endswith(" hole"))
-    castle = any("drawbridge" in f["name"] for f in s.features)
+    castle = "castle" in getattr(s, "flags", ()) or any("drawbridge" in f["name"] for f in s.features)
     if holes:
         return (f" — but trap door(s)/hole(s) are known at {holes[:5]}: they lead down (step in on purpose with "
                 "step(dir, force=True)); " + ("this is the Castle: its trap doors are the ONLY way down, into the "
@@ -878,6 +964,12 @@ def kick_door(x, y, tries: int = 8):
     h = s.hero
     if h is None or max(abs(x - h[0]), abs(y - h[1])) != 1:
         raise NavError(f"kick_door: {(x, y)} is not adjacent to you at {h}")
+    if getattr(s, "medusa_risk", False):
+        raise NavError("kick_door: probably MEDUSA'S LEVEL and you're neither blind nor reflecting — the kick "
+                       "wakes her and opens a line of sight: blindfold or reflection first")
+    if s.status.ok and "Lev" in s.status.conditions:
+        raise NavError("kick_door: you are levitating — no floor to brace a kick on; unlock it, zap striking / "
+                       "force bolt, or land first")
     key = DIR_KEY[(x - h[0], y - h[1])]
     for _ in range(tries):
         s = ctx.do("<C-d>", quiet=True)
