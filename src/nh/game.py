@@ -1358,8 +1358,8 @@ class Game:
                         messages.append(txt)
                     snap = self.send_bytes(snap.state.dismiss.encode())
                     pages += 1
-                    if snap.state.kind == "getpos" and any(m.startswith("You sense your surroundings")
-                                                           for m in messages[-3:]):
+                    if snap.state.kind in ("getpos", "unknown") and any(
+                            m.startswith("You sense your surroundings") for m in messages[-3:]):
                         # detect.c do_vicinity_map(): clairvoyance opens a map-browse cursor by itself
                         # between turns; leave it (Esc, no game time) — the next keys would move that
                         # cursor instead of playing (QA round 7)

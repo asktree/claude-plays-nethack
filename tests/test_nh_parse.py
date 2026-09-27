@@ -1158,3 +1158,35 @@ def test_elbereth_guard_lets_you_hit_monsters_that_ignore_it():
         g._guard(_cmd_snap([peaceful]), b"Fl", force=False)
     mino = {"x": 11, "y": 5, "ch": "H", "desc": "minotaur", "dist": 1}
     g._guard(_cmd_snap([mino]), b"Fl", force=False)
+
+
+def test_clairvoyance_browse_cursor_is_left_by_the_step():
+    # QA round 7 R7-4: "You sense your surroundings." opens a getpos map browse by itself (detect.c
+    # do_vicinity_map); the step leaves it with Esc so a script's next keys don't move that cursor
+    from nh.game import Game, Snap, Timing
+    from nh.parse import GETPOS_HINTS, classify, parse_status
+    g = Game(term=None, timing=Timing.local())
+    base = {5: "          @.", 22: STATUS1, 23: "Dlvl:42 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    scr = mk(base, cursor=(10, 5))
+    g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    sent = []
+
+    def snap_of(rows, cursor):
+        s2 = mk(rows, cursor=cursor)
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+
+    def fake_send(data):
+        sent.append(data)
+        if data == b"s":
+            rows = dict(base)
+            rows[0] = "You sense your surroundings.--More--"
+            return snap_of(rows, (36, 0))
+        if data in (b"\r", b" "):                      # the --More-- dismissed: the browse cursor on the map
+            rows = dict(base)
+            rows[0] = next(iter(GETPOS_HINTS))
+            return snap_of(rows, (15, 8))
+        return snap_of(base, (10, 5))                  # Esc: back at the command prompt
+    g.send_bytes = fake_send
+    s = g.step("s")
+    assert s.state.kind == "command" and sent[-1] == b"\x1b"
+    assert any("sense your surroundings" in m for m in s.messages)
