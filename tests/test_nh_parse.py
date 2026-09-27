@@ -569,3 +569,45 @@ def test_guard_water_lava_and_choking():
     with pytest.raises(PermissionError):
         g._guard(q, b"y", force=False)
     g._guard(q, b"n", force=False)
+
+
+def test_guard_deadly_tins_and_gray_stones():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import Menu, MenuItem, State, Status
+    g = _guard_game()
+
+    def yn(prompt, msgs=()):
+        s = Snap(screen=mk({0: prompt}, cursor=(len(prompt), 0)), state=State("yn", prompt=prompt, choices="yn"),
+                 status=Status(ok=True))
+        s.messages = list(msgs)
+        return s
+    for smell in ("cockatrices", "dwarves", "little dogs", "werejackals", "the Medusa", "green slimes"):
+        s = yn(f"It smells like {smell}.  Eat it? [yn] (n)")
+        with pytest.raises(PermissionError):
+            g._guard(s, b"y", force=False)
+    g._guard(yn("It smells like newts.  Eat it? [yn] (n)"), b"y", force=False)
+    with pytest.raises(PermissionError):
+        g._guard(yn("It smells like chicken.  Eat it? [yn] (n)"), b"y", force=False)
+    hallu = yn("It smells like newts.  Eat it? [yn] (n)")
+    hallu.status.conditions = ["Hallu"]
+    with pytest.raises(PermissionError):
+        g._guard(hallu, b"y", force=False)
+    g._guard(yn("It smells like gnomes.  Eat it? [yn] (n)"), b"y", force=False)
+    # the smell line shown with --More-- first: only the prompt is left on screen
+    with pytest.raises(PermissionError):
+        g._guard(yn("Eat it? [yn] (n)", ["It smells like chickatrices."]), b"y", force=False)
+    # gray stones: ',' on a lone one is refused; a pickup menu confirming one too
+    s = _cmd_snap([])
+    g._remember_here(s, ["You see here a gray stone."])
+    with pytest.raises(PermissionError):
+        g._guard(s, b",", force=False)
+    g._remember_here(s, ["You see here 2 gray stones."])
+    with pytest.raises(PermissionError):
+        g._guard(s, b",", force=False)
+    g._remember_here(s, ["You see here a luckstone."])
+    g._guard(s, b",", force=False)
+    menu = Menu(title="Pick up what?", items=[MenuItem("a", "a gray stone", selected=True)])
+    ms = Snap(screen=mk({}), state=State("menu", menu=menu, prompt="Pick up what?"), status=Status(ok=True))
+    with pytest.raises(PermissionError):
+        g._guard(ms, b"\r", force=False)

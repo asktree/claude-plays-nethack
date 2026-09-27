@@ -158,7 +158,10 @@ menu with it selected — wear gloves and force=True); **while blind**, stepping
 one (you feel what you step on; bare-handed that is instant stoning); a plain step into **water/lava `}`**
 (NetHack only stops running/travel, not a single step; lava is death without fire resistance) unless
 levitating/flying; **eating while Satiated** and `y` to "Continue eating?" (choking is death 19 times in 20;
-force=True only for an emergency cure like a lizard corpse against stoning).
+force=True only for an emergency cure like a lizard corpse against stoning); `y` to a **tin** that smells
+like something never to be eaten (cockatrices/"chicken", Medusa, dwarves, dogs/cats, were-creatures, green
+slime) and to any tin while hallucinating; picking up an unknown **gray stone** (kick it first: a loadstone
+doesn't budge — cursed ones can't be dropped).
 
 What the monster list shows in odd states: while hallucinating every monster is `hallu` (no names, no
 "new monster" pauses; everything is looked at again when it ends); `I` markers are `unseen`; a `]` is a

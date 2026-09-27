@@ -441,6 +441,43 @@ class Game:
     _MOVE = {ord("h"): (-1, 0), ord("j"): (0, 1), ord("k"): (0, -1), ord("l"): (1, 0),
              ord("y"): (-1, -1), ord("u"): (1, -1), ord("b"): (-1, 1), ord("n"): (1, 1)}
     _CORPSE_Q = re.compile(r"There (?:is|are) (?:an? |\d+ )?(.+?) corpses? here; eat (?:it|one)\?")
+    _TIN_SMELL = re.compile(r"It smells like (?:the )?(.+?)\.")
+    GRAY_STONE = re.compile(r"\bgr[ae]y stones?\b")
+
+    @staticmethod
+    def _singulars(plural: str) -> list[str]:
+        """'cockatrices' -> candidates ['cockatrices', 'cockatrice', ...]; 'dwarves' -> 'dwarf'."""
+        p = plural.strip()
+        out = [p]
+        if p.endswith("ves"):
+            out.append(p[:-3] + "f")
+        if p.endswith("es"):
+            out.append(p[:-2])
+        if p.endswith("s"):
+            out.append(p[:-1])
+        if p.endswith("men"):
+            out.append(p[:-3] + "man")
+        return out
+
+    def _tin_verdict(self, text: str):
+        """(name, reasons) if the tin that smells like this is never to be eaten."""
+        m = self._TIN_SMELL.search(text)
+        if not m:
+            return None
+        if m.group(1).strip() == "chicken":
+            # eat.c: a cockatrice/chickatrice tin smells like "chicken" while you hallucinate
+            # (or resist stoning — which a Valkyrie doesn't)
+            return "cockatrice", ["NEVER: 'chicken' is how a cockatrice tin smells while hallucinating: stoning"]
+        from .danger import monster_record
+        from .data.corpses import corpse_verdict
+        for name in self._singulars(m.group(1)):
+            if monster_record(name) is None:
+                continue
+            v = corpse_verdict(name, hero_race=HERO_RACE, hero_role=HERO_ROLE, age_turns=0, has_poison_res=False)
+            if getattr(v.verdict, "value", v.verdict) == "NEVER":
+                return name, v.reasons
+            return None
+        return None
 
     def _guard(self, snap: "Snap", unit: bytes, force: bool) -> None:
         if force or not unit:
@@ -493,6 +530,11 @@ class Game:
                         "refusing to pick up here: the only object on this square is a cockatrice/chickatrice "
                         "corpse, and ',' takes it without a menu — touching it bare-handed is instant stoning. "
                         "force=True only if you wear gloves.")
+                if self.GRAY_STONE.search(txt) and "Things that" not in txt:
+                    raise PermissionError(
+                        "refusing to pick up the gray stone: it may be a LOADSTONE (cursed ones can't be dropped; "
+                        "500 weight). Step off and kick it first: a loadstone doesn't budge ('Thump!'), a "
+                        "luckstone/touchstone/flint slides. force=True once you know.")
             if step in self._MOVE and snap.hero is not None and "Blind" in conds:
                 dx, dy = self._MOVE[step]
                 if self.COCKATRICE_CORPSE.search(self._here_text(snap, (snap.hero[0] + dx, snap.hero[1] + dy))):
@@ -522,6 +564,16 @@ class Game:
                                 f"refusing to attack/move into the {name} at {(tx, ty)}: meleeing it is a "
                                 f"classic death ({'paralysis' if name == 'floating eye' else 'explosion' if name == 'gas spore' else 'sliming'}). "
                                 "Use ranged attacks or go around. force=True overrides.")
+        elif k == "yn" and unit[:1] in (b"y", b"Y") and "Eat it?" in (snap.state.prompt or "") \
+                and "Hallu" in (snap.status.conditions if snap.status.ok else ()) \
+                and self._TIN_SMELL.search((snap.state.prompt or "") + "  " + "  ".join(snap.messages or [])):
+            raise PermissionError("refusing to eat a tin while hallucinating: its smell is made up (a cockatrice "
+                                  "tin smells like 'chicken'). Answer n. force=True overrides.")
+        elif k == "yn" and unit[:1] in (b"y", b"Y") and "Eat it?" in (snap.state.prompt or "") \
+                and self._tin_verdict((snap.state.prompt or "") + "  " + "  ".join(snap.messages or [])):
+            name, reasons = self._tin_verdict((snap.state.prompt or "") + "  " + "  ".join(snap.messages or []))
+            raise PermissionError(f"refusing to eat the tin of {name}: " + "; ".join(reasons)
+                                  + " — answer n (the tin is discarded). force=True overrides.")
         elif k in ("yn", "getlin") and unit[:1] in (b"y", b"Y") and "Continue eating?" in (snap.state.prompt or ""):
             raise PermissionError(
                 "refusing to continue eating: you started while Satiated and are nearly full — going on chokes you "
@@ -538,6 +590,11 @@ class Game:
                 raise PermissionError(
                     f"refusing to confirm the pickup of {bad[0]!r}: touching a cockatrice corpse bare-handed is "
                     "instant stoning. Unselect it (its letter again), or force=True if you wear gloves.")
+            stones = [i.text for i in snap.state.menu.selectable() if i.selected and self.GRAY_STONE.search(i.text)]
+            if stones:
+                raise PermissionError(
+                    f"refusing to confirm the pickup of {stones[0]!r}: it may be a LOADSTONE (cursed: can't be "
+                    "dropped). Unselect it and kick it first (a loadstone doesn't budge), or force=True.")
         elif k == "menu" and snap.state.menu is not None and "of what?" in (snap.state.prompt or "") \
                 and unit[:1].isalpha():
             hit = [i.text for i in snap.state.menu.selectable()
