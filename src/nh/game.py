@@ -1693,9 +1693,24 @@ class Game:
         snap.rogue = key is not None and "rogue" in self.level_flags.get(key, ())
         snap.medusa_risk = self._medusa_risk(snap, key)
         bags = getattr(self, "bags", None) or []
-        snap.gold_note = (f"${snap.status.gold} loose in your purse — a leprechaun takes it all: "
-                          f"bag_put('{bags[0]}', '$')"
-                          if bags and snap.status.ok and (snap.status.gold or 0) >= 200 else "")
+        gold = (snap.status.gold or 0) if snap.status.ok else 0
+        lep = False
+        if gold >= 100 and self.tracker is not None:
+            # a hostile leprechaun seen on this level lately (the tracker's memory is per level)
+            turn = snap.status.turn or 0
+            lep = any("leprechaun" in (r.get("desc") or "")
+                      and not (r.get("desc") or "").startswith(("tame ", "peaceful "))
+                      and turn - r.get("turn", 0) <= 500
+                      for r in (getattr(self.tracker, "recent", None) or {}).values())
+        if bags and gold >= 200:
+            snap.gold_note = (f"${gold} loose in your purse — a leprechaun takes it all: bag_put('{bags[0]}', '$')"
+                              + (" — and a LEPRECHAUN is on this level" if lep else ""))
+        elif lep:
+            snap.gold_note = (f"${gold} in your purse and a LEPRECHAUN on this level: its hit takes ALL of it and it "
+                              "teleports away — drop the gold somewhere safe first (d$), or kill it before it "
+                              "reaches you")
+        else:
+            snap.gold_note = ""
         snap.flags = set(self.level_flags.get(key, ())) if key is not None else set()
         snap.floor_mem = (self.floor_seen.get(key, set()) | self.visited.get(key, set())) if snap.rogue else set()
         solid = self.solid.get(key) if key is not None else None

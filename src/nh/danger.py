@@ -76,7 +76,10 @@ NOTES = {
     "sergeant": "may carry attack WANDS (even death). Stay off straight lines.",
     "lieutenant": "may carry attack WANDS (even death). Stay off straight lines.",
     "captain": "may carry attack WANDS (even death). Stay off straight lines.",
-    "vampire": "LEVEL DRAIN bite; regenerates.",
+    "vampire": "LEVEL DRAIN bite; regenerates; shape-shifts (fog cloud, vampire bat): killing that form makes it "
+               "rise again as the vampire at full HP (mon.c pickvampshape).",
+    "Nazgul": "LEVEL DRAIN weapon hit; SLEEP BREATH ray (without sleep resistance you fall asleep and everything "
+              "gets free hits — reflection bounces it); carries a cursed ring of invisibility.",
     "vampire lord": "LEVEL DRAIN bite; regenerates; shape-shifts (fog cloud, vampire bat, WOLF): killing that "
                     "form raises the vampire lord at full HP next to you.",
     "Vlad the Impaler": "LEVEL DRAIN bite; strong, very fast (26). Carries the CANDELABRUM (needed to win); "

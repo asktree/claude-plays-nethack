@@ -47,9 +47,11 @@ _KILL_RES = [
 ]
 
 
-def killed_names(messages) -> list[str]:
+def killed_names(messages, include_it: bool = False) -> list[str]:
     """Monster names reported killed in these messages ("You kill the
-    jackal!", "The kitten kills the newt.", "The gnome is killed!")."""
+    jackal!", "The kitten kills the newt.", "The gnome is killed!").
+    include_it: "You kill it!" / "You destroy it!" (an unseen or invisible
+    monster) counts as "it (unseen)"."""
     from .danger import base_name
     out = []
     for msg in messages or []:
@@ -58,7 +60,13 @@ def killed_names(messages) -> list[str]:
             if m and m.group("n") not in ("it", "them"):
                 out.append(base_name(m.group("n")))
                 break
+            if m and include_it and m.group("n") == "it" and msg.startswith("You "):
+                out.append("it (unseen)")
+                break
     return out
+
+
+_IT_KILL = re.compile(r"^You (?:kill|destroy) it[.!]")
 
 
 # makemon.c grow_up(): "Your kitten grows up into a housecat.", "The gnome becomes a
@@ -423,6 +431,8 @@ class MonsterTracker:
         new_visible = {m["id"] for m in mons}
         killed = killed_names(getattr(snap, "messages", None))
         resolved = self._forget_killed(killed, self.visible_ids - new_visible, snap.hero, turn)
+        for _ in range(sum(1 for x in getattr(snap, "messages", None) or [] if _IT_KILL.search(x))):
+            self._forget_it_kill(new_visible, snap.hero, turn)
         try:
             self._note_mimics(snap, mons, hero, st, killed, resolved)
         except Exception as e:  # noqa: BLE001  (never let the memory break the monster list)
@@ -513,6 +523,22 @@ class MonsterTracker:
             if record is not None and cands[0][0] in vanished:
                 record(name, (r["x"], r["y"]), turn)
         return out
+
+    def _forget_it_kill(self, visible: set, hero, turn: int) -> None:
+        """"You kill it!" / "You destroy it!": an unseen or invisible monster died next to you, unnamed.
+        Drop the record most likely to be it — not in view now, last seen within 3 squares of you in the
+        last 100 turns, the most recent — or its "out of view" line lingers (an invisible arch-lich). A
+        wrong guess only makes that monster count as new when it shows up again (the safe mistake)."""
+        if hero is None:
+            return
+        cands = [(i, r) for i, r in self.recent.items() if i not in visible and not r.get("statue")
+                 and not _friendly(r.get("desc") or "")
+                 and max(abs(r["x"] - hero[0]), abs(r["y"] - hero[1])) <= 3
+                 and 0 <= turn - r.get("turn", 0) <= 100]
+        if cands:
+            i, _r = max(cands, key=lambda ir: (ir[1].get("turn", 0),
+                                               -max(abs(ir[1]["x"] - hero[0]), abs(ir[1]["y"] - hero[1]))))
+            del self.recent[i]
 
     def _note_mimics(self, snap, mons, hero, st, killed, resolved) -> None:
         """game.mimics[level] = {(x, y): 'giant mimic'}: mimics seen unmasked on this level. Out of sight

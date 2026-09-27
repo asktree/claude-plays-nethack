@@ -902,3 +902,89 @@ def test_covetous_monsters_get_a_note():
     assert not covetous("jackal") and not covetous("minotaur")
     assert "COVETOUS" in note_for("Asmodeus", 14)
     assert "COVETOUS" not in note_for("peaceful Asmodeus", 14)
+
+
+def test_kernel_watch_monsters_pauses_when_one_comes_near():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    before = snap({}, 10)
+    g.last = before
+    mino = {"ch": "H", "x": 60, "y": 10, "desc": "minotaur", "id": 7, "dist": 20, "new": False,
+            "note": "hits very hard"}
+    assert k.ns["watch_monsters"]([mino]) == 1
+    far = snap({(55, 10): "H"}, 11)
+    far.monsters = [dict(mino, x=55, dist=15)]
+    k._check_events(before, far)
+    assert not any("approaching" in r for r in reasons)
+    near = snap({(44, 10): "H"}, 14)
+    near.monsters = [dict(mino, x=44, dist=4)]
+    k._check_events(far, near)
+    assert reasons and "approaching" in reasons[-1] and "minotaur" in reasons[-1]
+
+
+def test_unnamed_kill_forgets_the_nearby_record():
+    # QA round 6: an invisible arch-lich died with "You destroy it!" and stayed "out of view" for 17 turns
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "arch-lich"}
+    t.update(snap({(41, 10): "L"}, 100))
+    assert any(r["desc"] == "arch-lich" for r in t.recent.values())
+    s = snap({}, 104)                                # it turned invisible: gone from view
+    t.update(s)
+    s = snap({}, 105)
+    s.messages = ["You destroy it!"]
+    t.update(s)
+    assert not any(r["desc"] == "arch-lich" for r in t.recent.values())
+    from nh.monitor import killed_names
+    assert killed_names(["You destroy it!"], include_it=True) == ["it (unseen)"]
+    assert killed_names(["You destroy it!"]) == []
+
+
+def test_kernel_named_pauses_for_digestion_and_mimic_sticking():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    a, b = snap({}, 10), snap({}, 11)
+    b.messages = ["The purple worm engulfs you!"]
+    k._check_events(a, b)
+    assert reasons and "SWALLOWED" in reasons[-1] and "digging" in reasons[-1]
+    reasons.clear()
+    b.messages = ["The fog cloud engulfs you!"]
+    k._check_events(a, b)
+    assert not any("SWALLOWED" in r for r in reasons)
+    reasons.clear()
+    b.messages = ["The purple worm utterly digests you!"]
+    k._check_events(a, b)
+    assert reasons and "BEING DIGESTED" in reasons[-1] and "NEXT turn" in reasons[-1]
+    reasons.clear()
+    b.messages = ["Wait!  That's a giant mimic!"]
+    k._check_events(a, b)
+    assert reasons and "STUCK" in reasons[-1]
+    reasons.clear()
+    k._check_events(a, b, expect=("stuck",))
+    assert not any("STUCK" in r for r in reasons)
+
+
+def test_gold_warning_with_a_leprechaun_on_the_level_even_without_a_bag():
+    from nh.game import Game, Timing
+
+    class Tr:
+        recent = {1: {"desc": "leprechaun", "turn": 90, "x": 1, "y": 1}}
+    g = Game(term=None, timing=Timing.local())
+    g.tracker = Tr()
+    s = snap({}, 100)
+    s.status.gold = 1932
+    g._annotate(s)
+    assert "LEPRECHAUN" in s.gold_note and "$1932" in s.gold_note
+    Tr.recent = {1: {"desc": "leprechaun", "turn": 10, "x": 1, "y": 1}}      # long ago: no warning
+    s = snap({}, 900)
+    s.status.gold = 1932
+    g._annotate(s)
+    assert s.gold_note == ""

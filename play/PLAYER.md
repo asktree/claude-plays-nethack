@@ -13,11 +13,12 @@ are, and your run's memory (`play/runs/<game>/state.md`, the end of `journal.md`
 
 | command | what it does |
 |---|---|
-| `bin/nh obs` | full map + status + messages + identified monsters (no game time) |
+| `bin/nh obs` | full map + status + messages + identified monsters (no game time). A paused exec stays paused (`nh cont` after it works); `do`/`exec` drop it |
 | `bin/nh obs --crop` | same, map cropped around you |
 | `bin/nh do KEYS` | send keys, wait for the game to settle, auto-dismiss `--More--`, print the result (cropped map) |
 | `bin/nh do KEYS --full` / `--brief` | same with the full map / no map |
 | `bin/nh exec <<'EOF' ... EOF` | run Python in the persistent game kernel (see §2) |
+| `bin/nh exec -a 'REGEX' -a 'REGEX2' <<'EOF'` / `bin/nh cont -a 'REGEX'` | same, but messages matching these regexes don't pause this exec (autocontinue: e.g. `-a 'picks up some gold' -a 'drinks a .* potion'` for a long melee loop). HP, status, new-monster and named pauses still apply |
 | `bin/nh cont` / `bin/nh cont --reply KEYS` | resume a paused exec (optionally answering the open prompt first). Use `--reply` only for a prompt your script does NOT answer itself; if the script's next `do()` sends exactly the same keys, the harness skips it (it would otherwise be typed as commands) |
 | `bin/nh drop` | abandon a paused exec |
 | `bin/nh history 40` | the last 40 game messages with turn numbers |

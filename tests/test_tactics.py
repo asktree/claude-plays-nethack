@@ -2117,3 +2117,99 @@ def test_burn_elbereth_skips_empty_wands_and_verifies(monkeypatch):
     sent.clear()
     r = survival.burn_elbereth()
     assert not r["ok"] and paused and "garbled" in paused[0] and sent == []
+
+
+def test_stairs_prefer_reachable_and_fall_back_when_unreachable(monkeypatch):
+    # QA round 6 #133: outside the sealed Wizard's Tower, go_down() took the tower's ladder (its destination
+    # was known, "stays in Gehennom") and never tried the level's real '>'
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    g.level_key = lambda status=None: "Gehennom / Level 31"
+    g.stair_links = {"Gehennom / Level 31": {(12, 3): "Gehennom / Level 32"}}
+    # the ladder (12,3) sits inside walls; the real '>' (20,5) is on open floor
+    rows = {2: "          -----        ", 3: "          |.>|        ", 4: "          -----        ",
+            5: "     @..............>  "}
+    s = _snap(rows, (5, 5), [])
+    s.status.ldesc = "Dlvl:31"
+    cur = {"s": s}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [(12, 3), (20, 5)])
+    tried = []
+
+    def fake_travel(x, y, **kw):
+        tried.append((x, y))
+        raise nav.NavError("stop here")              # (the test only looks at which target it chose)
+    monkeypatch.setattr(nav, "travel", fake_travel)
+    with pytest.raises(nav.NavError):
+        nav._use_stairs(">", wait_pet=0)
+    assert tried == [(20, 5)]
+    # nothing reachable on the known map: the known one first, then the other when it proves unreachable
+    rows2 = {2: "          -----        ", 3: "          |.>|        ", 4: "          -----        ",
+             5: "     @..    .......>   "}
+    s2 = _snap(rows2, (5, 5), [])
+    s2.status.ldesc = "Dlvl:31"
+    cur["s"] = s2
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: [(12, 3), (19, 5)])
+    tried.clear()
+
+    def fake_travel2(x, y, **kw):
+        tried.append((x, y))
+        if (x, y) == (12, 3):
+            raise nav.NavError("head_to(12, 3): no reachable frontier left (tried 3)")
+        raise nav.NavError("stop here")
+    monkeypatch.setattr(nav, "travel", fake_travel2)
+    with pytest.raises(nav.NavError, match="stop here"):
+        nav._use_stairs(">", wait_pet=0)
+    assert tried == [(12, 3), (19, 5)]
+
+
+def test_desmap_route_unseen_secret_doors_and_filler_traps(monkeypatch):
+    import pytest
+    from tactics import ctx, desmap
+    g = _G()
+    g.traps, g.avoid = {}, {}
+    monkeypatch.setattr(ctx, "game", g)
+    fake = {"level": "testlev2", "file": "test.des", "index": 0, "geometry": None, "features": [],
+            "rows": ["------------",
+                     "|....|.....|",
+                     "|....|.....S",
+                     "|....|.....|",
+                     "------------"]}
+
+    def _prep(ms):
+        for m in ms:
+            m["_cells"] = [(x, y, desmap._MAP_CLS[ch]) for y, row in enumerate(m["rows"])
+                           for x, ch in enumerate(row) if ch in desmap._MAP_CLS]
+            m["w"], m["h"] = max(len(r) for r in m["rows"]), len(m["rows"])
+        return ms
+    monkeypatch.setattr(desmap, "_MAPS", None)
+    monkeypatch.setattr(desmap, "_DATA", None)
+    monkeypatch.setattr(desmap, "maps", lambda: _prep([fake]))
+    # seen: the east room (map offset (20,5)), and a corridor with a trap outside the map to the east
+    # (the east wall's secret door at (31,7) was never seen: blank)
+    rows = {5: "                         -------       ", 6: "                         |.....|       ",
+            7: "                         |..... ##^#.  ", 8: "                         |.....|       ",
+            9: "                         -------       "}
+    s = _snap(rows, (28, 7), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(desmap, "_current", lambda s=None, names=None: (
+        _prep([fake])[0], {"ox": 20, "oy": 5, "good": 30, "bad": 0}))
+    r = desmap.route(36, 7)
+    assert (31, 7) in r["path"] and r["secret"] == [(31, 7)] and (34, 7) in r["traps"]
+    # a goal walled off with no water around: no water hint
+    with pytest.raises(RuntimeError) as e:
+        desmap.route(50, 15)
+    assert "allow_water" not in str(e.value)
+
+
+def test_render_groups_far_unseen_markers():
+    from nh.render import monsters_line
+    s = _snap({}, (10, 5), [])
+    mons = [{"ch": "I", "x": 20 + i, "y": 8, "dist": 10 + i, "desc": "remembered, unseen monster", "unseen": True,
+             "note": "an unseen monster was here", "pet": False, "color": 7} for i in range(5)]
+    mons.append({"ch": "d", "x": 11, "y": 5, "dist": 1, "desc": "jackal", "pet": False, "color": 3})
+    txt = monsters_line(s, mons=mons)
+    assert "I x5 remembered unseen monsters" in txt and txt.count("an unseen monster was here") == 0
+    assert "jackal" in txt

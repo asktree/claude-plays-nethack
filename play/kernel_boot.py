@@ -16,6 +16,7 @@ _ctx._set_activity = globals().get("set_activity")
 _ctx.hp_rules = globals().get("hp_rules")
 _ctx.defer_far = globals().get("defer_far")
 _ctx._long_task = globals().get("long_task")
+_ctx.watch_monsters = globals().get("watch_monsters")   # absent in daemons started before it existed
 try:   # pause traces quote the helper code as loaded now (not a file edited later)
     import nh.kernel as _nk
     _nk.snapshot_sources()

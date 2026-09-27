@@ -14,6 +14,7 @@ _set_activity = None    # set_activity(text): shown with any pause while a helpe
 hp_rules = None         # with hp_rules(stop_hp): fight-style HP pauses (kernel)
 defer_far = None        # with defer_far(6): far newcomers pause only when they come near (kernel)
 _long_task = None       # with long_task(): a later exec-budget pause (kernel)
+watch_monsters = None   # watch_monsters(mons, near=6): 'approaching' pause for monsters already seen (kernel)
 
 
 def long_task(steps: int = 1200, seconds: float = 330.0):

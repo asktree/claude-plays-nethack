@@ -30,6 +30,8 @@ from .parse import MAP_BOTTOM, MAP_TOP, MONSTER_CHARS, HUNGER, ENCUMBRANCE
 
 _HUNGER_RANK = {"": 0, "Satiated": 0, "Hungry": 1, "Weak": 2, "Fainting": 3, "Fainted": 4}
 _ENC_RANK = {"": 0, "Burdened": 1, "Stressed": 2, "Strained": 3, "Overtaxed": 4, "Overloaded": 5}
+# engulfers with AD_DGST (monst.c): being swallowed by one is a race against total digestion
+DIGESTERS = ("purple worm", "lurker above", "trapper")
 # what cures the deadly conditions (3.6.7: potion.c healup(), eat.c, pray.c fix_worst_trouble())
 COND_HINTS = {
     "TermIll": "deadly illness (dies in ~10-30 turns): apply a unicorn horn, eat a eucalyptus leaf, quaff blessed "
@@ -49,6 +51,8 @@ COND_HINTS = {
 # Messages that never need a human look by themselves (pets, routine
 # noises). They're still shown in the output; they just don't pause an exec.
 DEFAULT_BENIGN = [re.compile(p) for p in (
+    r"^You feel full of energy\.$",            # allmain.c: Pw back to max (interrupts a rest)
+    r"^Suddenly, .+ disappears out of sight\.$",   # teleport.c: a monster took a level teleporter/trap door away
     # (not when a monster picks up a wand — it may zap you with it — or something you need to win)
     r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) (?!.*\b(?:wand|Amulet of Yendor|"
     r"Orb of Fate|Bell of Opening|Candelabrum|Book of the Dead|silver bell|candelabrum|papyrus spellbook)\b)",
@@ -348,8 +352,24 @@ class Kernel:
             shown after the reason of any pause until changed or cleared."""
             k.activity = text or ""
 
+        def watch_monsters(mons, near: int | None = None) -> int:
+            """Pause once ('approaching: ...') when one of these monsters (dicts with the tracker's id, from
+            obs.monsters or a telepathy scan) MOVES to within `near` squares (default 6). For dangerous
+            monsters you have already seen: coming back into view they are not 'new' and would not pause.
+            Returns how many are watched (this level only)."""
+            snap = k.game.last
+            level = snap.status.ldesc if snap is not None and snap.status.ok else ""
+            n = 0
+            for m in mons or []:
+                if m.get("id") is None or m.get("tame") or m.get("peaceful") or m.get("pet"):
+                    continue
+                k._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near or k.DEFER_NEAR}
+                n += 1
+            return n
+
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
-                       set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task)
+                       set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task,
+                       watch_monsters=watch_monsters)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -458,6 +478,26 @@ class Kernel:
             reasons.insert(0, f"HELD — {grab!r}: if it is in water, its NEXT hit DROWNS you (levitation does NOT "
                               "help). This turn: engrave Elbereth (E - Elbereth: it flees and lets go; impossible "
                               "while levitating), or kill it, or teleport away (not on the Castle)")
+        gulp = next((re.match(r"^(?:The |An? )?(.+?) engulfs you!$", m) for m in snap.messages
+                     if re.match(r"^(?:The |An? )?(.+?) engulfs you!$", m)), None)
+        if gulp and re.sub(r"^(?:invisible |tame |peaceful )+", "", gulp.group(1).lower()) in DIGESTERS:
+            # mhitu.c gulpmu() AD_DGST: total digestion when u.uswldtim runs out (~25 - its level, halved,
+            # + 10 - your AC turns); a wand of digging zapped from inside tears it open (zap.c zap_dig)
+            reasons.insert(0, f"SWALLOWED by a {gulp.group(1)}: it DIGESTS you — death when its timer runs "
+                              "out (roughly 10-30 turns, fewer with worse AC; 'thoroughly'/'utterly digests "
+                              "you' = nearly done). From inside every blow hits: fight() now; a wand of digging "
+                              "zapped any direction tears you out; prayer works at low HP")
+        dig = next((m for m in snap.messages if re.search(r"(?:thoroughly |utterly )digests you!$", m)), None)
+        if dig:
+            reasons.insert(0, f"BEING DIGESTED — {dig!r}: " + ("the NEXT turn digests you totally (death): pray / "
+                                                              "zap digging / kill it NOW" if "utterly" in dig
+                                                              else "only a few turns left: kill it or zap digging"))
+        stuck = next((m for m in snap.messages if re.match(r"^Wait!\s+That's (?:an? )?.*mimic!$", m)
+                      or re.match(r"^You cannot escape from ", m)), None)
+        if stuck and "stuck" not in expect:
+            # uhitm.c stumble_onto_mimic() / hack.c domove(): a mimic's AD_STCK holds you (u.ustuck)
+            reasons.insert(0, f"STUCK — {stuck!r}: you can't walk away while it lives (teleporting works); "
+                              "fight() it — a giant mimic hits 3d6 twice")
         if any(m.startswith("Your brain is eaten!") for m in snap.messages):
             # mhitu.c AD_DRIN / eat.c eat_brains(): with Int (base) at 3 a brain-eating hit KILLS, life
             # saving or not; each one costs 1-2 Int; a worn helmet stops 7 in 8

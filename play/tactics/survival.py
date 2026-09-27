@@ -525,7 +525,8 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
                 ctx.pause(f"telepathy_scan: putting on {put_on} didn't blind you ({s.messages or s.state.kind})")
                 return out
         s = ctx.last()
-        mons = [m for m in s.monsters or [] if not m.get("engulfer") and m["ch"] != "I"]   # (I: old markers)
+        mons = [m for m in s.monsters or [] if not m.get("engulfer") and m["ch"] != "I"   # (I: old markers)
+                and not m.get("statue")]
         if describe:
             need = [(m["x"], m["y"]) for m in mons if not m.get("desc") and m["ch"] not in "I"]
             if need:
@@ -539,6 +540,9 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
         h = s.hero
         from nh.danger import note_for
         xl = s.status.xl if s.status.ok else None
+        watched = [m for m in mons if m.get("id") is not None and not m.get("tame") and not m.get("peaceful")
+                   and (m.get("note") or (m.get("desc") and note_for(m["desc"], xl,
+                                                                     getattr(ctx.game, "intrinsics", ()))))]
         for m in mons:
             d = m.get("dist")
             if d is None and h is not None:
@@ -558,16 +562,32 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
                 print(f"telepathy_scan: !! still Blind after taking {put_on} off ({s.messages}) — check inventory()")
     out.sort(key=lambda m: (m["dist"] if m["dist"] is not None else 999))
     hostile = [m for m in out if not m["desc"].startswith(("tame ", "peaceful "))]
+    w = getattr(ctx, "watch_monsters", None)
+    if w is not None and watched:
+        # seen now, they won't count as NEW when they come into view later: pause when one comes near
+        n = w([m for m in watched if (m.get("dist") or 0) > 6])
+        if n:
+            print(f"telepathy_scan: watching {n} noted monster(s) — any of them moving to within 6 squares pauses "
+                  "('approaching')")
     from nh.danger import base_name
     kinds: dict = {}
     for m in out:
         k = base_name(m["desc"]) or "?"
         kinds[k] = kinds.get(k, 0) + 1
+    # every hostile with a SERIOUS danger note (a demon lord 40 squares off matters more than a newt next
+    # door: COVETOUS, much stronger than you, an all-caps warning), then the nearest of the rest
+    def serious(m):
+        n = m["note"]
+        return bool(n) and bool(re.search(r"COVETOUS|stronger than you|\b[A-Z]{4,}\b", n))
+    noted = [m for m in hostile if serious(m)]
+    others = [m for m in out if m not in noted][:max(8, 30 - len(noted))]
+    shown = sorted(noted + others, key=lambda m: (m not in noted, m["dist"] if m["dist"] is not None else 999))
     print(f"telepathy_scan: {len(out)} monster(s), {len(hostile)} not tame/peaceful — "
           + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
           + ("".join(f"\n  {m['ch']} {m['desc'] or '?'} at ({m['x']},{m['y']}) d={m['dist']}"
-                     + (f"  !! {m['note']}" if m['note'] else "") for m in out[:30]))
-          + (f"\n  ... {len(out) - 30} more" if len(out) > 30 else ""))
+                     + (f"  !! {m['note']}" if m['note'] else "") for m in shown))
+          + (f"\n  ... {len(out) - len(shown)} more, none with a serious note (the return value lists all)"
+             if len(out) > len(shown) else ""))
     return out
 
 

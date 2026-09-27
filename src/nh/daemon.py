@@ -138,10 +138,14 @@ class Daemon:
         if op == "ping":
             return {"ok": True, "text": f"nh daemon {self.name} alive (pid {os.getpid()})"}
         if op == "obs":
-            self.kernel.drop()
+            # looking sends no keys: a paused exec stays paused (the worker waits on its resume event and
+            # holds no lock), so `nh obs` then `nh cont` works
             snap = self.game.look()
             self.kernel.ns["obs"] = snap
-            return {"ok": True, "text": self.render(snap, mode=req.get("mode", "full"))}
+            text = self.render(snap, mode=req.get("mode", "full"))
+            if self.kernel.busy():
+                text += "\n(an exec is PAUSED — `nh cont` resumes it; `nh do`/`exec` would drop it)"
+            return {"ok": True, "text": text}
         if op == "screen":
             snap = self.game.look()
             return {"ok": True, "text": render.render_screen(snap)}
@@ -239,7 +243,7 @@ def _fmt_exec(out: dict, mode: str, render_fn) -> str:
         lines.append(f"[exec PAUSED] {out['reason']}")
         for fr in out.get("where", []):
             lines.append(f"  at {fr['file']}:{fr['line']}  {fr['code']}")
-        lines.append("  -> nh cont (resume) | nh cont --reply KEYS | any other command drops it")
+        lines.append("  -> nh cont (resume) | nh cont --reply KEYS | nh obs/screen keep it | do/exec drop it")
     elif st == "done":
         lines.append("[exec done]" + (f" result={out['result']!r}" if out.get("result") is not None else ""))
     elif st == "abandoned":

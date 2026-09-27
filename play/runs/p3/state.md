@@ -2,12 +2,12 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:6949 / Dlvl 10 (main dungeon), in the doorway (26,10) of the small room SW of the temple / XL8 (Exp 2056; XL9 at 2560) / 102/102 / 15/15 / AC-3
+- Turn / Dlvl / XL / HP / Pw / AC: T:7764 / Dlvl 13, standing on the LAWFUL ALTAR OF TYR (40,9) / XL9 (Exp 4457; XL10 at 5120) / 110/110 / 16/16 / AC-6 (divine protection 3 bought T:7328)
 - Attributes: St17 Dx12 Co19 In9 Wi10 Ch10 (Ch10 = shop prices x4/3)
 - Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7, T:4938) + VERY FAST from speed boots. NOT poison resistant. Excalibur: +2 to searching.
 - Luck notes: none known (assume 0). Alignment fine (possibly -1 if the Soko3 pocket monster was peaceful: unlikely, it was probably a mimic).
 - Skills: long sword EXPERT (T:5735), dagger Basic
-- Hunger: ate a food ration at T:6229 (next Hungry ~T:7100)
+- Hunger: ate a (rotten) food ration at T:7710 (next Hungry ~T:8400)
 
 ## Prayer log
 | turn | reason | result |
@@ -15,7 +15,7 @@
 | (none yet) | | prayer timeout surely 0: first prayer safe in MAJOR trouble (HP<=17 at max 102 (1/6 at XL8), or Weak) |
 
 ## Equipment worn/wielded (letter: item)
-- a: the blessed rustproof +2 Excalibur (wielded)
+- a: the blessed rustproof +3 Excalibur (wielded; enchant weapon read T:7764; safe to enchant up to +5)
 - b: uncursed +0 dagger (alternate; `x` swaps)
 - c: uncursed +4 small shield. At +4 another enchant armor on it EVAPORATES it 3 in 4: TAKE IT OFF before reading enchant armor
 - m: uncursed +0 orcish helm; M: uncursed +0 splint mail; P: uncursed -1 SPEED BOOTS
@@ -23,19 +23,19 @@
 - O: uncursed +0 elven cloak, carried for shop visits
 
 ## Key inventory (letters)
-- Food: D 5 uncursed food rations (ate one T:7033; next Hungry ~T:7900); E uncursed cram ration (never rots: emergency food)
-- Ranged: B 1 cursed -1 dagger (quivered), Y 11 arrows (no bow: 1-2 dmg, but they CAN hit), W 1 uncursed crossbow bolt. (Threw away/lost the rest at the Soko4 mimic — see below.)
-- Scrolls: q 1 uncursed MAGIC MAPPING; Q uncursed NR 9 (unknown type; altar-tested T:6938). Stinking cloud: none left. No identify, no remove curse.
-- Potions: I 2 uncursed EXTRA HEALING (emergency!); F uncursed OBJECT DETECTION; r uncursed SEE INVISIBLE
-- Rings: k uncursed TELEPORT CONTROL; J uncursed PROTECTION FROM SHAPE CHANGERS; N uncursed ENGAGEMENT ring (unknown type; altar-tested T:6938)
-- Wands (V and R altar-tested uncursed): V WAND OF PROBING (hexagonal; ID by zapping a monster, T:6835); R WAND OF SECRET DOOR DETECTION (spiked; formally identified T:6579: it UNMASKS MIMICS within 8 squares, even on traps); n undead turning (0:0) EMPTY (drop or wrest)
-- Tools: h blindfold (yellow light trick!); v skeleton key; L uncursed oil lamp
-- Gems: T uncursed AMETHYST (base 600: sell/keep)
-- Gold: $42 (see the D8 VAULT below)
+- Food: D 5 uncursed food rations; E uncursed cram ration (never rots: emergency food)
+- Ranged: t 2 uncursed elven daggers (quiver them), b +0 dagger.
+- Scrolls: o uncursed REMOVE CURSE (reserve; also cures punishment); g uncursed VELOX NEB (unknown); q 1 uncursed MAGIC MAPPING; Q uncursed NR 9 (unknown type; altar-tested T:6938). Stinking cloud: none left. No identify.
+- Potions: I 2 uncursed EXTRA HEALING (emergency!); s BLESSED smoky (unknown); l uncursed emerald (unknown); u uncursed dark (unknown); F uncursed OBJECT DETECTION; r uncursed SEE INVISIBLE
+- Rings: Z uncursed topaz (unknown); k uncursed TELEPORT CONTROL; J uncursed PROTECTION FROM SHAPE CHANGERS; N uncursed ENGAGEMENT ring (unknown type; altar-tested T:6938)
+- Wands (V and R altar-tested uncursed): V WAND OF PROBING (hexagonal; ID by zapping a monster, T:6835); R WAND OF SECRET DOOR DETECTION (spiked; formally identified T:6579: it UNMASKS MIMICS within 8 squares, even on traps); (undead turning + light wands dropped at D12)
+- Tools: f uncursed UNICORN HORN (apply for conf/stun/blind/sick); h blindfold (yellow light trick!); v skeleton key
+- Gems: T uncursed AMETHYST (base 600: sell/keep); e uncursed yellow gem (citrine/chrysoberyl/glass)
+- Gold: $1173 (see the D8 VAULT below). Next protection at XL10 = 4000 (any temple priest).
 
 ## Identified appearances
 - scrolls: ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
-- potions: puce = oil; orange = extra healing; white = object detection; golden = see invisible; swirly = blindness
+- potions: puce = oil; orange = extra healing; white = object detection; golden = see invisible; swirly = blindness; YELLOW = INVISIBILITY; CLOUDY = FULL HEALING (seen quaffed by leprechauns)
 - rings: ivory = teleport control; agate = invisibility; emerald = protection from shape changers
 - wands: steel = undead turning; tin = slow monster; spiked = secret door detection; runed = light; hexagonal = probing
 - armor: opera cloak = invisibility; mud boots = speed; riding gloves = fumbling; faded pall = elven cloak. whistle = tin.
@@ -53,6 +53,8 @@
 | 7 | Dungeons | up (4,14), DOWN (72,4) (was under gold); spiked pit (22,4); boulder (40,3) |
 | 8 | Dungeons | up (17,6), down (70,10). **VAULT (2-3,17-18): ~$1650 of MINE + the vault's gold (~4x450)**: dig in with a pick-axe/wand of digging, grab it, leave in <30 turns. WEREWOLF (@) seen near (56,13). |
 | 9 | Dungeons = ORACLE | up (61,8), down (19,3). Fountains (38-40,11-13). Monkey with my remove curse fled west. |
+| 13 | Dungeons | up (12,4), fountain (15,5). LAWFUL ALTAR OF TYR (40,9) (plain altar, no priest): sacrifice fresh corpses here (gifts, Luck, prayer timeout); free BUC tests. Rest of the level unexplored. |
+| 12 | Dungeons | up (51,14), DOWN (11,13). LEPRECHAUN HALL (27-40,4-7) cleared; 1-2 leprechaun thieves may still roam with ~$900. Junk dropped at (33,5). Elf loot pile (42,10): elven bow, 9 elven arrows, broadsword, short sword, shield, 2 elven leather helms, scroll of create monster. Explored except behind a boulder (34,10). |
 | 11 | Dungeons | up (33,9), DOWN (63,10) reached via the HIDDEN DOOR (53,17) of the small room (49-53,14-18) (unlocked). TEMPLE OF LOKI (chaotic, peaceful priest), altar (52,7). Grave (39,11). Fountain (38,9). Not the quest portal level. |
 | 10 | Dungeons | up (74,12) (from D9), SOKOBAN up stairs (4,8) (far west room), down (55,12), fountain (60,12), grave (74,16). HIDDEN DOOR (50,11). **TEMPLE OF ODIN (neutral), peaceful priestess, altar (38,5)**: protection 400*XL; altar BUC tests. Mummy wrapping (9,7). Locked door (71,14). |
 | 9 | SOKOBAN 1 (soko4-1) | SOLVED. down (38,10) -> D10 (4,8); up (38,12). Junk pile (35,17): cursed blindness, amnesia, tripe. A crossbow + 3 crossbow bolts at (42,7) (left there). |
@@ -73,6 +75,7 @@
 - Winter wolves: cold breath can't hurt me (cold res) but can shatter potions: close in fast.
 
 ## Objective and plan
+- SHIFT 9: explore D13 from the Tyr altar (40,9) for `>`; sacrifice fresh kills on the altar when convenient (Luck, gifts). Keep looking for an ATTACK WAND (fire/cold/lightning/MM) or a WAND OF STRIKING / pick-axe: striking (or digging through) the stuck Soko4 boulder at (39,5) costs only -1 Luck and lets me melee the giant mimic from (39,5) — check first that Soko4 has a spare boulder. Engrave-test every new wand. Unknowns to price-ID: scrolls g VELOX NEB, Q NR 9; potions s (blessed smoky), l (emerald), u (dark); rings N, Z; gem e. Watch gold around leprechauns (drop/bag it).
 - NEXT: decide between (a) continuing the main dungeon (D10 down stairs (55,12) -> D11+: XP, loot, look for an ATTACK WAND — then return to Soko4), or (b) a supply trip for Soko4 (daggers at D4 Fleac's weapon shop; gold from selling the amethyst T). Recommended: (a); zap-ID any new wand on the engrave test first. The Soko4 mimic waits forever.
 - Unknowns to identify: N engagement ring (uncursed), Q scroll NR 9 (uncursed): price-ID in a shop. D10 gray stone at (20,11) = LOADSTONE (kick: Thump). Z uncursed topaz ring, e yellow gem: unknown.
 - Shops: TAKE OFF the cloak of invisibility (T j, W O) before entering.

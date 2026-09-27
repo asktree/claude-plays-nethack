@@ -50,3 +50,10 @@
 - "You hear a monster behind the boulder" in Sokoban with nothing moving = probably a mimic; the push fails at no time cost, so retrying is free.
 - Probing (wand) shows a monster's exact HP: zap it before committing resources to a ranged kill.
 - A disguised mimic that re-hides (it re-disguises when out of sight) is attacked with F+direction from the adjacent square; hunt() loses it as "out of view".
+- LEPRECHAUN HALL: drop your gold outside, turn autopickup off (`@`), then kill them one at a time — stealth keeps the rest asleep. Each carries d(depth,30) gold: ~$5500 at D12 = one protection donation. Afterwards awake survivors roam and steal (twice on D12: -$1848): drop or bag gold before exploring the rest of the level, and kill any leprechaun you meet (a kill gave back $923).
+- Any temple priest (cross-aligned too) sells protection: 400*XL gold (3600 at XL9) gave AC -3 -> -6 (the first donation gives 2-4). The next one costs 400*XL again (+1 AC).
+- Kick-test a gray stone from a square where open floor lies beyond it: "Thump!" = too heavy to move = LOADSTONE (never pick it up).
+- mention_walls: "A <monster> blocks your path." is printed for ANY monster that stops travel/running, hostile or peaceful — farlook, don't assume peaceful.
+- Magic mapping draws secret doors as plain wall: a mapped corridor that runs up against a room wall with no door marks the secret door (D11: found at (53,17) in 6 searches from inside the room).
+- Food rations older than 30 turns can be "Rotten food!" (blindness, confusion or sleep): the unicorn horn cures the blindness in 1-3 applies. Eat on a quiet square.
+- Long fight loops: `bin/nh exec -a 'REGEX' ...` (also `cont -a`) auto-continues pauses on matching routine messages ("picks up some gold", "attack thin air", "drinks a ... potion") — saved many calls in the leprechaun hall.

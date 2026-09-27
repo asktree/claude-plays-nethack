@@ -14,6 +14,10 @@ from .mapview import DIR_KEY
 
 ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misses|stings|butts|kicks|claws|touches)[!.]$",
            r"^The .* (turns to flee|is killed|dies)", r"^You hear some noises", r"^Welcome to experience level",
+           # the target stepped away before the blow (hack.c domove, F into an empty square); a monster
+           # healing itself or reading itself away (muse.c) — fight() sees what's left and decides
+           r"^You (?:harmlessly |futilely )?attack thin air\.$", r" looks (?:completely healed|much better|better)\.$",
+           r" reads a scroll of teleportation!$",
            # monster chatter in melee (wizard.c cuss(), demon/imp taunts, quoted speech)
            r"casts aspersions on your ancestry", r"laughs fiendishly", r'^"[^"]*"$',
            # hit side effects that the HP check already covers
@@ -289,6 +293,18 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])], ok=ROUTINE, force=force)
                 seen.extend(s.messages)
                 continue
+            hidden = (getattr(s, "mimic_mem", None) or {}).get((x, y))
+            if not targets and hidden and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1 \
+                    and "hidden" not in seen_notes:
+                # a remembered mimic hiding as the object/boulder shown there: F attacks the square (it
+                # unmasks: "Wait! That's a giant mimic!") and the next round fights it in the open
+                seen_notes.add("hidden")
+                print(f"fight: attacking the {hidden} hiding at ({x},{y}) (shown as {s.screen.at(x, y)!r})")
+                s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])],
+                           ok=ROUTINE + [r"^Wait!\s+That's an? .*mimic!", r"^You (?:hit|miss) "], force=force,
+                           expect=("stuck",))
+                seen.extend(s.messages)
+                continue
             if not targets and locked_on:
                 again = [m for m in s.adjacent_hostiles() if base_name(m.get("desc") or "") == locked_on]
                 if again:
@@ -346,7 +362,10 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
         # attack the most dangerous-looking adjacent target first (noted ones), else the first — but
         # never pick one the passive checks below refuse while another is there (a coyote beside a
         # floating eye gets the blow)
-        targets.sort(key=lambda m: (bool(allow_passive is False and _passive_refusal(m.get("desc") or "", st)),
+        # a monster HOLDING you comes first: while held, a blow at anything else only says "You cannot
+        # escape from ..." (hack.c domove u.ustuck)
+        targets.sort(key=lambda m: ("holding you" not in (m.get("desc") or ""),
+                                    bool(allow_passive is False and _passive_refusal(m.get("desc") or "", st)),
                                     _danger_rank(m.get("desc") or "")))
         m = targets[0]
         desc = m.get("desc") or ""
@@ -503,7 +522,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")]
             if mobile_adj:
                 s = fight(stop_hp=stop_hp, allow_passive=allow_passive)
-                kills += killed_names(s.messages)
+                kills += killed_names(s.messages, include_it=True)
                 best, idle = None, 0
                 if s.adjacent_hostiles() and s.status.ok and s.status.hp < stop_hp * max(1, s.status.hpmax):
                     return out(f"HP {s.status.hp}/{s.status.hpmax} below {stop_hp:.0%} with hostiles adjacent")
@@ -514,12 +533,12 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 if key:
                     s = ctx.do("F" + key, ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
                                                         r"^Wait!  There's (?:something|\w+) there"])
-                    kills += killed_names(s.messages)
+                    kills += killed_names(s.messages, include_it=True)
                     continue
             near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")]
             if not near and hold and (s.status.turn or t0) - t0 < hold:
                 s = ctx.do("s", ok=ROUTINE)          # keep the square: wait for the next one to come
-                kills += killed_names(s.messages)
+                kills += killed_names(s.messages, include_it=True)
                 continue
             if not near:
                 if hold:
@@ -545,7 +564,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                            "— go to it or leave it" + ("; a MIMIC re-hides as an object whenever you can't see "
                                                        "it — keep it in sight, or hunt() it" if mim else ""))
             s = ctx.do(".", ok=ROUTINE)
-            kills += killed_names(s.messages)
+            kills += killed_names(s.messages, include_it=True)
     return out("max_turns")
 
 
@@ -790,6 +809,36 @@ def _greedy_step(s, goal, bad) -> tuple | None:
     return best[1] if best else None
 
 
+def _hunt_hidden_mimic(target, stop_hp, out, kills) -> dict:
+    """hunt((x, y)) on a remembered mimic hiding as an object: walk next to it (never onto it), then
+    fight(x, y) — the first blow unmasks it."""
+    from nh.monitor import killed_names
+    from .mapview import bfs_path
+    from .nav import NavError, bad_squares, walk_path
+    s = ctx.last()
+    tx, ty = target
+    name = (getattr(s, "mimic_mem", None) or {}).get(target, "mimic")
+    if max(abs(tx - s.hero[0]), abs(ty - s.hero[1])) > 1:
+        bad = frozenset(bad_squares(s))
+        best = None
+        for g in [(tx + dx, ty + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]:
+            p = bfs_path(s, s.hero, g, avoid=bad - {g}, allow_monsters=False, allow_pets=True)
+            if p is not None and (best is None or len(p) < len(best)):
+                best = p
+        if best is None:
+            return out(f"no route next to the {name} hiding at {target}")
+        try:
+            s = walk_path(best)
+        except NavError as e:
+            return out(f"blocked: {e}")
+        if s.hero is None or max(abs(tx - s.hero[0]), abs(ty - s.hero[1])) > 1:
+            return out(f"stopped on the way to the {name} hiding at {target} (at {s.hero})")
+    s = fight(tx, ty, stop_hp=stop_hp)
+    kills += killed_names(s.messages, include_it=True)
+    gone = target not in (getattr(ctx.last(), "mimic_mem", None) or {})
+    return out("killed" if gone else f"fought the {name} at {target} (not dead yet: fight({tx}, {ty}) again)")
+
+
 def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
     """Close in on one hostile and fight it: target = part of its label
     ('pyrolisk') or its square (x, y). Each turn: adjacent -> fight() it
@@ -829,7 +878,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                 return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%}")
             if getattr(s, "engulfed", False):
                 s = fight(stop_hp=stop_hp)             # inside it: any direction hits the engulfer
-                kills += killed_names(s.messages)
+                kills += killed_names(s.messages, include_it=True)
                 if getattr(s, "engulfed", False):
                     return out("still ENGULFED (fight() stopped: HP) — pray at 1/7 HP")
                 continue
@@ -837,6 +886,9 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                 hs = [m for m in s.hostiles() if not m.get("statue")]
                 hs = [m for m in hs if (m["x"], m["y"]) == tuple(target)] if isinstance(target, tuple) else \
                     [m for m in hs if str(target).lower() in (m.get("desc") or "").lower()]
+                if not hs and isinstance(target, tuple) and \
+                        tuple(target) in (getattr(s, "mimic_mem", None) or {}):
+                    return _hunt_hidden_mimic(tuple(target), stop_hp, out, kills)
                 if not hs:
                     return out(f"no hostile {target!r} in view")
                 m = min(hs, key=lambda e: e["dist"] if e["dist"] is not None else 99)
@@ -868,7 +920,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                         if path:
                             s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])],
                                        ok=HUNT_OK + BENIGN + [r"^The door opens\.$"])
-                            kills += killed_names(s.messages)
+                            kills += killed_names(s.messages, include_it=True)
                             continue
                     return out(f"lost: the {species or target} is out of view"
                                + (f" (last seen at {last}; followed {chase} step(s))" if last else ""))
@@ -886,7 +938,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                           + f" is next to you too — fighting the {species or target} first (fight()'s HP checks "
                           "count every adjacent hostile)")
                 s = fight(m["x"], m["y"], stop_hp=stop_hp)
-                kills += killed_names(s.messages)
+                kills += killed_names(s.messages, include_it=True)
                 if s.state.kind == "command" and any(e.get("id") == want for e in s.adjacent_hostiles()) \
                         and not killed_names(s.messages):
                     return out("fight() stopped with it still next to you (see its message)")
@@ -894,7 +946,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
             if s.adjacent_hostiles():
                 fs = fight_trivial(s)
                 if fs is not None:
-                    kills += killed_names(fs.messages)
+                    kills += killed_names(fs.messages, include_it=True)
                     continue
             goal = (m["x"], m["y"])
             from .nav import squeaky_boards
@@ -922,7 +974,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
                             print(f"hunt: couldn't get to the frontier {c} ({str(e)[:90]}) — trying another")
                             s = ctx.last()
                             continue
-                        kills += killed_names(s.messages)
+                        kills += killed_names(s.messages, include_it=True)
                         moved = True
                         break
                     if not moved:
@@ -944,7 +996,7 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45) -> dict:
             s = ctx.do(DIR_KEY[(path[0][0] - s.hero[0], path[0][1] - s.hero[1])],
                        ok=HUNT_OK + BENIGN + [r"^The door opens\.$", r"^A board beneath you squeaks"],
                        force=path[0] in boards)
-            kills += killed_names(s.messages)
+            kills += killed_names(s.messages, include_it=True)
             if s.hero == h0 and any(m.startswith("The door opens") for m in s.messages):
                 continue                     # the step opened a door on the way (autoopen): go on through it
             if s.hero == h0 and s.state.kind == "command" and not kills:

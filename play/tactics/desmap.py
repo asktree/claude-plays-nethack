@@ -197,7 +197,9 @@ def show(s=None, names=None) -> str:
     lines = [f"{m['level']} (map {m['index']}, from {m['file']}) at offset ({f['ox']},{f['oy']}), "
              f"match {f['good']} good / {f['bad']} bad"]
     for ft in features(s, names):
-        lines.append(f"  {ft['kind']:10} ({ft['x']},{ft['y']}) {ft['detail']}")
+        detail = ft["detail"] or ("a staircase or portal to another dungeon branch (overview() names it)"
+                                  if ft["kind"] == "branch" else "")
+        lines.append(f"  {ft['kind']:10} ({ft['x']},{ft['y']}) {detail}")
     if secret:
         lines.append(f"  secret doors: {secret[:20]}" + (" ..." if len(secret) > 20 else ""))
     txt = "\n".join(lines)
@@ -221,19 +223,30 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
     feats = features(s, names)
     traps = {(ft["x"], ft["y"]) for ft in feats if ft["kind"] == "trap"} | set(bad_squares(s))
     goal = (x, y)
+    water_hit = [False]
 
     def passable(c) -> bool:
         ch = lay.get(c)
         shown = s.screen.at(*c)
+        if shown == "^" and (ch is None or ch not in ("-", "|", " ")):
+            return True                          # a known trap (in the filler too): costs trap_cost below
         if shown not in " " and is_walkable(s, *c, allow_monsters=True):
             return ch not in ("-", "|") or shown not in "-|"
         if shown in "-|" and s.screen.color_at(*c) != BROWN:
             return ch == "S"                     # a secret door not found yet
         if shown == "}":
+            water_hit[0] = water_hit[0] or not allow_water
             return allow_water
         if shown != " ":
             return ch in (".", "B", "#", "+", "{", "\\", "K", "I", "S", "H") or c == goal
+        if ch is not None and ch in "}PW" and not allow_water:
+            water_hit[0] = True
         return ch in (".", "B", "#", "+", "{", "\\", "K", "I", "S", "H") or (allow_water and ch in "}PW")
+
+    def hidden_door(c) -> bool:
+        """A secret door of the map not found yet: still drawn as wall, or not seen at all."""
+        return lay.get(c) == "S" and (s.screen.at(*c) == " " or (s.screen.at(*c) in "-|"
+                                                                  and s.screen.color_at(*c) != BROWN))
 
     def doorish(c) -> bool:
         return lay.get(c) in ("+", "S") or is_door(s, *c)
@@ -257,9 +270,9 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
                 if dx and dy and (doorish(p) or doorish(n)):
                     continue
                 cost = 1
-                if n in traps and n != goal:
+                if (n in traps or s.screen.at(*n) == "^") and n != goal:
                     cost += trap_cost
-                if lay.get(n) == "S" and s.screen.at(*n) in "-|" and s.screen.color_at(*n) != BROWN:
+                if hidden_door(n):
                     cost += 20
                 if d + cost < dist.get(n, 10 ** 9):
                     dist[n] = d + cost
@@ -267,15 +280,17 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
                     heapq.heappush(pq, (d + cost, n))
     if goal not in prev:
         raise RuntimeError(f"desmap.route: no way to {goal} on the map either"
-                           + ("" if allow_water else " (allow_water=True if you can cross water)"))
+                           + (" (water is in the way: allow_water=True if you can cross it)" if water_hit[0]
+                              else " — the way runs through ground outside the fixed map that you haven't seen "
+                                   "(a maze or filler: explore() it), or through rock (dig), or it is sealed"))
     path = []
     p = goal
     while p is not None:
         path.append(p)
         p = prev[p]
     path = path[::-1][1:]
-    secret = [c for c in path if lay.get(c) == "S" and s.screen.at(*c) in "-|" and s.screen.color_at(*c) != BROWN]
-    return {"path": path, "secret": secret, "traps": [c for c in path if c in traps]}
+    secret = [c for c in path if hidden_door(c)]
+    return {"path": path, "secret": secret, "traps": [c for c in path if c in traps or s.screen.at(*c) == "^"]}
 
 
 def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = False, fight: bool = True):
@@ -287,7 +302,7 @@ def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = Fa
     from .nav import NavError, walk_path
     from .combat import fight_trivial
     s = ctx.last()
-    steps = fights = 0
+    steps = fights = opened = 0
     while steps < max_steps:
         s = ctx.last()
         if s.state.kind != "command" or s.hero == (x, y):
@@ -322,6 +337,9 @@ def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = Fa
             return ctx.last()
         steps += len(chunk)
         if s.hero == h0:
+            if any("door opens" in m for m in s.messages or []) and opened < 4:
+                opened += 1
+                continue                         # the step opened a door in the way: walk on through it
             print(f"desmap.walk: no progress at {s.hero} ({s.messages or 'no message'})")
             return s
         if s.messages and any("locked" in m for m in s.messages):

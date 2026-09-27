@@ -54,6 +54,14 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
     parts = []
     statues = [m for m in mons if m.get("statue")]
     mons = [m for m in mons if not m.get("statue")]
+    unseen = [m for m in mons if m.get("unseen") and m["ch"] == "I" and m["dist"] != 1]
+    if len(unseen) > 2:
+        # remembered 'I' markers far off: one line (each carries the same note)
+        mons = [m for m in mons if m not in unseen]
+        unseen.sort(key=lambda m: m["dist"] if m["dist"] is not None else 99)
+        parts.append(f"  I x{len(unseen)} remembered unseen monsters (old markers; maybe gone) at "
+                     + ", ".join(f"({m['x']},{m['y']})" for m in unseen[:10])
+                     + (f" +{len(unseen) - 10} more" if len(unseen) > 10 else ""))
     for m in mons:
         note_txt = m.get("note") or ""
         if m.get("desc"):

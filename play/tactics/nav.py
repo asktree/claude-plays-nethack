@@ -1125,6 +1125,11 @@ def _branch(key: str | None) -> str:
     return key.split(" / ")[0] if key and " / " in key else ""
 
 
+# travel()/head_to() failures that mean "no way there" (not a monster or a guard): another staircase may do
+_UNREACHABLE = re.compile(r"no reachable frontier|no known path|no (?:known )?route|every known route|"
+                          r"not there after|kept being blocked|did not reach", re.I)
+
+
 def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
     """Choose among several known staircases using where each was seen to
     lead (game.stair_links, learned whenever you take or arrive on one).
@@ -1216,14 +1221,21 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
     cells = known_cells(ch, s, rescan=True)
     if not cells:
         raise NavError(f"no {ch!r} known on this level" + (_ways_down_hint(s) if ch == ">" else ""))
+    fallback: list = []
     if s.hero is not None and len(cells) > 1:
-        # unreachable ones last (a ladder inside the sealed Wizard's Tower, stairs behind water)
+        # a ladder inside the sealed Wizard's Tower seen from outside (or its ladder from inside the maze
+        # around it), stairs behind water: choose among the ones reachable over the known map; the rest
+        # are tried only if those turn out unreachable
         reach = [c for c in cells if c == s.hero or bfs_path(s, s.hero, c, allow_monsters=True) is not None]
-        if reach:
+        if reach and len(reach) < len(cells) and not to:
+            fallback = [c for c in cells if c not in reach]
+            cells = reach
+        elif reach:
             cells = reach + [c for c in cells if c not in reach]
     target, note = _pick_stairs(ch, cells, to, s)
     if note:
         print(f"stairs: using the {ch} at {target}: {note}")
+    others = [c for c in cells + fallback if c != target] if not to else []
     had_pet = [m for m in _pets(s) if m.get("dist") is not None and m["dist"] <= 7]
     auto = with_pet is None
     if auto:
@@ -1240,6 +1252,14 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
             with_pet = False
             s = ctx.last()
             continue
+        except NavError as e:
+            if others and _UNREACHABLE.search(str(e)):
+                nxt = others.pop(0)
+                print(f"stairs: can't get to the {ch} at {target} ({str(e)[:90]}) — trying the {ch} at {nxt}")
+                target = nxt
+                s = ctx.last()
+                continue
+            raise
         if s.state.kind != "command":
             return s                     # a prompt interrupted: let the caller look
         s = ctx.last()
