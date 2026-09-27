@@ -53,3 +53,18 @@ T:2531–2538 DL5 — imp in the corridor (39,13): killed in 3 hits (HP 49 -> 42
 T:2565 DL5 — engrave-tested the imp's marble wand: "This marble wand is a wand of lightning!" — burned ELBERETH into the floor at (45,18) in the big S room (permanent safe square on DL5). Chest at (38,5) not yet looted.
 T:2565–2605 DL5 — blinded by the lightning flash for ~40 turns; waited it out on the burned Elbereth. Chest at (38,5) was empty (T:2621).
 T:2638 DL5 — read the scroll of identify (k) on the diamond ring: uncursed RING OF FIRE RESISTANCE (w). Shift 3 ends on the burned Elbereth (45,18): HP 49/49, XL4 (Exp 131), AC2, $52, T:2638. Next: XL5 then Excalibur at the DL5 fountain (26,8).
+T:2640–2690 DL5 — (shift 4) killed a grid bug (Exp 132); KICKED OPEN the locked door (47,18) next to the burned Elbereth in one kick; two dwarf zombies came through the W door — destroyed both one at a time (Exp 142), HP 46/49.
+T:2710–2745 DL4 — arrived on `>` (20,14): gold + scroll HACKEM MUCHE (A). Corridor dead end (42,9): searched, hidden door (43,9). Killed a newt, a sewer rat (Exp 144).
+T:2871–2889 DL4 — explore() stalled on a boulder (63,14) in front of the food-room door; went round via (62,12) and walked onto a SLEEPING GAS TRAP at (58,15) under a pile (slept ~10 turns, unharmed). Took 2 candy bars there; NE room: scroll TEMOV (B) + gold; gold room gold ($80).
+T:2941–2962 DL4 — pushed the boulder from (42,6) west along the row-6 corridor until it stuck at (27,6).
+T:3006–3027 DL4 — searched the `>` room's west wall: hidden door (17,14) -> west room with the `<` (5,9). Hill orc came from it: killed in the corridor (13,10), no damage (Exp 154, $98).
+T:3116 DL4 — Hungry; a candy bar was "Rotten food!": unconscious 10 turns; the whole candy bar stack is now flagged rotten. Ate the lichen corpse instead; elf zombie interrupted the meal.
+T:3131 DL4 — destroyed the elf zombie: **XL5** (HP 62/62). A second elf zombie hit me for 12 while I headed for the `>`; destroyed it too (Exp 174).
+T:3190–3228 DL5 — Excalibur attempt: dust Elbereth at (27,8) (needed 2 tries and it smudged while resting), rested to 62/62, dipped from (26,8): dip 1-3 "rusts / rusts further / rusts completely", dip 4 "You feel a sudden chill. The fountain dries up!" NO EXCALIBUR; the long sword is thoroughly rusty (-3 dmg).
+T:3244–3267 DL5 — killed a centipede (Exp 183) and a hostile pony (Exp 196, HP 53/62, no corpse). Hungry again at T:3304 (the lichen's last bite gave little).
+T:3325–3343 DL6 — down the `>` (70,16) -> DL6 `<` (9,7). Scale mail at (8,5) left. Killed a rock mole (Exp 213).
+T:3382–3398 DL6 — monkey: dropped the wand + marker first, killed it in the corridor (29,5) (Exp 220); it failed to snatch my helm. WEAK at T:3398.
+T:3401 DL6 — PRAYED (3rd prayer; 1382 turns after the 2nd; prayer_check 98%): "Tyr is well-pleased. Your stomach feels content." Nutrition 900. Picked the wand + marker back up.
+T:3435–3444 DL6 — hostile dog at (19,9): "more confident in your weapon skills" -> #enhance long sword to SKILLED mid-fight; killed the dog (Exp 240) but HP 43/62.
+T:3464 DL6 — picked up a SECOND WAND OF LIGHTNING (E) at (11,18). Back on the `<` (9,7): destroyed a kobold zombie (Exp 241), rested to 62/62.
+T:3578 DL6 — shift 4 ends on the `<` (9,7): HP 62/62, XL5, AC2, $98, no monsters in view, not hungry. Next: explore DL6 for `>`/fountains/food; Excalibur at the next fountain.

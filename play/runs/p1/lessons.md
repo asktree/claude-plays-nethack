@@ -16,3 +16,9 @@
 - 3.6 trap doors can be multi-level shafts (25%: 2+ levels). Stepping into one deliberately means arriving with no known stairs: find `<` first, keep HP full.
 - Engraving with an unknown wand identifies lightning by BURNING the text: choose "Elbereth" as the text so the test also leaves a permanent safe square (but it blinds you for up to 50 turns — do it on a quiet level, standing on that square).
 - Counted rests/searches are interrupted every turn while any hostile is adjacent (even a harmless acid blob): walk 2+ squares away or kill it first.
+- Hungry -> Weak takes only ~100 turns (nutrition 150 -> 50 at 1/turn). Treat "Hungry" as "eat within 50 turns", not as a warning to act on later.
+- Any non-blessed food item older than 30 turns (rations, candy bars...) has a 1/7 "Blecch! Rotten food!" roll; if it knocks you out, the WHOLE STACK is flagged rotten and re-rolls every time. Eat old items only on a safe square, one at a time; prefer fresh SAFE corpses (< 30 turns old) the moment Hungry appears.
+- Excalibur dipping: each non-Excalibur dip rusts the sword one level (3 dips = thoroughly rusty, -3 dmg) and, once fully rusted, every failed dip has a 1/3 chance to dry the fountain. Expect to need several fountains (Oracle level has 4). The rust vanishes if Excalibur is finally made.
+- Standing ON a fountain hides it from `obs.features`; use `here()`. Dust Elbereth degrades ~1/76 per turn while you stand on it and when walked over: re-engrave and read it back right before relying on it; never fight from an Elbereth square (3.6 erases it).
+- Thieves (monkeys, nymphs): drop the irreplaceable items (wands, marker) on your square before they arrive, fight, pick them up after.
+- Weak from hunger is a textbook major-trouble prayer (98% at ~1400 turns since the last one) — better than gambling on rotten food, but it spends the prayer for ~1000 turns: plan food so it never comes to that.
