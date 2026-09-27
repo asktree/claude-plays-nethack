@@ -15,12 +15,16 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            # monster chatter in melee (wizard.c cuss(), demon/imp taunts, quoted speech)
            r"casts aspersions on your ancestry", r"laughs fiendishly", r'^"[^"]*"$',
            # hit side effects that the HP check already covers
-           r"^You get zapped!$", r"^You are (?:stung|bitten|kicked|butted)"]
+           r"^You get zapped!$", r"^You are (?:stung|bitten|kicked|butted)",
+           # weapon-wielding monsters announce each swing (mhitu.c); leg attacks (xan)
+           r"^The .+ (?:swings|thrusts) (?:his|her|its) ", r" pricks your (?:left |right )?leg!$",
+           r"^The .+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$"]
 # a thrown/fired object hitting or missing ("The dagger misses the jackal.")
 THROW_OK = ROUTINE + [r"^The .+ (hits|misses)( the .+| it)?[.!]$", r"^You (kill|destroy) "]
 # a zapped ray/bolt doing its job ("The bolt of lightning hits the rope golem!"); hits on YOU still pause
 _RAY = r"(?:magic missile|bolt of \w+|sleep ray|death ray|blast of [\w ]+|stream of \w+|ray of \w+|fireball|cone of cold)"
 ZAP_OK = ROUTINE + [rf"^The {_RAY} (?:hits|misses|whizzes by) (?!you)", rf"^The {_RAY} bounces!",
+                    r"^The wand (?:hits|misses) (?!you)", r"^Boing!$",
                     r"^The .+ (?:is killed|is destroyed|dies)", r"^You (?:kill|destroy) ",
                     r"^The .+ resists", r"^The .+ is not affected"]
 
@@ -135,6 +139,8 @@ def fight_trivial(s=None):
     adj = s.adjacent_hostiles()
     if not adj or not all(auto_fightable(m, s) for m in adj):
         return None
+    if hasattr(ctx.game, "on_elbereth") and ctx.game.on_elbereth(s):
+        return None          # attacking from Elbereth erases it and costs alignment: leave that to the player
     print("auto-fight: " + ", ".join(f"{m.get('desc')} at ({m['x']},{m['y']})" for m in adj))
     return fight()
 

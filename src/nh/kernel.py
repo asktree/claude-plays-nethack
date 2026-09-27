@@ -45,6 +45,10 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^(Your|The) .* is in your way\.$",
     r"^(Your|The) .* is in the way!$",                 # uhitm.c: 1/7 of pet swaps fail (or in a shop)
     r"^(Your|The) .* doesn't seem to move!$",          # a frozen pet you tried to swap with
+    r"^Pardon me, .+\.$",                               # travel's fallback step bumped a pet/peaceful
+    # struggling out of a trap you already know you're in (the trap itself paused once)
+    r"^You are still in a pit\.", r"^You crawl to the edge of the pit\.",
+    r"^You are (?:stuck to the web|caught in a bear trap)\.", r"^You disentangle yourself\.",
     r"^You move .* out of your way",
     r"^You see here ",
     r"^Things that are here:",

@@ -119,13 +119,31 @@ def test_reseen_peaceful_is_rechecked_but_not_new():
 def test_reseen_hostile_keeps_label_without_look():
     g = FakeGame()
     t = MonsterTracker(g)
-    g.truth = {(50, 10): "jackal"}
-    first = t.update(snap({(50, 10): "d"}, 10))
+    g.truth = {(50, 10): "ogre"}
+    first = t.update(snap({(50, 10): "O"}, 10))
     t.update(snap({}, 11))
     g.looked.clear()
-    m = t.update(snap({(53, 12): "d"}, 13))
-    assert g.looked == [] and m[0]["desc"] == "jackal" and not m[0]["new"]
+    m = t.update(snap({(53, 12): "O"}, 13))
+    assert g.looked == [] and m[0]["desc"] == "ogre" and not m[0]["new"]
     assert m[0]["id"] == first[0]["id"]
+    # 100 turns later and 10 squares off it still counts as the same ogre (p1: looting ogres)
+    t.update(snap({}, 14))
+    g.looked.clear()
+    m = t.update(snap({(63, 14): "O"}, 114))
+    assert g.looked == [] and not m[0]["new"]
+
+
+def test_reseen_lookalike_is_looked_at_again():
+    """A brown 'd' back in view may be the werejackal, not the jackal seen before."""
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(50, 10): "jackal"}
+    t.update(snap({(50, 10): "d"}, 10))
+    t.update(snap({}, 11))
+    g.truth = {(52, 10): "werejackal"}
+    g.looked.clear()
+    m = t.update(snap({(52, 10): "d"}, 13))
+    assert g.looked == [(52, 10)] and m[0]["desc"] == "werejackal" and m[0]["new"]
 
 
 def test_pet_reseen_keeps_tame_label():
@@ -308,3 +326,20 @@ def test_kernel_monster_filter_limits_new_monster_pauses():
         k._check_events(before, after)
     assert reasons == []
     assert k.new_monster_filter is None
+
+
+def test_were_change_is_relooked_not_renamed():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "werejackal", (45, 10): "jackal"}
+    t.update(snap({(41, 10): "@", (45, 10): "d"}, 10))
+    # "The werejackal changes into a jackal.": the '@' becomes a 'd' next to a real jackal
+    g.truth = {(41, 10): "werejackal", (45, 10): "jackal"}
+    g.looked.clear()
+    s = snap({(41, 10): "d", (45, 10): "d"}, 11)
+    s.messages = ["The werejackal changes into a jackal."]
+    m = by_pos(t.update(s))
+    assert m[(41, 10)]["desc"] == "werejackal"
+    assert (41, 10) in g.looked
+    # the grow-up rename must not have touched it
+    assert all(k.get("desc") != "jackal" or (k["x"], k["y"]) == (45, 10) for k in t.known)

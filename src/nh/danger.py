@@ -163,6 +163,30 @@ def monster_record(name: str) -> dict | None:
     return _monsters().get(name)
 
 
+@lru_cache(maxsize=1)
+def _lookalikes() -> dict:
+    """(glyph, screen colour name) -> species drawn that way."""
+    out: dict = {}
+    try:   # the raw list: both forms of a were-creature share a name, so _monsters() keeps only one
+        raw = json.loads((Path(__file__).parent / "data" / "monsters.json").read_text()).get("monsters", [])
+    except Exception:
+        raw = list(_monsters().values())
+    for m in raw:
+        col = (m.get("color") or "").replace("_", " ")
+        for c in ([col, "dark gray", "blue"] if col == "black" else [col]):
+            out.setdefault((m.get("symbol"), c), set()).add(m["name"])
+    return out
+
+
+def risky_lookalike(ch: str, color: str, desc: str) -> bool:
+    """Does another species with a danger note look exactly like this one
+    (same glyph and colour: a werejackal's 'd' next to jackals)? Then a
+    monster re-entering view must be looked at again, not given the label
+    of the one seen there before."""
+    name = base_name(desc or "")
+    return any(n != name and NOTES.get(n) for n in _lookalikes().get((ch, color), ()))
+
+
 def note_for(desc: str, hero_xl: int | None = None) -> str:
     """Short danger note for a farlook description ('' if nothing notable)."""
     if not desc or "statue of" in desc or desc.startswith("tame "):

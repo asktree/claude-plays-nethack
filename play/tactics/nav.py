@@ -288,7 +288,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight):
     return s
 
 
-_PET_IN_WAY = ("is in your way", "is in the way!", "doesn't seem to move!")
+_PET_IN_WAY = ("is in your way", "is in the way!", "doesn't seem to move!", "Pardon me, ")
 _DIAG_DOOR = r"^You can't move diagonally (?:out of|into) an intact doorway\."
 
 

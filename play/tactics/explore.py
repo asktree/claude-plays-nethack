@@ -28,10 +28,13 @@ def _dir_key(frm, to):
 
 
 def _adjacent_closed_door(s, target):
-    """The closed door next to the hero (orthogonal), preferring `target`."""
+    """The closed door next to the hero (orthogonal), preferring `target`.
+    After "That door is closed." any brown '+' beside you counts, even one
+    the screen heuristic took for a spellbook."""
     hx, hy = s.hero
-    cands = [(hx + dx, hy + dy) for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))
-             if is_closed_door(s, hx + dx, hy + dy)]
+    orth = [(hx + dx, hy + dy) for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1))]
+    cands = [c for c in orth if is_closed_door(s, *c)] or \
+            [c for c in orth if s.screen.at(*c) == "+" and s.screen.color_at(*c) == 3]
     if target in cands:
         return target
     return cands[0] if cands else None
@@ -197,10 +200,19 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
         return result("blocked: " + "; ".join(left) + hint)
 
     fights = 0
+    idle, last_mark = 0, None
     while legs < max_legs:
         s = ctx.last()
         if s.state.kind != "command":
             return result(f"not at command prompt ({s.state.kind}: {s.state.prompt!r})")
+        # no-progress breaker: the same square and turn for several rounds, with no target
+        # ruled out in between (skip/locked growing is progress), means a loop
+        mark = (s.hero, s.status.turn, len(skip), len(locked))
+        idle = idle + 1 if mark == last_mark else 0
+        last_mark = mark
+        if idle >= 6:
+            return result(f"stuck: no move and no game time for {idle} rounds at {s.hero} "
+                          f"(last messages: {s.messages}) — look at the screen and act by hand")
         if auto_fight and fights < 30:
             from .combat import fight_trivial
             fs = fight_trivial(s)

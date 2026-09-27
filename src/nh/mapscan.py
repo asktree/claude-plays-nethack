@@ -18,16 +18,20 @@ BROWN = 3
 NO_OVERLAY = ("command", "yn", "direction", "object", "getlin", "extcmd", "count", "getpos")
 
 
+_ON_FLOOR = set(".") | set(OBJECT_CLASSES) | set(MONSTER_CHARS) | {"@"}
+
+
 def _door_like(scr, x, y) -> bool:
-    """A brown '+' is a closed door if it sits in a wall line (walls on both
-    sides, or on at least one side with rock/nothing opposite); otherwise a
-    (brown) spellbook lying on the floor."""
-    def wall(cx, cy):
-        return scr.at(cx, cy) in "|-" and scr.color_at(cx, cy) != BROWN
-    horiz = wall(x - 1, y) or wall(x + 1, y)
-    vert = wall(x, y - 1) or wall(x, y + 1)
-    floor_around = sum(1 for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)) if scr.at(x + dx, y + dy) in ".")
-    return (horiz or vert) and floor_around <= 2
+    """A brown '+' is a closed door unless it lies out in the open: a door
+    sits in a wall line, so at most two of its four sides (room / corridor
+    side) are floor; a spellbook on a room floor has three or four floor
+    sides (things lying or standing there count as floor). A door at a
+    corridor end whose walls you haven't seen yet ('#' / blank beside it)
+    stays a door (p2 shift 4: that one was taken for a book and explore()
+    kept bumping into it)."""
+    floorish = sum(1 for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1))
+                   if scr.at(x + dx, y + dy) in _ON_FLOOR and not (dx == dy == 0))
+    return floorish <= 2
 
 
 def _hero(snap, hero):

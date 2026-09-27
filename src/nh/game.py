@@ -267,6 +267,7 @@ class Game:
         self.terrain_seen: dict[str, dict] = {}   # level key -> {(x, y): feature char} (stairs, fountains...)
         self.here_seen: dict[str, dict] = {}      # level key -> {(x, y): last "You see here"/pile text}
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
+        self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -310,17 +311,43 @@ class Game:
     _NO_OBJS = re.compile(r"^You (?:see|feel) no objects here")
     COCKATRICE_CORPSE = re.compile(r"\b(?:cockatrice|chickatrice) corpses?\b")
 
-    def _remember_here(self, snap: Snap, messages: list[str]) -> None:
+    _ENGR_READ = re.compile(r'You (?:read|feel the words): "(.*)"\.?$')
+    _ENGR_GONE = re.compile(r"engraving beneath you fades|You wipe out the message|engraving now reads|"
+                            r"^You disturb the engraving|is riddled by bullet holes|gets? smudged")
+
+    def _remember_here(self, snap: Snap, messages: list[str], prev_hero=None) -> None:
         """Remember what the look messages said lies on the hero's square
-        (the guards use it: cockatrice corpses)."""
+        (the guards use it: cockatrice corpses) and the engraving read there
+        (the Elbereth guard)."""
         if snap.hero is None or not snap.status.ok:
             return
-        here = self.here_seen.setdefault(self.level_key(snap.status), {})
+        key = self.level_key(snap.status)
+        here = self.here_seen.setdefault(key, {})
         texts = [m for m in messages if self._HERE_OBJS.search(m)]
         if texts:
             here[snap.hero] = "\n".join(texts)
         elif any(self._NO_OBJS.search(m) for m in messages):
             here.pop(snap.hero, None)
+        engr = self.engr_seen.setdefault(key, {})
+        read = False
+        for m in messages:
+            mm = self._ENGR_READ.search(m)
+            if mm:
+                engr[snap.hero] = mm.group(1)
+                read = True
+            elif self._ENGR_GONE.search(m):
+                engr.pop(snap.hero, None)
+        if not read and prev_hero is not None and prev_hero != snap.hero \
+                and "Blind" not in snap.status.conditions:
+            # arriving on a square shows its engraving; none shown = none left (smudged away)
+            engr.pop(snap.hero, None)
+
+    def on_elbereth(self, snap: Snap) -> bool:
+        """The hero stands on an engraving last read as exactly 'Elbereth'."""
+        if snap.hero is None or not snap.status.ok:
+            return False
+        txt = self.engr_seen.get(self.level_key(snap.status), {}).get(snap.hero, "")
+        return txt.strip().lower() == "elbereth"
 
     def record_kill(self, name: str, cell, turn: int | None) -> None:
         """Called by the monster tracker when a monster it tracked was killed."""
@@ -530,6 +557,29 @@ class Game:
                         f"refusing to attack the remembered unseen monster 'I' at {(tx, ty)} while blind: it may be "
                         "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
                         "it. force=True if it is attacking you.")
+            if snap.hero is not None and self.on_elbereth(snap):
+                attack = unit[:1] == b"F" or unit in (b"t", b"f", b"z", b"\x04") or unit.startswith(b"#force")
+                if key in self._MOVE and unit[:1] != b"m":
+                    dx, dy = self._MOVE[key]
+                    tgt = (snap.hero[0] + dx, snap.hero[1] + dy)
+                    attack = attack or any((m["x"], m["y"]) == tgt and not m.get("tame") and not m.get("pet")
+                                           and not m.get("statue") for m in snap.monsters or [])
+                if attack:
+                    raise PermissionError(
+                        "refusing to attack from your Elbereth square: melee, throwing/firing, zapping or kicking "
+                        "while standing on it erases it and costs -5 alignment ('You feel like a hypocrite') "
+                        "unless the target ignores Elbereth (@ humans/elves, minotaurs, shopkeepers). Step off "
+                        "first, or force=True.")
+            if len(unit) == 1 and unit[0] in self._MOVE and snap.hero is not None:
+                dx, dy = self._MOVE[unit[0]]
+                tgt = (snap.hero[0] + dx, snap.hero[1] + dy)
+                peace = [m for m in snap.monsters or [] if (m["x"], m["y"]) == tgt and m.get("peaceful")
+                         and not m.get("tame") and not m.get("pet")]
+                if peace:
+                    raise PermissionError(
+                        f"refusing to walk into the {peace[0].get('desc')} at {tgt}: you can't swap places with "
+                        "peacefuls, so NetHack would ask 'Really attack?'. Wait a turn ('s') or go around. "
+                        "(If it turned hostile and is attacking you, force=True.)")
             if step in self._MOVE and snap.hero is not None and not conds & {"Lev", "Fly"}:
                 dx, dy = self._MOVE[step]
                 if snap.screen.at(snap.hero[0] + dx, snap.hero[1] + dy) == "}":
@@ -800,7 +850,7 @@ class Game:
                     moved = cur.status.ok and cur.status.ldesc != snap.status.ldesc
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
-                    self._remember_here(snap, messages)
+                    self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
                     arrive = {b">": "<", b"<": ">"}.get(bytes(data[-1:])) if (moved and data) else None
                     if arrive and snap.under is None:
                         # took the stairs: you stand on the other end (the '@' hides it)
@@ -813,9 +863,13 @@ class Game:
                     snap.monsters = self.tracker.update(snap)
                 except Exception as e:  # noqa: BLE001
                     self.log_event({"ev": "tracker_error", "err": repr(e)})
-            elif snap.state.kind in ("yn", "direction", "object", "getlin", "count", "getpos") \
-                    and cur is not None and cur.monsters:
-                snap.monsters = cur.monsters   # a prompt takes no time: the last labels still apply
+            elif snap.state.kind in ("yn", "direction", "object", "getlin", "count", "getpos"):
+                # a prompt takes no time: the last labels still apply (a re-captured `cur`
+                # has none, so fall back to the last labelled snapshot)
+                prev = cur.monsters if cur is not None and cur.monsters else \
+                    (self.last.monsters if self.last is not None else [])
+                if prev:
+                    snap.monsters = prev
             for m in messages:
                 self.history.append((snap.status.turn, m))
             if len(self.history) > self.max_history:
@@ -834,7 +888,7 @@ class Game:
     # is picked up from the map or the per-level #terrain scan instead).
     _TRAP_MSG = re.compile(
         r"(^There is an? .*\b(trap|pit|web)\b.* here\.|^You escape an? |An arrow shoots out at you|"
-        r"A little dart shoots out at you|bear trap closes on your|You are caught in an? bear trap|"
+        r"A little dart shoots out at you|bear trap closes on your|your magical energy drain away|"
         r"^You (fall|step|tumble|jump|land) into an? pit|on a set of sharp iron spikes|A board beneath you|"
         r"loose board below you|crease in the linoleum|spider web!|A cloud of gas puts you to sleep|"
         r"You are enveloped in a cloud of gas|A gush of water hits|tower of flame|momentarily lethargic|"

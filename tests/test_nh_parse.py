@@ -661,3 +661,38 @@ def test_tracker_records_kills():
     s.messages = ["You kill the jackal!"]
     t.update(s)
     assert kills == [("jackal", (41, 10), 101)]
+
+
+def test_guard_elbereth_attack_and_peaceful_step():
+    import pytest
+    g = _guard_game()
+    s = _cmd_snap([{"x": 11, "y": 5, "desc": "jackal"}, {"x": 9, "y": 5, "desc": "peaceful gnome", "peaceful": True}])
+    g._remember_here(s, ["Something is written here in the dust.", 'You read: "Elbereth".'])
+    assert g.on_elbereth(s)
+    for keys in (b"Fl", b"l", b"t", b"f", b"z", b"\x04"):
+        with pytest.raises(PermissionError):
+            g._guard(s, keys, force=False)
+    g._guard(s, b"Fl", force=True)
+    g._guard(s, b"k", force=False)            # stepping away is fine
+    # a plain step into the peaceful gnome is refused (NetHack would ask 'Really attack?')
+    with pytest.raises(PermissionError):
+        g._guard(s, b"h", force=False)
+    # the engraving fades after a hypocritical attack: no longer on Elbereth
+    g._remember_here(s, ["You feel like a hypocrite.", "The engraving beneath you fades."])
+    assert not g.on_elbereth(s)
+    g._guard(s, b"Fl", force=False)
+    # arriving on a square without a read message forgets an engraving remembered there
+    g._remember_here(s, ['You read: "Elbereth".'])
+    assert g.on_elbereth(s)
+    g._remember_here(s, [], prev_hero=(10, 6))
+    assert not g.on_elbereth(s)
+
+
+def test_door_at_corridor_end_is_a_door():
+    from nh.mapscan import _door_like
+    scr = mk({5: "   ###+   ", 6: "          "})
+    assert _door_like(scr, 6, 5)                      # corridor end, walls not seen yet
+    scr = mk({4: "  |.....|", 5: "  |..+..|", 6: "  |.....|"})
+    assert not _door_like(scr, 5, 5)                  # a book lying in the room
+    scr = mk({4: "  ---+---", 5: "  |.....|"})
+    assert _door_like(scr, 5, 4)                      # in a wall line

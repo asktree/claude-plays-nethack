@@ -296,3 +296,10 @@ def test_base_name_strips_farlook_suffixes():
     assert base_name("tail of a long worm") == "long worm"
     assert "stoning" in note_for("cockatrice, trapped in a pit", 5)
     assert threat_level("floating eye, trapped in a web", 5, 40) == "dangerous"
+
+
+def test_risky_lookalikes():
+    from nh.danger import risky_lookalike
+    assert risky_lookalike("d", "brown", "jackal")          # the werejackal's animal form looks the same
+    assert risky_lookalike("r", "brown", "sewer rat")       # wererat
+    assert not risky_lookalike("O", "brown", "ogre")

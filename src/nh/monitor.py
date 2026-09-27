@@ -26,12 +26,12 @@ from __future__ import annotations
 
 import re
 
-from .danger import note_for
+from .danger import note_for, risky_lookalike
 from .mapscan import monsters_in_view
 
 MAX_LOOKS_PER_UPDATE = 8
-RESEEN_TURNS = 40
-RESEEN_DIST = 8
+RESEEN_TURNS = 150     # a hostile re-entering view this soon and this near keeps its label...
+RESEEN_DIST = 12       # ...unless a dangerous species looks just like it (danger.risky_lookalike)
 
 
 _KILL_RES = [
@@ -91,6 +91,7 @@ class MonsterTracker:
         self._was_hallu = False
         self._engulfer: str | None = None
         self.mimics_seen: set = set()      # (level, x, y) of ']' already reported
+        self._relook_all = False           # set for one update after a were-creature shape change
 
     def reset(self):
         self.known, self.recent = [], {}
@@ -164,6 +165,7 @@ class MonsterTracker:
         if self._was_hallu:
             self._was_hallu = False
             self.reset()                 # labels from before/while hallucinating: look at everything again
+        self._relook_all = False
         self._apply_growth(getattr(snap, "messages", None))
         dt = 1 if self.last_turn is None else max(1, turn - self.last_turn)
         radius = min(10, max(3, 2 * dt + 1))
@@ -203,7 +205,7 @@ class MonsterTracker:
                     continue
                 claimed.update(k["id"] for k in kc)
                 descs = {k.get("desc", "") for k in kc}
-                if len(descs) == 1 and len(mc) <= len(kc) and "" not in descs:
+                if len(descs) == 1 and len(mc) <= len(kc) and "" not in descs and not self._relook_all:
                     # unambiguous: everyone here is what was here before
                     free = list(kc)
                     for m in sorted(mc, key=lambda e: min(_cheb(e, k) for k in kc)):
@@ -217,6 +219,9 @@ class MonsterTracker:
         to_look: list[dict] = [m for mc, _ in undecided for m in mc]
         resight: dict[int, list[dict]] = {}      # id(m) -> candidate records
         for m in loners:
+            if self._relook_all:
+                to_look.append(m)        # a shape change: no label may be inherited this time
+                continue
             recs = [r for i, r in self.recent.items()
                     if i not in claimed and r["ch"] == m["ch"] and r["color"] == m["color"] and r.get("desc")
                     and ((turn - r.get("turn", 0) <= RESEEN_TURNS and _cheb(m, r) <= RESEEN_DIST)
@@ -233,7 +238,8 @@ class MonsterTracker:
                 m.update(id=r["id"], desc=r["desc"], statue=True)
                 claimed.add(r["id"])
             elif len(descs) == 1 and not _friendly(next(iter(descs))) \
-                    and len(self.mixed.get((m["ch"], m["color"]), ())) < 2:
+                    and len(self.mixed.get((m["ch"], m["color"]), ())) < 2 \
+                    and not risky_lookalike(m["ch"], m["color"], next(iter(descs))):
                 # re-seen hostile: keep the label (a wrong 'hostile' label is the safe mistake),
                 # unless this glyph comes in both peaceful and hostile kinds on this level
                 r = min(recs, key=lambda r: _cheb(m, r))
@@ -337,6 +343,11 @@ class MonsterTracker:
             if not mm:
                 continue
             old, new = mm.group("old").lower(), mm.group("new")
+            if old.startswith("were") or new == "human":
+                # were.c new_were(): "The werejackal changes into a jackal/human." — the same
+                # monster (both forms are 'werejackal') with a new glyph: look at everything again
+                self._relook_all = True
+                continue
             recs = [k for k in self.known if base_name(k.get("desc", "")) == old]
             if not recs and not mm.group("the"):
                 # a named pet ("Fluffy grows up into a housecat."): relook the tame ones

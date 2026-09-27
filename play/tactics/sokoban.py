@@ -18,12 +18,14 @@ from collections import deque
 from . import ctx
 from .mapview import DIR_KEY, KEY_DIR, MONSTER_CHARS
 
+from .benign import BENIGN
+
 PUSH_OK = [r"With great effort you move the boulder", r"You try to move the boulder",
            r"You hear a monster behind the boulder", r"Perhaps that's why you cannot move it",
            r"The boulder falls into and plugs a hole", r"plugs? a (hole|trap door)",
            r"The boulder fills a pit", r"fills a (pit|hole)",
            r"You hear the boulder", r"There is a boulder in your way",
-           r"You swap places with", r"You stop\. .* is in your way"]
+           r"You swap places with", r"You stop\. .* is in your way"] + BENIGN   # + engravings read on the way
 
 _ORTHO = {"h": (-1, 0), "l": (1, 0), "k": (0, -1), "j": (0, 1)}
 _ALIASES = {"left": "h", "right": "l", "up": "k", "down": "j", "w": "h", "e": "l", "n": "k", "s": "j",
@@ -85,9 +87,15 @@ def _occupied(s, x, y):
     return ch in MONSTER_CHARS and (x, y) != s.hero and not s.screen.reverse_at(x, y)
 
 
+def _hostiles_near(s) -> list:
+    return [m for m in s.adjacent_hostiles() if not m.get("statue")]
+
+
 def walk(keys: str):
     """Walk a key path one step at a time, verifying each step moved us.
-    Never steps into a (non-pet) monster: waits for it to move, else pauses."""
+    Never steps into a (non-pet) monster: waits for a peaceful to move, but
+    pauses at once when a hostile is next to you (waiting beside it only
+    gives it free hits)."""
     s = ctx.last()
     for k in keys:
         before = s.hero
@@ -98,6 +106,12 @@ def walk(keys: str):
         dest = (before[0] + dx, before[1] + dy)
         waited = 0
         while _occupied(s, *dest) and waited < 4:
+            hostile = _hostiles_near(s)
+            if hostile:
+                ctx.pause("walk: hostile " + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                                                     for m in hostile) + " next to you — fight() it, then solve() "
+                          "again (it resumes)")
+                return ctx.last()
             s = ctx.do("s", ok=PUSH_OK)
             waited += 1
         if _occupied(s, *dest):
@@ -132,6 +146,11 @@ def push(bx: int, by: int, dirs: str):
             path = route(s, s.hero, stand)
             waited = 0
             while path is None and waited < 8 and route(s, s.hero, stand, ignore_monsters=True):
+                if _hostiles_near(s):
+                    ctx.pause("push: hostile " + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                                                         for m in _hostiles_near(s))
+                              + " next to you blocks the way — fight() it, then solve() again")
+                    return ctx.last(), b
                 s = ctx.do("s", ok=PUSH_OK)      # a monster blocks the way: give it time to move
                 waited += 1
                 path = route(s, s.hero, stand)
