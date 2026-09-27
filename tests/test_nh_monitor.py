@@ -353,3 +353,27 @@ def test_mimic_next_to_pet_gets_a_warning():
     assert "PET IS NEXT TO IT" in m[(45, 12)]["note"]
     m = by_pos(t.update(snap({(45, 12): "]", (48, 14): "f"}, 11, pets={(48, 14)})))
     assert "PET" not in m[(45, 12)]["note"]
+
+
+def test_same_monster_seen_by_telepathy_is_not_new():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(50, 10): "leprechaun"}
+    t.update(snap({(50, 10): "l"}, 10, color=2))
+    t.update(snap({}, 11, color=2))
+    # back in view via telepathy: the look (if any) says "[seen: telepathy]"
+    g.truth = {(52, 11): "leprechaun [seen: telepathy]"}
+    g.looked.clear()
+    m = t.update(snap({(52, 11): "l"}, 14, color=2))
+    assert not m[0]["new"]
+
+
+def test_monster_back_on_its_square_much_later_is_not_new():
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(33, 16): "kobold shaman"}
+    t.update(snap({(33, 16): "k"}, 100, color=12))
+    t.update(snap({}, 101, color=12))
+    g.looked.clear()
+    m = t.update(snap({(33, 16): "k"}, 900, color=12))     # 800 turns later, same closet square
+    assert g.looked == [] and not m[0]["new"] and m[0]["desc"] == "kobold shaman"

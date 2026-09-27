@@ -32,6 +32,7 @@ from .mapscan import monsters_in_view
 MAX_LOOKS_PER_UPDATE = 8
 RESEEN_TURNS = 150     # a hostile re-entering view this soon and this near keeps its label...
 RESEEN_DIST = 12       # ...unless a dangerous species looks just like it (danger.risky_lookalike)
+SAME_SQUARE_TURNS = 2000   # ...and one back on the very square it was last seen on, for this long
 
 
 _KILL_RES = [
@@ -76,6 +77,15 @@ def _cheb(a, b) -> int:
 
 def _friendly(desc: str) -> bool:
     return desc.startswith("peaceful ") or desc.startswith("tame ")
+
+
+def _kind(desc: str) -> tuple:
+    """Identity for matching: species and tame/peaceful/hostile, ignoring how
+    it was seen ('leprechaun [seen: telepathy]' is still a leprechaun) and
+    farlook suffixes ('trapped in a pit')."""
+    from .danger import base_name
+    d = desc or ""
+    return (base_name(d), "tame" if d.startswith("tame ") else "peaceful" if d.startswith("peaceful ") else "")
 
 
 class MonsterTracker:
@@ -204,8 +214,9 @@ class MonsterTracker:
                     loners.extend(mc)
                     continue
                 claimed.update(k["id"] for k in kc)
-                descs = {k.get("desc", "") for k in kc}
-                if len(descs) == 1 and len(mc) <= len(kc) and "" not in descs and not self._relook_all:
+                kinds = {_kind(k.get("desc", "")) for k in kc}
+                if len(kinds) == 1 and len(mc) <= len(kc) and all(k.get("desc") for k in kc) \
+                        and not self._relook_all:
                     # unambiguous: everyone here is what was here before
                     free = list(kc)
                     for m in sorted(mc, key=lambda e: min(_cheb(e, k) for k in kc)):
@@ -225,10 +236,12 @@ class MonsterTracker:
             recs = [r for i, r in self.recent.items()
                     if i not in claimed and r["ch"] == m["ch"] and r["color"] == m["color"] and r.get("desc")
                     and ((turn - r.get("turn", 0) <= RESEEN_TURNS and _cheb(m, r) <= RESEEN_DIST)
-                         or (_stationary(r["desc"]) and (r["x"], r["y"]) == (m["x"], m["y"])))]
+                         or ((r["x"], r["y"]) == (m["x"], m["y"])
+                             and (_stationary(r["desc"]) or turn - r.get("turn", 0) <= SAME_SQUARE_TURNS)))]
             if recs:
                 resight[id(m)] = recs
             descs = {r["desc"] for r in recs}
+            kinds = {_kind(r["desc"]) for r in recs}
             if m.get("pet") and any(d.startswith("tame ") for d in descs):
                 r = min((r for r in recs if r["desc"].startswith("tame ")), key=lambda r: _cheb(m, r))
                 m.update(id=r["id"], desc=r["desc"])
@@ -237,7 +250,7 @@ class MonsterTracker:
                 r = recs[0]
                 m.update(id=r["id"], desc=r["desc"], statue=True)
                 claimed.add(r["id"])
-            elif len(descs) == 1 and not _friendly(next(iter(descs))) \
+            elif len(kinds) == 1 and not _friendly(next(iter(descs))) \
                     and len(self.mixed.get((m["ch"], m["color"]), ())) < 2 \
                     and not risky_lookalike(m["ch"], m["color"], next(iter(descs))):
                 # re-seen hostile: keep the label (a wrong 'hostile' label is the safe mistake),
@@ -266,7 +279,7 @@ class MonsterTracker:
         for mc, kc in undecided:
             members = [m for m in mc if id(m) in looked]
             for k in sorted(kc, key=lambda k: min((_cheb(m, k) for m in mc), default=99)):
-                same = [m for m in members if m["id"] is None and m["desc"] == k.get("desc")]
+                same = [m for m in members if m["id"] is None and _kind(m["desc"]) == _kind(k.get("desc", ""))]
                 if same:
                     m = min(same, key=lambda e: _cheb(e, k))
                     m["id"] = k["id"]
@@ -283,7 +296,7 @@ class MonsterTracker:
             if m["id"] is not None:
                 continue
             recs = resight.get(id(m), [])
-            same = [r for r in recs if r["desc"] == m["desc"] and r["id"] not in claimed]
+            same = [r for r in recs if _kind(r["desc"]) == _kind(m["desc"]) and r["id"] not in claimed]
             if m["desc"] and same:
                 r = min(same, key=lambda r: _cheb(m, r))
                 m["id"] = r["id"]
@@ -319,7 +332,7 @@ class MonsterTracker:
                             snap.hero, turn)
         self.visible_ids = new_visible
         stale = [i for i, r in self.recent.items()
-                 if i not in self.visible_ids and turn - r.get("turn", 0) > RESEEN_TURNS
+                 if i not in self.visible_ids and turn - r.get("turn", 0) > SAME_SQUARE_TURNS
                  and not _stationary(r.get("desc", ""))]
         for i in stale:
             del self.recent[i]

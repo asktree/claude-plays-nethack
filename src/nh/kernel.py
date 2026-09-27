@@ -460,9 +460,29 @@ def _guard_dangerous(data: bytes, force: bool) -> None:
             raise PermissionError(f"refusing to send {data!r}: {why}. Pass force=True if you really mean it.")
 
 
+_SRC: dict[str, list[str]] = {}    # helper sources as loaded (realpath -> lines)
+
+
+def snapshot_sources() -> None:
+    """Remember the tactics sources as they are when (re)loaded, so pause
+    traces quote the code that is running, not a file edited since."""
+    import glob
+    import os
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "play", "tactics")
+    for p in glob.glob(os.path.join(root, "*.py")):
+        try:
+            with open(p) as f:
+                _SRC[os.path.realpath(p)] = f.read().splitlines()
+        except OSError:
+            pass
+
+
 def _user_frames() -> list[dict]:
+    import os
     frames = []
     for fs in traceback.extract_stack()[:-2]:
         if fs.filename.startswith("<exec-") or "/tactics/" in fs.filename:
-            frames.append({"file": fs.filename, "line": fs.lineno, "code": (fs.line or "").strip()})
+            lines = _SRC.get(os.path.realpath(fs.filename)) if not fs.filename.startswith("<") else None
+            code = lines[fs.lineno - 1] if lines and 0 < fs.lineno <= len(lines) else (fs.line or "")
+            frames.append({"file": fs.filename, "line": fs.lineno, "code": code.strip()})
     return frames[-6:]
