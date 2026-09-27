@@ -142,6 +142,43 @@ def neighbors(x, y, diag=True):
             yield nx, ny
 
 
+def _bfs_dist(s, start, passable) -> dict:
+    """{cell: steps} from start over 8-connected cells passable(c) says yes to (no diagonal moves into or out of
+    doorways)."""
+    from collections import deque
+    d = {start: 0}
+    q = deque([start])
+    while q:
+        cur = q.popleft()
+        for nx, ny in neighbors(*cur):
+            nxt = (nx, ny)
+            if nxt in d or not passable(nxt):
+                continue
+            if nx != cur[0] and ny != cur[1] and (is_door(s, *cur) or is_door(s, nx, ny)):
+                continue
+            d[nxt] = d[cur] + 1
+            q.append(nxt)
+    return d
+
+
+def on_short_routes(s, start, goal, cells, slack: int = 1) -> list:
+    """The squares of `cells` that lie on SOME route from start to goal at most `slack` steps longer than the
+    shortest one — where NetHack's own travel may walk (it knows nothing of a disguised mimic, a mold out of
+    view or an avoid() square: p2 shift 30 walked into a remembered giant mimic). [] when none."""
+    cells = set(cells) - {start, goal}
+    if not cells or start is None or goal is None:
+        return []
+
+    def passable(c):
+        return c in cells or c == goal or is_walkable(s, *c, allow_monsters=True)
+    ds = _bfs_dist(s, start, passable)
+    if goal not in ds:
+        return []
+    dg = _bfs_dist(s, goal, passable)
+    limit = ds[goal] + slack
+    return sorted(c for c in cells if c in ds and c in dg and ds[c] + dg[c] <= limit)
+
+
 def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_traps=False, allow_water=False,
              allow_boulders=False, allow_pets=False):
     """Shortest 8-connected path over known-walkable cells (doors: no diagonal

@@ -2765,7 +2765,7 @@ def test_explore_small_max_legs_notices_back_and_forth(monkeypatch):
     monkeypatch.setattr(ctx, "do", fake_do)
     monkeypatch.setattr(ctx, "last", lambda: cur["s"])
     monkeypatch.setattr(explore, "_pick_target", lambda skip, bad, why: (22, 5))
-    monkeypatch.setattr(nav, "waypoint", lambda s, t, cap: t)
+    monkeypatch.setattr(nav, "waypoint", lambda s, t, cap, avoid=frozenset(): t)
     monkeypatch.setattr(nav, "leg_cap", lambda s=None: 8)
     monkeypatch.setattr(nav, "cursor_to", lambda x, y: None)
     monkeypatch.setattr(explore, "frontiers", lambda limit=12: [(22, 5)])
@@ -2964,3 +2964,141 @@ def test_zap_reports_a_monster_gone_without_a_message():
     assert _vanished([mino], after) == [mino]
     after.messages = ["You kill the minotaur!"]
     assert _vanished([mino], after) == []
+
+
+def test_travel_walks_around_a_remembered_mimic_netHacks_travel_would_cross(monkeypatch):
+    # p2 shift 30 #3001: an explore leg stepped INTO a remembered giant mimic ("Wait! That's a giant mimic!"):
+    # NetHack's own travel routes over a disguised mimic; our BFS had just picked another equal route
+    from tactics import ctx, nav
+    from tactics.mapview import on_short_routes
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {3: "        ------------", 4: "        |..........|", 5: "        |..........|",
+            6: "        |..........|", 7: "        |..........|", 8: "        ------------"}
+    s = _snap(rows, (10, 5), [])
+    s.mimic_mem = {(12, 5): "giant mimic"}
+    assert on_short_routes(s, (10, 5), (14, 5), {(12, 5)}) == [(12, 5)]
+    assert on_short_routes(s, (10, 5), (14, 5), {(12, 7)}) == [(12, 7)]   # (diagonals: 4 steps that way too)
+    assert on_short_routes(s, (10, 5), (14, 5), {(10, 7)}) == []          # 6 steps: not a short route
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert nav.travel_hazards(s, (10, 5), (14, 5)) == [(12, 5)]
+    s.mimic_mem = {}
+    g.traps = {"L": {(12, 5)}}
+    assert nav.travel_hazards(s, (10, 5), (14, 5)) == []   # a known trap: NetHack's travel stops in front of it
+    g.traps = {}
+    s.mimic_mem = {(12, 5): "giant mimic"}
+    walked, sent = [], []
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        nonlocal s
+        s2 = _snap(rows, tuple(cells[-1]), [])
+        s2.mimic_mem = dict(s.mimic_mem)
+        s = s2
+        return s2
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    monkeypatch.setattr(nav, "_final_step", lambda s0, c: fake_walk_path([c]))
+    nav._travel(15, 5, 40, None, 3, None, False)
+    assert "_" not in sent and walked and all((12, 5) not in w for w in walked)
+    assert s.hero == (15, 5)
+
+
+def test_explore_leg_walks_around_a_remembered_mimic(monkeypatch):
+    # p2 shift 30 #3001: the explore leg itself (NetHack's travel) stepped into the remembered mimic
+    from tactics import ctx, explore, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(explore, "_STALE", {})
+    rows = {3: "        ------------", 4: "        |..........|", 5: "        |..........|",
+            6: "        |..........|", 7: "        |..........|", 8: "        ------------"}
+    cur = {"s": _snap(rows, (10, 5), [])}
+    cur["s"].mimic_mem = {(12, 5): "giant mimic"}
+    sent, walked = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return cur["s"]
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        s2 = _snap(rows, tuple(cells[-1]), [])
+        s2.mimic_mem = {(12, 5): "giant mimic"}
+        cur["s"] = s2
+        return s2
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    monkeypatch.setattr(nav, "leg_cap", lambda s=None: 8)
+    monkeypatch.setattr(explore, "_pick_target", lambda skip, bad, why: (15, 5) if cur["s"].hero != (15, 5) else None)
+    monkeypatch.setattr(explore, "screen_frontiers", lambda s: [])
+    monkeypatch.setattr(explore, "_hidden_stairs_hint", lambda: "")
+    monkeypatch.setattr(explore, "dead_ends", lambda s=None, limit=8: [])
+    monkeypatch.setattr(explore, "_boulder_leads", lambda s=None: [])
+    r = explore._explore(3, set())
+    assert walked and all((12, 5) not in w for w in walked) and "." not in sent and "<Esc>" in sent
+    assert cur["s"].hero == (15, 5) and r["reason"].startswith("explored")
+
+
+def test_scan_watch_list_keeps_only_dangerous_hostiles(monkeypatch):
+    # p2 shift 30: 'approaching:' pauses for hill giants and Green-elves after every telepathy_scan()
+    from tactics import ctx, survival
+    g = _G()
+    g.intrinsics = {"cold", "poison", "sleep", "telepathy"}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({}, (10, 5), [])
+    s.status = Status(ok=True, hp=171, hpmax=171, xl=16)
+    mons = [{"id": 1, "desc": "hill giant", "note": "throws boulders"}, {"id": 2, "desc": "Green-elf"},
+            {"id": 3, "desc": "minotaur"}, {"id": 4, "desc": "cockatrice"},
+            {"id": 5, "desc": "peaceful dwarf", "peaceful": True}, {"id": None, "desc": "master lich"}]
+    assert [m["id"] for m in survival._scan_watch_list(mons, s)] == [3, 4]
+
+
+def test_travel_walks_round_a_trap_nethacks_travel_stopped_in_front_of(monkeypatch):
+    # p2 shift 30 #3188: go_down() paused on "You stop in front of a falling rock trap." (mention_walls)
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    g.traps = {"L": {(13, 5)}}
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    rows = {3: "        ------------", 4: "        |..........|", 5: "        |....^.....|",
+            6: "        |..........|", 7: "        ------------"}
+    cur = {"s": _snap(rows, (10, 5), [])}
+    sent, walked = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        if keys == "_":
+            s2 = _snap(rows, (10, 5), [])
+            s2.state = State("getpos", prompt="Where do you want to travel to?")
+            return s2
+        if keys == ".":
+            s2 = _snap(rows, (12, 5), [])
+            s2.messages = ["You stop in front of a falling rock trap."]
+            cur["s"] = s2
+            return s2
+        return cur["s"]
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        cur["s"] = _snap(rows, tuple(cells[-1]), [])
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y: None)
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    monkeypatch.setattr(nav, "_final_step", lambda s0, c: fake_walk_path([c]))
+    nav._travel(16, 5, 40, None, 3, None, False)
+    assert walked and all((13, 5) not in w for w in walked) and cur["s"].hero == (16, 5)
+    # the trap is the only way: say so (trek / step_onto), don't loop
+    rows2 = {3: "        ------------", 4: "        |----------|", 5: "        |....^.....|",
+             6: "        |----------|", 7: "        ------------"}
+    rows.clear()
+    rows.update(rows2)
+    cur["s"] = _snap(rows, (10, 5), [])
+    with pytest.raises(nav.NavError, match="only known way crosses"):
+        nav._travel(16, 5, 40, None, 3, None, False)

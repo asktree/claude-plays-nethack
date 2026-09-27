@@ -798,19 +798,35 @@ def leg_cap(s=None) -> int:
     return LEG
 
 
-def waypoint(s, target, cap):
+_TRAP_STOP = re.compile(r"^You stop in front of an? ")     # (not "the door": that one is benign)
+
+
+def waypoint(s, target, cap, avoid=frozenset()):
     """The square `cap` steps along our known-map path toward target (or the
-    target itself if it's closer / there's no known path)."""
+    target itself if it's closer / there's no known path); the path keeps off
+    `avoid` squares when it can, and never stops on one."""
     if s.hero is None or cap is None:
         return target
-    path = bfs_path(s, s.hero, target, allow_monsters=True)
+    path = (bfs_path(s, s.hero, target, avoid=frozenset(set(avoid) - {target}), allow_monsters=True) if avoid
+            else None) or bfs_path(s, s.hero, target, allow_monsters=True)
     if not path or len(path) <= cap:
         return target
-    occupied = {(m["x"], m["y"]) for m in (s.monsters or []) if not m.get("tame")}
+    occupied = {(m["x"], m["y"]) for m in (s.monsters or []) if not m.get("tame")} | set(avoid)
     for i in range(cap - 1, -1, -1):
         if path[i] not in occupied:
             return path[i]
     return target
+
+
+def travel_hazards(s, start, goal) -> list:
+    """Avoided squares NetHack's own travel knows nothing about (a mimic disguised as an object, a mold out of
+    view, a special room, your avoid() squares — it does route around known traps itself) on some short route
+    from start to goal: then walk our own way instead of `_` travel."""
+    from .mapview import on_short_routes
+    lv = ctx.game.level_key(s.status) if s.status.ok else None
+    traps = set(ctx.game.traps.get(lv, set())) if lv else set()
+    cells = {c for c in bad_squares(s) if c not in traps and c != goal}
+    return on_short_routes(s, start, goal, cells) if cells else []
 
 
 def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
@@ -1279,7 +1295,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     return s
                 continue
         cap = leg_cap(s) if leg is None else (leg or None)
-        tx, ty = waypoint(s, (x, y), cap)
+        tx, ty = waypoint(s, (x, y), cap, avoid=bad_squares(s) - {(x, y)})
         if not near_exploders and h0 is not None:
             route = bfs_path(s, h0, (tx, ty), allow_monsters=True) or []
             ex = _exploders_near(s, [h0] + route[:8])
@@ -1315,8 +1331,11 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                                + (f"; messages: {s.messages}" if s.messages else ""))
             continue
         if (tx, ty) == (x, y) and h0 is not None:
-            # stop one short (the last step is a plain move) — on a free square when one will do
-            path = bfs_path(s, h0, (x, y), allow_monsters=False, allow_pets=True) or \
+            # stop one short (the last step is a plain move) — on a free square when one will do, never on an
+            # avoided one (a remembered mimic there: the plain step would walk into it)
+            path = bfs_path(s, h0, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False,
+                            allow_pets=True) or \
+                bfs_path(s, h0, (x, y), allow_monsters=False, allow_pets=True) or \
                 bfs_path(s, h0, (x, y), allow_monsters=True)
             if path and len(path) >= 2:
                 tx, ty = path[-2]
@@ -1341,14 +1360,38 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 raise NavError(f"travel to {(x, y)}: the step to {(tx, ty)} failed"
                                + (f"; messages: {s.messages}" if s.messages else ""))
             continue
+        hz = travel_hazards(s, h0, (tx, ty)) if h0 is not None else []
+        own = bfs_path(s, h0, (tx, ty), avoid=frozenset(bad_squares(s) - {(tx, ty)}), allow_monsters=False,
+                       allow_pets=True) if hz else None
+        if hz and own:
+            # NetHack's travel might walk over it (p2 shift 30: into a remembered giant mimic): our own steps
+            s = walk_path(own)
+            if s.state.kind != "command":
+                return s
+            if s.hero == h0:
+                raise NavError(f"travel to {(x, y)}: no progress walking around {hz[:3]} (avoided squares)")
+            continue
         s = ctx.do("_", quiet=True)
         if s.state.kind != "getpos":
             return s
         cursor_to(tx, ty)
-        s = ctx.do(".", ok=BENIGN)
+        s = ctx.do(".", ok=BENIGN + [_TRAP_STOP])
         if s.state.kind != "command":
             return s
         h1 = s.hero
+        stop = next((m for m in s.messages if _TRAP_STOP.search(m)), None)
+        if stop and h1 != (x, y) and h1 is not None:
+            # hack.c lookaround() (mention_walls): NetHack's travel stops in front of a known trap on ITS route
+            # (p2 shift 30: go_down() paused on a falling rock trap) — walk our own way around it, if any
+            detour = bfs_path(s, h1, (x, y), avoid=frozenset(bad_squares(s) - {(x, y)}), allow_monsters=False,
+                              allow_pets=True)
+            if not detour:
+                raise NavError(f"travel to {(x, y)}: {stop!r} — the only known way crosses that trap: trek({x}, {y}) "
+                               "crosses the minor ones trap_crossable() allows, step_onto(x, y) crosses it on purpose")
+            s = walk_path(detour[:max(cap or LEG, 4)])
+            if s.state.kind != "command":
+                return s
+            continue
         if h1 == (x, y) or h1 is None:
             return s
         if h1 != h0 and pet_budget is not None:

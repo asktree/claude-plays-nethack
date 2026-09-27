@@ -405,11 +405,32 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 unreachable.append(target)
                 continue
         else:
-            from .nav import cursor_to, leg_cap, waypoint
-            wp = waypoint(cur, target, leg_cap(cur))
-            if wp != target:
-                cursor_to(*wp)            # a short leg: look around before going further
-            s = ctx.do(".", ok=BENIGN)
+            from .nav import cursor_to, leg_cap, travel_hazards, waypoint
+            wp = waypoint(cur, target, leg_cap(cur), avoid=bad)
+            hz = travel_hazards(cur, hero, wp) if hero else []
+            if hz:
+                # NetHack's travel might walk over a remembered mimic / mold / avoided square on another route
+                # of the same length (p2 shift 30: "Wait! That's a giant mimic!"): our own steps instead
+                ctx.do("<Esc>", quiet=True)      # (close the travel prompt)
+                from .nav import walk_path
+                own = bfs_path(cur, hero, wp, avoid=frozenset(bad - {wp}), allow_monsters=False, allow_pets=True)
+                if not own:
+                    skip.add(target)
+                    unreachable.append(target)
+                    continue
+                try:
+                    s = walk_path(own)
+                except NavError as e:
+                    print(f"explore: our own route to {wp} (around {hz[:3]}) failed ({e}) — skipping {target}")
+                    skip.add(target)
+                    unreachable.append(target)
+                    continue
+            else:
+                if wp != target:
+                    cursor_to(*wp)            # a short leg: look around before going further
+                # ("You stop in front of a <trap>.": NetHack's travel won't step on a known trap; the next leg
+                # walks our own way round it)
+                s = ctx.do(".", ok=BENIGN + [r"^You stop in front of an? "])
         legs += 1
         if s.state.kind != "command":
             return result(f"stopped: {s.state.kind} {s.state.prompt!r}")

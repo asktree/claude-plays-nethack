@@ -500,6 +500,18 @@ _BLINDF_OK = [r"^You are now wearing ", r"^You can't see any more\.", r"^You wer
               r"^You can see again\.", r"^You still cannot see\.", r"^You can see!"]
 
 
+def _scan_watch_list(mons: list, s) -> list:
+    """The census's monsters to watch ('approaching' pauses once they move within 6 squares): hostiles that are
+    DANGEROUS for you now (threat_level) — p2 shift 30: a watch on every monster with any note paused for hill
+    giants and Green-elves."""
+    from nh.danger import threat_level
+    xl = s.status.xl if s.status.ok else None
+    hp = s.status.hp if s.status.ok else None
+    res = getattr(ctx.game, "intrinsics", ()) or ()
+    return [m for m in mons if m.get("id") is not None and not m.get("tame") and not m.get("peaceful")
+            and m.get("desc") and threat_level(m["desc"], xl, hp, res) == "dangerous"]
+
+
 def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
     """One call: put on your blindfold/towel (P), read every monster your telepathy shows on the level,
     take it off again (R): 2 turns. No pause for the Blind you asked for or for the monsters it reveals;
@@ -552,9 +564,7 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
         h = s.hero
         from nh.danger import note_for
         xl = s.status.xl if s.status.ok else None
-        watched = [m for m in mons if m.get("id") is not None and not m.get("tame") and not m.get("peaceful")
-                   and (m.get("note") or (m.get("desc") and note_for(m["desc"], xl,
-                                                                     getattr(ctx.game, "intrinsics", ()))))]
+        watched = _scan_watch_list(mons, s)
         for m in mons:
             d = m.get("dist")
             if d is None and h is not None:
