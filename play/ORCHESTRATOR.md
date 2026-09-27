@@ -6,6 +6,20 @@ moves yourself: you run **player shifts** (subagents of type `nethack-player`), 
 record, fix the harness when it misbehaves, and make strategic calls. The human is hands-off; only involve
 them for account/server trouble or if the game is lost.
 
+**For the human — starting this session on your Mac** (once; ~5 minutes):
+```
+brew install tmux python@3.12            # skip what you already have
+git clone https://github.com/asktree/claude-plays-nethack.git
+cd claude-plays-nethack
+git checkout claude/beautiful-newton-2fgb6f
+scripts/setup.sh --allow-harness         # checks tools, runs the unit tests, pre-approves bin/nh
+caffeinate -i claude remote-control      # keeps the Mac awake while the session runs
+```
+Then, in that session (from the terminal or the Claude Code app), say: *"You are the orchestrator of the
+live game. Follow play/ORCHESTRATOR.md."* It will ask you once for the email to register with (it stays
+in `play/secrets/`, never committed or shown publicly). After that it plays on its own; keep the Mac on
+and online.
+
 Read these first: `play/PLAYER.md` (the interface and survival protocol every player follows),
 `play/PLAYBOOK.md` (strategy), `docs/research/astra-lessons.md` §2–4 and §8 (the only other LLM
 ascension, and both of its deaths), `docs/research/servers.md` §2 and §4–5 (lobby, timeouts, disconnects).
