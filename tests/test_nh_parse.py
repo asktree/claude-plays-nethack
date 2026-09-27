@@ -766,3 +766,16 @@ def test_travel_cursor_over_blank_square_is_getpos():
             4: "  --..|....|.-----    |..|    ", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"},
            cursor=(52, 4))
     assert classify(s).kind == "getpos"
+
+
+def test_guard_wish_prompt():
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, Status
+    g = _guard_game()
+    p = "For what do you wish?"
+    s = Snap(screen=mk({0: p}, cursor=(len(p) + 1, 0)), state=State("getlin", prompt=p), status=Status(ok=True))
+    for bad in (b"\x1b", b"\r", b"#rub\r", b"h\r"):
+        with pytest.raises(PermissionError):
+            g._guard(s, bad, force=False)
+    g._guard(s, b"blessed +2 gray dragon scale mail\r", force=False)

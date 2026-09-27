@@ -277,6 +277,11 @@ class Kernel:
             # e.g. a scroll of scare monster crumbled on pickup: the game asks you to name
             # the type; the script's next keys would be typed into this prompt
             reasons.append(f"naming prompt open: {snap.state.prompt!r} — type a name + <CR> or <Esc>")
+        if snap.state.kind == "getlin" and "For what do you wish" in (snap.state.prompt or "") \
+                and not (before is not None and before.state.kind == "getlin"):
+            # never let a script type its next command into a wish; Esc/empty = a random object
+            reasons.append("WISH PROMPT OPEN: answer ONLY with `cont --reply '<wish><CR>'` (PLAYBOOK §E, e.g. "
+                           "'blessed +2 gray dragon scale mail<CR>'); Esc or an empty line gives a RANDOM object")
         if before is not None and before.status.ok and snap.status.ok:
             b, a = before.status, snap.status
             if a.hp < b.hp:

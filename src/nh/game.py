@@ -722,6 +722,17 @@ class Game:
             if hit:
                 raise PermissionError(f"refusing to pick up {hit[0]!r} (instant stoning bare-handed); "
                                       "force=True if you wear gloves.")
+        elif k == "getlin" and "For what do you wish" in (snap.state.prompt or ""):
+            text = unit.rstrip(b"\r\n").strip()
+            if unit[:1] == b"\x1b" or not text:
+                raise PermissionError(
+                    "refusing Esc/an empty answer at the WISH prompt: NetHack turns an empty wish into a RANDOM "
+                    "object (objnam.c readobjnam). Type the wish from PLAYBOOK §E and <CR>, e.g. "
+                    "'blessed +2 gray dragon scale mail<CR>'. force=True overrides.")
+            if text.startswith(b"#") or len(text) < 4:
+                raise PermissionError(
+                    f"refusing {text.decode(errors='replace')!r} at the WISH prompt: it looks like a command typed "
+                    "by a script, not a wish. Answer with the wish text + <CR>. force=True overrides.")
         elif k in ("getlin", "object") and "genocide" in (snap.state.prompt or "").lower():
             why = _genocide_danger(snap.state.prompt, unit.decode(errors="replace"))
             if why:

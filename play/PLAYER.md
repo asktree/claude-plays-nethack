@@ -159,7 +159,8 @@ unseen monster: could be a shopkeeper/priest); **while confused/stunned**, any s
 floating eye (your step can go astray into it); genocide answers that would genocide your own race or role
 (class `h`/`@`, "dwarf", "valkyrie" — `master mind flayer` at a *class* prompt means class `h`!); any key
 after death except the end-of-game answers; any key in the server lobby (use `tactics.server` helpers);
-`#quit`; `y` to "Destroy old game?"; a bare prefix key (`F`, `m`, `g`, `G`, `M`) at the end of a `do()` (NetHack silently waits for its direction — send `do('Fh')`); any key during the server's stale-process countdown; `y` to "Beware,
+`#quit`; `y` to "Destroy old game?"; Esc, an empty line or command-looking text at the **wish** prompt (an
+empty wish is a random object — the harness pauses there: answer with `cont --reply '<wish><CR>'`); a bare prefix key (`F`, `m`, `g`, `G`, `M`) at the end of a `do()` (NetHack silently waits for its direction — send `do('Fh')`); any key during the server's stale-process countdown; `y` to "Beware,
 there will be no return! Still climb?" (the up stairs of dungeon level 1 end the game without the Amulet);
 picking up a **cockatrice/chickatrice corpse** (`,` when it's the only object here, or confirming a pickup
 menu with it selected — wear gloves and force=True); **while blind**, stepping onto a square known to hold

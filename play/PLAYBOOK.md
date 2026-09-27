@@ -138,6 +138,10 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   boots → "2 blessed scrolls of genocide" (genocide `L` liches first) → blessed magic marker → blessed
   potions of gain level if short of XL14 → blessed amulet of life saving / reflection if missing.
   Ask for +2 (not +3) and "2" (not 3) of stackables. Wrest the last wish only somewhere safe.
+  At the "For what do you wish?" prompt the harness pauses: answer ONLY with `cont --reply '<wish><CR>'`.
+  Never Esc it or send an empty line — NetHack turns an empty wish into a RANDOM object (the harness
+  refuses both). A blessed magic lamp: #rub it (it gets wielded — re-wield your weapon after); the djinni
+  appears 1 time in 3 per rub and grants the wish 80% of the time when blessed.
 - Stop enchanting Excalibur at +5 (evaporation risk above). Never controlled-polymorph into your own race.
   Never put a wand of cancellation into a bag of holding.
 
