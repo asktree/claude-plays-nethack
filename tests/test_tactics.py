@@ -4103,6 +4103,10 @@ def test_pet_left_behind_note_on_arrival():
     new.status = Status(ok=True, ldesc="Dlvl:3", turn=1701)
     g._note_pet_stays(prev, new, ["The kitten is still eating."], True)
     assert g.pet_left["desc"] == "kitten" and "still eating" in g.pet_left_note(new)
+    # a pet killed in view is not "around" any more (go_down() mustn't wait for a dead dog)
+    g.pet_seen = {"key": "L", "ldesc": "Dlvl:3", "turn": 5, "desc": "tame little dog", "at": (1, 1)}
+    g._note_pet(new, ["The soldier ant bites the little dog.", "The little dog is killed!"])
+    assert g.pet_seen is None
 
 
 def test_confused_or_stunned_travel_refuses_a_route_beside_lava(monkeypatch):

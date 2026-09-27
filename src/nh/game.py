@@ -981,6 +981,14 @@ class Game:
         if any(m.startswith("You have a sad feeling for a moment") for m in messages):
             self.pet_seen = None                  # mon.c monkilled(): your pet died out of your sight
             return
+        seen = self.pet_seen
+        if seen and messages:
+            kind = re.sub(r"^(?:tame|peaceful) ", "", seen.get("desc") or "").strip()
+            if kind and any(re.search(rf"\b{re.escape(kind)}\b.*\b(?:is killed|is destroyed|dies)\b|"
+                                      rf"^You (?:kill|destroy) (?:poor |your )?.*\b{re.escape(kind)}\b", m)
+                            for m in messages):
+                self.pet_seen = None              # killed in view ("The little dog is killed!"): nothing to wait for
+                return
         if snap.state.kind != "command" or not snap.status.ok:
             return
         pets = [m for m in snap.monsters or [] if (m.get("tame") or m.get("pet")) and not m.get("statue")]
