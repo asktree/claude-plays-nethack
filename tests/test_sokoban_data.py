@@ -32,3 +32,41 @@ def test_solutions_replay():
             assert sorted(b.boulders) == [tuple(x) for x in st["after"]["boulders"]], (name, i)
             assert sorted(b.traps) == [tuple(x) for x in st["after"]["traps"]], (name, i)
         assert b.path(b.hero, tuple(lv["exit"])) is not None, name
+
+
+def _screen_for(name, ox, oy, step=None, pet=None):
+    sys.path.insert(0, str(ROOT / "src"))
+    from nh.game import Snap
+    from nh.parse import State, Status
+    from nh.screen import Screen
+    lv = LEVELS[name]
+    rows = [" " * 80 for _ in range(24)]
+    src = lv if step is None else lv["steps"][step]["after"]
+    boulders, traps = set(map(tuple, src["boulders"])), set(map(tuple, src["traps"]))
+    for y, r in enumerate(lv["rows"]):
+        line = list(rows[y + oy])
+        for x, c in enumerate(r):
+            ch = "0" if (x, y) in boulders else "^" if (x, y) in traps else c
+            if ch != " ":
+                line[x + ox] = ch
+        rows[y + oy] = "".join(line)
+    if pet:
+        line = list(rows[pet[1] + oy])
+        line[pet[0] + ox] = "f"
+        rows[pet[1] + oy] = "".join(line)
+    scr = Screen(width=80, height=24, chars=rows, fg=[[7] * 80 for _ in range(24)],
+                 reverse=[[False] * 80 for _ in range(24)], bold=[[False] * 80 for _ in range(24)], cursor=(0, 0))
+    return Snap(screen=scr, state=State("command"), status=Status(ok=True))
+
+
+def test_identify_and_progress_on_synthetic_screens():
+    from tactics import sokoban as S
+    for name, lv in LEVELS.items():
+        p = S.progress(_screen_for(name, 27, 4))
+        assert (p["level"], p["ox"], p["oy"], p["done"]) == (name, 27, 4, 0)
+        p = S.progress(_screen_for(name, 27, 4, step=5))
+        assert p["done"] == 6
+        # a pet standing on a boulder square doesn't break the match
+        b = lv["steps"][5]["after"]["boulders"][0]
+        p = S.progress(_screen_for(name, 27, 4, step=5, pet=tuple(b)))
+        assert p["done"] == 6

@@ -222,8 +222,10 @@ def identify(s=None):
 
 
 def _state(s, lv, ox, oy):
+    """(boulders, traps, covered) in level coordinates; covered = squares a
+    monster or the hero hides (they match anything)."""
     h, w = len(lv["rows"]), max(len(r) for r in lv["rows"])
-    boulders, traps = set(), set()
+    boulders, traps, covered = set(), set(), set()
     for y in range(h):
         row = s.screen.row(y + oy)
         for x in range(w):
@@ -232,7 +234,15 @@ def _state(s, lv, ox, oy):
                 boulders.add((x, y))
             elif c == "^":
                 traps.add((x, y))
-    return boulders, traps
+            elif c in MONSTER_CHARS:
+                covered.add((x, y))
+    return boulders, traps, covered
+
+
+def _matches(state, want) -> bool:
+    boulders, traps, covered = state
+    wb, wt = want
+    return (boulders - covered == wb - covered) and (traps - covered == wt - covered)
 
 
 def progress(s=None) -> dict:
@@ -245,12 +255,12 @@ def progress(s=None) -> dict:
     if ident is None:
         raise ValueError("this doesn't look like a Sokoban level (no known wall layout on screen)")
     lv = _levels()[ident["level"]]
-    boulders, traps = _state(s, lv, ident["ox"], ident["oy"])
+    cur = _state(s, lv, ident["ox"], ident["oy"])
     states = [(set(map(tuple, lv["boulders"])), set(map(tuple, lv["traps"])))]
     states += [(set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"]))) for st in lv["steps"]]
     done = -1
     for k in range(len(states) - 1, -1, -1):
-        if states[k] == (boulders, traps):
+        if _matches(cur, states[k]):
             done = k
             break
     nxt = lv["steps"][done] if 0 <= done < len(lv["steps"]) else None
@@ -285,8 +295,8 @@ def solve(max_steps: int | None = None):
         if pos != want:
             ctx.pause(f"sokoban: step {i + 1} ended with the boulder at {pos}, expected {want}")
             return progress()
-        b, t = _state(ctx.last(), lv, ox, oy)
-        if (b, t) != (set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"]))):
+        if not _matches(_state(ctx.last(), lv, ox, oy),
+                        (set(map(tuple, st["after"]["boulders"])), set(map(tuple, st["after"]["traps"])))):
             ctx.pause(f"sokoban: after step {i + 1} the board differs from the plan — check board()")
             return progress()
         n += 1
