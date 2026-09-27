@@ -43,7 +43,7 @@ def http_get(url: str, start: int | None = None) -> bytes:
 def newest_ttyrec(player: str) -> str:
     base = f"https://www.hardfought.org/userdata/{player[0]}/{player}/nethack/ttyrec/"
     html = http_get(base).decode(errors="replace")
-    names = sorted(set(re.findall(r'href="([0-9][^"]+\.ttyrec(?:\.gz)?)"', html)))
+    names = sorted(set(re.findall(r'href="(?:\./)?([0-9][^"]+\.ttyrec(?:\.gz)?)"', html)))  # (Apache: "./<stamp>")
     if not names:
         raise SystemExit(f"no ttyrecs listed at {base}")
     live = [n for n in names if n.endswith(".ttyrec")]
