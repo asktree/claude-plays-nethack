@@ -11,12 +11,18 @@ through dark and never-seen parts — like a player with the map on the desk.
 Data: src/nh/data/desmaps.json (scripts/gen_desmaps.py). A map only covers
 its MAP block: the random maze or filler around it is not in it, and some
 levels have random variants (identify() picks the best-matching one).
+Squares that the level file changes at random (IF [50%] { TERRAIN ... } — the
+Valley's and Baalzebub's walls, Fort Ludios' secret doors, Minetown) are
+"variant" squares: a group of them changes together, and one of them seen on
+screen settles its whole group (variants() / show()); route() treats the
+unsettled ones as uncertain (passable at a cost, re-planned once seen).
 """
 
 from __future__ import annotations
 
 import heapq
 import json
+import re
 from pathlib import Path
 
 from . import ctx
@@ -61,11 +67,55 @@ def maps() -> list:
     if _MAPS is None:
         _MAPS = json.loads(_DATA.read_text())["maps"]
         for m in _MAPS:
-            m["_cells"] = [(x, y, _MAP_CLS[ch]) for y, row in enumerate(m["rows"]) for x, ch in enumerate(row)
-                           if ch in _MAP_CLS]
-            m["w"] = max((len(r) for r in m["rows"]), default=0)
-            m["h"] = len(m["rows"])
+            _prepare(m)
     return _MAPS
+
+
+def _prepare(m: dict) -> None:
+    """Cells for matching, and the variant groups: m["_groups"] = [{"p", "pair", "cells": {(x, y): alt}}],
+    m["_var"] = {(x, y): [group indices]}. A REPLACE_TERRAIN entry becomes one group per square."""
+    rows = m["rows"]
+    groups = []
+    for g in m.get("variants") or []:
+        if "replace" in g:
+            x1, y1, x2, y2, src, dst = g["replace"]
+            for y in range(min(y1, y2), max(y1, y2) + 1):
+                for x in range(min(x1, x2), max(x1, x2) + 1):
+                    if 0 <= y < len(rows) and 0 <= x < len(rows[y]) and rows[y][x] == src:
+                        groups.append({"p": g["p"], "pair": None, "cells": {(x, y): dst}})
+        else:
+            groups.append({"p": g["p"], "pair": g.get("pair"), "cells": {(c[0], c[1]): c[2] for c in g["cells"]}})
+    # ("pair" indices refer to the file's list, where a replace entry is one item: re-map them)
+    remap = {}
+    j = 0
+    for i, g in enumerate(m.get("variants") or []):
+        if "replace" in g:
+            x1, y1, x2, y2, src, _dst = g["replace"]
+            j += sum(1 for y in range(min(y1, y2), max(y1, y2) + 1) for x in range(min(x1, x2), max(x1, x2) + 1)
+                     if 0 <= y < len(rows) and 0 <= x < len(rows[y]) and rows[y][x] == src)
+        else:
+            remap[i] = j
+            j += 1
+    for g in groups:
+        if g["pair"] is not None:
+            g["pair"] = remap.get(g["pair"])
+    var: dict = {}
+    for gi, g in enumerate(groups):
+        for c in g["cells"]:
+            var.setdefault(c, []).append(gi)
+    m["_groups"], m["_var"] = groups, var
+    m["_cells"] = [(x, y, _MAP_CLS[ch]) for y, row in enumerate(rows) for x, ch in enumerate(row)
+                   if ch in _MAP_CLS and (x, y) not in var]
+    # a variant square matches whichever of its possible terrains fits best
+    m["_vcells"] = []
+    for (x, y), gis in var.items():
+        chs = {rows[y][x] if 0 <= y < len(rows) and x < len(rows[y]) else " "}
+        chs |= {groups[gi]["cells"][(x, y)] for gi in gis}
+        cls = tuple(sorted({_MAP_CLS[ch] for ch in chs if ch in _MAP_CLS}))
+        if cls:
+            m["_vcells"].append((x, y, cls))
+    m["w"] = max((len(r) for r in rows), default=0)
+    m["h"] = len(rows)
 
 
 def _screen_cls(s) -> dict:
@@ -90,14 +140,112 @@ def _screen_cls(s) -> dict:
     return {c: v for c, v in out.items() if v is not None}
 
 
+MIN_CELLS = 20      # smaller maps (Juiblex's 8x5 stair pockets of 'x') match any floor anywhere: never candidates
+
+
 def _candidates(key: str, names=None) -> list:
     if names:
         want = {names} if isinstance(names, str) else set(names)
-        return [m for m in maps() if m["level"] in want]
+        return [m for m in maps() if m["level"] in want and _size(m) >= MIN_CELLS]
     files = next((f for pre, f in _CONTEXT if key.startswith(pre)), None)
     if key in ENDGAME:
         files = ("endgame.des",)
-    return [m for m in maps() if files is None or m["file"] in files]
+    return [m for m in maps() if (files is None or m["file"] in files) and _size(m) >= MIN_CELLS]
+
+
+def _size(m: dict) -> int:
+    return len(m.get("_cells") or ()) + len(m.get("_vcells") or ())
+
+
+_OV_HDR = re.compile(r"^(?P<name>[A-Z][A-Za-z' ]+?):(?: levels? (?P<a>\d+)(?: up)? to (?P<b>\d+))?\s*$")
+_OV_LEVEL = re.compile(r"^Level (?P<n>\d+)(?::| \[)")
+
+
+def _overview_sections(text: str) -> dict:
+    """^O overview text -> {branch: {"a", "b", "levels": {n: [note lines]}}}, plus "_lines"."""
+    out: dict = {"_lines": []}
+    sec, lvl = None, None
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        out["_lines"].append(line)
+        h = _OV_HDR.match(line)
+        if h and not line.startswith("Level "):
+            sec = out.setdefault(h.group("name"), {"a": None, "b": None, "levels": {}})
+            sec["a"] = int(h.group("a")) if h.group("a") else None
+            sec["b"] = int(h.group("b")) if h.group("b") else None
+            lvl = None
+            continue
+        lm = _OV_LEVEL.match(line)
+        if lm and sec is not None:
+            lvl = sec["levels"].setdefault(int(lm.group("n")), [])
+            continue
+        if lvl is not None:
+            lvl.append(line)
+    return out
+
+
+def certain_level(key: str | None = None, s=None) -> str | None:
+    """The .des level this level MUST be, from the dungeon's structure (nothing seen needed): the Valley (the
+    first level of Gehennom, or ^O's "Valley of the Dead."), Moloch's Sanctum and the Castle (their ^O notes),
+    Fort Ludios, the Planes, the three levels of Vlad's Tower (counted up from its entry: tower1 is Vlad's),
+    the quest home (quest level 1) and locate level (quest level 3). None otherwise."""
+    if key is None:
+        s = s or ctx.last()
+        key = ctx.game.level_key(s.status) if s is not None and s.status.ok else None
+    if not key:
+        return None
+    ends = {"Earth": "earth", "Air": "air", "Fire": "fire", "Water": "water", "Astral Plane": "astral"}
+    if key in ends:
+        return ends[key]
+    if key.startswith("Fort Ludios"):
+        return "knox"
+    km = re.match(r"^(?P<b>.+?) / Level (?P<n>\d+)$", key)
+    if not km:
+        return None
+    branch, n = km.group("b"), int(km.group("n"))
+    mem = getattr(ctx.game, "memory", None)
+    ov = _overview_sections(((getattr(mem, "state", None) or {}).get("overview") or "") if mem is not None else "")
+    sec = ov.get(branch) or {"a": None, "levels": {}}
+    notes = " ".join(sec["levels"].get(n, []))
+    for note, name in (("Valley of the Dead", "valley"), ("Moloch's Sanctum", "sanctum"), ("The castle", "castle")):
+        if note in notes:
+            return name
+    if branch == "Gehennom" and sec.get("a") is not None and n == sec["a"]:
+        return "valley"                       # dungeon.def: LEVEL "valley" @ (1, 0)
+    if branch == "Vlad's Tower":
+        # built upward from its entry (dungeon.def ENTRY -1: the bottom, tower3); ^O never numbers this branch
+        # (its deepest level reached IS the entry), so the entry is the branch stairs' level, else the deepest
+        # tower level listed
+        a = None
+        for line in ov["_lines"]:
+            bm = re.search(r"to Vlad's Tower, level (\d+)", line)
+            if bm:
+                a = int(bm.group(1))
+        if a is None and sec["levels"]:
+            a = max(sec["levels"])
+        if a is not None and 1 <= n - a + 3 <= 3:
+            return f"tower{n - a + 3}"
+    if branch == "The Quest" and n in (1, 3):
+        pre = next((m["level"].split("-")[0] for m in maps() if m["file"] == "Valkyrie.des"), "Val")
+        return f"{pre}-{'strt' if n == 1 else 'loca'}"
+    return None
+
+
+def _identify_certain(name: str, seen: dict):
+    """The level is certainly `name`: place its (largest) map at the spot the level generator uses, unless what
+    you see plainly contradicts it. None when the map has no fixed spot (slide it as usual then)."""
+    cands = [m for m in maps() if m["level"] == name and _size(m) >= MIN_CELLS]
+    if not cands:
+        return None
+    m = max(cands, key=_size)
+    fo = fixed_offset(m)
+    if fo is None:
+        return None
+    sc, good, bad = _score_at(m, seen, *fo)
+    if bad >= 4 and bad * 2 > good:
+        return None
+    return {"level": m["level"], "index": m["index"], "ox": fo[0], "oy": fo[1], "score": sc, "good": good,
+            "bad": bad, "fixed": True, "certain": True}
 
 
 def _cdiv(a: int, b: int) -> int:
@@ -151,6 +299,16 @@ def _score_at(m: dict, seen: dict, ox: int, oy: int) -> tuple:
             good += 1
         elif v < 0:
             bad += 1
+    for x, y, clss in m.get("_vcells", ()):
+        sc = seen.get((x + ox, y + oy))
+        if sc is None:
+            continue
+        v = max(_SCORE.get(sc, {}).get(cls, 0) for cls in clss)
+        score += v
+        if v > 0:
+            good += 1
+        elif v < 0:
+            bad += 1
     return score, good, bad
 
 
@@ -161,17 +319,7 @@ def _best_offset(m: dict, seen: dict) -> tuple:
     w, h = m["w"], m["h"]
     for oy in range(1, max(2, 23 - h)):
         for ox in range(0, max(1, 81 - w)):
-            score = good = bad = 0
-            for x, y, cls in m["_cells"]:
-                sc = seen.get((x + ox, y + oy))
-                if sc is None:
-                    continue
-                v = _SCORE.get(sc, {}).get(cls, 0)
-                score += v
-                if v > 0:
-                    good += 1
-                elif v < 0:
-                    bad += 1
+            score, good, bad = _score_at(m, seen, ox, oy)
             if score > best[0]:
                 second = max(second, best[0])
                 best = (score, ox, oy, good, bad)
@@ -211,6 +359,19 @@ def identify(names=None, s=None, min_score: int = 30, remember: bool = True) -> 
     s = s or ctx.last()
     key = ctx.game.level_key(s.status)
     seen = _screen_cls(s)
+    if not names:
+        cert = certain_level(key, s)
+        found = _identify_certain(cert, seen) if cert else None
+        if found is not None:
+            # (p2 shift 29 #14: a dark Valley arrival, ~9 squares seen — the level is certain, its spot fixed)
+            if remember:
+                store = getattr(ctx.game, "desmap_ids", None)
+                if store is None:
+                    ctx.game.desmap_ids = store = {}
+                store[key] = found
+            return found
+        if cert and all(fixed_offset(m) is None for m in maps() if m["level"] == cert):
+            names = cert                         # (no fixed spot: slide just that map)
     best = None
     runner = -10 ** 9
     cands = _candidates(key, names)
@@ -263,10 +424,78 @@ def _current(s=None, names=None) -> tuple:
 
 
 def layout(s=None, names=None) -> dict:
-    """{(x, y) screen: map char} of the identified map."""
+    """{(x, y) screen: map char} of the identified map (variant squares: as far as settled — see variants())."""
+    s = s or ctx.last()
     m, f = _current(s, names)
-    return {(x + f["ox"], y + f["oy"]): ch for y, row in enumerate(m["rows"]) for x, ch in enumerate(row)
-            if ch != "x"}
+    lay = {(x + f["ox"], y + f["oy"]): ch for y, row in enumerate(m["rows"]) for x, ch in enumerate(row)
+           if ch != "x"}
+    for gi, state in enumerate(_settle(m, f, s)):
+        if state:
+            for (x, y), alt in m["_groups"][gi]["cells"].items():
+                lay[(x + f["ox"], y + f["oy"])] = alt
+    return lay
+
+
+def _settle(m: dict, f: dict, s) -> list:
+    """Per variant group: True (it happened: seen squares show its terrain), False (seen squares show the
+    map's own), None (nothing seen that tells). An IF branch and its ELSE settle each other."""
+    groups = m.get("_groups") or []
+    if not groups:
+        return []
+    seen = _screen_cls(s)
+    rows = m["rows"]
+    out: list = [None] * len(groups)
+    for gi, g in enumerate(groups):
+        yes = no = 0
+        for (x, y), alt in g["cells"].items():
+            sc = seen.get((x + f["ox"], y + f["oy"]))
+            if sc is None:
+                continue
+            base = rows[y][x] if 0 <= y < len(rows) and x < len(rows[y]) else " "
+            sa = _SCORE.get(sc, {}).get(_MAP_CLS.get(alt, "stone"), 0)
+            sb = _SCORE.get(sc, {}).get(_MAP_CLS.get(base, "stone"), 0)
+            if sa > 0 >= sb:
+                yes += 1
+            elif sb > 0 >= sa:
+                no += 1
+        if yes or no:
+            out[gi] = yes >= no
+    for gi, g in enumerate(groups):
+        pr = g.get("pair")
+        if pr is not None and 0 <= pr < len(out) and out[gi] is None and out[pr] is not None:
+            out[gi] = not out[pr]
+    return out
+
+
+def variants(s=None, names=None) -> list:
+    """The identified map's random-terrain groups in SCREEN coordinates: [{"p", "state", "cells": {(x, y):
+    (map char, alternative)}}] — state True/False once a square of the group has been seen, else None."""
+    s = s or ctx.last()
+    m, f = _current(s, names)
+    rows = m["rows"]
+    out = []
+    for g, st in zip(m.get("_groups") or [], _settle(m, f, s)):
+        out.append({"p": g["p"], "state": st,
+                    "cells": {(x + f["ox"], y + f["oy"]): (rows[y][x] if x < len(rows[y]) else " ", alt)
+                              for (x, y), alt in g["cells"].items()}})
+    return out
+
+
+def _uncertain(s=None, names=None) -> dict:
+    """{(x, y) screen: (set of possible map chars, chance it is NOT walkable)} for variant squares not settled
+    yet (a 50% wall: 0.5; a 10% sprinkled tree on floor: 0.1)."""
+    s = s or ctx.last()
+    out: dict = {}
+    for v in variants(s, names):
+        if v["state"] is not None:
+            continue
+        p = v["p"] / 100.0
+        for c, (base, alt) in v["cells"].items():
+            walk_b, walk_a = base in _WALK_CH, alt in _WALK_CH
+            block = p if walk_b and not walk_a else (1 - p) if walk_a and not walk_b else 0.0
+            chs, b0 = out.get(c, ({base}, 0.0))
+            out[c] = (chs | {alt}, max(b0, block))
+    return out
 
 
 def features(s=None, names=None) -> list:
@@ -307,6 +536,18 @@ def show(s=None, names=None) -> str:
         lines.append(f"  {ft['kind']:10} ({ft['x']},{ft['y']}) {detail}")
     if secret:
         lines.append(f"  secret doors: {secret[:20]}" + (" ..." if len(secret) > 20 else ""))
+    groups = [v for v in variants(s, names) if len(v["cells"]) > 1 or v["p"] >= 50]
+    for v in groups[:8]:
+        state = {True: "HAPPENED (seen)", False: "did not happen (seen)", None: "not seen yet"}[v["state"]]
+        parts = []
+        for c, (base, alt) in sorted(v["cells"].items(), key=lambda kv: (kv[0][1], kv[0][0]))[:6]:
+            parts.append(f"{c} {_CH_NAME.get(base, repr(base))}->{_CH_NAME.get(alt, repr(alt))}")
+        lines.append(f"  random terrain ({v['p']}%, {state}): " + ", ".join(parts)
+                     + (" ..." if len(v["cells"]) > 6 else ""))
+    small = sum(1 for v in variants(s, names) if len(v["cells"]) == 1 and v["p"] < 50)
+    if small:
+        lines.append(f"  + {small} single squares that may randomly differ (trees/clouds/pools sprinkled by "
+                     "the level file)")
     hint = random_sdoor_hint(m, f)
     if hint:
         lines.append(f"  note: {hint}")
@@ -315,16 +556,26 @@ def show(s=None, names=None) -> str:
     return txt
 
 
+_WALK_CH = (".", "B", "#", "+", "{", "\\", "K", "I", "S", "H")
+_CH_NAME = {"-": "wall", "|": "wall", ".": "floor", "B": "floor", "S": "secret door", "+": "door", "}": "water",
+            "P": "pool", "L": "lava", "T": "tree", "C": "cloud", "\\": "throne", "#": "corridor", " ": "rock",
+            "F": "iron bars", "W": "water", "H": "secret corridor"}
+UNCERTAIN_COST = 12      # extra steps for a variant square not settled yet, times its chance of being a wall
+
+
 def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_cost: int = 30) -> dict:
     """Cheapest path from you to (x, y) over what you have seen AND the identified map (unseen and dark parts
     included). Known traps and the map's fixed traps cost `trap_cost` extra steps each (crossed only when there
     is no other way); undiscovered secret doors on it cost 20 and are listed in "secret" (search next to them
-    before walking through). No diagonal moves into or out of doorways. Returns {"path", "secret", "traps"}
-    or raises RuntimeError when there is no way even on the map."""
+    before walking through). Variant squares not settled yet (a random 50% wall: variants()) cost a few steps
+    extra and are listed in "uncertain" (walk() re-plans when it sees them). No diagonal moves into or out of
+    doorways. Returns {"path", "secret", "traps", "uncertain"} or raises RuntimeError when there is no way even
+    on the map."""
     from .mapview import is_door, is_walkable
     from .nav import bad_squares
     s = s or ctx.last()
     lay = layout(s, names)
+    unc = _uncertain(s, names)
     hero = s.hero
     if hero is None:
         raise RuntimeError("desmap.route: where are you?")
@@ -335,26 +586,32 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
 
     def passable(c) -> bool:
         ch = lay.get(c)
+        chs = unc[c][0] if c in unc else {ch}
         shown = s.screen.at(*c)
         if shown == "^" and (ch is None or ch not in ("-", "|", " ")):
             return True                          # a known trap (in the filler too): costs trap_cost below
         if shown not in " " and is_walkable(s, *c, allow_monsters=True):
             return ch not in ("-", "|") or shown not in "-|"
         if shown in "-|" and s.screen.color_at(*c) != BROWN:
-            return ch == "S"                     # a secret door not found yet
+            return "S" in chs                    # a secret door not found yet
         if shown == "}":
             water_hit[0] = water_hit[0] or not allow_water
             return allow_water
         if shown != " ":
-            return ch in (".", "B", "#", "+", "{", "\\", "K", "I", "S", "H") or c == goal
-        if ch is not None and ch in "}PW" and not allow_water:
+            return any(v in _WALK_CH for v in chs if v) or c == goal
+        if any(v is not None and v in "}PW" for v in chs) and not allow_water \
+                and not any(v in _WALK_CH for v in chs if v):
             water_hit[0] = True
-        return ch in (".", "B", "#", "+", "{", "\\", "K", "I", "S", "H") or (allow_water and ch in "}PW")
+        return any(v in _WALK_CH for v in chs if v) or (allow_water and any(v and v in "}PW" for v in chs))
 
     def hidden_door(c) -> bool:
         """A secret door of the map not found yet: still drawn as wall, or not seen at all."""
-        return lay.get(c) == "S" and (s.screen.at(*c) == " " or (s.screen.at(*c) in "-|"
-                                                                  and s.screen.color_at(*c) != BROWN))
+        chs = unc[c][0] if c in unc else {lay.get(c)}
+        return "S" in chs and (s.screen.at(*c) == " " or (s.screen.at(*c) in "-|"
+                                                          and s.screen.color_at(*c) != BROWN))
+
+    def uncertain(c) -> bool:
+        return c in unc and unc[c][1] > 0 and s.screen.at(*c) == " "
 
     def doorish(c) -> bool:
         return lay.get(c) in ("+", "S") or is_door(s, *c)
@@ -382,6 +639,8 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
                     cost += trap_cost
                 if hidden_door(n):
                     cost += 20
+                if uncertain(n) and n != goal:
+                    cost += round(UNCERTAIN_COST * unc[n][1])
                 if d + cost < dist.get(n, 10 ** 9):
                     dist[n] = d + cost
                     prev[n] = p
@@ -402,8 +661,9 @@ def route(x: int, y: int, s=None, names=None, allow_water: bool = False, trap_co
         path.append(p)
         p = prev[p]
     path = path[::-1][1:]
-    secret = [c for c in path if hidden_door(c)]
-    return {"path": path, "secret": secret, "traps": [c for c in path if c in traps or s.screen.at(*c) == "^"]}
+    secret = [c for c in path if hidden_door(c) and not (uncertain(c) and lay.get(c) != "S")]
+    return {"path": path, "secret": secret, "traps": [c for c in path if c in traps or s.screen.at(*c) == "^"],
+            "uncertain": [c for c in path if uncertain(c)]}
 
 
 def walk(x: int, y: int, max_steps: int = 80, names=None, allow_water: bool = False, fight: bool = True):
@@ -443,8 +703,8 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
         path = r["path"]
         stop = len(path)
         for i, c in enumerate(path):
-            if c in r["secret"] or c in r["traps"]:
-                stop = i
+            if c in r["secret"] or c in r["traps"] or (i > 0 and c in r.get("uncertain", ())):
+                stop = i                      # (an unsettled 50% wall: walk up to it — seen, it settles)
                 break
         if stop == 0:
             c = path[0]

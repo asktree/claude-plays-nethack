@@ -914,7 +914,8 @@ def _desmap_shortcut(s, goal):
         return None
     seen = bfs_path(s, s.hero, goal, avoid=frozenset(bad_squares(s) - {goal}), allow_monsters=True,
                     allow_pets=True)
-    if seen is not None and len(seen) <= len(path) + 5:
+    # (a square the level file makes a wall half the time, not seen yet: the map's route may not exist)
+    if seen is not None and len(seen) <= len(path) + 5 + 6 * len(r.get("uncertain") or ()):
         return None
     return len(path), (len(seen) if seen is not None else None)
 

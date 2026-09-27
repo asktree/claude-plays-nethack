@@ -2804,3 +2804,132 @@ def test_burn_note_drops_quaffed_letters_and_refreshes(monkeypatch):
     monkeypatch.setattr(ctx, "game", g)
     items._stashed("i", ["You put a scroll labeled FOO into the bag."])
     assert g.loose_burnables == [] and s.burn_note == ""
+
+
+def test_desmap_random_terrain_variants_settle_from_the_screen(monkeypatch):
+    # p2 shift 29 #16/#395: the Valley's IF [50%] TERRAIN walls — route() planned through two squares that
+    # were walls in that game, and didn't know the variant floor that was the real way
+    from tactics import ctx, desmap
+    g = _G()
+    g.traps, g.avoid = {}, {}
+    monkeypatch.setattr(ctx, "game", g)
+    fake = {"level": "testvar", "file": "test.des", "index": 0, "geometry": None, "features": [],
+            "rows": ["------------",
+                     "|....|.....|",
+                     "|....|.....|",
+                     "|..........|",
+                     "------------"],
+            # IF [50%] { TERRAIN:(5,3),'|'  TERRAIN:(5,1),'B' }: the gap moves from row 3 to row 1
+            "variants": [{"p": 50, "pair": None, "cells": [[5, 3, "|"], [5, 1, "B"]]}]}
+    desmap._prepare(fake)
+    monkeypatch.setattr(desmap, "maps", lambda: [fake])
+    monkeypatch.setattr(desmap, "_current", lambda s=None, names=None: (
+        fake, {"ox": 20, "oy": 5, "good": 30, "bad": 0}))
+    assert fake["_var"] == {(5, 3): [0], (5, 1): [0]}
+    assert {(x, y) for x, y, _ in fake["_vcells"]} == {(5, 3), (5, 1)}
+    west = {5: "                    ------", 6: "                    |....", 7: "                    |....",
+            8: "                    |....", 9: "                    ------"}
+    # 1) neither square seen: both are 50% walls — either way is uncertain (walk() goes up to it and looks)
+    s = _snap(west, (22, 8), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert desmap.variants()[0]["state"] is None
+    r = desmap.route(28, 8)
+    gap = (25, 8) if (25, 8) in r["path"] else (25, 6)
+    assert gap in r["path"] and r["uncertain"] == [gap]
+    assert desmap._uncertain()[(25, 8)] == ({".", "|"}, 0.5)
+    # 2) the gap square shows a WALL: the variant happened — its other square (25,6) is floor now
+    seen = dict(west)
+    seen[8] = "                    |....|"
+    s = _snap(seen, (22, 8), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert desmap.variants()[0]["state"] is True
+    assert desmap.layout()[(25, 6)] == "B" and desmap.layout()[(25, 8)] == "|"
+    r = desmap.route(28, 8)
+    assert (25, 6) in r["path"] and (25, 8) not in r["path"] and r["uncertain"] == []
+    # 3) the other square shows a wall (as in the map): the variant didn't happen — the gap is floor
+    seen = dict(west)
+    seen[6] = "                    |....|"
+    s = _snap(seen, (22, 8), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert desmap.variants()[0]["state"] is False
+    r = desmap.route(28, 8)
+    assert (25, 8) in r["path"] and r["uncertain"] == []
+    # identification: a seen variant square fits either way (no penalty)
+    assert desmap._score_at(fake, desmap._screen_cls(s), 20, 5)[2] == 0
+
+
+def test_desmap_valley_variants_from_the_level_file():
+    from tactics import desmap
+    v = next(m for m in desmap.maps() if m["level"] == "valley")
+    cells = {c: g["cells"][c] for g in v["_groups"] for c in g["cells"]}
+    # gehennom.des: IF [50%] { TERRAIN:(27,12),'|'  TERRAIN:line (27,3),(29,3),'B'  TERRAIN:(28,2),'-' }
+    assert cells[(27, 12)] == "|" and cells[(27, 3)] == cells[(29, 3)] == "B" and cells[(28, 2)] == "-"
+    assert cells[(16, 10)] == "|" and cells[(9, 13)] == "B" and cells[(50, 8)] == "-"
+    baalz = next(m for m in desmap.maps() if m["level"] == "baalz")
+    assert {c: a for g in baalz["_groups"] for c, a in g["cells"].items()}[(34, 4)] == "S"
+    mt = next(m for m in desmap.maps() if m["level"] == "minetn-5")
+    assert mt["_groups"][0]["pair"] == 1 and mt["_groups"][1]["pair"] == 0      # IF / ELSE
+
+
+def test_desmap_certain_levels_and_a_dark_valley_arrival(monkeypatch):
+    # p2 shift 29 #14: identify() returned None on arrival in the dark Valley (~9 squares seen) although the
+    # level was certain; tower1/tower2 have identical maps — only the tower's structure tells them apart
+    from tactics import ctx, desmap
+    g = _G()
+
+    class _Mem:
+        state = {"overview": "The Dungeons of Doom: levels 1 to 28\nLevel 28:\nThe castle.\n"
+                             "Gehennom: levels 29 to 40\nLevel 29:\nA temple, many graves.\nLevel 39:\n"
+                             "Stairs up to Vlad's Tower, level 38.\nLevel 40: <- You are here.\n"
+                             "Vlad's Tower:\nLevel 38:\nStairs down to Gehennom, level 39.\n"
+                             "The Quest: levels 1 to 5\nLevel 1:\nGiven quest by the Norn.\n"}
+    g.memory = _Mem()
+    monkeypatch.setattr(ctx, "game", g)
+    assert desmap.certain_level("Gehennom / Level 29") == "valley"
+    assert desmap.certain_level("Gehennom / Level 30") is None
+    assert desmap.certain_level("The Dungeons of Doom / Level 28") == "castle"
+    assert [desmap.certain_level(f"Vlad's Tower / Level {n}") for n in (38, 37, 36, 35)] == \
+        ["tower3", "tower2", "tower1", None]
+    assert desmap.certain_level("The Quest / Level 1") == "Val-strt"
+    assert desmap.certain_level("The Quest / Level 3") == "Val-loca"
+    assert desmap.certain_level("Fort Ludios / Level 20") == "knox" and desmap.certain_level("Astral Plane") == "astral"
+    # a dark arrival in the Valley: 3x3 squares of floor seen
+    v = next(m for m in desmap.maps() if m["level"] == "valley")
+    ox, oy = desmap.fixed_offset(v)
+    fx, fy = next((x, y) for y, row in enumerate(v["rows"]) for x, ch in enumerate(row)
+                  if ch == "." and 3 < x < 60 and 3 < y < 15
+                  and all(v["rows"][y + dy][x + dx] == "." for dx in (-1, 0, 1) for dy in (-1, 0, 1)))
+    rows = {y: [" "] * 80 for y in range(24)}
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            rows[fy + oy + dy][fx + ox + dx] = "."
+    s = _snap({y: "".join(r) for y, r in rows.items()}, (fx + ox, fy + oy), [])
+    g.level_key = lambda status=None: "Gehennom / Level 29"
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    r = desmap.identify(s=s, remember=False)
+    assert r is not None and r["level"] == "valley" and (r["ox"], r["oy"]) == (2, 2) and r.get("certain")
+    # juiblex's 8x5 stair pockets are never candidates
+    assert all(m["index"] == 2 for m in desmap._candidates("Gehennom / Level 33", names="juiblex"))
+
+
+def test_desmap_walk_stops_before_an_unsettled_variant_square(monkeypatch):
+    # an unseen 50% wall on the route: walk up to it (then it's seen and settles), re-plan, go on
+    from tactics import ctx, desmap, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    cur = {"s": _snap({}, (22, 7), [])}
+    cur["s"].hostiles = lambda radius=None: []
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    walked = []
+
+    def fake_walk_path(cells):
+        walked.append(list(cells))
+        cur["s"] = _snap({}, tuple(cells[-1]), [])
+        cur["s"].hostiles = lambda radius=None: []
+        return cur["s"]
+    monkeypatch.setattr(nav, "walk_path", fake_walk_path)
+    routes = [{"path": [(23, 7), (24, 7), (25, 7), (26, 7)], "secret": [], "traps": [], "uncertain": [(25, 7)]},
+              {"path": [(25, 7), (26, 7)], "secret": [], "traps": [], "uncertain": []}]
+    monkeypatch.setattr(desmap, "route", lambda x, y, **kw: routes.pop(0))
+    s = desmap.walk(26, 7)
+    assert walked == [[(23, 7), (24, 7)], [(25, 7), (26, 7)]] and s.hero == (26, 7)
