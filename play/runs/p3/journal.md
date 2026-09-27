@@ -70,3 +70,7 @@ T:4972 DL8 — explore() stepped on the one-time VAULT TELEPORTER (dead end (21,
 T:5012 DL8 — a bugbear read MAPIRO MAHAMA DIROMAT and vanished = SCROLL OF TELEPORTATION (auto-identified). Killed it later.
 T:5057 DL8 — large box (24,19): Q food ration, Z fortune cookie, d tan spellbook. f: scroll ZELGO MER (57,10). D8 down stairs (70,10). A WEREWOLF (@ form) on DL8 near (56,13): avoided it.
 T:5174 DL9 — arrived at up stairs (61,8).
+T:5174-5240 DL9 — ORACLE level (centaur statues, 4 fountains). Killed a bugbear, a hill orc pack (6) + bugbear at (42,8) (Exp 876->988). Took an OPERA CLOAK (j, unknown BUC) and an orange potion (i). A MONKEY stole my scroll of REMOVE CURSE (V) at T:5238 and escaped west. Dropped the 2 tan spellbooks (Burdened).
+T:5265-5272 DL9 — killed a quivering blob (no corpse). n: steel wand (engrave: no effect). Down stairs (19,3).
+T:5282 DL10 — arrived (74,12). Boxes: q scroll ANDOVA BEGARIN, r golden potion; 2nd box: X+1 identify (59,11 floor), y identify, z AGATE RING, A red gem, u tripe, Z cookie. Killed a lynx. Found a hidden passage at (63,13) (search); corridor west to (22,15) dead end. Sokoban stairs not found yet. Hungry T:5432: ate a food ration (fine).
+T:5447 DL10 — end of shift 5: HP 88/88, XL7, AC-3, safe in the (22,15) corridor dead end.

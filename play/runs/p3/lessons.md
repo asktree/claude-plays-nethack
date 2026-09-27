@@ -27,3 +27,10 @@
 - After enchant armor made the small shield +4: TAKE IT OFF before reading another enchant armor (at +4 it evaporates 3 times in 4 if picked).
 - Dust Elbereth garbles each letter 1 time in 25 (engrave.c): ~28% of engravings come out broken. Always read it back (elbereth() does); two broken in a row happens.
 - Cross-aligned temple priests still sell protection (priest.c doesn't check alignment): 400*XL gold.
+- YELLOW LIGHT: put the blindfold ON, then hit it. If it survives and explodes: "You seem unaffected by it" (resists_blnd: a Blind hero can't be blinded). Take it off after. Its explosion (noise) WAKES the monsters around it.
+- Sleeping zoos + intrinsic stealth: disturb() never wakes sleepers while you are Stealthy, so a zoo can be killed one monster at a time. Pick squares where only the target is adjacent; kill the casters/drainers first while they sleep.
+- A barrow wight's spell STUNS (4-16 turns). While Stunned every direction is random (confdir), F included: ~1 swing in 5 lands. Keep swinging (it would get free hits while you wait), stop if a peaceful is adjacent. Wait out the stun with `s` once nothing awake is adjacent.
+- VAULT TELEPORTER: a corridor dead end/closet (the dust in front reads "ad aerarium") holds a ONE-TIME teleport trap into the vault. The guard demands ALL your gold (your own too). Before stepping into unexplored dead-end closets on a vault level ("footsteps of a guard"), stash gold in a bag. Tell the truth (lawful: -1 alignment for lying), drop gold (d, $), follow him, and step OUT of his corridor right away: it turns back into rock.
+- #terrain (no time) shows stairs hidden under objects ("known map without monsters, objects, and traps").
+- Monkeys (Y) steal one item and run at speed 12: kill them at range or at first contact; keep scrolls you can't lose in a bag.
+- Excalibur (+2) adds its enchantment to searching: 12-15 searches next to a hidden spot find it ~95% of the time.

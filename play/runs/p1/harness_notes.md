@@ -507,3 +507,16 @@ Format: step `#N` — command — expected — what happened.
 1. explore() loops/wanders silently when the only routes cross a known trap or hole (#558: 136 turns, #912: ~100 turns) — needs a `blocked: ... trap/hole` report.
 2. dig() at a boulder re-applies after "The boulder falls apart." and pauses before re-wielding (#1144) — risk of fighting with a pick-axe.
 3. Wrong-level MEDUSA line (#1362...) and monster-triggered trap messages recorded under the hero (#1434, #1441, #1443).
+
+## Shift 22 (T:20025 -> 20376; DL25 Castle; step numbers from #1)
+1. **#282 — travel(11, 12) routed me along the moat edge (7,14), adjacent to (8,15) where a shark/eel had just been seen** (obs "out of view: giant eel/shark, hiding in murky water last at (8,15)"; "It misses!" came from the water). With the eel danger note active, travel()/walk routes should treat squares adjacent to water where an eel/shark was seen in the last ~50 turns as avoided (or at least pause before the step). Near-fatal class of risk (eel drowning).
+2. **#90-#484 — fight()/hold loops pause on ordinary Castle battle noise**: "The soldier thrusts a halberd. / A halberd misses you." (polearm), "You hear dice being thrown", "The X picks up/puts on/wields ...", "The soldier's short sword is welded to her hand!", "The ice troll rises from the dead!", "hurls a cloudy potion / The vial crashes ...", "zaps a wand of sleep! / The sleep ray hits you! / But it reflects from your shield!" (with reflection known), "reads a scroll of create monster!". I appended them to tactics.combat.ROUTINE in the kernel (session only); ~15 calls were spent on cont. Suggest adding polearm/thrown/zap-reflected/monster-item-use lines to ROUTINE (the HP rules still guard).
+3. **#144 — fight() says "disenchanter — passive: DISENCHANTS your weapon (Excalibur loses its enchantment)"** but zap.c drain_item() returns FALSE for items that defend AD_DRLI (Excalibur's DRLI defence) and for spe <= 0 armor. The warning (and the refusal without allow_passive) should consider the wielded artifact's defences.
+4. **#62, #75 — dig() pauses on "You stop digging." when a wall-phasing xorn flickers in and out of view, leaving the PICK-AXE WIELDED** (I re-wielded by hand, #63). dig() could re-apply automatically when the interruption comes from a far monster, and always re-wield the weapon before pausing.
+5. Minor: the rust-trap lines ("A gush of water hits the rothe!") pause every time a monster steps on the known trap (#4, #10); `hold`-style chokepoint waiting needs a helper (fight_until_clear returns "clear" at once when nothing is within radius): a `wait_and_fight(turns)` that searches while nothing is adjacent and fights (incl. adjacent `I` markers) would have saved ~10 calls.
+6. Worked well: the blindfold telepathy scans (full monster list with labels), zap() line checks ("objects on the line..."), fight() on the yellow light (struck first), hunt() in the corridor, object detection listing in obs.objects, the `raised drawbridge` feature.
+
+### Shift 22 — ranked summary
+1. travel() walks next to water where eels/sharks were just seen (#282) — drowning risk.
+2. Routine Castle battle messages pause fight()/hold loops (~15 wasted calls) — extend ROUTINE.
+3. Disenchanter passive warning ignores Excalibur's drain-resistance (#144); dig() leaves the pick-axe wielded on "You stop digging." (#62).

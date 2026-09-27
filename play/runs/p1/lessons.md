@@ -130,3 +130,10 @@
 - A monster can read a scroll of create monster as its last act (plains centaur -> winged gargoyle + 2 rothes). Fight next to the stairs when arriving on a new deep level.
 - Oil lamps burn out (~1500 turns each): both of mine died on DL24. Keep a light source for dark mazes (buy/wish a brass lantern or keep potions of oil).
 - Verify bag totals from the actual listing: my notes carried "~$8894" for many shifts while the bag held 2850.
+- CASTLE ENTRY that worked: freeze the moat under the raised bridge with a cold ray (from 3+ squares, in its row), then a force bolt at it -> "The drawbridge disintegrates!" (ice span). A fire breather (red naga) inside melts that ice at once: expect to re-zap cold. With the gateway as WATER the garrison is stuck inside and can be shot/sleep-rayed along the row.
+- Fight the Castle garrison from the west MAZE, not the courtyard: a dead-end maze square 2+ squares from the moat with one approach (dig the passages yourself) — no eel can reach you, soldiers come single file. AC -10 makes soldiers ~1-3 dmg per hit.
+- INVISIBLE LICHES in the Castle court: "It touches you! You're covered in frost!" destroys potions even with cold resistance, and their curse-items spell CURSED MY BAG OF HOLDING (never open a cursed BoH: 1/13 per item vanishes). Kill an adjacent `I` on sight; keep a blessed remove curse / holy water in reserve; potions only in the (uncursed) bag near spellcasters.
+- Blindfold + intrinsic telepathy = a free full-level monster scan (eels hiding in the moat, soldiers in towers): 2 turns, use it before every water-edge step.
+- Object detection shows the scroll pile on the Castle's wishing-chest square: quaff it early to pick the right tower.
+- A sleeping monster in a doorway is a plug: nothing behind it can pass (sleep ray down the queue).
+- travel() will happily route along a moat edge (7,14) next to a known shark/eel: near eels walk with explicit step() paths.
