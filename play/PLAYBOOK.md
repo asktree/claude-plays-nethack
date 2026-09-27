@@ -13,7 +13,11 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
 ## A. Non-negotiables (instadeath and run-enders)
 
 1. **No Castle, and no loitering on D20+ near soldiers, without magic resistance (MR) or reflection. Prefer
-   both.** Get reflection early (Sokoban prize 50%, silver dragon scales, shield of reflection).
+   both.** Get reflection early (Sokoban prize 50%, silver dragon scales, shield of reflection). A wish before
+   the Castle: a **magic lamp** — Minetown's lighting shop stocks one on 3% of its squares (shknam.c):
+   price-identify every lamp there (base 500; an oil lamp is 10), bless it with holy water, then #rub (the
+   djinni comes 1 time in 3 per rub and grants the wish 80% of the time when blessed): wish for blessed +2
+   gray dragon scale mail. Check the shop on every Minetown visit.
 2. **Soldiers/sergeants/lieutenants/captains and anything seen zapping a wand may carry a death ray.** Never
    stand in line with one (row, column, diagonal) at range without MR + reflection. A **wand of sleep** is
    as bad without sleep resistance or reflection: 6d25 turns asleep beside the zapper (p3: an ogre king
