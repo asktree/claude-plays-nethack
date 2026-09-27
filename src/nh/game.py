@@ -270,6 +270,7 @@ class Game:
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
+        self.stair_links: dict[str, dict] = {}    # level key -> {(x, y) of a staircase: key of the level it leads to}
         self.real_xl: int | None = None    # last XL read while not polymorphed
         self.last_status: Status | None = None
         # Level identity for per-level memory: "Dlvl:3" is ambiguous (main
@@ -295,9 +296,13 @@ class Game:
         for d in (self.traps, self.avoid, self.visited):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
-        for d in (self.terrain_seen, self.here_seen):
+        for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
+        for links in self.stair_links.values():       # destinations recorded under the provisional key
+            for c, dest in list(links.items()):
+                if dest == old:
+                    links[c] = new
         if old in self.kills:
             self.kills.setdefault(new, []).extend(self.kills.pop(old))
 
@@ -866,6 +871,11 @@ class Game:
                         # took the stairs: you stand on the other end (the '@' hides it)
                         self.terrain_seen.setdefault(self.level_key(snap.status), {})[snap.hero] = arrive
                         snap.under = arrive
+                    if arrive and cur.hero is not None:
+                        # where each staircase leads: the one you took, and the one you arrived on
+                        old_key, new_key = self.level_key(cur.status), self.level_key(snap.status)
+                        self.stair_links.setdefault(old_key, {})[cur.hero] = new_key
+                        self.stair_links.setdefault(new_key, {})[snap.hero] = old_key
             if snap.hero is not None:
                 snap.engulfed = _engulfed(snap.screen, snap.hero)
             if self.tracker is not None and snap.state.kind == "command":

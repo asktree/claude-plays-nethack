@@ -719,3 +719,12 @@ def test_guard_bare_prefix_key():
             g._guard(s, k, force=False)
     g._guard(s, b"Fh", force=False)
     g._guard(s, b"m<", force=False)
+
+
+def test_stair_links_follow_level_renames():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    g.stair_links = {"The Dungeons of Doom / Level 2": {(21, 14): "Dlvl:3"}, "Dlvl:3": {(77, 13): "The Dungeons of Doom / Level 2"}}
+    g.rekey_level("Dlvl:3", "The Gnomish Mines / Level 3")
+    assert g.stair_links["The Dungeons of Doom / Level 2"][(21, 14)] == "The Gnomish Mines / Level 3"
+    assert g.stair_links["The Gnomish Mines / Level 3"] == {(77, 13): "The Dungeons of Doom / Level 2"}

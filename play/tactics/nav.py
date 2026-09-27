@@ -401,12 +401,52 @@ def step(direction: str, n: int = 1):
     return s
 
 
-def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0):
+def _branch(key: str | None) -> str:
+    """'The Gnomish Mines / Level 3' -> 'The Gnomish Mines' ('' if unknown)."""
+    return key.split(" / ")[0] if key and " / " in key else ""
+
+
+def _pick_stairs(ch: str, cells: list, to: str | None, s) -> tuple:
+    """Choose among several known staircases using where each was seen to
+    lead (game.stair_links, learned whenever you take or arrive on one).
+    Returns (cell, note)."""
+    here = ctx.game.level_key(s.status)
+    links = getattr(ctx.game, "stair_links", {}).get(here, {})
+    known = {c: links[c] for c in cells if c in links}
+    if to:
+        match = [c for c in cells if to.lower() in known.get(c, "").lower()]
+        if match:
+            return match[0], f"leads to {known[match[0]]}"
+        unknown = [c for c in cells if c not in known]
+        if len(unknown) == 1:
+            return unknown[0], f"not yet used; by elimination the one toward {to!r}"
+        raise NavError(f"no known {ch!r} here leading to {to!r}: "
+                       + ", ".join(f"{c} -> {known.get(c, 'unknown')}" for c in cells)
+                       + " — travel(x, y) to the right one and press it yourself")
+    if len(cells) == 1:
+        return cells[0], ""
+    mine = _branch(here)
+    same = [c for c in cells if mine and _branch(known.get(c)) == mine]
+    if same:
+        return same[0], f"stays in {mine} (leads to {known[same[0]]})"
+    other = [c for c in cells if c in known]
+    unknown = [c for c in cells if c not in known]
+    if other and unknown:
+        return unknown[0], (f"the other {ch} at {other[0]} leads to {known[other[0]]}; pass to='...' to take a "
+                            "branch on purpose")
+    print(f"stairs: {len(cells)} {ch!r} here ({', '.join(map(str, cells))}) and where they lead is unknown — "
+          f"taking the nearest; one of them is a branch (^O overview shows which branches start here)")
+    return cells[0], ""
+
+
+def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = None):
     s = ctx.last()
     cells = known_cells(ch, s, rescan=True)
     if not cells:
         raise NavError(f"no {ch!r} known on this level")
-    target = cells[0]
+    target, note = _pick_stairs(ch, cells, to, s)
+    if note:
+        print(f"stairs: using the {ch} at {target}: {note}")
     for _ in range(tries):
         if s.hero == target:
             break
@@ -450,17 +490,20 @@ def _wait_for_pet(s, turns: int):
     return s
 
 
-def go_down(wait_pet: int = 6):
-    """Travel to the nearest '>' (re-travelling after routine stops), check
-    you are on it, then descend. Raises NavError instead of pressing '>'
-    anywhere else. wait_pet: if your pet is in view nearby but not next to
-    you, wait up to this many turns for it (0: don't)."""
-    return _use_stairs(">", wait_pet=wait_pet)
+def go_down(wait_pet: int = 6, to: str | None = None):
+    """Travel to a '>' (re-travelling after routine stops), check you are on
+    it, then descend. Raises NavError instead of pressing '>' anywhere else.
+    With several '>' on the level it takes the one that stays in this branch
+    (learned from stairs you took or arrived on), or the one toward `to`
+    (a substring of the destination: 'Mines', 'Dungeons', 'Sokoban').
+    wait_pet: if your pet is in view nearby but not next to you, wait up to
+    this many turns for it (0: don't)."""
+    return _use_stairs(">", wait_pet=wait_pet, to=to)
 
 
-def go_up(wait_pet: int = 6):
-    """Like go_down() for '<'."""
-    return _use_stairs("<", wait_pet=wait_pet)
+def go_up(wait_pet: int = 6, to: str | None = None):
+    """Like go_down() for '<' (e.g. go_up(to='Sokoban') on the Oracle-below level)."""
+    return _use_stairs("<", wait_pet=wait_pet, to=to)
 
 
 def kick_door(x, y, tries: int = 8):

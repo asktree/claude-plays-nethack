@@ -159,3 +159,27 @@ def test_routine_flavour_messages():
         assert routine(m), m
     for m in ["The monkey stole a ring of fire resistance.", "You feel feverish."]:
         assert not routine(m), m
+
+
+def test_pick_stairs_by_branch(monkeypatch):
+    import pytest
+    from tactics import ctx, nav
+
+    class G:
+        stair_links = {"The Dungeons of Doom / Level 2": {(21, 14): "The Gnomish Mines / Level 3"}}
+
+        def level_key(self, status=None):
+            return "The Dungeons of Doom / Level 2"
+    monkeypatch.setattr(ctx, "game", G())
+    s = _snap({}, (21, 14), [])
+    cells = [(21, 14), (74, 17)]
+    # the Mines staircase under you is known: go_down() takes the other one
+    assert nav._pick_stairs(">", cells, None, s)[0] == (74, 17)
+    # on purpose: to='Mines'
+    assert nav._pick_stairs(">", cells, "Mines", s)[0] == (21, 14)
+    # the main one isn't known yet, but by elimination
+    assert nav._pick_stairs(">", cells, "Dungeons", s)[0] == (74, 17)
+    G.stair_links["The Dungeons of Doom / Level 2"][(74, 17)] = "The Dungeons of Doom / Level 3"
+    assert nav._pick_stairs(">", cells, None, s)[0] == (74, 17)
+    with pytest.raises(nav.NavError):
+        nav._pick_stairs(">", cells, "Sokoban", s)

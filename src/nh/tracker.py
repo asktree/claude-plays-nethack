@@ -80,6 +80,9 @@ class Tracker:
                     getattr(game, attr).setdefault(key, set()).update(cells)
             if lv.get("kills") and hasattr(game, "kills"):
                 game.kills[key] = [(n, (x, y), t) for n, x, y, t in lv["kills"]]
+            if lv.get("stairs_to") and hasattr(game, "stair_links"):
+                game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
+                                         for c, dest in lv["stairs_to"].items()}
 
     def save(self):
         tmp = self.path.with_suffix(".tmp")
@@ -149,6 +152,10 @@ class Tracker:
             kills = getattr(self.game, "kills", {}).get(key)
             if kills:
                 lv["kills"] = [[n, c[0], c[1], t] for n, c, t in kills]
+            for lk, links in getattr(self.game, "stair_links", {}).items():
+                if links:
+                    self.state["levels"].setdefault(lk, {})["stairs_to"] = {f"{c[0]},{c[1]}": d
+                                                                           for c, d in links.items()}
             changed = True
         if changed:
             self.save()
