@@ -24,3 +24,26 @@
 - T:1053 DL3 — acid blob corpse rotted away in inventory. Gnome zombie destroyed -> XL3 (40 HP max) at T:1057.
 - T:1157–1163 DL3 — NW room (33-43,4-9): picked up scroll p (HAPAX LEGOMENON, unknown); kitten killed a newt. Food pile at (35,8) unchecked.
 - SHIFT 1 END T:1163 DL3 — HP 40/40 XL3 AC6, command prompt, nothing in view, kitten 3 squares away. Plan: explore D3/D4 to XL5, Excalibur at the D1/D2 fountains, then the Mines.
+
+## Shift 2
+- T:1240 DL3 — "You hear a jackal howling at the moon" = werejackal on the level. Found the D3 downstairs (51,10), a vellum spellbook (q) and a murky potion (r) in the SE small room; elven bow left at (61,19).
+- T:1255–1258 DL3 — werejackal (d form) caught me in the doorway (64,17); 3 bites (HP 40->30), NO "feverish"; the kitten got the kill. Prayer was checked as available (p_safe 1.0) as the lycanthropy backup.
+- T:1287–1320 DL3 — two yellow molds in the corridor by the `>` room: killed with thrown daggers (+1 melee blow, no stun). Silver ring (t) found under the second one. Exp 46.
+- T:1449 DL3 — NEAR-MISS: the "food pile" at (35,8) sat on an undiscovered SLEEPING GAS TRAP; slept ~20 turns, nothing came. It was a tin whistle (u, "high-pitched humming"). Kitten stole the room gold.
+- T:1498 DL3->DL4 — descended at (51,10) with the kitten adjacent; arrived (39,18) on the D4 upstairs, small SW room; newt in view.
+- T:1528 DL4 — travel() arrival does NOT autopickup gold (NetHack skips autopickup while travelling); `,` needed. Picked up 2 gold.
+- T:1577–1579 DL4 — second werejackal (@ form) in the corridor near (47,15): dagger throw hit, I missed once, took a 7-HP weapon hit; kitten killed it again (no XP). Dagger recovered.
+- T:1604 DL4 — killed a shrieker (+10, Exp 58); it dropped scroll ELAM EBOW (v). Killed a lichen T:1620 (Exp 62); picked up 2 eggs (w) — UNKNOWN EGGS, NEVER EAT (cockatrice risk).
+- T:1644 DL4 — Upernavik's general store at (69-71,15-17), door (68,16): scale mail 60, leather armor 7, curved wand 233 (= base 175: cold/fire/lightning/sleep), agate ring 178 (base-100 group; kitten stepped RELUCTANTLY over it = CURSED, never buy), puce potion 200 (base 150), HAPAX LEGOMENON 133 (base 100, same as my scroll p).
+- T:1655 DL4 — sold the vellum spellbook (offer 50 = level-1 book) for 50. Sell offers: silver ring 100 (base 200), murky potion 50 (base 100), ELAM EBOW 50 (base 100).
+- T:1662 DL4 — MISTAKE: re-picking up ELAM EBOW after the sell-probe turned it to dust = it was SCARE MONSTER (named "scare monster"). Never drop-probe an unknown scroll that was already picked up once — scare monster is in the base-100 group.
+- T:1664 DL4 — read scroll of identify (j): silver ring t = CURSED ring of regeneration. Selling it to fund the wand.
+- T:1666–1681 DL4 — sold ring t (100), potion r (50), scroll p (50), whistle (5), eggs (9); BOUGHT the curved wand (x, 233; cold/fire/lightning/sleep, not engrave-tested) and a +0 scale mail (y, 60): AC 6 -> 2. $6 left. Left the shop T:1682.
+- T:1716 DL4 — explore(): only the lit west room (21-29,9-10) remains, reached via the unwalked dark corridor west of (34,10); downstairs still unknown.
+- T:1732–1735 DL4 — Hungry; ate the lichen corpse (n) — safe. Kitten killed a jackal (corpse (49,17)). A new yellow mold spawned at (47,14) in the corridor north of the middle room.
+- T:1741 DL4 — yellow mold killed with 2 thrown daggers + 1 blow (Exp 65); daggers recovered.
+- T:1757–1771 DL4 — NW-centre room (39-47,5-9): picked up a candle (z); locked chest at (43,5) kicked open (8 kicks, "THUD!") and looted: A 2 lembas wafers, B scroll of identify, C dull spellbook (unknown), D unlabeled scroll (blank). Closed door (41,4) in the room's top wall leads north (unexplored).
+- T:1805–1870 DL4 — west room (22-29,8-10) reached by walking the dark corridor west of (34,10): a pair of high boots at (22,8) (not yet taken; BUC unknown). The kitten carried the shop's puce potion out to (34,10) = free. Further SW: small room (22-24,16-18) with a FOUNTAIN at (22,17) (Excalibur candidate on D4!), doors (25,16); far-west room with a potion at (14,9), doors (15,6)/(15,10). Downstairs still not found.
+- T:1897–1899 DL4 — fourth yellow mold (30,18) killed with one thrown dagger (Exp 69). Picked up the high boots (E, BUC unknown, not worn) and a cyan potion (F) from (34,10).
+- T:1928–1931 DL4 — Hungry again (lichen only gave 200); ate a lembas wafer (A). 1 lembas + 1 ration + tin left.
+- SHIFT 2 END T:1931 DL4 — HP 40/40 XL3 (Exp 69) AC2 (scale mail), corridor (27,14), kitten adjacent, nothing in view, command prompt. D4 `>` not found yet (far west / SW / north dead end unexplored). Plan: find `>`, D5 for XP to XL5, Excalibur at the D4 fountain (22,17), then the Mines.
