@@ -101,4 +101,23 @@ def hold_front(front, turns=20, stop_at=80):
         if m: fight(front[0], front[1], max_blows=2, stop_hp=0.3, allow_passive=('cockatrice' in (m[0].get('desc') or '')))
         else: do('s', ok=[r'.*'])
     return f'held {look().status.turn - t0} turns'
+def vgo(dst, maxsteps=40, hp_floor=0.6):
+    """Walk the des-map route one step at a time; fight adjacent non-dangerous hostiles; pause on &, L, I or 'dangerous'."""
+    for i in range(maxsteps):
+        s = look()
+        if s.kind != 'command': pause('vgo: prompt open'); return 'prompt'
+        if s.hero == tuple(dst): print('vgo: arrived', dst); return 'arrived'
+        if s.status.hp < hp_floor * s.status.hpmax: print('vgo: HP low', s.status.hp); return 'hp'
+        adj = adj_hostiles(s)
+        if adj:
+            m = adj[0]; d = m.get('desc') or m['ch']
+            t = threat(d) if m['ch'] != 'I' else 'unseen'
+            if m['ch'] in '&LI' or 'dangerous' in str(t) or 'unidentified' in d:
+                pause('vgo: adjacent ' + d + ' (' + str(t) + ')'); return 'adjacent'
+            fight(m['x'], m['y']); continue
+        p = vroute(tuple(dst))
+        if not p or len(p) < 2: print('vgo: no route to', dst); return 'no route'
+        try: walk_path(p[1:2])
+        except NavError as e: print('vgo: blocked:', e); return 'blocked'
+    print('vgo: maxsteps at', look().hero); return 'maxsteps'
 print('valley helpers loaded')

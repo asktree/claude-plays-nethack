@@ -89,3 +89,11 @@ T:5895 SOKO2 — killed a cobra (poisonous; 1 blow each, no bite landed). A wood
 T:6183 SOKO2 — SOLVED (20 pushes, no mistakes). Loot: N engagement ring, Q scroll NR 9 (both unknown).
 T:6216 SOKO2 — the stair room's door (51,15) was locked: unlock() with the key. Killed a crocodile (doorway fight) and a rabid rat (no bites). Wand in the stair room: R spiked = engrave "no effect".
 T:6226 SOKO2 — end of shift 6: HP 102/102, XL8, AC-3, on a dust Elbereth at (45,10) next to the up stairs (47,10). Not Hungry yet (due ~T:6300).
+
+## Shift 7
+T:6229 SOKO2 — ate a food ration on the Elbereth square (no rot). Reloaded tactics (obs said disk code newer).
+T:6265 SOKO3 (Dlvl 7, soko2-1 = wiki Level 3b) — arrived; sokoban.solve(). A FLAMING SPHERE came at me and "explodes at a spot in thin air!" (invisibility: it guessed my square wrong) — no damage. Killed 2 wargs (HP 92/102).
+T:6452 SOKO3 — last push (step 15/15) blocked: "You hear a monster behind the boulder" — an unseen monster in the 1-square pocket (46,15) between the last boulder and the last hole (47,15). Sokoban monsters know the holes and never step in them, so it could never leave. 7 darts (5 hits), poison cloud from a scroll of stinking cloud centered on the boulder square (no effect: gas-immune), 3 zaps of undead turning (nothing), fetched 5 cursed -1 daggers + a blessed potion of oil from Soko1's junk pile (35,17), 3 dagger hits: still alive.
+T:6566 SOKO3 — lit the blessed potion of oil and threw it: "misses... You hear something shatter! You kill it!" (+55 exp; the fire explosion did it). Never saw what it was.
+T:6457 — the SPIKED wand R zapped: NO direction prompt + engrave "no effect" = WAND OF SECRET DOOR DETECTION. U: runed wand = LIGHT (engrave auto-ID, Soko3 (37,12)). n undead turning now (0:0) presumably.
+T:6568 SOKO3 — SOLVED (the boulder plugged the last hole). Got back the daggers, darts (4 of 7; 3 broke), whistle, card, cookies from the pocket.
