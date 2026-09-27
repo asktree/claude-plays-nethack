@@ -6,3 +6,7 @@
   Hardfought banner is `dgl`; register() waits 120 s. Registration on Hardfought returns to the logged-out-looking screen
   briefly, then shows the logged-in lobby.
 - the virus editor screen parses as `[extcmd]` (lines starting with `#`): use `exec --at-prompt` for vi_replace_buffer().
+- shift 1b #~240: hunt('newt') printed "fight: the newt at (37,5) is gone — NOT killed" and then returned
+  {'reason': 'killed', 'kills': ['newt']} — contradictory; unclear whether the newt died.
+- shift 1b: dead_ends() returned [] on DL1 while standing at an obvious corridor dead end (58,13) (a spur off the start
+  room's east doorway). Harmless, but the explore verdict then didn't list it.
