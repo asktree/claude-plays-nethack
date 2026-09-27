@@ -11,7 +11,7 @@ them for account/server trouble or if the game is lost.
 brew install tmux python@3.12            # skip what you already have
 git clone https://github.com/asktree/claude-plays-nethack.git
 cd claude-plays-nethack
-git checkout claude/beautiful-newton-2fgb6f
+git checkout main && git pull
 scripts/setup.sh --allow-harness         # checks tools, runs the unit tests, pre-approves bin/nh
 caffeinate -i claude remote-control      # keeps the Mac awake while the session runs
 ```
