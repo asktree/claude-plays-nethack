@@ -11,6 +11,7 @@ usage:
   scripts/watch_ttyrec.py ClaudeAscends            # newest ttyrec of that player
   scripts/watch_ttyrec.py --url <ttyrec url>
   scripts/watch_ttyrec.py ClaudeAscends --history 5 # also show the last 5 screens with changes
+  scripts/watch_ttyrec.py ClaudeAscends --messages 60 [--since 1400]   # the game's message log (turn, level, text)
 Be polite: run it when you need a look, not in a tight loop (the server is shared).
 """
 
@@ -65,6 +66,8 @@ def main():
     ap.add_argument("player", nargs="?")
     ap.add_argument("--url")
     ap.add_argument("--history", type=int, default=0, help="also print the last N distinct screens")
+    ap.add_argument("--messages", type=int, default=0, help="print the last N top-line messages with turn/level")
+    ap.add_argument("--since", type=int, default=None, help="with --messages: only from this game turn on")
     a = ap.parse_args()
     import pyte  # pip install pyte
     url = a.url or newest_ttyrec(a.player)
@@ -82,11 +85,19 @@ def main():
     stream = pyte.ByteStream(screen)
     shots = []
     last_t = None
+    log: list = []                 # (turn, level, top line) — each distinct top line once
+    prompts = re.compile(r"^(?:Where do you want to travel to\?|Pick an object|\(For instructions|What do you want to )")
     for t, chunk in frames(data):
         stream.feed(chunk)
         last_t = t
         if a.history:
             shots.append("\n".join(screen.display))
+        if a.messages:
+            top = screen.display[0].strip()
+            if top and not prompts.match(top) and (not log or log[-1][2] != top):
+                st = screen.display[23]
+                mt, ml = re.search(r"T:(\d+)", st), re.search(r"Dlvl:(\d+)", st)
+                log.append((int(mt.group(1)) if mt else None, ml.group(1) if ml else "?", top))
     import datetime
     when = datetime.datetime.utcfromtimestamp(last_t).strftime("%Y-%m-%d %H:%M:%S UTC") if last_t else "?"
     print(f"{url}\n{len(data)} bytes, last frame {when}")
@@ -98,6 +109,10 @@ def main():
         for s in uniq[-a.history - 1:-1]:
             print("-" * 80)
             print("\n".join(r.rstrip() for r in s.split("\n")))
+    if a.messages:
+        sel = [e for e in log if a.since is None or (e[0] is not None and e[0] >= a.since)]
+        for turn, lvl, text in sel[-a.messages:]:
+            print(f"T:{turn if turn is not None else '?':>6} D{lvl:>2}  {text}")
     print("=" * 80)
     for y, row in enumerate(screen.display):
         print(f"{y:>2}|{row.rstrip()}")
