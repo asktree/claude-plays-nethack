@@ -2,12 +2,13 @@
 
 ## Character
 - Name/role: P1 — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
-- **T:20706 / DL25 = THE CASTLE**, standing at **(66,18)** in the SE tower ON the wishing-chest square (burned Elbereth + CURSED scare monster scroll on the floor: nothing can melee me here; never pick the scroll up — it turns to dust; never attack FROM this square: "hypocrite" -5 alignment + the engraving is deleted — step off first).
-- XL13 (Exp 55392; XL14 at 80000) / HP 145/145 / Pw 28/28 / **AC -10** / **VERY FAST** (speed boots) / not Burdened / Satiated (T:20679).
-- **MR (GDSM) + REFLECTION (shield b) + LIFE SAVING (amulet L, worn).** Liches GENOCIDED. Medusa dead.
-- Rings worn: f prot. from shape changers (RIGHT), u slow digestion (LEFT). Q = coral ring (UNKNOWN, from a dead soldier's pile — do not put on untested).
-- Attributes: St 18/xx, Dx 16, Co20 In10 Wi11 Ch7. Intrinsics: cold res, stealth, infravision, Fast (+speed boots = Very fast), POISON RES, FIRE RES, TELEPATHY (blind only: blindfold l), MR, REFLECTION. NO sleep/shock res.
-- Luck >= 0 (wishes came out blessed). Alignment: no hypocrisy, no peacefuls hurt.
+- **T:20944 / DL26 = THE VALLEY OF THE DEAD (Gehennom level 1)**, standing ON the Valley's up stairs **(68,19)** (branch stairs up to the Castle, DL25). No monster in view.
+- **XL14** (Exp 90604; XL15 at 160000) / HP 155/157 / Pw 29/29 / **AC -10** / VERY FAST (speed boots) / not Burdened / Satiated (0-nutrition wraith corpses are the only thing I ate). $0 (an incubus took my 82 gold).
+- **MR (GDSM) + REFLECTION (shield b) + LIFE SAVING (amulet L, worn).** Liches GENOCIDED. Medusa dead. Castle done.
+- Rings worn: f prot. from shape changers (RIGHT), u slow digestion (LEFT). Q = coral ring (UNKNOWN — do not put on untested).
+- Attributes: St 18/11, Dx 16, Co 20, In 10, Wi 11, Ch 7. Intrinsics: cold res, stealth, infravision, Fast (+speed boots = Very fast), POISON RES, FIRE RES, TELEPATHY (blind only: blindfold l), MR, REFLECTION. **NO sleep/shock res, NO free action.**
+- Luck >= 0. Alignment: no hypocrisy, no peacefuls hurt. Quest XL requirement (14) now MET; piety still unchecked (`piety()`).
+- Pack is near full (45 letters used after dropping junk): bag junk before looting more.
 
 ## WISHES — all 5 used (T:20563-20619); the wand of wishing is DUST
 1. "2 blessed scrolls of charging" -> 1 (the wand had only 1 charge: this wish, then "Nothing happens"); read on the wand at (0:0) -> (1:3).
@@ -31,17 +32,17 @@
 ## Equipment worn/wielded
 - a: blessed rustproof +6 EXCALIBUR. b: +0 SHIELD OF REFLECTION. x: blessed +2 GDSM. n: very rusty +0 orcish helm. V: +0 elven cloak (faded pall). r: blessed +0 leather gloves. **N: +0 speed boots (mud boots)**. f+u rings. **L: amulet of life saving (pyramidal)**. H: elven dagger (quivered).
 
-## Key inventory (T:20706)
-- Scrolls: **K 1 blessed remove curse**, **M 1 blessed genocide**, k 6 uncursed teleportation (no-teleport here), q 4 blank. Potion: **w full healing** (from the bag).
-- Wands: R COLD (0-4 left), h SLEEP (3 used), s SLEEP (2 used), p magic missile, Y/C/c striking (C EMPTY), e CANCELLATION (never in a bag; never at self), o FIRE, E lightning (0:3), g DIGGING, G/Z teleportation.
-- Tools: D bag of holding (UNCURSED now; 36 items: 2850 gold, healing potion, rings regeneration/polymorph control/shock res..., wands lightning 0:2/create monster/magic missile, scrolls enchant weapon/3 fire..., can of grease, uncursed AMULET OF REFLECTION I (spare)), l BLINDFOLD, A UNICORN HORN, S LIZARD CORPSE (stoning cure), d KEY, j PICK-AXE, T MAGIC MARKER (0:13), m/W empty lamps, v uncursed gray stone.
-- Food: J 2 food rations, B C-ration, O K-ration, y 5 royal jelly.
+## Key inventory (T:20944)
+- Scrolls: **K 1 blessed remove curse**, **M 1 blessed genocide**, k 6 uncursed teleportation (Valley/Castle are no-teleport). Potions: **w EXTRA HEALING** (the full healing was quaffed T:20837), **z GAIN LEVEL (BUC unknown: cursed = rise through the ceiling, an escape upward)**.
+- Wands: R COLD (0-4 left), h SLEEP (4+ used), s SLEEP (2 used), p magic missile, Y/c striking (Y used 2 more T:20805), **e + I CANCELLATION (never in a bag; never at self)**, o + P FIRE, E lightning (0:3), g DIGGING, G/Z teleportation. (Dropped: C empty striking, F speed monster at (67,19).)
+- Tools: D bag of holding (uncursed; + orange gem, 4 blank scrolls, potion of paralysis, food ration, 2850 gold, healing potion, rings regeneration/polymorph control/shock res, spare AMULET OF REFLECTION, wands lightning/create monster/magic missile, scrolls enchant weapon/3 fire, can of grease...), l BLINDFOLD, A UNICORN HORN, **S + t LIZARD CORPSES** (stoning cures), d KEY, j PICK-AXE, T MAGIC MARKER (0:13), m lamp (nearly empty), v uncursed gray stone.
+- Food: J 2 food rations, B C-ration, O K-ration, y 5 royal jelly (+1 ration in the bag).
 
 ## Identified appearances
 - NEW (T:20563-20623): DAIYEN FOOELS = charging, JUYED AWK YACC = genocide, pyramidal amulet = LIFE SAVING, spiked wand = wishing, mud boots = SPEED BOOTS.
 - Scrolls: ZELGO MER identify, EIRIS SAZUN IDISI amnesia, GARVEN DEH light, HACKEM MUCHE fire, TEMOV teleportation, FOOBIE BLETCH enchant weapon, KERNOD WEL scare monster, THARR create monster, ZLORFIK gold detection, XOR OTA = REMOVE CURSE (named). NR 9 (200) = earth or taming. ELAM EBOW (100) unknown.
 - Potions: yellow sickness, brilliant blue blindness, cyan oil, pink GAIN LEVEL, swirly HEALING, golden SPEED, ruby FULL HEALING, dark MONSTER DETECTION, orange BOOZE, sky blue CONFUSION, dark green FRUIT JUICE, clear WATER, **black OBJECT DETECTION**; cloudy = PARALYSIS? (a soldier's thrown cloudy potion: "Something seems to be holding you") .
-- Wands: marble lightning, iridium striking, oak magic missile, crystal speed monster, short TELEPORTATION, zinc nothing, ebony CREATE MONSTER, balsa FIRE, platinum DIGGING, glass CANCELLATION, uranium COLD, aluminum SLEEP.
+- Wands: crystal = SPEED MONSTER (re-tested T:20942), marble lightning, iridium striking, oak magic missile, crystal speed monster, short TELEPORTATION, zinc nothing, ebony CREATE MONSTER, balsa FIRE, platinum DIGGING, glass CANCELLATION, uranium COLD, aluminum SLEEP.
 - Rings: diamond fire res, iron prot. from shape changers, engagement REGENERATION, agate = base 150, twisted POLYMORPH CONTROL, clay SHOCK RES, opal SLOW DIGESTION, topaz GAIN CON.
 - Amulets: spherical STRANGULATION, hexagonal REFLECTION. Armor: polished silver shield = SHIELD OF REFLECTION; faded pall = elven cloak.
 
@@ -58,6 +59,7 @@
 | **23** | main | **MEDUSA'S ISLAND (variant 1) — MEDUSA DEAD (statue at (37,11))**. `<` (7,16) west strip; my dug HOLE (5,16). **`>` (38,12) in the central room**: Perseus's statue broken there: a CURSED +0 shield of reflection + a sack left on the stairs. Wand (64,17), armor (67,19) on the east islands (water). |
 | **24** | main | **CORRIDOR MAZE** (levels below Medusa are mazes 4/5). **`<` (15,20)** (SW) -> Medusa's `>`. **`>` (52,11)**. Hole (34,15) (the captain's; bypass dug at (35,15)). Magic trap (43,20) (bypass dug at (43,19)). LEVEL TELEPORTER (23,4) (MR blocks it). Dart traps (66,6), (51,18). Teleport trap (76,14). |
 | **25** | main | **THE CASTLE.** `<` (2,20) SW maze. Rust trap (4,20). My dug openings (6,15), (7,13). Courtyard x8-12 y10-14. DRAWBRIDGE DESTROYED T:20078; gateway (13,12)=ICE (refrozen T:20245; red naga fire melted it once; re-zap cold R if it is `}`), doorway (14,12). Antechamber x15-22, corridor y=12 x24-33, throne room x35-45 y9-15 (throne (44,12), royal chest (45,12)). **WISHING CHEST = SE TOWER (66,18)** (object detection T:20211). Trap doors (48..63,12). |
+| **26** | Gehennom | **VALLEY OF THE DEAD.** screen = des map + (2,2). `<` (68,19). `>` (3,3) top-left behind 3 LOCKED SECRET DOORS (8,8) temple wall, (10,6), (6,3). Temple of Moloch x3-7 y8-16 (altar (5,12), priest peaceful). Graveyards: MIDDLE x39-48 y11-16 CLEARED of wraiths/vampires (jabberwock asleep? at (45,12), gray unicorn, raven, zombies left; 1-wide dead end (46-48,14) = chokepoint); NW x21-26 y3-10 (6 wraiths, vampires, red &, white &, xan); SW x11-18 y16-20 (6 wraiths, vampire lord, vampires, white &). Random walls: north wall of the middle graveyard SOLID -> the gap (52-55,10) north of the east room is OPEN (route). |
 | Mines | Mines | Minetown = Mines 3 (DL6): temple of Odin (neutral), shops. Mines' End DL11. |
 | Sokoban | | ALL SOLVED. |
 
@@ -73,8 +75,8 @@
 - Soldiers (@) ignore Elbereth; MR + reflection cover wand death rays; they hit hard in groups — fight in corridors/doorways; zap SLEEP (h) down a line of them.
 - Fire elementals/fire breath destroy potions/scrolls. Quantum mechanics teleport (not on the Castle). Gelatinous cubes: force bolt from range.
 
-## Objective and plan (after shift 23)
-1. (optional, cheap) Loot the royal chest (45,12): stand on it, `#untrap` it once or twice, then loot_all(). (optional) Sit on the throne (44,12): 1/39 wish, 1/39 genocide per sit; risks shock d30, curse (1 remove curse left), a summoned court — full HP only, bag the wands first.
-2. Next objective: THE VALLEY OF THE DEAD via a Castle trap door (search (46,12) from (45,12) with Excalibur, walk to (48,12), step_onto(force=True)). Full HP first. Gehennom rules: NO PRAYER, Temple of Moloch priest peaceful (leave it), eat WRAITH corpses at once (+1 XL each) -> XL14 for the quest.
-3. Quest (DL13 portal (73,17)) once XL14 + piety() "piously". Bell of Opening from Lord Surtur.
-4. Identify the coral ring Q (altar/scroll/price) before wearing. Consider blessed genocide #2 for `;` (Plane of Water) or keep as a reserve.
+## Objective and plan (after shift 24, T:20944)
+1. VALLEY ROUTE to `>` (3,3) (kernel helpers `vroute(dst)`/`vwalk(dst)` route over the des map, `sweep(targets)`, `hold_front(front)`, `eat_wraith()`; if the kernel restarted: `bin/nh exec` with `exec(open('play/runs/p1/valley_helpers.py').read())`): from `<` (68,19) north into the east room (x52-69, y11-14), through the gap (55,10) into the room x42-55 y7-9, then (56,7) -> east (62,7) -> (64,5) -> (62,3) [DART TRAP (62,3): step around] -> west (57,3) -> (55,5) -> (51,5) -> (49,3) -> west along row 3 to ~(40,3) -> then SW/W (variant v2 unknown: (29,14)... or via the NW graveyard) -> row 14 west -> temple opening (8,12) -> temple -> SECRET DOOR (8,8) [search, unlock with key d] -> (9..12,8) -> (13..15,9) -> (16,8) -> column x=16 north (SPIKED PIT (16,7)) -> (15..12,3) -> (12,4),(12,5) -> SECRET DOOR (10,6) -> (9..7,6) -> column x=7 north (SPIKED PIT (7,4)) -> (7,3) -> SECRET DOOR (6,3) -> SLEEP GAS TRAP (5,3) (unavoidable; no sleep res: lock (10,6) behind me first, full HP) -> `>` (3,3).
+2. Wraith XP: 12 more wraiths in the NW and SW graveyards (all asleep; stealth works). Fight them only from a chokepoint: fleeing wraiths READ CURSED CREATE MONSTER scrolls (13+ monsters each time). Incubi/succubi: never let one act next to me (strips armor incl. MR).
+3. Then Gehennom mazes (dig down where allowed), Vlad's (Gehennom lvl 9-13), Wizard's tower; quest (DL13 portal) whenever convenient: XL14 met, check piety().
+4. Identify the coral ring Q; consider holy water for the gain level potion z.

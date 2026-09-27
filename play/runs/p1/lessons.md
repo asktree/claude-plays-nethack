@@ -144,3 +144,11 @@
 - Castle halls/towers connect ONLY through the throne room's doors (40,8)/(40,16) (castle.des): clear the throne room at its west door (34,12) chokepoint first, then unlock (40,16) with a key.
 - Trolls: an invisible troll's corpse ("You kill it!") is unknown to the harness's kill log: eat it with force=True on the square you just killed it; eat EVERY troll corpse at once, they revive within turns (this one rose mid-meal).
 - pickup('ring') also matches "ring mail" (substring): name the exact item ("coral ring").
+- INCUBI/SUCCUBI: never melee one that can still act. With Cha 7, 65% of the seduction's armor removals come without a prompt: one bite took off cloak, GDSM (MR), gloves, shield and helm (T:20775). Kill it while it sleeps AND can't wake (sleep ray first; MR 70 resists often) or at range, or leave it asleep. Re-dress shield first (1 turn: reflection + AC), then body armor (dragon mail 5 turns), cloak, helm, gloves.
+- FLEEING MONSTERS READ CURSED CREATE MONSTER: in the Valley two wraiths and a winged gargoyle each read one when hurt: 13+ monsters appear around YOU (jabberwock, mumak, baluchitherium, hezrou, cockatrice, QMs...). Fight graveyard monsters from a chokepoint from the start, not in the open middle of the room.
+- Special-level des maps (~/src/nethack-3.6.7/dat/*.des) show 1-wide dead ends that are perfect one-front chokepoints; find the screen offset on arrival (Valley: screen = map + (2,2)) and pick the retreat square BEFORE engaging. 'B' in a des map is floor (invisible room boundary).
+- A monster in the dark threw a potion of paralysis: frozen ~6 turns among 5 attackers = 65 HP. Without free action, never stand where more than 2 monsters can reach you; a ring of free action is the top wish/loot priority.
+- Monsters drink potions lying on the floor during a fight (a quasit and a bone devil drank 2 potions of gain level): grab valuable potions the moment they drop.
+- A sleeping monster (sleep ray) on one of the squares next to a chokepoint is a plug: it leaves a single front square.
+- Wraith corpses: only 1 in 8 kills left one this time; don't count on levels. They have 0 nutrition: eating one while Satiated cannot choke (the harness needs force=True for 'e' and "Continue eating?").
+- Check state.md's identified-appearances list before engrave-testing (crystal = speed monster was already known).
