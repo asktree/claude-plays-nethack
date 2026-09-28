@@ -247,6 +247,26 @@ def peaceful_self_buff(m: str, *snaps) -> bool:
     return bool(seen) and all(x.get("peaceful") and not x.get("tame") for x in seen)
 
 
+# mon.c monkilled(): "The newt is killed!" / "The zombie is destroyed by the blast of fire!" — a monster in view
+# killed by your pet, a trap, another monster: no news for you (p6 shift 1 #7: every explore() with a kitten
+# paused on its kills) — unless it may be your pet: a kind among the tame monsters in view, or a name that is no
+# monster's (a named pet)
+_KILLED_BY_OTHER = re.compile(r"^(?:The |An? )?(?P<n>[\w' -]+?) is (?:killed|destroyed)(?: by [^!]+)?!$")
+
+
+def other_monster_killed(m: str, *snaps) -> bool:
+    mm = _KILLED_BY_OTHER.match(m)
+    if not mm:
+        return False
+    from .danger import base_name, monster_record
+    name = (base_name(mm.group("n")) or "").lower()
+    if not name or not monster_record(name):
+        return False
+    tame = {(base_name(re.sub(r"^tame ", "", x.get("desc") or "")) or "").lower()
+            for s in snaps if s is not None for x in (s.monsters or []) if x.get("tame") or x.get("pet")}
+    return name not in tame
+
+
 # a poison gas cloud (region.c inside_gas_cloud; a green dragon's breath leaves them, so do stinking cloud
 # scrolls and Gehennom's fumaroles): with poison resistance only a 1-turn blindness and a cough each turn
 # you stand in it — news once per level; without it "Something is burning your lungs!" costs HP
@@ -583,6 +603,7 @@ class Kernel:
                 and not any(lead.search(m) for lead in elemental)
                 and not (engr_repeat and _ENGR_LINES.search(m))
                 and not peaceful_self_buff(m, before, snap)
+                and not other_monster_killed(m, before, snap)
                 and not self._heard_before(m, snap)]
         if msgs and not quiet:
             reasons.append("message")

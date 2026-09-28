@@ -1588,3 +1588,15 @@ def test_cockatrice_corpse_picked_up_drops_its_kill_record():
     g._note_trice_taken(s, ["J - a cockatrice corpse."])
     assert g.kills[key] == [("jackal", HERO, 101), ("cockatrice", (41, 10), 120)]
     assert g._trice_killed_on(s, HERO) is None and g._trice_killed_on(s, (41, 10))
+
+
+def test_a_monster_killed_by_the_pet_is_no_news_but_the_pet_dying_is():
+    # p6 shift 1 #7: explore() paused on "The kitten bites the newt. | The newt is killed!"
+    from nh.kernel import other_monster_killed
+    s = snap({}, 50)
+    s.monsters = [{"ch": "f", "x": 41, "y": 10, "desc": "tame kitten", "tame": True, "pet": True}]
+    assert other_monster_killed("The newt is killed!", s)
+    assert other_monster_killed("The gnome zombie is destroyed by the blast of fire!", s)
+    assert not other_monster_killed("The kitten is killed!", s)           # the pet (its kind is tame here)
+    assert not other_monster_killed("Sparky is killed!", s)               # a named pet: not a monster name
+    assert not other_monster_killed("You kill the newt!", s)
