@@ -7,7 +7,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:13317 / DL4 MAIN DUNGEON, on the Mines down stairs (6,6) / XL12 / 115/115 / 22/22 / AC-15, Satiated (T:13255)
+- Turn / Dlvl / XL / HP / Pw / AC: T:14402 / DL18 MAIN DUNGEON, ON THE UP STAIRS (9,19) / XL12 / 115/115 / 22/22 / AC-15, not hungry (ate a stalker T:14390: temporarily INVISIBLE)
 - T:11292 WISH DONE: z - blessed +2 GRAY DRAGON SCALE MAIL, WORN (MAGIC RESISTANCE) under the faded pall I (elven cloak). Elven mithril G left on the DL9 altar.
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
@@ -16,6 +16,26 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; EXPERT long sword (T:7145), basic dagger
 - Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047), SLEEP RES (Woodland-elf T:12347). MR (GDSM), REFLECTION (amulet).
 - Luck notes: full moon at game start (+1 while it lasts). Alignment / god anger: none
+
+## SHIFT 15 CHANGES (T:14402) — levels DL15-18
+- DL15 = ROGUE LEVEL: up (21,17), down (34,18). Traps: bear (31,4), sleeping gas (33,5), dart (43,10). Dropped there: wand of speed monster + EMPTY digging wand a (37,8); balsa wand (no-effect group) + 4 daggers (35,10).
+- DL16: up (63,7), down (21,5); trapped closet 'ad aerarium' (25,2) avoided. Nearly empty.
+- DL17: up (34,6), fountain (34,7), down (36,17). Kinojevis' general store (door 71,10): no food; scroll VERR YED HORRE 267 (base 200 = amnesia or taming); large box 677 (contents). Mimics killed. Mountain nymph asleep ~(32,15) (left alone).
+- DL18: up (9,19) (hidden door (6,17) found). TELEPATHY SCAN T:14395: a GRAVEYARD in the NE ~(72-76,5-8): 5 WRAITHS (corpse = +1 XL each, if they leave one),
+  5 ghosts, INCUBUS (73,5) — SEDUCES ME (female): strips armor incl. the GDSM (Cha 8: asked only 8/20 of the time) — kill it FIRST at range (daggers,
+  wand of striking/cold from the sack) or before it reaches melee; succubus (can't seduce me: plain demon), vampire bat (maybe a vampire).
+  A DOPPELGANGER (seen as 'exhumer' -> 'priestess') near (28,6); small mimic as a door (27,7); plains centaur (65,17).
+- Main pack new: K + l 2 POTIONS OF SPEED, s SCROLL OF CREATE MONSTER (sacrifice fodder at the DL9 altar), unknown potions n murky, p brilliant blue,
+  q dark green, i emerald. 3 daggers B + b. FOOD: 1 food ration F + fortune cookie G only. Burdened edge: pick up nothing heavy.
+- Prayer timeout PROVEN 0 at T:13505 (DL9 sacrifice) -> ~900 turns later it is still 0: prayer is safe for major trouble.
+
+## PLAN (T:14402)
+- Graveyard wraiths on DL18 = the fastest route to XL14 (each wraith corpse +1 XL; eat at once). Approach at full HP; fight from a corridor/doorway;
+  kill the incubus before anything else; say n to any "Shall I remove your ...?" prompt. Keep HP > 60%; the up stairs (9,19) are the retreat.
+
+## SHIFT 15 CHANGES (T:13517)
+- Luckstone Z UNCURSED (DL9 altar T:13501). U = uncursed RING OF FIRE RESISTANCE (coral; main pack). Prayer timeout proven 0 at T:13505 (sacrifice).
+- Sack w: FNORD blessed; DAIYEN FOOELS, ZELGO MER, sky blue potion, wand of cold, rings emerald V/moonstone W/wooden i all uncursed. Identify scroll used.
 
 ## SHIFT 13-14 CHANGES (T:13317) — CURRENT INVENTORY FACTS
 - LUCKSTONE: Z - gray stone "luckstone (Mines End)" in MAIN inventory (T:12780). Keep it there (never bag it, never drop it).

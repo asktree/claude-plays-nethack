@@ -94,3 +94,9 @@
 - Mines 10 (dark): descend(explore=True) spent 48 explore legs in ~57 turns barely moving ("not found in 48 explore legs"); head_to(70,12) also wandered back west for 21 legs. The only frontier was a gap at (40,17) the planner didn't go to.
 - desmap.route() on minend-2 keeps routing through the unsettled secret door (54,9) after 30+ searches failed to find it; avoid((54,9)) is ignored by the desmap route. Would be good to: treat a searched-for-long secret door as absent (settle its variant group to "did not happen"), and honour avoid() squares.
 - travel() with desmap.walk stopped before the level teleporter (33,5) even though MR makes it harmless (trap_crossable could allow level teleporters with worn MR, like teleport traps).
+
+## Shift 15 (T:13317-)
+- #4664 T:13818: read_identify('N') with the default ID_PRIORITY identified the WORN amulet of reflection (already known by name, only its
+  BUC was missing) instead of one of the 3 unidentified rings (V emerald, W moonstone, O wooden) that were in the main pack. Expected: rings
+  first ("each round picks ONE item by class priority (rings, amulets, ...)"); an item whose TYPE is already known should rank below any
+  item whose type is unknown. Scroll wasted.

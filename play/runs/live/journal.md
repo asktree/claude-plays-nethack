@@ -278,3 +278,25 @@
 - T:13172 Minetown: killed a rock piercer, ate it. T:13209 raven blinded me (unihorn fixed), killed it.
 - T:13234 Mines 6: INVISIBLE STALKER (seen by blindfold telepathy), killed in 2 blows, ATE it (400; stun cured by horn, invisible until T:13308, no see invis). Satiated.
 - T:13302 Mines 5: killed a chickatrice with Excalibur (gloves, no touch). T:13317 back in the main dungeon DL4 on the Mines stairs (6,6). HP 115/115.
+
+## Shift 15 (T:13317-)
+- T:13333 DL4: killed a black unicorn (hostile), ATE it (Satiated). Left its unicorn horn at (23,8).
+- T:13479 down to DL9 (descend(5, to='Dungeons')). T:13501 ALTAR TEST on the DL9 lawful altar: LUCKSTONE Z UNCURSED; F ration, G cookie,
+  J full healing, candles R (7), key m, all gems uncursed. From the sack: FNORD BLESSED, DAIYEN FOOELS/ZELGO MER/sky blue D/wand of cold uncursed.
+- T:13505 offered a garter snake: "consumed in a flash of light" only = PRAYER TIMEOUT IS 0 (proven).
+- T:13516 read scroll of identify: CORAL RING U = FIRE RESISTANCE (uncursed; in main pack — for the quest/Surtur). Other rings back in sack.
+- T:13523 DL9 killed a quantum mechanic (no corpse). T:13559-13579 DL11: wolf pack + 3 wargs killed from a corridor (6 kills, ~3 dmg). Picked up
+  potion of SPEED l (28,7) and emerald potion i. DL12 Big Room: killed Uruk-hai, shrieker; potions n murky, p brilliant blue, q dark green.
+- T:13680 DL15 = ROGUE LEVEL (up (21,17), down (34,18)). Cobra under a scroll of CREATE MONSTER (s, taken). Killed Glenn Wichman's ghost,
+  hill giant, yellow mold, 2 black puddings (split once), invisible stalker (blindfold telepathy). Bear trap (31,4), sleeping gas (33,5), dart trap (43,10).
+  Long wand = SPEED MONSTER (engrave; dropped at (37,8) with the EMPTY digging wand a). Balsa wand = no-effect group (dropped (35,10) with 4 daggers:
+  weight). New: N scroll of IDENTIFY, K 2nd potion of SPEED. Burdened edge — carry nothing heavy.
+- T:13818 read the 2nd identify: it went to the WORN amulet (h = uncursed amulet of reflection) — wasted (harness_notes).
+- T:13898 DL16: up (63,7), DOWN (21,5); trapped closet 'ad aerarium' (25,2) avoided; almost empty (Mordor orc, rothe). Boulder (19,8).
+- T:13983 DL17: up (34,6), fountain (34,7), DOWN (36,17). Kinojevis' general store (door 71,10; room 72-76,7-10): killed 4 small mimics + large
+  mimic inside (shopkeeper peaceful). Shop: scroll VERR YED HORRE 267 (base 200: amnesia/taming), large box 677 (has contents), potion
+  'object detection?' 200, elven bow. No food rations. Killed hostile nurse, homunculus, air elemental. Mountain nymph + invisible stalker
+  seen by telepathy near (32-36,15-16) (I markers there). T:14336 Hungry -> ate both slime molds. FOOD: 1 ration F + fortune cookie G only.
+- T:14370 DL17: killed another invisible stalker + 4 soldier ants at the down stairs; ATE the stalker (400; stun cured by horn; temporarily invisible).
+- T:14393 DL18: up stairs (9,19). Telepathy: GRAVEYARD NE (5 wraiths, 5 ghosts, incubus, succubus, vampire bat), a doppelganger (exhumer->priestess)
+  near (28,6). Killed the lone wraith next to the stairs (6,18): NO corpse. Shift 15 ends T:14402 on the DL18 up stairs, HP 115/115, XL12, AC-15.
