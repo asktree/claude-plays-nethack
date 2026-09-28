@@ -2,90 +2,78 @@
 
 ## Character
 - Name/role: P4, lawful female dwarven Valkyrie, god: Tyr. Seed 404 (local practice game).
-- Turn / Dlvl / XL / HP / Pw / AC: T:4257 / MINETOWN = Gnomish Mines 4 (DL8), "Bustling Town" (minetn-6) / XL7 /
-  57/78 / 10/10 / AC-8 / $8
-- Position at end of shift 2: (55,17) DL8, ON the lawful altar of Tyr in the co-aligned temple (peaceful priest).
-- Attributes: St 18/05, Dx 10, Co 19, In 7, Wi 8; Cha 8-10 (shop prices x4/3).
-- Skills: long sword SKILLED (T:2834), dagger Basic.
-- Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (XL7, T:4076),
-  TELEPATHY (floating eye corpse, T:4096: see minded monsters while blind), MAGIC RESISTANCE (worn GDSM X).
-  NOT poison resistant (unicorn corpse T:3678 gave nothing).
-- Luck notes: nothing done to change Luck. Alignment: many hostile kills, no peacefuls harmed.
-- HUNGER: prayer fixed hunger T:3562 (900), black unicorn corpse T:3678 (+300). Not hungry at T:4257; expect
-  Hungry around T:4700-4800. Food: S (food ration). Eat when Hungry.
+- Turn / Dlvl / XL / HP / Pw / AC: T:6298 / SOKOBAN LEVEL 2 (Dlvl 8, soko3-1 = wiki Sokoban_Level_2b, SOLVED) / XL8 /
+  85/85 / 13/13 / AC-8 / $100
+- Position at end of shift 3: (51,14) inside the stair room of Sokoban level 2 (the room's door (51,15) was locked:
+  unlocked with key g). Up stairs to Sokoban level 3 at (47,10).
+- In the stair room right now: a FLOATING EYE at (45,14) (NEVER melee; the harness note wrongly says "corner it and
+  kill it" — ignore that) and a MOUNTAIN NYMPH at (44,9) that hasn't moved for 18+ turns (probably asleep). A gold
+  golem was wandering the row-16 corridor to the west. 3 chickatrices killed here (corpses at (51,15), (50,13), ...:
+  never touch/eat).
+- Attributes: St 18/02 (was 18/05; giant spider corpse), Dx 10, Co 19, In 7, Wi 9 ("You feel wise!" T:4369).
+- Skills: long sword EXPERT (T:6279), dagger Basic.
+- Intrinsics: cold res (Valk), stealth, infravision, SPEED (XL7), TELEPATHY (floating eye), MAGIC RESISTANCE (worn
+  GDSM X). NOT poison resistant (giant spider corpse T:5301 gave nothing).
+- HUNGER: ate food ration e at T:6150 -> fine until ~T:7000. Food left: 4 tripe rations (w) only! (Yak, 50% vomit for
+  a dwarf; 200 each). Eat fresh safe corpses; buy/find rations. Prayer is safe again for Weak.
 
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
-| T:3562 | Weak (hunger), DL7 (40,15) | SUCCESS, "Your stomach feels content". Timeout reset (rnz 350) |
-| T:4251 | (a WISH, not a prayer) | +50-149 prayer timeout. prayer_check() at T:4257: 0% safe. Assume NO prayer before ~T:4900; always prayer_check() |
+| T:3562 | Weak (hunger), DL7 (40,15) | SUCCESS. Timeout reset |
+| T:4251 | (a WISH) | +50-149 timeout |
+| T:6298 | prayer_check(): no trouble, p_safe 0.998 (2736 turns since the last prayer) | prayer available for MAJOR trouble |
 
-## Equipment worn/wielded (letter: item)
-- a: blessed rustproof +1 EXCALIBUR (wielded). X: +2 GRAY DRAGON SCALE MAIL (worn; wished blessed T:4251; MR).
-  c: uncursed +3 small shield. j: +0 orcish helm (not cursed). O: uncursed +0 iron shoes (worn T:4124). AC -8.
+## Equipment worn/wielded
+- a: blessed rustproof +1 EXCALIBUR (wielded). X: +2 GRAY DRAGON SCALE MAIL (worn; MR; wished blessed). c: +3 small
+  shield. j: +0 orcish helm. O: +0 iron shoes. AC -8.
+- A NYMPH CAN CHARM THE GDSM OFF YOU (T:5057). After any nymph contact: check `inventory()` for "(being worn)" on X.
 
-## Key inventory (letters) — everything below was altar-tested T:4121/T:4245 [seen]
-- Daggers to throw: b uncursed +0 dagger, y uncursed dagger, f uncursed orcish dagger (quivered), i 2 uncursed
-  orcish daggers.
-- V: uncursed ELVEN MITHRIL-COAT (spare body armor, 150 wt; sells for ~120 at Chibougamau's general store).
-- S: uncursed food ration. J: 2 uncursed LIZARD CORPSES (stoning cure; never eat as food).
-- L: uncursed UNICORN HORN (from the black unicorn, T:3651): apply for conf/stun/blind/hallu/sickness.
-- Wands: U uncursed WAND OF DIGGING (from the bugbear; escape: zap down), P uncursed WAND OF STRIKING (monster
-  used it; charges unknown), r uncursed wand of light, x uncursed wand called polymorph (sliming cure: zap self).
-- Tools: M uncursed MAGIC MARKER (charges unknown), G uncursed pick-axe (applying is safe now; drop it outside
-  shop doors — shopkeepers block you), I uncursed expensive camera, W blessed lamp (was the MAGIC lamp; after the
-  djinni it is now an OIL lamp: a light source only).
-- Scrolls: k uncursed IDENTIFY (MAPIRO MAHAMA DIROMAT); n CURSED PRATYAVAYAH (enchant armor/remove curse/enchant
-  weapon — don't read while cursed); p uncursed blank (unlabeled) — write with M; uncursed unknown: B STRC PRST
-  SKRZ KRK, D EIRIS SAZUN IDISI, H LEP GEX VEN ZEA, K KO BATE.
-- Potions: h BLESSED sky blue (200 group: enlightenment/full healing/levitation/polymorph/speed); t BLESSED dark
-  (unknown); N BLESSED + F uncursed "object detection" (bubbly: both carried by nymphs — strong inference).
-- Spellbooks: u BLESSED dusty (blessed books never fail to read in 3.6 — safe to read to learn/ID it),
-  q uncursed plaid (Int 7: don't read).
-- Gems: C 2 blue, E yellow, s orange, z 2 white (uncursed, unknown).
-- Escapes: wand of digging (zap > = hole down), Elbereth, upstairs. Healing: none known (h may be full healing).
-- Emergency cures: 2 lizard corpses (stoning), polymorph wand self-zap (sliming), unicorn horn (sickness, conf,
-  stun, blind). Prayer NOT available now.
+## Key inventory (letters)
+- Daggers to throw: b +0 dagger, y dagger (quivered), f orcish dagger, i 2 orcish daggers (all uncursed).
+- V uncursed elven mithril-coat (spare, 150 wt: consider dropping). G uncursed pick-axe. g KEY (unlocks doors/boxes).
+- J 2 uncursed LIZARD CORPSES (stoning cure). L uncursed UNICORN HORN (cured raven blindness in 1 apply).
+- Y can of GREASE (unknown BUC; grease the cloak/armor vs grabbers — no cloak yet).
+- Wands: U digging, P striking, r light, R light (new), x "polymorph" (self-zap = sliming cure), T CURVED (unknown),
+  t URANIUM (unknown). Engrave-test T and t next shift (not in Sokoban? engraving is fine in Sokoban).
+- Rings (unknown, don't put on untested): S copper, Q granite. Amulet: o SPHERICAL (unknown: could be strangulation —
+  don't wear untested).
+- Scrolls: k uncursed IDENTIFY + l IDENTIFY (unknown BUC) -> read to ID o/S/Q/T/t. A + Z(2) = EARTH (GARVEN DEH, from
+  Sokoban 1). n CURSED PRATYAVAYAH (enchant armor/weapon/remove curse). p uncursed blank. Unknown: d ANDOVA BEGARIN,
+  D EIRIS SAZUN IDISI, H LEP GEX VEN ZEA, K KO BATE, B STRC PRST SKRZ KRK.
+- Potions: h BLESSED sky blue (200 group), N blessed + F uncursed "object detection" (bubbly), v ORANGE (unknown BUC;
+  an earlier orange one was cursed), m RUBY (unknown).
+- Spellbooks: u BLESSED dusty (safe to read), q plaid. Tools: W blessed oil lamp, I camera, M magic marker.
+- Gems: C 2 blue, s orange, z 2 white, E yellow.
 
-## Identified appearances (appearance -> identity)
-- scroll MAPIRO MAHAMA DIROMAT = identify; balsa wand = light; CRYSTAL wand = digging; SILVER wand = make
-  invisible; STEEL wand = striking (the one in P).
-- ETAOIN SHRDLU = 200 group; an Uruk-hai read one out of sight (T:3988) -> probably CREATE MONSTER (called
-  "create monster?").
-- bubbly potion = called "object detection" (inference). Magic lamp is known now (discoveries).
-- DL2 shop price-IDs: ASHPD SODALG = light (50); short wand (150 group), ebony wand (150 or 200 group), horn 20 =
-  tooled horn.
+## Identified appearances
+- scroll MAPIRO MAHAMA DIROMAT = identify; GARVEN DEH = EARTH (Sokoban level 1's two scrolls); balsa wand = light;
+  CRYSTAL = digging; SILVER = make invisible; STEEL = striking. DARK potion = BLINDNESS (a nymph hurled it: "It suddenly
+  gets dark"). EFFERVESCENT potion = EXTRA HEALING (nymph quaffed: "looks much better"). ETAOIN SHRDLU = create monster?
 
 ## Dungeon map
-| Dlvl | branch | features (stairs, altars+alignment, shops+type, fountains, stashes, traps, notes) |
+| Dlvl | branch | features |
 |---|---|---|
-| 1 | Dungeons | up (52,18), down (12,8). Cursed orcish helm at (48,8). |
-| 2 | Dungeons | up (25,12), down (17,4). Fountain (24,13). CHAOTIC altar (5,4). Sipaliwini's general store (door 65,4). Kitten left here (T:~1200). |
-| 3 | Dungeons | up (65,11), down (52,6). A fountain somewhere. West third unexplored. |
-| 4 | Dungeons | up (54,5); '>' (45,15) -> DL5; '>' (72,7) -> MINES. Fountain gone (Excalibur). Falling rock trap (43,16). |
-| 5 | Dungeons | up (50,17). Barely seen. |
-| 5 | Mines 1 | up (35,13), down (46,14). Traps: pit (4,9), arrow (14,13), magic (59,14), spiked pit (58,13). |
-| 6 | Mines 2 | up (48,18), down (42,11). Squeaky board (46,17), teleport/level teleporter (17,15). |
-| 7 | Mines 3 | up (13,6). HOLE (30,7), bear trap (28,8), a TRAP DOOR in the east (I fell through it ~T:4103 near (47-50,12-13); the harness has it). '>' never found. West 2/3 explored. |
-| 8 | Mines 4 = MINETOWN "Bustling Town" (minetn-6, map offset (20,4)) | CO-ALIGNED TEMPLE of Tyr (51-56,16-18), door (50,17), LAWFUL ALTAR (55,17), peaceful priest. Izchak's lighting store (29-31,11-13), door (30,14) — candles; the magic lamp is bought. Bojolali's delicatessen (42-44,16-17), door (45,16): 1 food ration left (60zm), tripe, clear potion = water (9zm). Chibougamau's GENERAL STORE (43-45,5-7), door (44,8): 2 wands, potions, scroll, weapon for sale; buys anything. Tool shop (36-38,8-10), door (39,9) (not visited). Fountains (29,17), (42,11): NEVER dip/quaff here. Up stairs somewhere x=1-20, DOWN stairs somewhere x=61-75 (not seen yet). Watchmen peaceful. |
-
-## Pets
-- None (kitten left on DL2 at T:~1230).
+| 1-3 | Dungeons | see journal shift 1 (DL2 chaotic altar (5,4), Sipaliwini's general store) |
+| 4 | Dungeons | up (54,5); '>' (45,15) -> DL5; '>' (72,7) -> MINES. |
+| 5 | Dungeons | up (50,17), down (51,6), fountain (52,5). NOT the Oracle. |
+| 6 | Dungeons | up (22,14), down (37,9). Fully explored; one '<'. Dwarf digging in the SE. |
+| 7 | Dungeons | up (53,4), down (18,7). (harness mis-identifies it as bigrm-1) |
+| 8 | Dungeons | up (48,13) (fountain room), down (10,15). |
+| 9 | Dungeons | THE ORACLE (peaceful Oracle (39,12), centre unexplored). up (7,4), down (59,9) in a room entered by its west door (57,7) from corridor (56,7). Brown mold (22,14). |
+| 10 | Dungeons | up (17,13) -> DL9; SOKOBAN up stairs (63,18). Nothing below explored. |
+| Sok 1 (Dlvl 9) | Sokoban | soko4-1 (1b) SOLVED T:5734. down (38,10), up (38,12). |
+| Sok 2 (Dlvl 8) | Sokoban | soko3-1 (2b) SOLVED T:6213. down (35,8), up (47,10) in the stair room (door (51,15) unlocked). |
+| Mines 1-3 (DL5-7), Minetown (DL8) | Mines | Minetown: temple of Tyr (co-aligned, altar (55,17)), '<' (15,13); a werewolf howls there. Mines 3 (DL7): '>' (69,9) behind a HOLE at (64,9) — bypass dug at (65,10)/(64,10)/(63,10). |
 
 ## Threats / known dangers
-- Uruk-hai / hill orc packs: their ORCISH ARROWS ARE ALWAYS POISONED (makemon m_initthrow) — each arrow that hits
-  is a 1-in-30 instant death without poison resistance. Never walk a 1-wide corridor lined up with an orc that
-  has a bow; fight from a square where every square in line is adjacent or wall (a nook).
-- Woodland-elves (and all elves) are hostile to a dwarf: elven broadswords hit for ~10; '@' ignore Elbereth.
-- Dust Elbereth: garbles 1 letter in 25 when engraved; decays 1 in 70 turns. Always read back.
+- Nymphs: charm off worn armor (GDSM!). Kill at range or while asleep; never let one act next to you.
+- Sokoban level 3+: more monsters (a zoo on the top level). Earth elementals pass through walls.
+- Orcish arrows (poisoned, 1/30 instadeath w/o poison res): fight Uruk-hai from a nook.
 
 ## Objective and plan
-- Current objective: finish Minetown, then Mines' End or back up to the main dungeon (Sokoban/Oracle).
-- Next steps:
-  (1) Rest to full HP in the temple (safe). Maybe read the BLESSED dusty spellbook u (can't fail).
-  (2) Optional money: sell V (elven mithril-coat, ~120) at Chibougamau's; price-ID scrolls/potions there with
-      sell_offer(); then buy the last food ration at Bojolali's (60).
-  (3) Find Minetown's '>' (east, x 61-75) and '<' (west, x 1-20); record them.
-  (4) With MR + AC-8 the Mines' End is reasonable at XL8+ (luckstone). Otherwise go up to DL4 and continue the main
-      dungeon (Sokoban up from the level below the Oracle). Keep the wand of digging for escapes.
-  (5) Protection from the priest costs 400*XL (2800 at XL7): collect gold; it is worth it later.
+- Next: Sokoban level 3. First deal with the stair room: the (sleeping?) nymph at (44,9) — throw daggers from a line
+  (she can't teleport in Sokoban) or hit her while asleep (stealth); leave the floating eye alone (throw daggers only).
+  Then '<' (47,10) -> level 3 -> `sokoban.solve()`.
+- Read identify (k, l) on the amulet/rings/wands at a quiet moment. Engrave-test T and t.
+- Food: only tripe left: eat safe fresh corpses; buy rations when possible.

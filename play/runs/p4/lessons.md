@@ -45,3 +45,24 @@
   Shopkeepers refuse entry with a pick-axe: drop it right outside the door and be quick (dwarves pick them up).
 - Nymphs start with a mirror (50%) and a potion of object detection (50%): two nymphs' bubbly potions = object
   detection.
+
+## Shift 3
+- **Finding the Oracle level cheaply**: oracle.des puts the Delphi (11x9 room + walls) at the map centre, screen
+  x 33-45, y 7-17, and random rooms keep a margin from it. A seen room or corridor inside that box rules the level
+  out. With DL6/7/8 ruled out that way, a full explore of DL6 (one '<' only) ruled out DL5 -> Oracle DL9, Sokoban
+  '<' on DL10. Telepathy while blinded showed "peaceful Oracle" and confirmed it.
+- **Nymphs charm armor off**: "You gladly start removing your dragon mail" = MR gone. Stealing weights WORN items x5
+  (steal.c), so the GDSM is ~10% of any theft. Never walk up to an awake nymph (hunt() gives her the first move):
+  throw daggers from a line, or hit her while she's asleep. After any theft, check inventory for "(being worn)".
+  A fleeing wounded nymph drinks potions (effervescent = extra healing) and picks up your thrown daggers; they come
+  back to you when you walk over them later (pickup_thrown).
+- **Diagonal corridor squeeze**: with a pack over 600, "You are carrying too much to get through." Dig one
+  orthogonal square with tunnel() (1 dig) instead of trusting explore()'s "couldn't reach".
+- **Holes in Mines corridors**: a hole in a 1-wide corridor cuts the level; tunnel() round it through the walls
+  (Mines walls dig).
+- **Giant spider corpse at St 18/xx**: the poison costs rnd(4) points off the 18/xx percentile — no damage-bonus
+  loss down to 18/01. 1/3 chance of poison resistance (it failed this time).
+- **Sokoban**: sokoban.solve() handles it; monsters trapped in pits on a boulder's route must die first (let the
+  solver fill the pit next to it, then stand there). The stair room's door may be locked: carry a key. Chickatrices
+  are speed 4: fight them from the doorway, then from the corridor square below it (one attacker at a time);
+  keep 2 lizard corpses.

@@ -75,3 +75,43 @@
 - T:4245 altar: the lamp flashed AMBER (blessed); mithril-coat, digging wand, lizard, food ration uncursed.
 - T:4251 rubbed the blessed magic lamp (8 rubs): djinni -> WISH: "blessed +2 gray dragon scale mail". Worn T:4257:
   AC -8, MAGIC RESISTANCE. End of shift at (55,17) on the altar, HP 57/78, XL7, $8. Prayer NOT available.
+
+## Shift 3
+- T:4277-4347 DL8 Minetown — rested on the altar; a hostile yeti came by: travel()'s new lurker detour went round its
+  last-seen square (32 steps); hunt() killed it (T:4347). Ate the yeti corpse (Satiated; "You feel wise!").
+- T:4376 "You hear a wolf howling at the moon" = werewolf on Minetown. Found Minetown's '<' at (15,13) (far west).
+- T:4423 DL7 (Mines 3): arrived on its '>' (69,9) in an eastern pocket whose only exit is a 1-wide corridor over a
+  HOLE at (64,9). Found a CAN OF GREASE (Y). Killed a rabid rat on the hole square; dug round the hole with the
+  pick-axe (tunnel: (65,10) then (63,10)) and walked to the '<' (13,6).
+- T:4507-4585 up through Mines 2/1 to DL4, down the main '>' (45,15) to DL5 (50,17). DL5 '>' (51,6); 2 scrolls
+  (Z GARVEN DEH, d ANDOVA BEGARIN). DL6: food ration (e) + key (g) on/near the '<' (22,14); '>' (37,9).
+- T:4643 DL7: '<' (53,4), '>' (18,7); killed an ogre (2 hits). DL8: '<' (48,13) with a fountain room; gecko.
+- Oracle deduction (oracle.des: the Delphi is always at the map centre, screen x 33-45, y 7-17): DL6 has its '>'
+  room there, DL7 a corridor through it, DL8's arrival room wall at x=45 -> none is the Oracle. DL6 fully explored
+  (T:4747-4981): only ONE '<' -> DL5 isn't the Oracle either -> ORACLE = DL9, SOKOBAN '<' on DL10.
+- DL6 extras: 3rd scroll of identify (l, MAPIRO). A diagonal corridor squeeze at (40,15)->(39,16): "You are carrying
+  too much to get through." (pack > 600) — dug round it with tunnel(40,16).
+- T:5044-5172 DL8 — a MOUNTAIN NYMPH: hunt() hit her once, then she charmed me: "You gladly start removing your
+  dragon mail" + helm; stole the blessed dark potion (hurled it: "It suddenly gets dark" -> DARK = BLINDNESS),
+  2 blue gems, orange gem, blank scroll, helm; teleported. The GDSM came off but stayed in the pack (the 2nd charm
+  replaced the steal target) -> re-worn at once (AC 4 -> -7). She came back: 5 thrown daggers, she quaffed an
+  EFFERVESCENT potion ("looks much better" = EXTRA HEALING) and picked up the daggers; hunt() killed her (T:5169).
+  Got back helm/gems/scroll (AC -8); the 5 DAGGERS were NOT in her death pile — lost.
+- T:5183-5200 DL8 — leprechaun: dropped $100 first, took a SPHERICAL AMULET (o) at (31,7), gold back. DL8 '>' (10,15).
+- T:5261 DL9 = THE ORACLE (seen by telepathy while blinded by a raven: peaceful Oracle at (39,12)). '<' (7,4),
+  '>' (59,9). T:5273 Hungry -> ate food ration S. Killed a giant spider (2 hits, 1 dmg); ate its corpse: poisonous
+  (St 18/05 -> 18/02, HP -11), NO poison resistance. Raven blinded me: unicorn horn fixed it in 1 apply.
+  Fire ants x4, a human mummy, lizard killed. URANIUM WAND (t) at (60,7).
+- T:5418 DL10 — '<' (17,13) from DL9; killed a gargoyle (2 hits); ORANGE potion (v). T:5515 SOKOBAN '<' at (63,18).
+- CORRECTION: the 5 daggers were NOT lost — they are back in the pack (b, y, f, i), picked up on the way (pickup_thrown).
+- T:5529 SOKOBAN LEVEL 1 (Dlvl 9, soko4-1 = wiki 1b): sokoban.solve() — paused for a lichen in a pit on the boulder's
+  route (hunt), a fog cloud in a pit (let the solver fill the next pit, then killed it from there: XL8 T:5647), a
+  rock piercer on a push square. SOLVED T:5734 (14/14). Loot: 2 scrolls GARVEN DEH = EARTH (named), granite ring Q,
+  wand of light R, 4 tripe rations; 4 orc zombies auto-fought.
+- T:5788 SOKOBAN LEVEL 2 (Dlvl 8, soko3-1 = 2b): earth elemental (fight_until_clear, no damage), Hungry T:6138 ->
+  ate food ration e, two rothes at the last hole (one stuck beyond it). SOLVED T:6213 (20/20). Copper ring S, curved
+  wand T. Stair-room door (51,15) LOCKED: unlock(51,15) with the key (not booby-trapped). Rabid rat, rothe, 3 orc
+  zombies. T:6279 long sword EXPERT.
+- T:6280-6298 stair room: 3 CHICKATRICES (fought from the doorway, then the corridor square below it; one hiss, no
+  stoning) all killed; a gold golem in the west corridor; a FLOATING EYE (45,14) and a MOUNTAIN NYMPH (44,9, asleep?)
+  remain. End of shift 3: T:6298, (51,14), HP 85/85, XL8, AC-8.

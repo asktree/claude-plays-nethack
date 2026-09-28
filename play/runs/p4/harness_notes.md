@@ -126,3 +126,92 @@ Excalibur after cont --reply; the WISH PROMPT pause text; prayer_check() countin
 2. explore()/travel() legs step next to an out-of-view dangerous hostile at its last-seen square (black unicorn,
    #135 and #207: -24 and -21 HP).
 3. PLAYBOOK: magic lamp base price is 50 in 3.6.7, not 500 (#1043: the 89zm lamp was the magic lamp).
+
+## Shift 3
+
+1. **Stale shop rooms survive the fix** (#24, #30, #33 T:4344-4369): at (45,19), (46,18), (47,18) — all in
+   Minetown's street — the obs said "— in Bojolali's delicatessen (no throwing/firing/digging down here)".
+   run/p4/harness_state.json still holds the shift-2 rectangles: Bojolali's [46,14,49,19] (real shop x42-44
+   y16-17), Chibougamau's [40,9,52,12] (real x43-45 y5-7), Izchak's [24,15,31,19] (real x29-31 y11-13). The fix
+   only helps NEW welcomes; old wrong records are never re-checked. The live game's harness_state may have the
+   same stale rectangles from before the fix: worth a one-off check/migration (drop a shop rect that doesn't
+   contain its shopkeeper's post / isn't wall-enclosed).
+2. **go_up() on identified Minetown: "NavError: no '<' known on this level"** (#14 T:4336). PLAYER.md says that on
+   an identified special level with no '<' seen, go_up/go_down travel to where its fixed map puts them. Minetown's
+   stairs are in random levregions (up: x 1-20 at the west edge), so the map can't pin them. Expected: say so
+   ("the fixed map puts '<' in region x1-20: head_to() west") or head_to() that region itself. I used
+   head_to(8,11), which found it at (15,13).
+3. **desmap.identify() false positive: ordinary rooms-and-corridors DL7 identified as 'bigrm-1'** (#551 T:4690):
+   `{'level': 'bigrm-1', 'ox': 3, 'oy': 3, 'score': 88, 'good': 154, 'bad': 30}`; the `where:` line then showed
+   "(bigrm-1 map at offset (3,3): desmap.show())". The Big Room only exists on DL10-12 (dungeon.def @ (10,3)) and
+   is one huge lit room; 30 bad squares should also rule it out. Risk: travel()/desmap.walk() route over "unseen"
+   squares of a wrong fixed map. Expected: filter candidates by the dungeon's depth ranges (oracle 5-9, bigroom
+   10-12, medusa, castle...) and reject any match with many bad squares.
+4. **explore() hid the real reason it stopped (squeeze)** (#648 T:4747): `blocked: frontiers [(39,16), (39,17),
+   (38,18)] travel couldn't reach [the last 8 legs went back and forth over 3 squares, showing nothing new]`.
+   The only way on was a diagonal corridor step (40,15)->(39,16) between two rock squares; a manual 'b' gave "You
+   are carrying too much to get through." (#649). In shift 1 the verdict named the squeeze; here it didn't, and it
+   spent 8 legs oscillating. Expected: name the squeeze and suggest tunnel()/dig one orthogonal square
+   (tunnel(40,16) fixed it in 1 dig).
+5. (minor) fight()'s re-wield step paused on "The rabid rat misses!" (#180 T:4467): the monster's routine melee
+   during the re-wield turn should be as routine as inside the fight itself. Cost one call.
+6. (minor) A dark corridor explored via frontiers() + travel() advances ONE square per leg (#1177-#1260: 5 legs for
+   5 squares). explore() did the same earlier. `do('Gh')` ran the whole corridor in one step (#1262). Maybe let
+   explore() use a G-run along a corridor frontier.
+7. (info) A digging dwarf keeps making new frontiers: find-loops of explore(max_legs=3) x40 never reported
+   "explored" on DL6 (T:4747-4870).
+
+Worked well so far: travel()'s lurker detour round the yeti's last-seen square (#24, 32 steps, clear message);
+hunt() (yeti, ogre); tunnel() round the hole and the squeeze (1 dig each, weapon re-wielded); go_up() chain
+DL8->DL4 and go_down(to='Dungeons') resolving the branch; eat(pattern=...) with corpse check.
+8. **A nymph's charm leaves your MR body armor UNWORN and the obs doesn't say so** (#1346 T:5057): "The mountain
+   nymph charms you. You gladly start removing your dragon mail. ... You gladly start removing your helm. ... steals a
+   +0 orcish helm!" The THEFT pause and the STOLEN line named only the helm. The dragon mail had come off but stayed in
+   the pack (the 2nd charm replaced the steal target), so I had NO magic resistance and AC 4 — only the AC number
+   showed it. Expected: after any "You gladly start removing"/"You finish taking off", an obs line like `!! X (gray
+   dragon scale mail) is NOT WORN — W X` (at least for body armor / cloak / MR or reflection sources).
+9. **A returning thief doesn't pause** (#1386 T:5074): the nymph that had just robbed me came back into view at d=9;
+   no pause (a known monster coming back isn't "new"). Only my own check in the script saw it. Expected: a monster
+   with a THEFT on record (or any thief: nymph, leprechaun, monkey) pauses every time it comes into view.
+10. **Lurker pause for a square in plain view, for a monster known to have teleported** (#1351 T:5062): "travel: the
+    next leg passes (44,5), next to where the mountain nymph was last seen at (45,5) ... out of view now (dark, or
+    behind a corner or door)". (45,5) was diagonal-adjacent to me in a LIT room (nothing there), and the harness
+    itself had logged "the thief teleported off". Expected: skip last-seen squares that are in view now, and drop
+    the zone for a monster seen to teleport.
+11. **The wrong 'bigrm-1' id (item 3) walked me into rock** (#2062 T:5392, DL9 = the Oracle level): "travel: the
+    identified special-level map has a 6-step way to (60, 7) (the seen map: none) — walking it with
+    desmap.walk()" -> "It's solid stone." DL9 was ALSO identified as bigrm-1 (score 43, good 62, bad 13), and the
+    `where:` line kept saying bigrm-1 after telepathy showed "peaceful Oracle" there. desmap.identify()'s candidate
+    list has no depth filter for Dungeons-of-Doom specials (_candidates by file only) and `bad*4 > good` lets 30 bad
+    squares pass. The real way in was a door (57,7) reached from an unseen corridor square (56,7) south of (56,6).
+12. (info) Oracle-level deduction worked from the fixed Delphi position (screen x33-45, y7-17): a desmap helper
+    "could this level be the Oracle?" (centre box overlaps a seen room/corridor -> no) would save the live game
+    exploring whole levels. I needed a full DL6 explore to rule out DL5.
+13. **SAFETY: the floating eye's note says "corner it and kill it" in Sokoban** (#3447, #3452 T:6297): `e floating eye
+    ... !! NEVER melee (paralysis -> death). Ranged only, or ignore. Corpse = telepathy — BUT teleporting is blocked in
+    Sokoban: corner it and kill it`. The Sokoban no-teleport suffix meant for nymphs/leprechauns got appended to the
+    floating eye (probably a match on "telep" in "Corpse = telepathy"). A player following the last words melees a
+    floating eye = paralysis = death. The live game enters Sokoban next.
+14. (minor) The same group of 3 slow chickatrices paused as "new monster" twice (#3410 T:6280 and #3425 T:6287:
+    "chickatrice at (49,14) (NEW)"): the swarm window (5 turns / 4 squares) is short for speed-4 monsters.
+15. (minor) The obs `objects:` line kept `" amulet/web (31,7)` after farlook(31,7) had said "a spherical amulet" (#1686).
+16. (info) "!! harness code on disk is newer than this daemon's core" was on every obs from #33 on (other agents
+    committed p3 fixes mid-shift). I did NOT `bin/nh reload`, to keep tactics and core consistent.
+17. (my scripting, maybe a helper) `obs.hostiles(3)` includes sessile molds; my loop "if hostiles near:
+    fight_until_clear()" spun 35 times on a brown mold (#1942). A `hostiles(r, mobile=True)` would help scripts.
+
+Worked well (second half): sokoban.solve() on levels 1 and 2 (34 pushes, zero wrong pushes): it paused exactly for a
+lichen and a fog cloud trapped in pits on boulder routes, a rock piercer on a push square, an earth elemental and
+rothes, and resumed from the board ("resuming step 12 after 20 of its pushes"); the COCKATRICE HISS pause with the
+cure named (#3426); unlock() on the locked stair-room door with the booby-trap note (#3364); go_up()'s NavError
+naming the locked door and remedies; go_up(to='Sokoban') by elimination (#2359); the leprechaun-gold obs warning
+(#1704); tunnel() (2 uses); the unicorn horn via `do('aL')`; #enhance through the menu API.
+
+### Top 3 (ranked)
+1. desmap.identify() false 'bigrm-1' on ordinary DL7 (#551) and on the ORACLE level DL9 (#1772), then travel()
+   walked the wrong fixed map into solid stone (#2062). No depth filter for Dungeons-of-Doom specials (bigroom is
+   DL10-12 only), and `bad*4 > good` accepts 30 bad squares. The live game is heading for the Oracle (DL5-9) now.
+2. SAFETY: Sokoban suffix "corner it and kill it" on the FLOATING EYE's note (#3447) — the live game's next branch.
+3. Nymph charm: the GDSM (MR) left UNWORN in the pack with no obs warning (#1346), and the returning thief didn't
+   pause (#1386). Also: stale wrong shop rectangles from before the fix still in harness_state (#24) — check the
+   live game's file.
