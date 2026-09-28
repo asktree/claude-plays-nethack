@@ -777,10 +777,16 @@ class Kernel:
                 if len(burst) >= 3:
                     # wizard.c nasty() / a demon gate / create monster: several monsters appear around you at once
                     # with no message (p2 shift 36 #389: a storm giant, umber hulk, silver dragon and Aleax)
+                    how = next((m for m in snap.messages if re.search(
+                        r"(?:zaps|reads) (?:a |an )?(?:wand|scroll) of create monster|zaps a .*wand!|"
+                        r"reads a scroll|opens a gate|summons help|nasty", m, re.I)), None)
+                    # (p2 shift 37 #185: an umber hulk's wand of create monster — name the source when it showed)
                     reasons.insert(0, f"SUMMONED: {len(burst)} monsters appeared right around you at once ("
                                       + ", ".join(m.get("desc") or m["ch"] for m in burst[:5])
-                                      + ") — the Wizard's summon nasties or a gate: get out (teleport, levelport, "
-                                        "stairs; Elbereth doesn't stop @ or minotaurs) or fight from a corridor")
+                                      + (f") — {how!r}" if how else
+                                         ") — the Wizard's summon nasties, a gate or a create monster")
+                                      + ": get out (teleport, levelport, stairs; Elbereth doesn't stop @ or "
+                                        "minotaurs) or fight from a corridor")
                 if new and self.new_monster_filter is not None:
                     try:
                         new = [m for m in new if self.new_monster_filter(m)]

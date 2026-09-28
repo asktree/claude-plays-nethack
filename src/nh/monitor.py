@@ -455,7 +455,9 @@ class MonsterTracker:
         flags = getattr(self.game, "level_flags", None)
         if flags is not None and hasattr(self.game, "level_key"):
             lk = self.game.level_key(st)
-            if any(m.get("desc") and not m.get("statue") and "Medusa" in m["desc"] for m in mons):
+            if any(m.get("desc") and not m.get("statue") and "Medusa" in m["desc"] for m in mons) \
+                    and not any(k != lk and f & {"medusa", "medusa_dead"} for k, f in flags.items()):
+                # (unique: a Green-elf looks just like her — p1 shift 39 #379 flagged the maze below her level)
                 flags.setdefault(lk, set()).add("medusa")
             if any(re.search(r"(?:kill|destroy) Medusa|Medusa is (?:killed|turned to stone)|Medusa dies", x)
                    for x in getattr(snap, "messages", None) or []):

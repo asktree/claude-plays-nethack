@@ -81,6 +81,10 @@ def is_walkable(s, x, y, allow_monsters=True) -> bool:
         return False  # traps: avoid by default
     if ch in MONSTER_CHARS:
         return allow_monsters
+    if ch in "12345":
+        # a WARNING digit: a monster you can't see, standing on a square it can walk on (p1 shift 39 #192: two
+        # invisible Wizards on both exits made path_to(..., through_monsters=True) find no way at all)
+        return allow_monsters
     return False
 
 

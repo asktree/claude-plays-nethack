@@ -1051,6 +1051,25 @@ class Game:
                 core = re.sub(r"^(?:the|an?|your|\d+) ", "", lt["what"]).split(" (")[0]
                 if core and core.lower() in m.lower():
                     self.last_theft = None        # picked it back up
+        self._note_gone_items(messages)
+
+    _GONE_ITEM = re.compile(r"^You drop (?P<a>.+?)\.$|^You put (?P<b>.+?) into |^(?!You ).+? (?:steals|stole) "
+                            r"(?P<c>.+?)[.!]$")
+
+    def _note_gone_items(self, messages: list[str]) -> None:
+        """Items you dropped, bagged or lost to a thief are no longer curse SUSPECTS (a curse hits only what you
+        carry: sit.c rndcurse() — p1 shift 39 #192: the Bell lying under you was listed)."""
+        sus = getattr(self, "unknown_buc", None)
+        if not sus:
+            return
+        for m in messages:
+            mm = self._GONE_ITEM.search(m)
+            if not mm:
+                continue
+            what = (mm.group("a") or mm.group("b") or mm.group("c") or "").lower()
+            core = re.sub(r"^(?:the|an?|your|\d+) ", "", what).split(" (")[0].strip()
+            if core:
+                self.unknown_buc = [e for e in self.unknown_buc if core not in e.lower()]
 
     PET_NOTE_TURNS = 30       # the arrival obs says the pet stayed behind this long (it survives a pause)
 
@@ -1122,6 +1141,12 @@ class Game:
             return ""
         big = re.search(r"Amulet of Yendor|Bell of Opening|Candelabrum|Book of the Dead|silver bell|"
                         r"papyrus spellbook|candelabrum", lt["what"], re.I)
+        if re.search(r"\bsnatches\b", lt.get("msg", "")):
+            # muse.c MUSE_BULLWHIP: the whip yanks your weapon into ITS inventory — no teleport (p2 shift 37 #51:
+            # a horned devil stayed adjacent holding Excalibur)
+            return (f"DISARMED at T:{lt['turn']} ({turn - lt['turn']} turns ago): {lt['msg']} — the bullwhip "
+                    "wielder HOLDS it and is still next to you: wield a spare weapon (blessed/silver against "
+                    "demons) and kill it to get it back — or it snatches again")
         return (f"STOLEN at T:{lt['turn']} ({turn - lt['turn']} turns ago): {lt['msg']}"
                 + (" — you NEED it to win: kill the thief to get it back (the Wizard teleports off and "
                    "comes back to harass you; nymphs/monkeys drop loot when killed)" if big else

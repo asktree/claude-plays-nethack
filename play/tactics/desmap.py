@@ -228,6 +228,9 @@ def certain_level(key: str | None = None, s=None) -> str | None:
             return name
     if branch == "Gehennom" and sec.get("a") is not None and n == sec["a"]:
         return "valley"                       # dungeon.def: LEVEL "valley" @ (1, 0)
+    inv = ((getattr(mem, "state", None) or {}).get("invoked") or {}).get("level") if mem is not None else None
+    if branch == "Gehennom" and inv == f"Gehennom / Level {n - 1}":
+        return "sanctum"                      # the invocation's stairs lead down into it (dungeon.def: the last level)
     if branch == "Vlad's Tower":
         # built upward from its entry (dungeon.def ENTRY -1: the bottom, tower3); ^O never numbers this branch
         # (its deepest level reached IS the entry), so the entry is the branch stairs' level, else the deepest
@@ -809,7 +812,7 @@ def _let_pass(s, blk, target, chunk, walk_path, NavError):
 
 def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight_trivial):
     s = ctx.last()
-    steps = fights = opened = backoffs = 0
+    steps = fights = opened = backoffs = pit_tries = 0
     stuck_at = None                      # the boulder this walk found immovable (re-planned around once)
     while steps < max_steps:
         s = ctx.last()
@@ -875,6 +878,12 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
             if any("door opens" in m for m in s.messages or []) and opened < 4:
                 opened += 1
                 continue                         # the step opened a door in the way: walk on through it
+            from .nav import _in_pit
+            if _in_pit(s.messages) and pit_tries < 10:
+                # trap.c climb_pit(): climbing out takes a few turns (p1 shift 39 #606: one "You are still in a
+                # pit." ended the walk; travel() keeps climbing too)
+                pit_tries += 1
+                continue
             if any(re.search(r"You try to move the boulder, but in vain|Perhaps that's why you cannot move "
                              r"past it|You don't have enough leverage to push", m) for m in s.messages or []) \
                     and chunk and s.status.ok:

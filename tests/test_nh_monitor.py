@@ -472,6 +472,10 @@ def test_kernel_theft_and_fight_hp_rules():
     g.last_theft = None
     g._note_theft(["The nymph steals a gem from the gnome!", "You stole 30 zorkmids worth of merchandise."], 330)
     assert g.last_theft is None                              # monster vs monster; your own shoplifting
+    # p2 shift 37 #51: a bullwhip snatch doesn't teleport — the devil is still next to you, holding it
+    g._note_theft(["The horned devil snatches Excalibur!"], 340)
+    note = g.theft_note(341)
+    assert note.startswith("DISARMED at T:340") and "still next to you" in note and "teleported" not in note
 
     def hp(h0, h1, mx=262):
         s0, s1 = snap({}, 10), snap({}, 11)

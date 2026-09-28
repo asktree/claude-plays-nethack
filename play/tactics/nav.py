@@ -6,7 +6,7 @@ import re
 
 from . import ctx
 from .benign import BENIGN
-from .mapview import DIR_KEY, KEY_DIR, bfs_path, dist, find, nearest
+from .mapview import DIR_KEY, KEY_DIR, bfs_path, dist, find, is_closed_door, nearest
 
 
 class NavError(Exception):
@@ -851,8 +851,16 @@ def _trek_blocked(s, goal, bad, allow, names) -> str:
                     + " — not allowed for you now (trap_crossable() says why; cross_traps=['<name>'] to cross "
                       "it anyway, or find another way)")
     blocking = sorted(c for c in bad if c in names)
+    # a closed/locked door counts as a wall for the planner (p1 shift 39 #449: the Valley's door A, locked by the
+    # player, was the real blocker and the message only listed traps)
+    locked = sorted((getattr(ctx.game, "locked_doors", None) or {}).get(ctx.game.level_key(s.status), ())) \
+        if s.status.ok else []
+    closed = sorted((x, y) for y in range(1, 22) for x in range(80) if is_closed_door(s, x, y))
+    doors = [f"{c} LOCKED" for c in locked] + [f"{c} closed" for c in closed if c not in locked]
     return (f"trek{goal}: no known way even across all known traps (known: "
-            + (", ".join(f"{c} {names[c]}" for c in blocking[:6]) or "none") + ") — explore, search or dig")
+            + (", ".join(f"{c} {names[c]}" for c in blocking[:6]) or "none") + ")"
+            + (f"; doors on the level, which the planner treats as walls: {', '.join(doors[:6])} — unlock()/open "
+               "the one in the way" if doors else "") + " — explore, search or dig")
 
 
 def escape_trap(max_tries: int = 12):

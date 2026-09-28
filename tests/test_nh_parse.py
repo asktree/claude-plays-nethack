@@ -1841,3 +1841,14 @@ def test_stairs_never_in_the_trap_memory():
     g.traps[key] = {(10, 5), (12, 7), (30, 9)}
     g._note_traps(s, ["There is a bear trap here."])
     assert g.traps[key] == {(30, 9)}
+
+
+def test_curse_suspects_drop_items_no_longer_carried():
+    # p1 shift 39 #192/#200: the CURSED ITEMS pause listed the Bell lying under the hero (dropped at #49)
+    g = _guard_game()
+    g.unknown_buc = ["i (a silver bell)", "k (a papyrus spellbook)", "w (a ring)"]
+    g._note_theft(["You drop a silver bell."], 100)
+    assert g.unknown_buc == ["k (a papyrus spellbook)", "w (a ring)"]
+    g._note_theft(["You put a papyrus spellbook into the bag of holding."], 101)
+    g._note_theft(["The water nymph stole a ring."], 102)
+    assert g.unknown_buc == []

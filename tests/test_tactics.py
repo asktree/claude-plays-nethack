@@ -3322,6 +3322,12 @@ def test_desmap_certain_levels_and_a_dark_valley_arrival(monkeypatch):
     assert r is not None and r["level"] == "valley" and (r["ox"], r["oy"]) == (2, 2) and r.get("certain")
     # juiblex's 8x5 stair pockets are never candidates
     assert all(m["index"] == 2 for m in desmap._candidates("Gehennom / Level 33", names="juiblex"))
+    # p2 shift 37 #344: the level below the invocation is the Sanctum (^O names it only once its temple is entered)
+    _Mem.state["invoked"] = {"turn": 23322, "level": "Gehennom / Level 50"}
+    assert desmap.certain_level("Gehennom / Level 51") == "sanctum"
+    assert desmap.certain_level("Gehennom / Level 50") is None
+    sanc = next(m for m in desmap.maps() if m["level"] == "sanctum")
+    assert desmap.fixed_offset(sanc) == (2, 2)          # (p2 walked it by hand: map (63,15) = screen (65,17))
 
 
 def test_desmap_walk_stops_before_an_unsettled_variant_square(monkeypatch):
@@ -4936,3 +4942,56 @@ def test_unihorn_stops_on_the_real_cure(monkeypatch):
                                                       "class": "Tools"}])
     with pytest.raises(PermissionError):
         survival.unihorn()
+
+
+def test_visited_squares_survive_a_daemon_restart(tmp_path):
+    # p2 shift 37 #1-#4: after a restart game.visited held 1 square for D50 (rebuilt from events.jsonl by hand)
+    from nh.game import Game, Timing
+    from nh.tracker import Tracker
+    g = Game(term=None, timing=Timing.local())
+    tr = Tracker(g, tmp_path / "state.json")
+    g.tracker = tr
+    g.level_key = lambda status=None: "Gehennom / Level 50"
+    g.visited["Gehennom / Level 50"] = {(62, 8), (63, 9), (10, 20)}
+    s = _snap({5: "        ..@.."}, (10, 5), [])
+    s.status = Status(ok=True, ldesc="Dlvl:50", turn=23300)
+    tr.on_step(s)
+    rows = __import__("json").loads((tmp_path / "state.json").read_text())["levels"]["Gehennom / Level 50"]
+    assert rows["visited_rows"][8][62] == "#" and "visited" not in rows
+    g2 = Game(term=None, timing=Timing.local())
+    Tracker(g2, tmp_path / "state.json")
+    assert g2.visited["Gehennom / Level 50"] == {(62, 8), (63, 9), (10, 20)}
+
+
+def test_warning_digits_are_monsters_on_walkable_squares():
+    # p1 shift 39 #192: invisible Wizards shown as '5' on both exits — path_to(..., through_monsters=True) was None
+    from tactics.mapview import bfs_path
+    s = _snap({5: "   |.5.|", 4: "   |---|", 6: "   |---|"}, (4, 5), [])
+    assert bfs_path(s, (4, 5), (6, 5)) is None                               # a monster in the way
+    assert bfs_path(s, (4, 5), (6, 5), allow_monsters=True) == [(5, 5), (6, 5)]
+    assert bfs_path(s, (4, 5), (5, 5)) == [(5, 5)]                           # the digit's own square is a goal
+
+
+def test_medusa_flag_is_dropped_from_other_levels_once_she_died_elsewhere(tmp_path):
+    # p1 shift 39 #379: DL24 (a corridor maze) kept "MEDUSA'S LEVEL" — a look-alike labelled "Medusa" after the fall
+    import json
+    from nh.game import Game, Timing
+    from nh.tracker import Tracker
+    st = {"prayers": [], "levels": {"The Dungeons of Doom / Level 23": {"flags": ["medusa", "medusa_dead"]},
+                                    "The Dungeons of Doom / Level 24": {"flags": ["medusa"]}}}
+    (tmp_path / "state.json").write_text(json.dumps(st))
+    g = Game(term=None, timing=Timing.local())
+    Tracker(g, tmp_path / "state.json")
+    assert "medusa" in g.level_flags["The Dungeons of Doom / Level 23"]
+    assert not g.level_flags["The Dungeons of Doom / Level 24"] & {"medusa", "medusa?"}
+
+
+def test_trek_no_way_names_the_doors(monkeypatch):
+    # p1 shift 39 #449: the real blocker was the locked door A (8,8); the message listed only traps
+    from tactics import ctx, nav
+    g = _G()
+    g.locked_doors = {"L": {(8, 8)}}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "   ....", 8: "   ....|"}, (4, 5), [])
+    msg = nav._trek_blocked(s, (60, 20), set(), set(), {})
+    assert "no known way" in msg and "(8, 8) LOCKED" in msg and "unlock()" in msg

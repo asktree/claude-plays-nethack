@@ -32,7 +32,8 @@ _OK = [r"^You attach \d+ (?:more )?candles? to ", r"candles?'? (?:burn brightly|
        r"issues? an unsettling shrill sound", r"^You begin to recite the runes\.",
        r"^You turn the pages of the Book of the Dead", r"^The floor shakes violently under you!",
        r"^The walls around you begin to bend and crumble!", r"stairwell leading down!",
-       r"^The new candles? magically ignites?!", r"^(?:They go|It goes) out\."]
+       r"^The new candles? magically ignites?!", r"^(?:They go|It goes) out\.",
+       r"^The candelabrum now has (?:seven|\w+) candles? attached"]
 
 
 def _qty(text: str) -> int:

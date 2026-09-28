@@ -1356,6 +1356,19 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                     # p1 shift 35 #173: sensed by telepathy_scan() in the dark, gone from view with the blindfold
                     # off — walk toward that square until it shows (a monster next to you is seen, dark or not)
                     what = f"the {sensed.get('desc') or 'monster'} telepathy_scan() sensed at {tuple(target)}"
+                    digit = min(((x, y) for x in range(target[0] - 2, target[0] + 3)
+                                 for y in range(target[1] - 2, target[1] + 3) if s.screen.at(x, y) in "12345"),
+                                key=lambda c: max(abs(c[0] - target[0]), abs(c[1] - target[1])), default=None)
+                    if digit is not None and max(abs(s.hero[0] - digit[0]), abs(s.hero[1] - digit[1])) == 1:
+                        # p1 shift 39 #12: the sensed zruty showed only as warning digit '3' — the digit IS it
+                        print(f"hunt: {what} shows as warning digit {s.screen.at(*digit)!r} at {digit}: fighting it")
+                        s = fight(digit[0], digit[1], stop_hp=stop_hp, near_water=near_water)
+                        kills += killed_names(s.messages, include_it=True)
+                        if s.state.kind != "command":
+                            return out("fight() stopped at a prompt")
+                        if s.screen.at(*digit) in "12345" and ctx.last().status.ok:
+                            return out(f"fight() stopped with the warning digit still at {digit} (see its message)")
+                        return out("killed" if kills else f"the monster at {digit} is gone (no kill seen)")
                     if max(abs(s.hero[0] - target[0]), abs(s.hero[1] - target[1])) <= 1 or chase >= 12:
                         return out(f"no hostile {target!r} in view: {what} isn't there now (moved away, or "
                                    "invisible: F-attack the square or search) — telepathy_scan() again")

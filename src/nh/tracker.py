@@ -110,6 +110,11 @@ class Tracker:
                 cells = {tuple(c) for c in lv.get(attr, [])}
                 if cells and hasattr(game, attr):
                     getattr(game, attr).setdefault(key, set()).update(cells)
+            if lv.get("visited_rows") and hasattr(game, "visited"):
+                # squares you stood on (explore()/sweeps start from them — p2 shift 37 rebuilt them from
+                # events.jsonl by hand after a restart): one string per screen row, '#' = visited
+                game.visited.setdefault(key, set()).update(
+                    (x, y) for y, row in enumerate(lv["visited_rows"]) for x, ch in enumerate(row) if ch == "#")
             if lv.get("kills") and hasattr(game, "kills"):
                 game.kills[key] = [(n, (x, y), t) for n, x, y, t in lv["kills"]]
             if lv.get("shops") and hasattr(game, "shops"):
@@ -142,6 +147,15 @@ class Tracker:
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
                 game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
                                          for c, dest in lv["stairs_to"].items()}
+        lf = getattr(game, "level_flags", None)
+        if isinstance(lf, dict):
+            # Medusa is unique: the level where she died is hers; a "medusa" flag elsewhere came from a look-alike
+            # (p1 shift 39 #379: a stale MEDUSA'S LEVEL line on the corridor maze below hers)
+            dead = [k for k, f in lf.items() if "medusa_dead" in f]
+            for k, f in lf.items():
+                if dead and k not in dead:
+                    f.discard("medusa")
+                    f.discard("medusa?")
 
     def save(self):
         tmp = self.path.with_suffix(".tmp")
@@ -187,6 +201,11 @@ class Tracker:
                                           r"Thou art chosen to (?:steal|take) souls", m) else None)
             if key and not self.state.get(key):
                 self.state[key] = {"turn": st.turn, "msg": m}
+                changed = True
+            if Game._INVOKED.search(m) and st.ok and not self.state.get("invoked"):
+                # where the invocation happened: the level below it IS Moloch's Sanctum (^O only says so once
+                # its temple is entered — p2 shift 37 #344: desmap couldn't place the dark Sanctum on arrival)
+                self.state["invoked"] = {"turn": st.turn, "level": self.game.level_key(st)}
                 changed = True
         if st.ok and st.ldesc and st.ldesc != self._last_ldesc:
             self._last_ldesc = st.ldesc
@@ -251,6 +270,13 @@ class Tracker:
                 cells = sorted(getattr(self.game, attr, {}).get(key, ()))
                 if cells or attr in lv:
                     lv[attr] = [list(c) for c in cells]
+            vis = getattr(self.game, "visited", {}).get(key)
+            if vis:
+                rows = [[" "] * 80 for _ in range(24)]
+                for (x, y) in vis:
+                    if 0 <= y < 24 and 0 <= x < 80:
+                        rows[y][x] = "#"
+                lv["visited_rows"] = ["".join(r).rstrip() for r in rows]
             kills = getattr(self.game, "kills", {}).get(key)
             if kills:
                 lv["kills"] = [[n, c[0], c[1], t] for n, c, t in kills]
