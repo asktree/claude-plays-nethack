@@ -37,3 +37,11 @@ prayer_check(); go_down() keeping the kitten both times; the Elbereth fallback p
    (#2266, #2334, #2365), about 4 calls lost.
 3. Pet-combat lines pause explore()/travel() (#7): every exec needed `-a 'The kitten ...'` patterns.
 4. Stale remembered object piles in obs.objects (#2193) and no "where did my missile land" info after throw().
+
+## Shift 2
+
+1. (#6, T:1811, first obs of the shift) `!! harness code on disk is newer than this daemon's core` is back although
+   the orchestrator restarted the daemon before the shift. Cause: src/nh/kernel.py mtime 19:47:23, daemon (pid 9360)
+   started 19:46:00 — a core edit landed a minute after the restart. `bin/nh reload` doesn't clear it (core, not
+   tactics). Also: the PREVIOUS p6 daemon (pid 1236, started 19:17:42, PPID 1) is still alive next to the current
+   one (daemon.pid = 9360). Expected: a daemon restart kills the old process. Not killed by me (not my role).
