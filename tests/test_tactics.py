@@ -586,6 +586,32 @@ def test_bad_squares_keep_a_margin_round_a_hiding_trapper(monkeypatch):
     assert (33, 12) not in nav.bad_squares(s)
 
 
+def test_pickup_declines_a_lift_that_would_stress_you(monkeypatch):
+    # p3 shift 18 #933: pickup('corpse') left "You have extreme difficulty lifting a warhorse corpse.  Continue?"
+    # open and paused as "unexpected yn"
+    from nh.parse import State
+    from tactics import ctx, items
+    s0 = _snap({5: "   .@."}, (4, 5), [])
+    s0.status.encumbrance = ""
+    ask = _snap({5: "   .@."}, (4, 5), [])
+    ask.state = State("yn", prompt="You have extreme difficulty lifting a warhorse corpse.  Continue? [ynq] (q)")
+    sent, pauses = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return ask if keys == "," else s0
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: s0)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s0)
+    monkeypatch.setattr(ctx, "pause", lambda r: pauses.append(r))
+    monkeypatch.setattr(items, "here", lambda: "You see here a warhorse corpse.")
+    items.pickup("corpse")
+    assert sent == [",", "n"] and pauses == []
+    sent.clear()
+    items.pickup("corpse", force=True)
+    assert sent == [",", "y"]
+
+
 def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
     import pytest
     from tactics import ctx, nav

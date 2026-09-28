@@ -1459,9 +1459,14 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                         moved = True
                         break
                     if not moved:
+                        manual = ctx.game.avoid.get(ctx.game.level_key(s.status), set()) \
+                            if hasattr(ctx.game, "avoid") and s.status.ok else set()
+                        # (p3 shift 18 #605: 74 old avoid() squares round a beehive were the real cause)
                         return out(f"no route to the {species or target} at {goal} on the map you know (across "
                                    "water, behind a wall or other monsters): travel near it, head_to() it, or "
-                                   "wait for it")
+                                   "wait for it"
+                                   + (f"; {len(manual)} manual avoid() squares on this level count as walls for "
+                                      "the routes — avoid(clear=True) forgets them" if manual else ""))
                     continue
                 path = [nxt, goal]           # a step into unexplored dark floor toward it
             try:

@@ -1111,13 +1111,17 @@ def heavy_weight(text: str) -> int | None:
     return None
 
 
-def pickup(pattern: str | None = None) -> list:
+def pickup(pattern: str | None = None, force: bool = False) -> list:
     """Pick up the objects here whose text matches `pattern` (regex,
     case-insensitive), or everything if None — except, with no pattern,
     heavy things (a large box/chest/ice box, heavy armor, statues, big
     corpses: heavy_weight() 200+), which it leaves and names (p4 shift 1: a
     350-weight large box came along). Looks first (no game time), so a lone
-    object that doesn't match is left alone. Returns the messages."""
+    object that doesn't match is left alone. NetHack's "You have much
+    trouble / extreme difficulty lifting X. Continue?" (the lift would make
+    you Stressed or worse) is answered no — the item stays and is named;
+    force=True takes it ("a little trouble" = Burdened is taken). Returns the
+    messages."""
     ctx.require_command("pickup()")
     look = here()
     if "You see no objects here" in look or not look:
@@ -1171,6 +1175,23 @@ def pickup(pattern: str | None = None) -> list:
             ctx.do("<Esc>", quiet=True)          # a guard refused (loadstone? cockatrice?): don't leave the menu open
             raise
         msgs += s.messages
+    too_heavy = []
+    for _ in range(30):
+        # pickup.c lift_object(): "You have a little trouble / much trouble / extreme difficulty lifting X.
+        # Continue?" — 'n' leaves that one and goes on with the rest (p3 shift 18 #933: a warhorse corpse)
+        pr = s.state.prompt or ""
+        if s.state.kind != "yn" or not re.search(r"(?:trouble|difficulty) lifting", pr):
+            break
+        if re.search(r"much trouble|extreme difficulty", pr) and not force:
+            what = re.search(r"lifting (.+?)\.\s+Continue", pr)
+            too_heavy.append(what.group(1) if what else pr)
+            s = ctx.do("n", quiet=True)
+        else:
+            s = ctx.do("y", quiet=True, expect=_TAKE)
+        msgs += s.messages
+    if too_heavy:
+        print("pickup(): left " + "; ".join(too_heavy[:4]) + " — lifting it would make you Stressed or worse "
+              "(pickup(..., force=True) takes it anyway)")
     if skipped:
         print("pickup(): left the heavy " + "; ".join(skipped[:4]) + " — name them in a pattern to take them")
     if s.state.kind != "command":

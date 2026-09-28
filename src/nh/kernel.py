@@ -447,7 +447,7 @@ class Kernel:
                 if m.get("id") is None or m.get("tame") or m.get("peaceful") or m.get("pet"):
                     continue
                 k._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near or k.DEFER_NEAR,
-                                        "watch": True}
+                                        "watch": True, "ch": m.get("ch")}
                 n += 1
             return n
 
@@ -540,6 +540,10 @@ class Kernel:
         resisted = any(m.startswith("The poison doesn't seem to affect you") for m in snap.messages)
         elemental = [lead for tail, lead in _RESISTED_HIT.items() if any(tail.search(m) for m in snap.messages)]
         engr_repeat = bool(getattr(snap, "engr_repeat", False))
+        # a grave's epitaph ("Something is engraved here on the headstone. | You read: ...") is flavour text,
+        # not news (p3 shift 18 #75: stepping onto a grave paused the exec)
+        engr_repeat = engr_repeat or any(m.startswith("Something is engraved here on the headstone")
+                                         for m in snap.messages)
         msgs = [m for m in snap.messages
                 if not any(p.search(m) for p in self.autocontinue)
                 and not any(p.search(m) for p in extra)
@@ -771,8 +775,11 @@ class Kernel:
                 near_at = self.defer_dist if self.defer_dist is not None else self.DEFER_NEAR
                 for m in later:
                     if m.get("id") is not None:
-                        self._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near_at}
+                        self._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near_at,
+                                                   "ch": m.get("ch")}
                 new = [m for m in new if m not in later]
+                # the exec's -a patterns may name monster pauses too (p3 shift 18: -a 'approaching: killer bee')
+                new = [m for m in new if not self._autocontinued(f"new monster: {m.get('desc') or m['ch']}")]
                 if new:
                     reasons.append("new monster: " + ", ".join(
                         f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in new[:4])
@@ -781,6 +788,10 @@ class Kernel:
                     for i in [i for i, v in self._deferred.items() if v["level"] != level]:
                         del self._deferred[i]
                     near = []
+                    # every square a watched monster stood on at the last look: in a crowd of one glyph (29
+                    # sleeping killer bees, p3 shift 18 #448-#483) the tracker's ids can swap between them, so
+                    # "moved" is judged by squares — a monster on a watched square of its glyph didn't move
+                    was_at = {(v["pos"], v.get("ch")) for v in self._deferred.values() if v["level"] == level}
                     for m in snap.monsters:
                         v = self._deferred.get(m.get("id"))
                         if v is None or m.get("new") or m.get("dist") is None or m.get("tame") \
@@ -792,8 +803,12 @@ class Kernel:
                         # an explicit watch_monsters() keeps its own distance
                         lim = v["near"] if self.defer_dist is None or v.get("watch") else min(v["near"],
                                                                                               self.defer_dist)
-                        if m["dist"] > lim or (m["x"], m["y"]) == pos:
+                        if m["dist"] > lim or (m["x"], m["y"]) == pos or ((m["x"], m["y"]), m.get("ch")) in was_at \
+                                or ((m["x"], m["y"]), None) in was_at:
                             continue         # still far, or it didn't move: only you came closer (a sleeper)
+                        if self._autocontinued(f"approaching: {m.get('desc') or m['ch']}"):
+                            del self._deferred[m["id"]]
+                            continue
                         del self._deferred[m["id"]]
                         if self.new_monster_filter is not None:
                             try:
@@ -863,6 +878,11 @@ class Kernel:
                 cells = [(o["x"], o["y"]) for o in snap.monsters or [] if species(o) == species(m)]
                 self._announced[species(m)] = {"turn": turn, "level": level, "cells": cells}
         return fresh
+
+    def _autocontinued(self, reason: str) -> bool:
+        """Does one of the exec's -a patterns match this monster pause reason ('new monster: X' /
+        'approaching: X')? Only monster reasons: HP, status and prompt pauses always stop."""
+        return any(p.search(reason) for p in self.autocontinue)
 
     def _maybe_pause(self, reason: str, snap: Snap, force: bool = False, sent: bool = True) -> None:
         if not self.in_worker():

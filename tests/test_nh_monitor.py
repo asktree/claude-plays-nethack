@@ -736,6 +736,40 @@ def test_sleepers_you_walk_up_to_are_not_approaching():
             assert step(22, [dict(ape, new=False, x=58, dist=1)]) == ""
 
 
+def test_sleepers_with_swapped_ids_and_autocontinue_for_monster_pauses():
+    # p3 shift 18 #448-#483: 29 sleeping killer bees after a telepathy scan; the tracker's ids swapped between
+    # identical bees as you walked up, so still bees looked "moved" -> 5 'approaching' pauses. And -a
+    # 'approaching: killer bee' couldn't silence them (it matched messages only).
+    import re
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def step(turn, mons):
+        s = snap({}, turn)
+        s.monsters = mons
+        reasons.clear()
+        k._check_events(snap({}, turn - 1), s)
+        return reasons[-1] if reasons else ""
+    hive = [{"ch": "a", "x": 50 + i, "y": 3, "desc": "killer bee", "new": True, "dist": 12 + i, "id": 400 + i}
+            for i in range(10)]
+    assert step(10, hive) == ""
+    # you walk up; nobody moves, but ids 400 and 401 swapped places in the tracker
+    walked = [dict(m, new=False, dist=max(1, m["dist"] - 11)) for m in hive]
+    walked[0]["id"], walked[1]["id"] = 401, 400
+    assert step(11, walked) == ""
+    woke = [dict(walked[2], x=walked[2]["x"], y=4, dist=2)] + walked[:2] + walked[3:]
+    assert "approaching: killer bee" in step(12, woke)          # a real move still pauses
+    k.autocontinue = [re.compile(r"approaching: killer bee")]
+    woke2 = [dict(walked[3], y=4, dist=2)] + walked[4:]
+    assert step(13, woke2) == ""                                  # -a names it: no pause
+    k.autocontinue = [re.compile(r"new monster: soldier ant")]
+    ant = {"ch": "a", "x": 45, "y": 10, "desc": "soldier ant", "new": True, "dist": 3, "id": 500}
+    assert step(14, [ant]) == ""
+
+
 def test_known_mold_is_not_new_when_you_come_back_to_its_level():
     g = FakeGame()
     t = MonsterTracker(g)
@@ -1291,6 +1325,9 @@ def test_resisted_elemental_hits_and_repeated_engraving_reads_do_not_pause():
     read = ["Something is written here in the dust.", 'You read: "ad aerarium".']
     assert check(read)                                                        # the first read is news
     assert not check(read, repeat=True)
+    # a grave's epitaph is flavour (p3 shift 18 #75)
+    assert not check(["There is a grave here.", "Something is engraved here on the headstone.",
+                      'You read: "This gravestone is shareware..."'])
     # the game marks a re-read of the same text on the same square
     from nh.parse import State
     s1 = snap({}, 50)
