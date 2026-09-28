@@ -10,3 +10,7 @@
   {'reason': 'killed', 'kills': ['newt']} — contradictory; unclear whether the newt died.
 - shift 1b: dead_ends() returned [] on DL1 while standing at an obvious corridor dead end (58,13) (a spur off the start
   room's east doorway). Harmless, but the explore verdict then didn't list it.
+- shift 3 #~1383: pickup('dagger') printed "B - a dagger." when the item actually merged into B (inventory then showed
+  "B 7 daggers"); the game message itself says that, but it looked like a new single item. Cosmetic.
+- shift 3: the monster list briefly labelled my grown pet "tame little dog" after it had grown to "dog" (#1154); a farlook
+  fixed it. Harmless.

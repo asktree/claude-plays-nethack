@@ -58,3 +58,6 @@ ack T1777 (orchestrator): pulled and restarted the live daemon before shift 3. S
   (the harness avoids known traps; don't force it).
 - Minetown is usually Mines level 3-4 (DL 5-8 here): the temple priest (buy protection later at 400×XL gold,
   co-aligned altar for BUC) and shops. No fountain dipping, door kicking or anything the Watch minds.
+
+ack T3008 (orchestrator): pulled + daemon restarted before shift 4. Shift 3 prayed for Weak at T:2714 (success), as
+advised. Now in Minetown (DL7), XL4. Told shift 4: no more bag-of-tricks XP farming (random monsters, no escapes).

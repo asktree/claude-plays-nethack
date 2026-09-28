@@ -34,3 +34,20 @@
 - T:1736-1777 DL4 — killed a hobgoblin (orcish helm left at (46,9)); picked up **w - a diamond ring** at (40,9) (unknown, NOT worn).
   DL4 down stairs (46,11). Partially explored; shift 1 ended at (38,3) in a corridor, T:1777, HP 26/26, no monsters in view.
   Still no Gnomish Mines staircase seen on DL2-4 (DL2 and DL4 not fully explored).
+
+## Shift 3
+- T:1811-1814 DL4 — killed a floating eye with a thrown dagger + gems from 4 squares -> XL3 (HP 36). No corpse left.
+- T:1832-2202 DL4 — found the second '>' at (6,6) in the far-west room = GNOMISH MINES branch. Picked up x yellowish brown gem
+  (different from v: one is glass). Crossbow bolts in the east room left. Hidden door (20,5) found.
+- T:2231 — entered the Gnomish Mines (Mines level 1 = DL5) with the dog, arrived on up stairs (5,6).
+- T:2234-2441 DL5 (Mines 1) — falling rock (helmet), sleeping gas traps (15,8),(36,6), teleport trap (41,7). Whistle y = tin.
+  Ate a fresh gnome corpse (dog kill). Candle A (partly used) picked up. Dog killed a gnome lord that had grabbed my thrown
+  dagger -> B 5 daggers (merged stack). Mines DL5 down stairs (23,13).
+- T:2441-2717 DL6 (Mines 2) — up (37,10), down (70,18). Land mine at (30,11) (HP -10, now a pit). C stethoscope, D bag (unknown,
+  not yet applied). Killed a hostile little dog, 2 giant ants (HP 36->21). Dog (grew to "dog") killed a peaceful dwarf;
+  its IRON SHOES pet-tested (dog carried them = not cursed) -> worn, AC -3. 6th dagger merged into B.
+- T:2714 DL6 — Weak (fast hunger). PRAYED (1st prayer): SUCCESS, hunger fixed. Next prayer not before ~T:3700.
+- T:2717-2813 DL6 — D is a BAG OF TRICKS (applied: golden naga hatchling -> XL4; 2 Uruk-hai; peaceful dwarf; gnome mummy): all killed.
+- T:2882-2889 DL6 — found G food ration (60,16), another dagger (B now 7). Descended with the dog.
+- T:2895 DL7 — MINETOWN (desmap: minetn-5 Grotto Town). Destroyed a ghoul (dog got frozen briefly). Watchmen peaceful.
+  Shift 3 ended at (15,18) near the fountain (12,16), T:3008, HP 43/43, AC-3, XL4.
