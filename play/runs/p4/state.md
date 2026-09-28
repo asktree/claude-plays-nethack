@@ -2,18 +2,19 @@
 
 ## Character
 - Name/role: P4, lawful female dwarven Valkyrie, god: Tyr. Seed 404 (local practice game).
-- Turn / Dlvl / XL / HP / Pw / AC: T:9333 / DUNGEONS DL8 at (24,7) (corridor NW of the fountain room; '>' (10,15)) /
-  XL10 / 107/109 / 17/17 / AC -15 / $0 loose ($2188 in bag k).
+- Turn / Dlvl / XL / HP / Pw / AC: T:9927 / DUNGEONS DL13 at (5,12) (corridor just N of the LEPRECHAUN HALL's door
+  (5,13); DL13 '>' (2,5)) / XL10 / 109/109 / 17/17 / AC -15 / $0 loose ($1599 in bag k).
 - Attributes: St 18/05, Dx 11, Co 19, In 7, Wi 9, Ch 8. Skills: long sword EXPERT, dagger Basic.
 - Intrinsics: cold res (Valk), stealth, infravision, SPEED, TELEPATHY (floating eye), MAGIC RESISTANCE (worn GDSM X),
-  POISON RESISTANCE, DIVINE PROTECTION ("warded"). Excalibur wielded: level-drain res + auto-search (2 vampire bites
-  did nothing). Worn amulet of ESP (sees minded monsters within 8 — but mind flayer blasts LOCK ON through it).
-  NO reflection, NO sleep resistance, NO fire resistance.
-- LUCKSTONE K carried (Mines' End T:8679; type named "luckstone"): +3 Luck while carried, and Luck no longer times out
-  (good or bad) — never do Luck-losing things now. Base Luck was 0 (enlightenment T:8565, no luck line).
+  POISON RESISTANCE, SLEEP RESISTANCE (Grey-elf corpse T:9654, "You feel wide awake."), DIVINE PROTECTION.
+  Excalibur wielded: level-drain res + auto-search. Worn amulet of ESP (sees minded monsters within 8 — but mind
+  flayer blasts LOCK ON through it). NO reflection, NO fire resistance.
+- LUCKSTONE K (uncursed) carried: +3 Luck while carried, and Luck no longer times out (good or bad) — never do
+  Luck-losing things now (no gem-throwing at cross-aligned unicorns: random Luck gets locked in).
 - Enlightenment T:8565: PIOUSLY aligned, "You can safely pray".
-- Hunger: ate a FOOD RATION at T:9333 (fed until ~T:10200). Food left: f C-ration, w tripe (dwarf: vomit risk),
-  p 2 tins, J 2 lizard corpses (keep for stoning). FOOD IS SHORT: eat fresh safe corpses; prayer fixes Weak.
+- Hunger: SATIATED. Ate stalker (T:9370) + 2 Grey-elves (T:9467, T:9654). Nutrition at T:9654 between ~1430 and
+  ~1740 -> Hungry not before ~T:10900. Food left: f C-ration, w tripe (dwarf: vomit risk), p 2 tins wolf meat,
+  lizard corpses J x2 + S (keep for stoning). Eat fresh safe corpses when not Satiated.
 
 ## Prayer log
 | turn | reason | result |
@@ -23,57 +24,61 @@
 | T:6481 / T:8565 | wand of enlightenment: "You can safely pray" | prayer SAFE (no prayer since T:3562) |
 
 ## Equipment worn/wielded (AC -15)
-- a: blessed rustproof +1 EXCALIBUR (wielded). X: +2 GRAY DRAGON SCALE MAIL (MR). l: blessed +2 leather cloak (MC1).
-  R: uncursed +0 leather gloves. c: +3 small shield. j: +0 orcish helm. O: +0 iron shoes. o: amulet of ESP.
+- a: blessed rustproof +5 EXCALIBUR (wielded) — DO NOT enchant further (evaporation above +5).
+- X: blessed +2 GRAY DRAGON SCALE MAIL (MR). l: blessed +2 leather cloak (MC1). R: uncursed +0 leather gloves.
+  c: +3 small shield. j: uncursed +0 orcish helm. O: uncursed +0 iron shoes. o: amulet of ESP.
 - A NYMPH CAN CHARM ARMOR OFF. After any nymph contact: check `inventory()` for "(being worn)".
 
-## Key inventory (letters)
-- k = BAG OF HOLDING: $2188, scrolls (uncursed ANDOVA BEGARIN, EIRIS SAZUN IDISI, KO BATE, LEP GEX VEN ZEA, STRC PRST
-  SKRZ KRK, blank; 3 earth), potions (uncursed ORANGE, uncursed RUBY, blessed object detection), rings (CURSED granite,
-  jade, topaz — never wear; uncursed searching), blessed oil lamp, can of grease (grease the HELMET vs mind flayers:
-  u_slip_free), magic marker, gems.
-- C = an UNIDENTIFIED BAG (found DL11 Mines): never put it in k (could be a bag of tricks/holding). Test it (#loot).
-- K = LUCKSTONE. Gems: B black, D violet, E green (unidentified).
-- Weapons: b +0 dagger, i 2 orcish daggers. (dagger y lost on Mines DL7 ~(55,9), killing a gas spore.)
-- Wands: q SLEEP (4 used), m COLD (3+ used), F TELEPORTATION (4 used: 0-4 left!), U digging, P striking, r light,
-  x "polymorph", T slow monster, t enlightenment (2 used).
-- Tools: g KEY, G PICK-AXE (in main pack; bag it before entering shops), L unicorn horn, I camera.
+## Key inventory (letters) — the whole main pack was IDENTIFIED T:9571 (blessed identify rolled "all")
+- k = uncursed BAG OF HOLDING: $1599; scrolls: 4 uncursed IDENTIFY (save 2 for amulets/rings), uncursed REMOVE CURSE
+  (reserve), ANDOVA BEGARIN (uncursed, base 100), KO BATE (base 100), EIRIS SAZUN IDISI, LEP GEX VEN ZEA, blank, 3 earth;
+  potions: uncursed orange = SPEED, cursed potion of SPEED, uncursed RUBY, blessed object detection, BLACK (unknown);
+  rings: CURSED granite, jade, topaz (never wear), uncursed searching; blessed oil lamp, can of grease (grease the
+  HELMET vs mind flayers), magic marker, gems; C = uncursed SACK holding a 2nd WAND OF DIGGING.
+- Wands (charges known): U DIGGING (0:5), m COLD (0:6), x POLYMORPH (0:5), P STRIKING (0:3), T SLOW MONSTER (0:4),
+  q SLEEP (0:1), r light (0:13), t enlightenment (0:13), F TELEPORTATION (0:0) = EMPTY (wrest 1/121 only).
+- K = LUCKSTONE. D = 2 AMETHYSTS. B, E = worthless glass.
+- Weapons: b +0 dagger, i 2 +0 orcish daggers, Q cursed -1 elven dagger (throwing only).
+- Tools: g skeleton KEY, G PICK-AXE (main pack now; bag it before entering shops), L +0 unicorn horn, I camera (0:65).
 
 ## Identified appearances
-- iridium wand = TELEPORTATION; hexagonal = SLEEP; curved = SLOW MONSTER; uranium = ENLIGHTENMENT; ZINC = COLD;
-  crystal = digging; silver = make invisible; steel = striking; balsa = light; marble "polymorph" (named).
-- spherical amulet = ESP; copper ring = searching. gray stone "luckstone" (named type) = K.
-- scrolls: MAPIRO MAHAMA DIROMAT = identify; GARVEN DEH = earth; DUAM XNAHT = SCARE MONSTER; ETAOIN SHRDLU = create monster?
-- potions: EMERALD = ACID; DARK = blindness; EFFERVESCENT = extra healing; BUBBLY = object detection.
+- wands: iridium = TELEPORTATION; hexagonal = SLEEP; curved = SLOW MONSTER; uranium = ENLIGHTENMENT; zinc = COLD;
+  crystal = DIGGING; silver = make invisible; steel = STRIKING; balsa = LIGHT; marble = POLYMORPH.
+- spherical amulet = ESP; copper ring = searching. gray stone = luckstone (K).
+- scrolls: MAPIRO MAHAMA DIROMAT = identify; GARVEN DEH = earth; DUAM XNAHT = SCARE MONSTER; STRC PRST SKRZ KRK =
+  ENCHANT WEAPON; PRATYAVAYAH = REMOVE CURSE; NR 9 = PUNISHMENT; ASHPD SODALG = light (price); TEMOV = base 200
+  (amnesia/create monster/taming); YUM YUM, KO BATE, ANDOVA BEGARIN = base 100; ETAOIN SHRDLU base 200 ("create monster?").
+- potions: EMERALD = ACID; DARK = blindness; EFFERVESCENT = extra healing; BUBBLY = object detection; ORANGE = SPEED.
 
 ## Dungeon map
 | Dlvl | branch | features |
 |---|---|---|
 | 1-3 | Dungeons | see journal shift 1 (DL2 chaotic altar (5,4), general store) |
 | 4 | Dungeons | up (54,5); '>' (45,15) -> DL5; '>' (72,7) -> MINES. |
-| 5 | Dungeons | up (50,17), down (51,6), fountain (52,5). |
-| 6 | Dungeons | up (22,14), down (37,9). |
-| 7 | Dungeons | up (53,4), down (18,7). |
-| 8 | Dungeons | up (48,13) in the fountain room; SLEEPING WOOD NYMPH (47,14) next to it (passed twice with Stealth); down (10,15); neutral altar (12,17). Hill orcs + manes around (24,7) T:9333. |
+| 5-7 | Dungeons | DL5 up (50,17) down (51,6); DL6 up (22,14) down (37,9); DL7 up (53,4) down (18,7). |
+| 8 | Dungeons | up (48,13) (SLEEPING WOOD NYMPH (47,14) beside it); down (10,15); neutral altar (12,17). |
 | 9 | Dungeons | THE ORACLE. up (7,4), down (59,9). |
-| 10 | Dungeons | up (17,13) -> DL9; SOKOBAN up stairs (63,18). Nothing else explored. |
+| 10 | Dungeons | up (17,13); SOKOBAN up (63,18). KILTAMAGH'S SECOND-HAND BOOKSTORE (scrolls) (2-6,8-13), door (7,10), reached through the '<' room's west door (14,14). '>' NOT FOUND (hidden: dead ends (57,2) (59,9) (64,7)); I dug a hole at (40,17). |
+| 11 | Dungeons | partly explored; 2 hostile GRAY UNICORNS, a horse, a leprechaun. Stairs unknown (zapped a hole at (56,10)). |
+| 12 | Dungeons | '>' (8,7) in the NW room (4-13,5-9). '<' unknown. |
+| 13 | Dungeons | '<' (19,6), '>' (2,5); LEPRECHAUN HALL (2-7,14-19), door (5,13), ~30 SLEEPING leprechauns; a WAND on the floor (14,18) in the SE room (fountain (16,19)); fountain (4,7). |
 | Sok 1-4 | Sokoban | ALL SOLVED; prize taken. |
-| Mines 1-3 (DL5-7) | Mines | DL7: '<' (13,6), '>' (69,9), trap door (54,6), hole (64,9). |
-| 8 | MINETOWN (minetn-6) | '<' (15,13), '>' (60,18); temple of Tyr (co-aligned altar (55,17)); Bojolali's deli (42-44,16-17): out of rations (tripe left); Izchak's lighting ~(30,13); 2nd shopkeeper Kachzi Rellim ~(37,10). |
-| 9 (Mines 5) | Mines | '<' (52,11), '>' (55,17); web (57,16). Peaceful Watch members wander here. |
-| 10 (Mines 6) | Mines | '<' (51,10), '>' (25,13). A MIND FLAYER (awake; zaps a wand of STRIKING) and a wounded QUANTUM MECHANIC roam here; anti-magic field (31,13). The '<'->'>' route: dug passage (37,9)-(41,9). |
-| 11 (Mines 7) | Mines | '<' (17,15), '>' (21,7); bear trap (41,13), sleeping gas trap (39,17). |
-| 12 (Mines 8) | Mines | '<' (5,17), '>' (21,12). |
-| 13 | MINES' END = CATACOMBS | DONE: luckstone taken. '<' (44,12); flint left at (4,19); level teleporter (3,17). |
+| Mines 1-3 (DL5-7) | Mines | DL7: '<' (13,6), '>' (69,9). |
+| 8 | MINETOWN (minetn-6) | '<' (15,13), '>' (60,18); temple of Tyr (co-aligned altar (55,17)); deli out of rations; Izchak ~(30,13). |
+| 9-12 | Mines | DL9 '<' (52,11) '>' (55,17); DL10 '<' (51,10) '>' (25,13) MIND FLAYER + quantum mechanic roam; DL11 '<' (17,15) '>' (21,7); DL12 '<' (5,17) '>' (21,12). |
+| 13 | MINES' END (Catacombs) | DONE (luckstone). '<' (44,12). |
+- QUEST PORTAL: dungeon.def puts it at Oracle + 6..7 = DL15 or DL16 (no message on DL10-13). BIG ROOM: none (DL10-12 are ordinary).
 
 ## Threats / known dangers
-- Nymphs (armor theft), SLEEP rays (no resistance, no reflection). At AC -15 a monster's ray still hits ~40%.
-- MIND FLAYERS (Int 7!): never melee; zap F (teleport-away, no resistance roll) when adjacent/lined up; or dig down.
-- Cold/fire rays destroy potions/scrolls in the open pack: keep them in the bag of holding (k).
+- Nymphs (armor theft). Leprechauns steal only LOOSE gold: keep $0 loose (bag_put('k','$') after any pickup).
+- MIND FLAYERS (Int 7!): never melee; F is EMPTY now -> dig down (U / pick-axe) or leave the level.
+- Fire: no resistance (flaming sphere blast -14). Keep scrolls/potions in the bag.
+- At AC -15 a monster's RAY still hits ~40%: soldiers/wand users remain dangerous without reflection (sleep is now resisted).
 
 ## Objective and plan
-- NEXT: continue down the main dungeon: DL8 '>' (10,15) -> DL9 (Oracle) '>' (59,9) -> DL10 (explored only around its
-  '<'). Explore DL10+ for the quest portal level (DL11-16; "You receive a faint telepathic message" / magic portal),
-  the big room, shops (food!), and REFLECTION (top want: silver dragon scales / shield of reflection / amulet).
-- Food: buy/collect food rations whenever possible; eat fresh safe corpses (corpse()).
-- Long-term: reflection, then the Castle wand of wishing (per PLAYBOOK A1). Quest needs XL14 + piously aligned (have).
+- NEXT: DL13 leprechaun hall: farm it from the doorway (5,13) with $0 loose (Stealth keeps sleepers asleep; with no
+  gold to steal a leprechaun only scratches 1d2). Each carries gold -> temple protection (+1 AC per 4000 at XL10).
+  Pick up their gold INTO THE BAG right away. forget_room() is needed for the harness to let you in.
+- Fetch the wand at (14,18) (SE room). Then DL13 '>' (2,5) -> DL14 -> DL15/16: the quest portal message.
+- Wants: REFLECTION (top), fire resistance, food rations. Quest needs XL14 + piously aligned (have the piety).
+- Long-term: reflection, then the Castle wand of wishing (PLAYBOOK A1).

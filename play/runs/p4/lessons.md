@@ -125,3 +125,23 @@
   can't see it — "You kill it!" and its blast (adjacent squares only) misses you.
 - **Soldier squads in a maze**: a 1-wide dug tunnel with a wall on each side is a perfect chokepoint; 4 soldiers +
   undead died for 1 HP. The room side of a doorway (walls both sides) did the same against 7 Uruk-hai.
+
+## Shift 7
+- **An identify stack that won't merge is a different B/U/C.** Of 5 shop identify scrolls, 4 stacked and 1 didn't: that
+  one was blessed and rolled "identify everything" (scroll: blessed -> rn2(5) items, 0 = ALL). Read the odd one first.
+- **Price-ID with a stack of the same label at two prices**: 80 and 107 for one label -> base 60 (80 = x4/3, 107 =
+  x4/3 x4/3) = ENCHANT WEAPON; a lone 107 is then base 80 (enchant armor / remove curse). Cha 8 multiplier = x4/3.
+- **Eating a corpse while Satiated safely**: bound your nutrition from the last "You are beginning to feel hungry"
+  (= 150) + everything eaten since - 1/turn (+1 per 20 with an amulet, +1 per melee swing). Choking needs 2000. eat()
+  answers "no" to "Continue eating?" (partly eaten = NO intrinsic): do the 'e' / 'y' loop by hand with force=True
+  when the upper bound stays < ~1800. A timed-out intrinsic ("You are no longer invisible.") interrupts a meal:
+  just eat again.
+- **Grey-elf corpse = sleep resistance 6/15 = 40%** each; the 2nd elf gave it. Stalker corpse: temporary invisibility
+  + 60 turns stun (unicorn horn cured it in 1 apply).
+- **Niches**: a monster seen by telepathy in blank "rock" right above a room's top wall is in a niche; its (secret)
+  door is in that wall (search from inside the room), not from the corridor beside it.
+- **Quest portal depth**: dungeon.def CHAINBRANCH "The Quest" "oracle" + (6,2) -> Oracle level + 6 or 7. The Big Room
+  is DL10-12 (40%). Don't spend calls exploring DL10-14 hunting for the portal message.
+- **Leprechaun halls**: keep $0 loose (bag it), and they are harmless sleepers you can farm for gold with Stealth.
+- **Digging down with monsters around**: dig() (pick-axe) stops for any non-trivial hostile in view; a wand of
+  digging zapped down ('>') is one turn and needs no pit phase.

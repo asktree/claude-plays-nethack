@@ -248,3 +248,13 @@
 - T:9616-9629 manes x4 killed. T:9639 a 3rd GREY-ELF came out of a niche (41,14) through a hidden door (41,15);
   killed in one blow; ate its corpse (Satiated again, bounded ~1740 < 2000): "You feel wide awake." = SLEEP
   RESISTANCE. Black potion s picked up (bagged). DL10 '>' not found (explore done; dead ends (57,2) (59,9) (64,7)).
+- T:9659-9665 dug down with the pick-axe from DL10 (40,17) -> DL11 (39,4). DL11: hill orc pack (4) held off in the
+  corridor (39,10), a FLAMING SPHERE exploded on me (-14, no fire res), 2 hostile GRAY UNICORNS (one butted/kicked me
+  when explore() walked past it). dig() paused for a unicorn in view -> zapped U (digging) down at (56,10).
+- T:9816 DL12: landed beside '>' (8,7); giant ant killed; took the '>' -> DL13 (T:9821). No quest message on DL10-13:
+  dungeon.def CHAINBRANCH "The Quest" oracle + (6,2) -> portal on DL15 or DL16.
+- T:9855-9897 DL13: snake + giant ant + XAN killed (xan pricked a leg; healed T:9905). '>' (2,5) found.
+- T:9925 DL13: entered a LEPRECHAUN HALL (2-7,14-19) at (5,14): ~30 sleeping leprechauns. Bagged the $38 loose gold,
+  stepped back out to (5,12). A wand lies at (14,18) (SE room).
+- END OF SHIFT 7: T:9927, DL13 (5,12), HP 109/109, XL10, AC -15, Satiated, $0 loose ($1599 bagged), Excalibur +5,
+  SLEEP RESISTANT now, prayer safe (last prayer T:3562).

@@ -344,3 +344,26 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
 2. trek()/travel() refuse forever (no game time) because of a STALE monster glyph on a dark square (#905).
 3. pickup(pattern, force=True) doesn't lift the gray-stone guard; the refusal message tells you to use force=True
    (#707).
+
+## Shift 7 (T:9333-9927)
+- #57 T:9380 fight(28,6) paused on "The orc mummy attacks a spot beside you." while I was INVISIBLE (the stalker
+  corpse). Expected: invisible-hero miss lines ("attacks a spot beside you", "strikes at thin air", "swings wildly and
+  misses") are routine inside fight()/fight_until_clear()/travel(). Worked around with -a patterns.
+- #773 T:9780 explore() LURKER pause for a flaming sphere "last seen at (40,11) 7 turns ago" — it had EXPLODED at T:9774
+  ("The flaming sphere explodes!" after my hit). An exploding sphere/gas spore/light is dead: drop it from last_seen/
+  lurk zones when its explosion message shows.
+- eat(pattern=..., force=True) always answers "n" to "Continue eating?" -> the corpse stays partly eaten and gives no
+  intrinsic (cpostfx runs only at the end). Idea: eat(finish=True) that answers "y" when a nutrition UPPER BOUND
+  (tracked from the last "beginning to feel hungry" = 150, + nutrition of everything eaten since, - elapsed turns)
+  stays below ~1800. I did it by hand twice (Grey-elf corpses) — fine, but easy to get wrong.
+- eat() does not resume a meal interrupted by a benign status change ("You are no longer invisible." -> "You stop
+  eating the Grey-elf corpse."): a second eat() call was needed.
+- DL11 T:9751-9816: two wandering gray unicorns re-triggered "new monster: gray unicorn" pauses 4+ times as they left
+  and re-entered view (the "known monster coming back into view" rule didn't catch them — two of the same species?).
+  Cost ~5 calls; I added -a 'new monster: gray unicorn'.
+- dig('>') paused for a gray unicorn "in view" 2 squares away. Correct by the rules, but unicorns never close in
+  (NOTONL): maybe only pause for unicorns when adjacent.
+- "!! harness code on disk is newer than this daemon's helpers" appeared 4 times this shift (tactics edited during
+  play); `bin/nh reload` between execs worked each time.
+- Good: read_identify() with my regex priorities; the shop floor walk + here() gave every price in one exec; pay()
+  and bag_take/bag_put with '$' were smooth; fight_until_clear(ignore=('gray unicorn',)) held the corridor well.
