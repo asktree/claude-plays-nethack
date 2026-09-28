@@ -51,6 +51,10 @@ from tactics import options  # noqa: E402,F401  (options.bool_options(), options
 from tactics.town import buy_protection, pay, sell_offer  # noqa: E402,F401
 from tactics.items import bag_contents, bag_put, bag_take, call_type, dig, eat, force_box, kick_test, pickup, tunnel  # noqa: E402,F401
 from tactics.items import picked_letters  # noqa: E402,F401
+# (p1 shift 40 #271/#276: a loop's DIR_KEY raised NameError; desc == 'green dragon' missed 'green dragon [seen: ...]':
+# compare m['name'] (the base monster name) or base_name(desc))
+from tactics.mapview import DIR_KEY, KEY_DIR  # noqa: E402,F401
+from nh.danger import base_name  # noqa: E402,F401
 from tactics.items import altar_test, dip_into, discoveries, read_identify, rub, unlock, with_looks  # noqa: E402,F401
 from tactics.items import ID_PRIORITY, piety, write_scroll  # noqa: E402,F401
 from tactics.nav import drowners_adjacent, eel_level, eel_zone, squeaky_boards  # noqa: E402,F401

@@ -541,6 +541,13 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                           "7 in 8)") + ". Zap/throw at it, Elbereth, or leave; fight(..., force=True) to melee "
                           "anyway.")
                 return ctx.last()
+        from nh.danger import coaligned_unicorn
+        if coaligned_unicorn(desc, st.align if st.ok else "") and not force:
+            ctx.pause(f"fight: not attacking the {desc}: it is the unicorn of YOUR alignment — killing it costs 5 Luck "
+                      "('You feel guilty...', mon.c xkilled(); your luckstone would keep the bad luck, and prayer "
+                      "fails while Luck is negative). Walk away (it never closes in on you) or throw it a gem "
+                      "(Luck +); fight(..., force=True) only if it is killing you")
+            return ctx.last()
         if "WIELDS A COCKATRICE CORPSE" in (m.get("note") or "") and not force:
             ctx.pause(f"fight: not meleeing the {desc}: it WIELDS A COCKATRICE CORPSE — each of its hits starts "
                       "stoning you, and a melee keeps you next to it. Zap it away (teleport), kill it at range, or "
@@ -611,6 +618,9 @@ def auto_fightable(m, s=None) -> bool:
     if "shape-shifted VAMPIRE" in (m.get("note") or ""):
         return False
     st = (s or ctx.last()).status
+    from nh.danger import coaligned_unicorn
+    if coaligned_unicorn(d, st.align if st.ok else ""):
+        return False                    # -5 Luck (mon.c xkilled)
     if threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
                     getattr(ctx.game, "intrinsics", ())) != "trivial":
         return False
@@ -730,8 +740,11 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                              "there")
             from nh.monitor import _stationary
             # (a HIDDEN trapper/lurker above next to you acts only once found: a blow would un-hide it — leave it)
+            from nh.danger import coaligned_unicorn
+            align = s.status.align if s.status.ok else ""
             mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")
-                          and "hiding" not in (m.get("desc") or "")]
+                          and "hiding" not in (m.get("desc") or "")
+                          and not coaligned_unicorn(m.get("desc") or "", align)]
             if mobile_adj:
                 s = fight(stop_hp=stop_hp, allow_passive=allow_passive, near_water=near_water)
                 kills += killed_names(s.messages, include_it=True)
@@ -778,7 +791,8 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
             # (p2 shift 38 #526/#532/#623: the ignored species and HIDDEN trappers/lurkers above — they never come —
             # ended holds as "not coming")
             near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")
-                    and base_name(m.get("desc") or "") not in ignore and "hiding" not in (m.get("desc") or "")]
+                    and base_name(m.get("desc") or "") not in ignore and "hiding" not in (m.get("desc") or "")
+                    and not coaligned_unicorn(m.get("desc") or "", align)]
             if not near and hold and (s.status.turn or t0) - t0 < hold:
                 # keep the square: wait for the next one to come — searching, unless a HIDDEN hider is next to you
                 # (an explicit search un-hides it: detect.c mfind0 — and it engulfs)
@@ -843,14 +857,18 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     return out("max_turns")
 
 
-def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13) -> list:
+def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13, gems: bool = False) -> list:
     """Tame/peaceful monsters in the straight line from you in `direction`.
     A thrown object stops at the first monster in its path, so only friends
     before the first hostile count; a ray (ray=True) passes through
     everything, so the whole line counts (bounces off walls aren't followed:
-    mind them yourself)."""
+    mind them yourself). The unicorn of your alignment counts as a friend
+    too (killing it costs 5 Luck) — except for a thrown gem (gems=True: it
+    catches gems, and a gem it likes raises your Luck)."""
+    from nh.danger import coaligned_unicorn
     from .mapview import KEY_DIR
     s = s or ctx.last()
+    align = s.status.align if s.status.ok else ""
     d = KEY_DIR.get(direction)
     if d is None or s.hero is None:
         return []
@@ -864,7 +882,8 @@ def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13
             if s.screen.at(x, y) in " |-" and s.screen.color_at(x, y) != 3:
                 break                       # rock or wall (a brown '|'/'-' is an open door)
             continue
-        if m.get("tame") or m.get("peaceful") or m.get("pet"):
+        if m.get("tame") or m.get("peaceful") or m.get("pet") \
+                or (not gems and coaligned_unicorn(m.get("desc") or "", align)):
             out.append(m)
         elif not ray and not m.get("unseen"):
             break                           # the first hostile stops a thrown object
@@ -1095,10 +1114,10 @@ def _vanished(before: list, s, s0=None) -> list:
     return out
 
 
-def _refuse_friendly_fire(what: str, direction: str, ray: bool, force: bool) -> bool:
+def _refuse_friendly_fire(what: str, direction: str, ray: bool, force: bool, gems: bool = False) -> bool:
     if force:
         return False
-    friends = friendly_in_line(direction, ray=ray)
+    friends = friendly_in_line(direction, ray=ray, gems=gems)
     if not friends:
         return False
     who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in friends)
@@ -1154,7 +1173,9 @@ def throw(item: str, direction: str, count: bool = False, force: bool = False):
     throw ALWAYS misses; food at a dog/cat/horse is fine) — force=True
     throws anyway. Returns the final Snap."""
     ctx.require_command("throw()")
-    if _refuse_friendly_fire("throw", direction, ray=False, force=force):
+    gem = next((it for it in getattr(ctx.game, "inv_items", None) or [] if it.get("letter") == item
+                and (it.get("class") or "").startswith("Gems")), None) is not None
+    if _refuse_friendly_fire("throw", direction, ray=False, force=force, gems=gem):
         return ctx.last()
     first = _first_in_line(direction)
     target = first if not force else None

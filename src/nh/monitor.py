@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import re
 
-from .danger import LEADER_GIVEN_NOTE, base_name, note_for, quest_role, risky_lookalike
+from .danger import LEADER_GIVEN_NOTE, base_name, coaligned_unicorn, note_for, quest_role, risky_lookalike
 from .mapscan import monsters_in_view
 
 MAX_LOOKS_PER_UPDATE = 12
@@ -451,6 +451,7 @@ class MonsterTracker:
                     wz["ids"] = lined
         for m in mons:
             d = m.get("desc", "")
+            m["name"] = (base_name(d) or "") if d else ""      # the base monster name, for scripts' comparisons
             m["tame"] = d.startswith("tame ")
             m["peaceful"] = d.startswith("peaceful ")
             if d and not m.get("statue"):
@@ -470,6 +471,10 @@ class MonsterTracker:
                                  + f"ZAPPED A WAND{' OF ' + kind.upper() if kind else ''} AT YOU (T:{wz.get('turn')})"
                                  + (" (its ray destroys your POTIONS (cold) / scrolls and potions (fire) even when "
                                     "you resist it: bag them)" if kind in ("cold", "fire") else "")
+                                 + (" — " + m["note"] if m["note"] else ""))
+                if coaligned_unicorn(d, st.align if st.ok else ""):
+                    m["note"] = ("YOUR ALIGNMENT'S UNICORN: never kill it (-5 Luck, 'You feel guilty...' — a luckstone "
+                                 "keeps it); it never closes in; gems thrown to it raise Luck"
                                  + (" — " + m["note"] if m["note"] else ""))
                 tw = (getattr(snap, "trice_wielders", None) or {}).get(base_name(d))
                 if tw is not None and not _friendly(d):

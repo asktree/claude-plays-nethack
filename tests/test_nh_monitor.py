@@ -1685,3 +1685,12 @@ def test_a_monster_killed_by_the_pet_is_no_news_but_the_pet_dying_is():
     assert not other_monster_killed("The kitten is killed!", s)           # the pet (its kind is tame here)
     assert not other_monster_killed("Sparky is killed!", s)               # a named pet: not a monster name
     assert not other_monster_killed("You kill the newt!", s)
+
+
+def test_your_alignments_unicorn_gets_a_note():
+    fg = FakeGame()
+    fg.truth = {(44, 10): "white unicorn"}
+    t = MonsterTracker(fg)
+    s = snap({(44, 10): "u"}, 70)          # the status line says Lawful
+    m = t.update(s)[0]
+    assert m["note"].startswith("YOUR ALIGNMENT'S UNICORN: never kill it")

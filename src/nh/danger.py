@@ -393,6 +393,15 @@ def covetous(name: str) -> bool:
 # NOTONL is off and it may be cornered). p4 shift 7: dig('>') paused for a gray unicorn 2 squares away.
 KEEPS_AWAY = ("white unicorn", "gray unicorn", "black unicorn")
 
+# mon.c xkilled(): killing a unicorn of YOUR alignment — hostile or not — costs 5 Luck ("You feel guilty...");
+# a carried luckstone keeps bad Luck from timing out, and prayer fails while Luck is negative
+COALIGNED_UNICORN = {"Lawful": "white unicorn", "Neutral": "gray unicorn", "Chaotic": "black unicorn"}
+
+
+def coaligned_unicorn(desc: str, align: str) -> bool:
+    """Is this the unicorn of your alignment (status-line 'Lawful'/'Neutral'/'Chaotic')?"""
+    return bool(align) and bool(desc) and base_name(desc) == COALIGNED_UNICORN.get(align)
+
 
 def keeps_away(desc: str) -> bool:
     """A species that never closes in on you by itself (the unicorns): no threat until it is next to you."""

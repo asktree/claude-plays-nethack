@@ -4584,7 +4584,7 @@ def test_zap_notes_a_reflected_ray_a_restricted_teleport_and_closes_probing(monk
     monkeypatch.setattr(ctx, "do", fake_do)
     monkeypatch.setattr(ctx, "last", lambda: cur["s"])
     monkeypatch.setattr(ctx, "require_command", lambda what: base)
-    monkeypatch.setattr(combat, "friendly_in_line", lambda d, ray=False: [])
+    monkeypatch.setattr(combat, "friendly_in_line", lambda d, ray=False, **kw: [])
     combat.zap("M", "l")
     out = capsys.readouterr().out
     assert "REFLECTS rays" in out and g.reflectors["L"] == {7: back.status.turn}
@@ -5236,7 +5236,7 @@ def test_zap_reports_frozen_water(monkeypatch, capsys):
     monkeypatch.setattr(ctx, "do", fake_do)
     monkeypatch.setattr(ctx, "last", lambda: cur["s"])
     monkeypatch.setattr(ctx, "require_command", lambda what: base)
-    monkeypatch.setattr(combat, "friendly_in_line", lambda d, ray=False: [])
+    monkeypatch.setattr(combat, "friendly_in_line", lambda d, ray=False, **kw: [])
     combat.zap("R", "l")
     out = capsys.readouterr().out
     assert "FROZE 3 water square(s) [(12, 5), (13, 5), (14, 5)]" in out and "(15, 5)" in out
@@ -5844,3 +5844,29 @@ def test_prayer_check_ignores_a_worn_blindfold_and_pickup_says_levitating(monkey
     monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
     assert items.pickup("ring") == [] and sent == []
     assert "LEVITATING" in capsys.readouterr().out
+
+
+def test_the_unicorn_of_your_alignment_is_never_attacked(monkeypatch):
+    # mon.c xkilled(): killing a unicorn of your alignment costs 5 Luck ("You feel guilty..."); threat() rated a
+    # hostile white unicorn 'trivial' at 190 HP, so travel/explore would have auto-fought it (triage #2)
+    from nh.danger import coaligned_unicorn
+    from tactics import combat, ctx
+    assert coaligned_unicorn("white unicorn", "Lawful") and not coaligned_unicorn("black unicorn", "Lawful")
+    assert coaligned_unicorn("gray unicorn", "Neutral") and not coaligned_unicorn("white unicorn", "")
+    monkeypatch.setattr(ctx, "game", _G())
+    uni = {"x": 11, "y": 5, "ch": "u", "desc": "white unicorn", "dist": 1}
+    s = _snap({5: "         .@u...."}, (10, 5), [uni])
+    s.status.align, s.status.xl, s.status.hp, s.status.hpmax = "Lawful", 14, 190, 190
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert not combat.auto_fightable(uni, s)
+    assert combat.friendly_in_line("l", ray=True, s=s) == [uni]          # a zap won't go through it
+    assert combat.friendly_in_line("l", s=s, gems=True) == []            # a thrown gem may (Luck)
+    s.status.align = "Chaotic"
+    assert combat.friendly_in_line("l", ray=True, s=s) == []
+    s.status.align = "Lawful"
+    paused, sent = [], []
+    monkeypatch.setattr(ctx, "pause", lambda msg: paused.append(msg))
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    combat.fight(11, 5)
+    assert paused and "YOUR alignment" in paused[0] and not any(k.startswith("F") for k in sent)
