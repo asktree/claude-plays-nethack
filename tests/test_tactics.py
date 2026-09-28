@@ -1473,6 +1473,48 @@ def test_descend_goes_down_several_levels_and_stops_short(monkeypatch):
         nav.descend(1)                                           # no level done yet: raise as before
 
 
+def test_descend_and_climb_explore_for_unknown_stairs(monkeypatch):
+    # p4 shift 6 idea: a level with no known '<'/'>' took several head_to/explore calls by hand
+    import pytest
+    from tactics import ctx, explore as explore_mod, nav
+    cur = {"s": _snap({}, (10, 5), [])}
+    cur["s"].status.ldesc = "Dlvl:9"
+    found = {"stairs": []}
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "defer_far", None)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(nav, "known_cells", lambda ch, s=None, rescan=False: list(found["stairs"]))
+    runs = []
+
+    def fake_explore(max_legs=150, **kw):
+        runs.append(max_legs)
+        if len(runs) == 2:
+            found["stairs"] = [(30, 7)]
+        return {"reason": "max_legs reached"}
+    monkeypatch.setattr(explore_mod, "explore", fake_explore)
+
+    def fake_go_up(wait_pet=6, to=None):
+        if not found["stairs"]:
+            raise nav.NavError("no '<' known on this level")
+        s = _snap({}, (10, 5), [])
+        s.status.ldesc = "Dlvl:8"
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(nav, "go_up", fake_go_up)
+    with pytest.raises(nav.NavError):
+        nav.climb(1)                                             # without explore=True: as before
+    s = nav.climb(1, explore=True)
+    assert len(runs) == 2 and s.status.ldesc == "Dlvl:8"
+    # an explored level without one: a clear NavError
+    cur["s"].status.ldesc, found["stairs"], runs[:] = "Dlvl:8", [], []
+    monkeypatch.setattr(explore_mod, "explore", lambda max_legs=150, **kw: runs.append(1) or {"reason": "explored"})
+    monkeypatch.setattr(nav, "go_down", lambda wait_pet=6, to=None: (_ for _ in ()).throw(
+        nav.NavError("no '>' known on this level")))
+    with pytest.raises(nav.NavError, match=r"explore\(\) found none"):
+        nav.descend(1, explore=True)
+    assert runs == [1]
+
+
 def test_stationary_hostiles_are_avoided_and_not_waited_for(monkeypatch):
     from tactics import ctx, nav
     monkeypatch.setattr(ctx, "game", _G())

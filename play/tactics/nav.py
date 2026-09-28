@@ -2639,17 +2639,70 @@ def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostil
     return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet, pass_hostile=pass_hostile)
 
 
-def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None, pause_trivial: bool = False):
+def _find_stairs(ch: str, chunks: int = 8, legs: int = 6) -> str | None:
+    """explore() in short runs until a NEW `ch` staircase shows up on this level (None); else why not — the level
+    explored or blocked without one (explore()'s verdict), a prompt or a level change (p4 shift 6 idea: DL11's '<'
+    took 3 calls of head_to/explore by hand)."""
+    from .explore import explore
+    s = ctx.last()
+    ld = s.status.ldesc if s.status.ok else None
+    before = set(known_cells(ch, s, rescan=True))
+    reason = "nothing tried"
+    for _ in range(chunks):
+        r = explore(max_legs=legs)
+        reason = str(r.get("reason", ""))
+        s = ctx.last()
+        if s.state.kind != "command" or (s.status.ok and s.status.ldesc != ld):
+            return f"stopped ({s.state.kind}, {s.status.ldesc if s.status.ok else '?'})"
+        if set(known_cells(ch, s, rescan=True)) - before:
+            return None
+        if not reason.startswith("max_legs"):
+            return reason                     # explored, blocked, stuck: exploring more won't find it
+    return f"not found in {chunks * legs} explore legs"
+
+
+def _stairs_leg(ch: str, wait_pet: int, to, explore_for: bool):
+    """go_down()/go_up() once; with explore_for, a level without a (suitable) known staircase is explored for one
+    first."""
+    fn = go_down if ch == ">" else go_up
+    try:
+        return fn(wait_pet=wait_pet, to=to)
+    except NavError as e:
+        if not explore_for or not re.search(rf"no (?:known )?{re.escape(repr(ch))}", str(e)):
+            raise
+        print(f"stairs: {e} — exploring for one")
+        why = _find_stairs(ch)
+        if why is not None:
+            raise NavError(f"{e} — and explore() found none: {why}") from None
+        return fn(wait_pet=wait_pet, to=to)
+
+
+def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None, pause_trivial: bool = False,
+            explore: bool = False):
     """go_down() `levels` times in a row (the Dungeons' main stairs by default,
     or toward `to`). The level changes don't pause; newcomers farther than 6
     squares without a danger note wait until they come near (defer_far), and
     TRIVIAL newcomers (threat() 'trivial': grid bugs, rats, newts...) don't
     pause at all unless pause_trivial=True; anything else dangerous, adjacent,
-    HP loss or a message still pauses. Stops early (returns) at a prompt, when
-    a go_down() stops short, or — after at least one level — on a level with
-    no known '>' (it says so). Returns the last snap."""
+    HP loss or a message still pauses. explore=True: on a level with no known
+    '>' it explores (short explore() runs) until one shows up, then goes on.
+    Stops early (returns) at a prompt, when a go_down() stops short, or —
+    after at least one level — on a level with no known '>' (it says so).
+    Returns the last snap."""
+    return _trip(">", levels, wait_pet, to, pause_trivial, explore)
+
+
+def climb(levels: int = 1, wait_pet: int = 6, to: str | None = None, pause_trivial: bool = False,
+          explore: bool = False):
+    """descend() upward: go_up() `levels` times (toward `to`, e.g. 'Dungeons' out of the Mines), exploring for an
+    unknown '<' with explore=True. (Not endgame.ascend(), which offers the Amulet on the Astral Plane.)"""
+    return _trip("<", levels, wait_pet, to, pause_trivial, explore)
+
+
+def _trip(ch: str, levels: int, wait_pet: int, to, pause_trivial: bool, explore_for: bool):
     import contextlib
     from .info import threat
+    who = "descend()" if ch == ">" else "climb()"
     far = getattr(ctx, "defer_far", None)
     filt = getattr(ctx, "monster_filter", None)
 
@@ -2666,16 +2719,16 @@ def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None, pause_tri
         for i in range(levels):
             ld0 = ctx.last().status.ldesc
             try:
-                s = go_down(wait_pet=wait_pet, to=to)
+                s = _stairs_leg(ch, wait_pet, to, explore_for)
             except NavError as e:
                 if i == 0:
                     raise
                 # (p4 shift 5 #464: DL10 had no known '>' — the caller's next statements were lost to the raise)
-                print(f"descend(): stopped on {ld0} after {i}/{levels} level(s) — {e}")
+                print(f"{who}: stopped on {ld0} after {i}/{levels} level(s) — {e}")
                 return ctx.last()
             if s.state.kind != "command" or ctx.last().status.ldesc == ld0:
                 return s
-            print(f"descend(): {ld0} -> {ctx.last().status.ldesc} ({i + 1}/{levels})")
+            print(f"{who}: {ld0} -> {ctx.last().status.ldesc} ({i + 1}/{levels})")
     return s
 
 

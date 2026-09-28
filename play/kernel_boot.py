@@ -40,7 +40,7 @@ from tactics.survival import (elbereth, engraving_here, pray, prayer_check, rest
 from tactics import sokoban  # noqa: E402,F401  (sokoban.push(x, y, 'hhk'), sokoban.board())
 from tactics.info import (corpse, last_seen, mon, obj, price_candidates, price_id, threat,  # noqa: E402,F401
                           wiki, wiki_page)
-from tactics.nav import descend, kick_door, step_onto  # noqa: E402,F401
+from tactics.nav import climb, descend, kick_door, step_onto  # noqa: E402,F401
 from tactics.info import overview  # noqa: E402,F401
 from tactics.explore import object_frontiers, search_until_change  # noqa: E402,F401
 from tactics.explore import head_to, screen_frontiers  # noqa: E402,F401
