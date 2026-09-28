@@ -263,3 +263,18 @@
   T:12780 Z - GRAY STONE picked up at (72,9) = the level file's luckstone (single gray stone there, no Burdened -> not a loadstone). Named "luckstone (Mines End)".
   Gems picked up: 3+1 green (d), red (T x3), violet (Y,i), 2 white (t), orange (s). (71,8) is a spiked pit.
 - T:12819 killed the wraith (1 blow) at (42,16), ATE it: XL12 (HP 115). Sky blue potion D (unknown) from its square.
+- (reconstructed from history, shift 13 cut off by an API error ~T:12920) T:12796 picked the sack back up (now letter w, cursed, 43 items).
+  T:12797 dropped the EMPTY wand of MM. T:12831-12920 peaceful gnome king keeps blocking the row-12 corridor. T:12852-12912 a hobbit
+  turned into fire ant / tiger / yeti / giant eel = a CHAMELEON roams this level (now a hostile "housecat") — never eat its corpse (polymorph).
+  T:12854 bagged all scrolls + potions (DAIYEN FOOELS, FNORD, READ ME, VAS CORP, earth, identify, cursed teleportation, sky blue D, cursed extra healing, full healing).
+  Shift 13 ended ~T:12920 at (33,12), HP 115/115, XL12.
+
+## Shift 14 (T:12920-)
+- T:12920 inventory check: sack w (43 items) carried, luckstone Z in main pack, wands of digging a (EMPTY) + X. Not hungry.
+- T:12957 killed the hostile "housecat" (the chameleon?) on Mines' End; no corpse eaten. T:12978 up to Mines 12 (sleeping gas trap (42,11): resisted; arrow trap crossed).
+- T:13022 Mines 11: killed a bugbear, ATE it (250). T:13114 Mines 8: a black light exploded -> Hallu, cured with unicorn horn e (1 apply).
+- T:13141 Minetown, Possogroenoe's general store: bought food ration F (60), fortune cookie G (9), POTION OF FULL HEALING J (267). Sack $865.
+  Shop still has: cursed -1 ring of gain strength, sky blue potion (133 = base 100: hallu/healing/restore ability/sleeping), 2 spellbooks, lamp.
+- T:13172 Minetown: killed a rock piercer, ate it. T:13209 raven blinded me (unihorn fixed), killed it.
+- T:13234 Mines 6: INVISIBLE STALKER (seen by blindfold telepathy), killed in 2 blows, ATE it (400; stun cured by horn, invisible until T:13308, no see invis). Satiated.
+- T:13302 Mines 5: killed a chickatrice with Excalibur (gloves, no touch). T:13317 back in the main dungeon DL4 on the Mines stairs (6,6). HP 115/115.

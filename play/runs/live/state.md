@@ -7,7 +7,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:12669 / MINES' END DL13 (minend-2, Gnome King's wine cellar) at (53,10) / XL11 / 108/108 / 21/21 / AC-15, not hungry (ate Woodland-elf T:12347, was Satiated)
+- Turn / Dlvl / XL / HP / Pw / AC: T:13317 / DL4 MAIN DUNGEON, on the Mines down stairs (6,6) / XL12 / 115/115 / 22/22 / AC-15, Satiated (T:13255)
 - T:11292 WISH DONE: z - blessed +2 GRAY DRAGON SCALE MAIL, WORN (MAGIC RESISTANCE) under the faded pall I (elven cloak). Elven mithril G left on the DL9 altar.
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
@@ -16,6 +16,16 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; EXPERT long sword (T:7145), basic dagger
 - Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047), SLEEP RES (Woodland-elf T:12347). MR (GDSM), REFLECTION (amulet).
 - Luck notes: full moon at game start (+1 while it lasts). Alignment / god anger: none
+
+## SHIFT 13-14 CHANGES (T:13317) — CURRENT INVENTORY FACTS
+- LUCKSTONE: Z - gray stone "luckstone (Mines End)" in MAIN inventory (T:12780). Keep it there (never bag it, never drop it).
+- SACK is now letter w (cursed bag called sack, ~43 items): $865, all scrolls (identify!, VAS CORP blessed, READ ME, earth, FNORD, DAIYEN FOOELS,
+  cursed teleportation = ETAOIN), potions (2 holy waters, full healing, cursed extra healing, sky blue D), rings, most wands (cold Z? check), etc.
+- Main pack: J POTION OF FULL HEALING (bought T:13165, emergency), F food ration, G fortune cookie, g 2 slime molds, P lizard corpse,
+  e unicorn horn, H blindfold (telepathy), X wand of digging (charges left unknown), a wand of digging EMPTY (0 charges — drop/wrest), gems.
+- XL12 (T:12821 wraith). Intrinsics unchanged.
+- ETAOIN SHRDLU = TELEPORTATION (a wraith read one T:12704).
+- Chameleon on Mines' End (killed as a housecat? unclear). Mines' End luckstone taken; Mines done.
 
 ## Prayer log
 | turn | reason | result |
