@@ -269,3 +269,33 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
    an adjacent attacker inside solve().
 2. hunt() routes through Sokoban-illegal diagonal squeezes between boulders (item 7, #550).
 3. engrave_test() reports an Elbereth it never read back (item 8, #1723) + unicorn-horn result messages (item 9).
+
+## Shift 5
+1. (info, good) Stealth + one-at-a-time kills of a sleeping zoo worked perfectly with fight() + my own approach()
+   (path_to + walk_path to a free square next to the target): 30 kills, no sleeper woke from noise. forget_room()
+   was needed first. A zoo helper `clear_sleepers(targets)` in tactics would save the boilerplate.
+2. **ESP/telepathy don't show MINDLESS monsters** (#17 vs #27): my T:7521 "empty squares" plan (object detection +
+   ESP) was wrong — mummies, zombies, blobs, jellies sat on them. The harness could flag, for a planned route over
+   squares only "seen" by telepathy, "mindless monsters are invisible to telepathy: this square may be occupied".
+3. (minor) A getlin naming prompt ("Call an emerald potion:") opened INSIDE fight() when a thrown potion hit me
+   (#156). The exec paused correctly, but fight() then returned with the target alive after `cont --reply`,
+   so my loop stopped (#157). Expected: fight() resumes its blows after the prompt is answered.
+4. (minor) The sergeant's wand pause came as a plain "message" pause (#220) although it names the wand (zinc = cold)
+   — fine, but the "ZAPPED A WAND OF COLD" note could mention "cold rays shatter POTIONS in your pack even when you
+   resist cold" (I lost 2 potions, #222). Suggest: bag potions before fighting a known cold/fire zapper.
+5. (minor) descend(3) raised NavError "no '>' known on this level" after 2 of 3 levels when the 3rd level (DL10) had
+   no known '>' (#464). Expected: return early with a note (like at a prompt) — the caller's next statements were lost.
+6. Trivial newcomers (grid bug #648, lizard, rabid rat, giant rats) paused multi-level trips ~6 times this shift. I
+   wrapped trips in `with monster_filter(nontrivial):` (threat(name) != 'trivial'). A built-in
+   `descend(n, pause_trivial=False)` / `go_up(..., pause_trivial=False)` would save calls.
+7. (info) travel(55,17) from the Minetown '<' walked 3 squares and stopped next to a hostile werewolf that had been
+   "not coming" (#778): fine (NavError explained it), but a DANGEROUS hostile seen within 6 squares in the last few
+   turns could make travel pause BEFORE the leg that brings it adjacent (lycanthropy risk).
+8. (info, good) buy_protection() and bag_put/bag_take worked first time (#855, #909); altar drop-testing by hand
+   worked; an `altar_test(letters)` helper returning {text: buc} would be a nice addition.
+### Top 3 (shift 5, ranked)
+1. Mindless monsters are invisible to telepathy/ESP (#17 vs #27) — flag route squares only "known empty" by
+   telepathy + object detection.
+2. fight() stops after an in-fight getlin prompt ("Call an emerald potion:") is answered (#156-#157).
+3. Trip helpers (descend/go_up/travel) pause for trivial newcomers (#648 etc.) and descend() raises instead of
+   returning at a level with no known '>' (#464).

@@ -88,3 +88,18 @@
 - **Collectors (centaurs, monkeys, nymphs) pick up floor items**: a wand seen on the floor was gone 60 turns later; it
   was in the forest centaur's death pile.
 - Unicorn horn messages: "Nothing happens." = no trouble; "Nothing seems to happen." = trouble not fixed this time.
+
+## Shift 5
+- **Telepathy/ESP never shows MINDLESS monsters** (mummies, zombies, blobs, jellies, golems): a zoo route planned from
+  object detection + ESP had monsters on half its "empty" squares. Open the door and LOOK before committing.
+- **A sleeping zoo + Stealth = a farm**: kill sleepers one at a time from free squares (most die to one blow; only the
+  target wakes; melee makes no noise in 3.6.7). 30 kills, 2 zruties included, for -15 HP total and ~$5800 of gold.
+  The closet with the burned Elbereth + scare monster scroll was the fallback refuge.
+- **Soldiers/sergeants zap wands at melee range** (muse.c: before melee). The sergeant's wand of COLD shattered 2
+  potions although I resist cold: bag potions/scrolls in the bag of holding before any fight with a wand carrier.
+- **Zoo gold -> temple protection**: 400*XL (3600 at XL9) gave 3 AC points the first time (rn1(3,2)). Buy BEFORE
+  levelling (XL10 costs 4000). A co-aligned altar BUC-tests everything by dropping it (amber = blessed, black = cursed).
+- **Werewolves in wolf form**: each bite that hits = 1/4 lycanthropy with MC0 (GDSM has MC0!). Wear a cloak (MC1+).
+  Fight them from a 1-wide passage: the summoned wolves then come one at a time.
+- **A sleeping nymph next to the stairs**: watch 3-4 turns from a distance (no movement = asleep) and walk past with
+  Stealth instead of risking a failed one-blow kill (she then steals: maybe the GDSM or the bag).

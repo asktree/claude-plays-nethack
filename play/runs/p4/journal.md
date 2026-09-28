@@ -155,3 +155,36 @@
   Jade ring (l) at (30,19). Dropped the tin and cursed scroll n. Iridium wand F: engrave "vanishes" -> zapped down
   at the pile: it vanished = WAND OF TELEPORTATION (named "teleportation").
 - END OF SHIFT 4: T:7564, (34,10) on Sokoban 4, HP 97/99, XL9, AC-8, $176, not hungry, zoo asleep, prayer safe.
+
+## Shift 5
+- T:7587 at (50,17): ESP showed 23 minded sleepers. unlock(49,17) (LOCKED per sokoban.des; spo_door doors are never
+  booby-trapped) + opened: 6 MINDLESS sleepers appeared that ESP never showed (kobold/ettin/dwarf mummies, gnome
+  zombie, acid blob, blue + ochre jellies, quivering blob) — several on my "empty" route squares.
+- T:7590-7601 new route: Green-elf (48,17) from the doorway, hill orc (47,16), gnome zombie (46,16), kitten (45,15),
+  kobold mummy (44,15): all one blow each (Stealth: no other sleeper woke). Closet door (43,15) closed, stuck once.
+- T:7603 PRIZE = BAG OF HOLDING (k; "a bag", empty). Left the cursed scroll labeled DUAM XNAHT = SCARE MONSTER on
+  (42,15) (burned Elbereth there).
+- T:7604-7653 cleared the sleeping zoo one monster at a time (kernel helper clear()): scorpion, kobold mummy, yeti,
+  acid blob, BOTH ZRUTIES (one blow; then 2 blows, -11 HP), blue jelly, rock piercer, horse, ettin mummy, 13 hill
+  orcs, lizard, bugbear, quivering blob, dwarf mummy, soldier. A hill orc woke and threw an EMERALD potion: "This
+  burns!" = ACID (named). The SERGEANT woke after my first blow and zapped a ZINC wand = WAND OF COLD twice: I resist
+  cold, but my potion of object detection (e) and the BLESSED SKY BLUE potion (h) froze and shattered. Killed him.
+  Only the sleeping OCHRE JELLY (45,19) is left (passive acid 3d6: skipped).
+- Gold 176 -> 4021. Bagged gold, gems, rings, scrolls, potions, marker, lamp, grease, gloves into k. Picked up
+  m WAND OF COLD, l leather cloak (BUC unknown: altar-test before wearing — MC1, shields the GDSM from nymphs),
+  f C-ration. HP 84/99 T:7657.
+- T:7673 ate a fresh hill orc corpse; the gold sweep of the zoo (autopickup) brought the total to ~$5800; found a FOOD
+  RATION (44,18) and 2 tins on the zoo floor; killed a rabid rat; bagged all gold.
+- T:7741 Sok4 on the way to '>': giant mummy + 3 giant rats + quasit killed with fight_until_clear (-2 HP).
+- T:7766 Sok2: gold golem killed (hunt). T:7814 DL10 via descend(). Decision: go UP to Minetown for protection.
+- T:7911 DL8: 4 manes + elf mummy? (manes killed); a WOOD NYMPH asleep at (47,14) beside the '<' (48,13): watched her 4
+  turns (didn't move = asleep), walked past with Stealth (go_up(pass_hostile=True)) — no fight, no theft risk.
+- T:7966 DL7 gold golem killed. T:7981 WEREWOLF (wolf form) bit me twice (MC0: 1/4 lycanthropy each) — no "feverish";
+  killed it T:7983. Hungry T:7983 -> ate food ration n.
+- T:8005-8137 DL6 lizard, Mines 1 tengu killed; Minetown (DL8) T:8137.
+- T:8143-8151 Minetown: 2nd WEREWOLF met me in a 1-wide passage (18,12); it summoned 4 wolves; killed it (T:8146) and
+  3 wolves from the passage (-9 HP). No lycanthropy.
+- T:8182 on Tyr's altar: leather cloak l = BLESSED (+2) -> worn (AC -8 -> -11). T:8187 buy_protection(): 3600zm ->
+  "Thou hast been rewarded for thy devotion." AC -11 -> -14 (3 points). Altar tests: leather gloves, ANDOVA BEGARIN
+  scroll, orange + ruby potions UNCURSED; granite, jade, topaz rings all CURSED. Gloves worn -> AC -15.
+- END OF SHIFT 5: T:8196, Minetown temple altar (55,17), HP 99/99, XL9, AC -15, $2207 in the bag, prayer safe.
