@@ -567,6 +567,20 @@ def test_guard_cockatrice_corpse_pickup_and_blind_step():
     with pytest.raises(PermissionError):
         g._guard(blind, b"l", force=False)        # (10,5) holds the corpse
     g._guard(blind, b"h", force=False)
+    # p3 shift 19 #503: worn gloves (known from inventory()) lift the guards; unknown gloves say how to tell it
+    g._remember_here(s, ["You see here a cockatrice corpse."])
+    g.gloves = None
+    with pytest.raises(PermissionError, match="inventory\\(\\) tells it"):
+        g._guard(s, b",", force=False)
+    g.gloves = ""
+    with pytest.raises(PermissionError, match="no gloves"):
+        g._guard(s, b",", force=False)
+    g.gloves = "x - an uncursed +0 pair of leather gloves (being worn)"
+    g._guard(s, b",", force=False)
+    menu.items[0].selected = True
+    g._guard(ms, b"\r", force=False)
+    g._guard(blind, b"l", force=False)
+    g.gloves = None
     # "You see no objects here." forgets it
     g._remember_here(s, ["You see no objects here."])
     g._guard(s, b",", force=False)
@@ -894,6 +908,10 @@ def test_wield_tracking_from_messages():
     assert g.wielded is None and g.wield_note() == ""
     g.gloves = "d - leather gloves (being worn)"
     g._note_wield(["You finish taking off your gloves."])
+    assert g.gloves is None
+    # putting gloves on says only this (a 1-turn delay): the old "no gloves" must not stay (qa10 check)
+    g.gloves = ""
+    g._note_wield(["You finish your dressing maneuver."])
     assert g.gloves is None
 
 

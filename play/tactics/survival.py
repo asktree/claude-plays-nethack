@@ -221,6 +221,35 @@ def _low_hp(st) -> bool:
     return st.hp <= 5 or st.hp * div <= mx
 
 
+# pray.c in_trouble(): any attribute below its maximum (ABASE < AMAX) is TROUBLE_POISONED, a MINOR trouble —
+# and every loss lowers only ABASE (attrib.c adjattrib()): poison, a potion of sickness, the weaken spell, a
+# mind flayer, a foocubus, even exercise abuse. What says so:
+_DRAIN_MSG = re.compile(
+    r"^You feel (?:very )?(?:weak|stupid|foolish|clumsy|fragile|repulsive)!$"          # adjattrib() loss
+    r"|^You feel (?:weaker|very sick|innately weaker|sick inside)[!.]$"                 # poisontell()
+    r"|^Your (?:brain is on fire|judgement is impaired|muscles won't obey you)[!.]$"
+    r"|^You break out in hives[!.]$|^You suddenly feel weaker!$"                        # (+ mcastu weaken)
+    r"|^Ecch - that must have been poisonous!$|^You are down in the dumps\.$|^Your senses are dulled\.$")
+# ... and what restores them all: a unicorn horn that fixed every trouble, blessed restore ability, the prayer fix
+_RESTORED_MSG = re.compile(r"^This makes you feel great!$|^Wow!  ?This makes you feel great!$"
+                           r"|^You feel in good health again\.$|^There's a tiger in your tank\.$")
+
+
+def drained_attributes(hist: list | None = None) -> list:
+    """Messages since the last full restore that lowered an attribute (TROUBLE_POISONED: minor trouble, and
+    with it a prayer's 'pat on the head' is no longer certain — p3 shift 19 #27). [] when none (or all fixed)."""
+    if hist is None:
+        hist = [m for (_t, m) in getattr(ctx.game, "history", [])]
+    last_fix = max((i for i, m in enumerate(hist) if _RESTORED_MSG.search(m)), default=-1)
+    out = []
+    for i, m in enumerate(hist):
+        if i > last_fix and _DRAIN_MSG.search(m):
+            if m.startswith("Ecch") and any("seem unaffected by the poison" in n for n in hist[i + 1:i + 3]):
+                continue
+            out.append(m)
+    return out
+
+
 def prayer_check() -> dict:
     """What would prayer do right now? Returns {trouble, reasons, since_last,
     p_safe, advice}. Mirrors pray.c can_pray(): the prayer timeout must be
@@ -262,6 +291,12 @@ def prayer_check() -> dict:
               if "luckstone" in t or st.encumbrance in ("Strained", "Overtaxed", "Overloaded")]
     if stones and not cw:
         reasons_minor.append("cursed stone: " + stones[0])
+    drained = drained_attributes(hist)
+    if drained:
+        reasons_minor.append(f"drained attribute ({drained[-1]!r}" + (f" +{len(drained) - 1} more" if len(drained) > 1
+                                                                        else "")
+                             + ") — apply a unicorn horn until 'This makes you feel great!' ('Nothing seems to "
+                               "happen' only means that try fixed nothing; 'Nothing happens.' = nothing to fix)")
     trouble = "major" if reasons_major else "minor" if reasons_minor else "none"
     limit = {"major": 200, "minor": 100, "none": 0}[trouble]
     hs = _harness_state()
@@ -287,7 +322,16 @@ def prayer_check() -> dict:
     if where == "Gehennom":
         advice.append("IN GEHENNOM: prayer cannot help and may anger your god. Do not pray.")
         p_safe = 0.0
-    if trouble == "none":
+    if trouble == "none" and zero and not bad:
+        advice.append("No trouble and the timeout is PROVEN 0: a prayer now is safe. On a co-aligned altar (or "
+                      "anywhere) with alignment >= 14 it is a certain 'pat on the head' (pray.c pleased()): "
+                      "rn2((Luck+6)/2) — 0 nothing, 1 fix/bless your weapon, 2 golden glow (+5 max HP, restore), "
+                      "3 the castle tune hint, 4 uncurse your pack, 5 an intrinsic (telepathy/speed/stealth, else AC), "
+                      "6 a spellbook, 7-8 CROWNING if piously aligned (20+): 2/9 at Luck 12-13, 1/8 at Luck 10-11, "
+                      "none below. The timeout then resets to ~350 (crowned: + ~1000 on every later prayer). Any "
+                      "minor trouble (a drained attribute, Hungry...) makes the pat a 1+rn2(Luck+3) >= 5 roll: fix "
+                      "it first.")
+    elif trouble == "none":
         advice.append("No trouble: prayer only helps if the timeout is exactly 0; don't pray.")
     elif trouble == "minor":
         advice.append("Only MINOR trouble (" + ", ".join(reasons_minor) + "): punishment, cursed items, a welded "
@@ -570,20 +614,15 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
         mons = [m for m in s.monsters or [] if not m.get("engulfer") and m["ch"] != "I"   # (I: old markers)
                 and not m.get("statue")]
         if describe:
-            need = [(m["x"], m["y"]) for m in mons if not m.get("desc") and m["ch"] not in "I"]
-            if need:
-                try:
-                    got = ctx.game.describe_cells(need[:150])
-                except Exception:  # noqa: BLE001
-                    got = {}
-                tr = getattr(ctx.game, "tracker", None)
-                for m in mons:
-                    if not m.get("desc") and (m["x"], m["y"]) in got:
-                        m["desc"] = got[(m["x"], m["y"])]
-                        if tr is not None and hasattr(tr, "note_label"):
-                            tr.note_label(m)      # (a peaceful among look-alikes: labels need a look)
+            got = _describe_all([m for m in mons if not m.get("desc") and m["ch"] not in "I"])
+            tr = getattr(ctx.game, "tracker", None)
+            for m in mons:
+                if not m.get("desc") and (m["x"], m["y"]) in got:
+                    m["desc"] = got[(m["x"], m["y"])]
+                    if tr is not None and hasattr(tr, "note_label"):
+                        tr.note_label(m)      # (a peaceful among look-alikes: labels need a look)
         h = s.hero
-        from nh.danger import note_for
+        from nh.danger import note_for, glyph_species
         xl = s.status.xl if s.status.ok else None
         watched = _scan_watch_list(mons, s)
         for m in mons:
@@ -592,8 +631,12 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
                 d = max(abs(m["x"] - h[0]), abs(m["y"] - h[1]))
             note = m.get("note") or (note_for(m.get("desc") or "", xl, getattr(ctx.game, "intrinsics", ()))
                                      if m.get("desc") else "")
-            out.append({"desc": m.get("desc") or "", "ch": m["ch"], "x": m["x"], "y": m["y"], "dist": d,
-                        "note": note})
+            rec = {"desc": m.get("desc") or "", "ch": m["ch"], "x": m["x"], "y": m["y"], "dist": d, "note": note}
+            if not rec["desc"]:
+                # never looked at (p3 shift 19 #419: 84 of 96 Castle monsters): what the glyph can be
+                rec["color"] = m.get("color") or ""
+                rec["could_be"] = glyph_species(m["ch"], rec["color"])
+            out.append(rec)
         if put_on:
             s = ctx.do("R", quiet=True)
             if s.state.kind == "object":
@@ -630,13 +673,90 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
     noted = [m for m in hostile if serious(m)]
     others = [m for m in out if m not in noted][:max(8, 30 - len(noted))]
     shown = sorted(noted + others, key=lambda m: (m not in noted, m["dist"] if m["dist"] is not None else 999))
+    rest = [m for m in out if m not in shown]
+    unseen = [m for m in out if not m["desc"]]
     print(f"telepathy_scan: {len(out)} monster(s), {len(hostile)} not tame/peaceful — "
           + ", ".join(f"{n} {k}" for k, n in sorted(kinds.items(), key=lambda kv: -kv[1]))
-          + ("".join(f"\n  {m['ch']} {m['desc'] or '?'} at ({m['x']},{m['y']}) d={m['dist']}"
+          + ("".join(f"\n  {m['ch']} {m['desc'] or _unseen_label(m)} at ({m['x']},{m['y']}) d={m['dist']}"
                      + (f"  !! {m['note']}" if m['note'] else "") for m in shown))
-          + (f"\n  ... {len(out) - len(shown)} more, none with a serious note (the return value lists all)"
-             if len(out) > len(shown) else ""))
+          + (f"\n  ... {len(rest)} more, none with a serious note (the return value lists all)"
+             if rest and not any(not m["desc"] for m in rest) else
+             f"\n  ... {len(rest)} more ({sum(1 for m in rest if not m['desc'])} of them NOT looked at)" if rest
+             else "")
+          + (_unseen_summary(unseen) if unseen else ""))
     return out
+
+
+def _describe_all(mons: list) -> dict:
+    """{(x, y): description} for these sensed monsters: one batch look (describe_cells, no game time), the cells
+    it missed once more, then single farlooks for what is still missing (the most dangerous-looking glyphs and
+    the nearest first, up to 60). A batch that comes back short says so (p3 shift 19 #419/#441: 84 of 96
+    Castle monsters stayed '?', and the scan still said "none with a serious note")."""
+    from nh.danger import noted_lookalikes
+    cells = list(dict.fromkeys((m["x"], m["y"]) for m in mons))
+    got: dict = {}
+    if not cells:
+        return got
+    for _ in range(2):
+        missing = [c for c in cells if c not in got]
+        if not missing:
+            break
+        try:
+            got.update({c: d for c, d in ctx.game.describe_cells(missing[:150]).items() if d})
+        except Exception as e:  # noqa: BLE001
+            print(f"telepathy_scan: the batch look failed ({type(e).__name__}: {e})")
+    missing = [c for c in cells if c not in got]
+    if missing:
+        at = {(m["x"], m["y"]): m for m in mons}
+
+        def order(c):
+            m = at.get(c) or {}
+            return (not noted_lookalikes(m.get("ch", ""), m.get("color", "")), m.get("dist") or 99)
+        n = 0
+        for c in sorted(missing, key=order)[:60]:
+            try:
+                d = ctx.game.farlook(*c)
+            except Exception:  # noqa: BLE001
+                d = ""
+            d = _farlook_name(d)
+            if d:
+                got[c] = d
+                n += 1
+        print(f"telepathy_scan: the batch look missed {len(missing)} of {len(cells)} monster(s); single farlooks "
+              f"named {n} of them")
+    return got
+
+
+def _farlook_name(text: str) -> str:
+    """farlook()'s raw text ("D  a dragon (red dragon) [seen: telepathy]") -> the monster part ("red dragon",
+    "peaceful gnome lord"), as describe_cells() gives it."""
+    m = re.search(r"\(([^()]*)\)\s*(?:\[[^\]]*\])?\s*$", text or "")
+    if m:
+        return m.group(1).strip()
+    return (text or "").strip()
+
+
+def _unseen_label(m: dict) -> str:
+    cands = m.get("could_be") or []
+    return ("? NOT LOOKED AT" + (f" ({m.get('color')}: {' / '.join(cands[:4])}"
+                                 + (" ..." if len(cands) > 4 else "") + ")" if cands else ""))
+
+
+def _unseen_summary(unseen: list) -> str:
+    """One line per glyph class of the monsters nobody could look at."""
+    from nh.danger import noted_lookalikes
+    groups: dict = {}
+    for m in unseen:
+        groups.setdefault((m["ch"], m.get("color") or ""), []).append(m)
+    parts = []
+    for (ch, col), ms in sorted(groups.items(), key=lambda kv: -len(kv[1])):
+        cands = ms[0].get("could_be") or []
+        risky = noted_lookalikes(ch, col)
+        parts.append(f"{len(ms)}x {ch} {col or '?'}" + (f" ({' / '.join(cands[:4])})" if cands else "")
+                     + (f" — may be {', '.join(risky[:3])} (danger note)" if risky else ""))
+    return (f"\n  !! {len(unseen)} monster(s) could NOT be looked at — don't treat them as harmless: "
+            + "; ".join(parts[:12]) + (" ..." if len(parts) > 12 else "")
+            + ". farlook(x, y) the ones that matter before you move.")
 
 
 # engrave.c doengrave(): what burning with a wand says

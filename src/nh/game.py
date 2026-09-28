@@ -945,8 +945,10 @@ class Game:
                 # ("The long sword named Excalibur welds itself to your hand!" comes instead of the inventory line)
                 self.wielded, self.wielded_class = None, None     # re-check the weapon next time it matters
                 self.wielded_letter, self.wield_tool = None, False
-            if re.search(r"\b(?:gloves|gauntlets)\b", m):
-                self.gloves = None      # put on / taken off / stolen / destroyed: re-check
+            if re.search(r"\b(?:gloves|gauntlets)\b|^You finish your dressing maneuver", m):
+                # put on / taken off / stolen / destroyed: re-check (gloves take a turn to put on, and then the
+                # only message is "You finish your dressing maneuver." — the guard kept "no gloves")
+                self.gloves = None
 
     # eat.c givit() / attrib.c attrcurse() / level-up messages -> (intrinsic, gained?)
     _INTRINSIC_MSGS = [
@@ -1525,6 +1527,13 @@ class Game:
     GRAY_STONE = re.compile(r"\bgr[ae]y stones?\b")
     _KNOWN_SAFE_BUC = re.compile(r"\b(?:uncursed|blessed)\b")    # only a CURSED loadstone can't be dropped
 
+    def _gloves_hint(self) -> str:
+        """The end of a cockatrice-corpse refusal: what the harness knows about your gloves."""
+        if self.gloves is None:
+            return ("The harness doesn't know whether you wear gloves: inventory() tells it (worn gloves lift "
+                    "this guard), or force=True if you are sure.")
+        return "You wear no gloves (per inventory()): put some on first."
+
     @staticmethod
     def _singulars(plural: str) -> list[str]:
         """'cockatrices' -> candidates ['cockatrices', 'cockatrice', ...]; 'dwarves' -> 'dwarf'."""
@@ -1670,11 +1679,12 @@ class Game:
                     "force=True only for an emergency cure (lizard/acidic corpse against stoning).")
             if unit == b"," and snap.hero is not None:
                 txt = self._here_text(snap)
-                if self.COCKATRICE_CORPSE.search(txt) and "Things that" not in txt:
+                if self.COCKATRICE_CORPSE.search(txt) and "Things that" not in txt and not self.gloves:
+                    # (gloves known from inventory(): p3 shift 19 #503 had to force a gloved pickup)
                     raise PermissionError(
                         "refusing to pick up here: the only object on this square is a cockatrice/chickatrice "
                         "corpse, and ',' takes it without a menu — touching it bare-handed is instant stoning. "
-                        "force=True only if you wear gloves.")
+                        + self._gloves_hint())
                 kicked = (getattr(self, "kicked_stones", None) or {}).get(self.level_key(snap.status), ())
                 if self.GRAY_STONE.search(txt) and "Things that" not in txt and not self._KNOWN_SAFE_BUC.search(txt) \
                         and snap.hero not in kicked:        # (kick_test() saw this one slide: not a loadstone)
@@ -1686,7 +1696,7 @@ class Game:
                 dx, dy = self._MOVE[step]
                 tgt = (snap.hero[0] + dx, snap.hero[1] + dy)
                 killed = self._trice_killed_on(snap, tgt)
-                if self.COCKATRICE_CORPSE.search(self._here_text(snap, tgt)) or killed:
+                if (self.COCKATRICE_CORPSE.search(self._here_text(snap, tgt)) or killed) and not self.gloves:
                     # (the kill memory too: p2 shift 35 killed two cockatrices ON a doorway with F from beside
                     # it, never stood there, then stepped onto it blindfolded — stoned, life saving used up)
                     raise PermissionError(
@@ -1695,8 +1705,8 @@ class Game:
                            "still there)" if killed and not self.COCKATRICE_CORPSE.search(self._here_text(snap, tgt))
                            else "the square with the cockatrice corpse")
                         + ": while blind you feel the objects you step on, and feeling it bare-handed is instant "
-                        "stoning. Wait until you can see (take the blindfold off), go around, or force=True if you "
-                        "wear gloves.")
+                        "stoning. Wait until you can see (take the blindfold off) or go around. "
+                        + self._gloves_hint())
             fkey = key if unit[:1] == b"F" else None
             if (step in self._MOVE or fkey in self._MOVE) and snap.hero is not None and conds & {"Conf", "Stun"}:
                 # hack.c domove(): stunned, every move/F-blow goes in a random direction (confused, 1 in 5),
@@ -1804,10 +1814,10 @@ class Game:
         elif k == "menu" and snap.state.menu is not None and "Pick up what?" in (snap.state.prompt or "") \
                 and unit in (b"\r", b"\n"):
             bad = [i.text for i in snap.state.menu.selectable() if i.selected and self.COCKATRICE_CORPSE.search(i.text)]
-            if bad:
+            if bad and not self.gloves:
                 raise PermissionError(
                     f"refusing to confirm the pickup of {bad[0]!r}: touching a cockatrice corpse bare-handed is "
-                    "instant stoning. Unselect it (its letter again), or force=True if you wear gloves.")
+                    "instant stoning. Unselect it (its letter again). " + self._gloves_hint())
             stones = [i.text for i in snap.state.menu.selectable() if i.selected and self.GRAY_STONE.search(i.text)
                       and not self._KNOWN_SAFE_BUC.search(i.text)]
             if stones:
@@ -1818,9 +1828,9 @@ class Game:
                 and unit[:1].isalpha():
             hit = [i.text for i in snap.state.menu.selectable()
                    if i.letter == unit[:1].decode() and self.COCKATRICE_CORPSE.search(i.text)]
-            if hit:
-                raise PermissionError(f"refusing to pick up {hit[0]!r} (instant stoning bare-handed); "
-                                      "force=True if you wear gloves.")
+            if hit and not self.gloves:
+                raise PermissionError(f"refusing to pick up {hit[0]!r} (instant stoning bare-handed). "
+                                      + self._gloves_hint())
         elif k == "getlin" and "For what do you wish" in (snap.state.prompt or ""):
             text = unit.rstrip(b"\r\n").strip()
             if unit[:1] == b"\x1b" or not text:
@@ -2022,6 +2032,7 @@ class Game:
             snap.elapsed = time.monotonic() - t0
             snap.n = self.n
             if snap.hero is not None:
+                prev_pos = self.hero_pos        # (before this step: a prompt's snapshot shows no hero)
                 self.hero_pos = snap.hero
                 if snap.status.ok:
                     self.visited.setdefault(self.level_key(snap.status), set()).add(snap.hero)
@@ -2086,7 +2097,7 @@ class Game:
                     self._note_arrival(cur, snap, data, messages, old_key, moved)
                     self._note_pet_stays(cur, snap, messages, moved)
                     if moved:
-                        self._note_fall(cur, messages, old_key, data)
+                        self._note_fall(cur, messages, old_key, data, prev_pos=prev_pos)
             if (snap.hero is None or not snap.status.ok) and messages:
                 # a prompt holds the cursor: the notes that only read messages still run (applying a pick-axe
                 # prints "You now wield ..." together with the dig-direction prompt — p3 shift 17 #196: the
@@ -2385,6 +2396,9 @@ class Game:
             try:
                 s = self.send_bytes(b";")
                 if s.state.kind != "getpos":
+                    # (p3 shift 19 #419: a Castle scan came back with nothing and no trace of why)
+                    self.log_event({"ev": "describe_short", "ts": round(time.time(), 3), "n": len(cells),
+                                    "why": f"';' gave {s.state.kind}", "top": s.screen.row(0).strip()[:100]})
                     if s.state.kind != "command":
                         self.send_bytes(b"\x1b")
                     return out
@@ -2398,6 +2412,8 @@ class Game:
                         on = True
                         break
                 if not on:
+                    self.log_event({"ev": "describe_short", "ts": round(time.time(), 3), "n": len(cells),
+                                    "why": "autodescribe toggle", "top": s.screen.row(0).strip()[:100]})
                     self._leave_getpos(s, in_getpos=True)
                     return {c: self.farlook(*c) for c in cells}
                 for (x, y) in cells:
@@ -2409,6 +2425,9 @@ class Game:
                     if s.screen.cursor == (x, y) and s.state.kind == "getpos":
                         out[(x, y)] = s.screen.row(0).strip()
                     elif s.state.kind != "getpos":
+                        self.log_event({"ev": "describe_short", "ts": round(time.time(), 3), "n": len(cells),
+                                        "done": len(out), "why": f"left getpos ({s.state.kind}) at {(x, y)}",
+                                        "top": s.screen.row(0).strip()[:100]})
                         break
                 # autodescribe off again (prints its message plus the goal
                 # prompt, usually with a --More-- between them), then leave
@@ -2526,24 +2545,30 @@ class Game:
     _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
     _ON_PORTAL = re.compile(r"There is a magic portal here")
 
-    def _note_fall(self, cur: Snap, messages: list, old_key, data: bytes = b"") -> None:
+    def _note_fall(self, cur: Snap, messages: list, old_key, data: bytes = b"", prev_pos=None) -> None:
         """trap.c fall_through(): "A trap door opens up under you!" / "There's a gaping hole under you!" — the
         trap is on the level you LEFT: remember it there (a known way down, and a square for routes to avoid) — in
         the harness memory too, as `nh info` shows it (p1 shift 31). On the square you stepped ONTO when the fall
         came with a move (p3 shift 18 #312, p1 shift 37 #633: the square you came from was filed as a hole, and
         the step guard then refused plain floor); on your own square for '>' / a dug hole; unknown (not filed)
         when a travel crossed it."""
+        # dig.c digactualhole(): "You dig a hole through the floor." + "You fall through..." (a pick-axe or a
+        # wand of digging zapped down) — your own hole, on the square you stood on (p3 shift 19: two dug holes
+        # on D23/D24 were never filed)
+        dug = any(m.startswith("You dig a hole through the ") for m in messages) \
+            and any(m.startswith("You fall through") for m in messages)
         kind = ("trap door" if any(m.startswith("A trap door opens up under you") for m in messages) else
-                "hole" if any(m.startswith("There's a gaping hole under you") for m in messages) else None)
-        if kind is None or not old_key or cur.hero is None:
+                "hole" if dug or any(m.startswith("There's a gaping hole under you") for m in messages) else None)
+        here = cur.hero if cur.hero is not None else prev_pos    # (dig's '>' answers a prompt: no hero on it)
+        if kind is None or not old_key or here is None:
             return
         data = bytes(data or b"")
         key = data[-1] if data[:1] in (b"m", b"F") and len(data) == 2 else data[0] if len(data) == 1 else None
         if key is not None and key in self._MOVE:
             dx, dy = self._MOVE[key]
-            x, y = cur.hero[0] + dx, cur.hero[1] + dy
+            x, y = here[0] + dx, here[1] + dy
         elif not data or data[:1] in (b">", b"<", b"s", b"."):
-            x, y = cur.hero               # '>' into a hole you stand on, waiting on it
+            x, y = here                   # '>' into a hole you stand on, waiting on it, digging down
         else:
             return                        # a travel or a rush: the trap was somewhere on the way — not filed
         self.traps.setdefault(old_key, set()).add((x, y))

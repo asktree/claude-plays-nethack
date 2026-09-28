@@ -1108,6 +1108,12 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
                         "(1 in 121 per zap, a turn each)")
     if direction and _refuse_friendly_fire("zap", direction, ray=True, force=force):
         return ctx.last()
+    if direction == ">":
+        from .nav import castle_below, castle_pause
+        if castle_below():
+            from .items import inventory
+            if any(i["letter"] == wand and re.search(r"\bdigging\b", i["text"]) for i in inventory()):
+                castle_pause("zap(digging, '>')")
     if direction:
         objs = _objects_in_line(direction)
         if objs:

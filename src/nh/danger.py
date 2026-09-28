@@ -351,6 +351,12 @@ def _lookalikes() -> dict:
     return out
 
 
+def glyph_species(ch: str, color: str) -> list[str]:
+    """Every species drawn as this glyph in this screen colour ('D', 'red' -> baby red dragon, red dragon):
+    what a monster nobody has looked at yet can be."""
+    return sorted(_lookalikes().get((ch, color), ()))
+
+
 def noted_lookalikes(ch: str, color: str) -> list[str]:
     """Species drawn as this glyph/colour that carry a danger note (for a
     monster not looked at yet)."""

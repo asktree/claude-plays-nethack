@@ -3028,6 +3028,20 @@ def test_fall_through_trap_door_is_remembered_on_the_level_left():
     assert "Dlvl:19" not in g.traps
     g._note_fall(cur, ["There's a gaping hole under you!"], "Dlvl:20", b">")
     assert g.traps["Dlvl:20"] == {(7, 5)}
+    # p3 shift 19: a hole you dig yourself (pick-axe or wand, direction '>') is filed on your square
+    g._note_fall(cur, ["You dig a pit in the floor.", "You dig a hole through the floor.", "You fall through..."],
+                 "Dlvl:23", b">")
+    assert g.traps["Dlvl:23"] == {(7, 5)} and g.feature_desc["Dlvl:23"] == {(7, 5): "hole"}
+    g._note_fall(cur, ["You dig a hole through the floor.", "You are jerked back by your pet!"], "Dlvl:24", b">")
+    assert "Dlvl:24" not in g.traps
+    # dig()'s '>' answers the direction prompt, whose snapshot shows no hero: the position before the step counts
+    from nh.parse import State
+    prompt = _snap({0: "In what direction do you want to dig? [yulnjbhk><]", 5: "   ........"}, (46, 0), [])
+    prompt.state = State("direction", prompt="In what direction do you want to dig? [yulnjbhk><]")
+    assert prompt.hero is None
+    g._note_fall(prompt, ["You dig a hole through the ground.", "You fall through..."], "Dlvl:26", b">",
+                 prev_pos=(61, 12))
+    assert g.traps["Dlvl:26"] == {(61, 12)}
 
 
 def test_levitation_drowner_zone_stays_in_its_own_pool(monkeypatch):
@@ -4718,3 +4732,120 @@ def test_fight_counts_a_kill_by_your_pet(monkeypatch, capsys):
     monkeypatch.setattr(ctx, "last", lambda: cur["s"])
     combat.fight(11, 5)
     assert "NOT killed" not in capsys.readouterr().out
+
+
+def test_prayer_check_drained_attribute_is_minor_trouble(monkeypatch):
+    # p3 shift 19 #27: St drained by bee poison (ABASE < AMAX = pray.c TROUBLE_POISONED) turned the certain pat on
+    # the head into a roll; prayer_check() said 'none'
+    from tactics import ctx, survival
+    g = _G()
+    g.history = [(100, "You kill the killer bee!"), (101, "Ecch - that must have been poisonous!")]
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(survival, "_harness_state", lambda: {})
+    s = _snap({}, (10, 5), [])
+    s.status.hp, s.status.hpmax, s.status.turn, s.status.xl = 90, 90, 5000, 10
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    r = survival.prayer_check()
+    assert r["trouble"] == "minor" and "drained attribute" in r["reasons"][0] and "feel great" in r["reasons"][0]
+    # resisted: no loss
+    g.history = [(101, "Ecch - that must have been poisonous!"), (101, "You seem unaffected by the poison.")]
+    assert survival.prayer_check()["trouble"] == "none"
+    # a potion of sickness, then the unicorn horn: 'better' is partial, 'great' fixes all
+    g.history = [(200, "Yecch!  This stuff tastes like poison."), (200, "Your muscles won't obey you."),
+                 (201, "Nothing seems to happen."), (202, "This makes you feel better!")]
+    assert survival.prayer_check()["trouble"] == "minor"
+    g.history.append((203, "This makes you feel great!"))
+    assert survival.prayer_check()["trouble"] == "none"
+    # exercise abuse lowers ABASE too; a prayer's fix clears it
+    g.history = [(300, "You feel clumsy!"), (300, "You haven't been working on reflexes lately.")]
+    assert survival.drained_attributes([m for _t, m in g.history]) == ["You feel clumsy!"]
+    g.history.append((900, "You feel in good health again."))
+    assert survival.prayer_check()["trouble"] == "none"
+    # hunger's weakness is not a drain
+    g.history = [(400, "You are beginning to feel weak.")]
+    assert survival.prayer_check()["trouble"] == "none"
+
+
+def test_prayer_check_no_trouble_with_proven_zero_timeout_explains_the_pat_on_the_head(monkeypatch):
+    from tactics import ctx, survival
+    g = _G()
+    g.history = []
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(survival, "_harness_state", lambda: {
+        "prayers": [{"turn": 18551, "outcome": "You feel that Tyr is well-pleased."}],
+        "prayer_evidence": [{"kind": "zero", "turn": 19059}]})
+    s = _snap({}, (10, 5), [])
+    s.status.hp, s.status.hpmax, s.status.turn, s.status.xl = 142, 142, 19064, 13
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    r = survival.prayer_check()
+    assert r["trouble"] == "none" and "PROVEN 0" in r["advice"] and "CROWNING" in r["advice"]
+    monkeypatch.setattr(survival, "_harness_state", lambda: {"prayers": [{"turn": 18551}]})
+    assert "don't pray" in survival.prayer_check()["advice"]
+
+
+def test_castle_below_from_medusa_and_the_dungeon_length(monkeypatch):
+    # p3 shift 19 #282: Medusa on D22, a hole dug on D24 fell into the Castle (D25) with no warning
+    from tactics import ctx, nav
+
+    class G(_G):
+        key = "The Dungeons of Doom / Level 24"
+
+        def level_key(self, status=None):
+            return self.key
+    g = G()
+    g.level_flags = {"The Dungeons of Doom / Level 22": {"medusa"}}
+    g.desmap_ids = {}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({}, (10, 5), [])
+    w = nav.castle_below(s)
+    assert "(DL25) may be the CASTLE" in w and "DL25, DL26" in w and "Medusa's level is DL22" in w
+    g.key = "The Dungeons of Doom / Level 25"
+    assert "(DL26) IS the CASTLE" in nav.castle_below(s)          # the only candidate left
+    g.key = "The Dungeons of Doom / Level 23"
+    assert nav.castle_below(s) == ""                               # DL24 < 25: never the Castle
+    g.key = "The Dungeons of Doom / Level 26"
+    assert nav.castle_below(s) == ""                               # below DL26 there's no candidate
+    # Medusa unknown: the Castle is DL25-29
+    g.level_flags = {}
+    g.key = "The Dungeons of Doom / Level 24"
+    assert "may be the CASTLE" in nav.castle_below(s) and "not identified yet" in nav.castle_below(s)
+    g.key = "The Gnomish Mines / Level 12"
+    assert nav.castle_below(s) == ""
+    # the Castle already known (desmap)
+    g.desmap_ids = {"The Dungeons of Doom / Level 27": {"level": "castle"}}
+    g.key = "The Dungeons of Doom / Level 26"
+    assert "IS the CASTLE (seen before)" in nav.castle_below(s)
+    g.key = "The Dungeons of Doom / Level 25"
+    assert nav.castle_below(s) == ""
+    # castle_pause(): once per level
+    g.key = "The Dungeons of Doom / Level 26"
+    pauses = []
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append(reason))
+    monkeypatch.setattr(nav, "_CASTLE_WARNED", set())
+    nav.castle_pause("dig('>')", s)
+    nav.castle_pause("dig('>')", s)
+    assert len(pauses) == 1 and pauses[0].startswith("dig('>'): the level below (DL27) IS the CASTLE")
+
+
+def test_telepathy_scan_describes_what_the_batch_missed_and_labels_the_rest(monkeypatch):
+    # p3 shift 19 #419/#441: 84 of 96 Castle monsters stayed '?' and the scan said "none with a serious note"
+    from tactics import ctx, survival
+
+    class G(_G):
+        def describe_cells(self, cells):
+            return {}                                   # the batch look comes back empty
+
+        def farlook(self, x, y):
+            return {(5, 5): "D   a dragon (red dragon) [seen: telepathy]"}.get((x, y), "")
+    g = G()
+    monkeypatch.setattr(ctx, "game", g)
+    mons = [{"x": 5, "y": 5, "ch": "D", "color": "red", "dist": 3},
+            {"x": 9, "y": 5, "ch": "L", "color": "brown", "dist": 7}]
+    got = survival._describe_all(mons)
+    assert got == {(5, 5): "red dragon"}
+    assert survival._farlook_name("@   human or elf (peaceful watchman) [seen: normal vision]") == "peaceful watchman"
+    from nh.danger import glyph_species
+    rec = {"ch": "L", "color": "brown", "desc": "", "could_be": glyph_species("L", "brown"), "x": 9, "y": 5}
+    assert "NOT LOOKED AT" in survival._unseen_label(rec) and "lich" in survival._unseen_label(rec)
+    summ = survival._unseen_summary([rec, dict(rec, x=10)])
+    assert "2 monster(s) could NOT be looked at" in summ and "2x L brown (lich)" in summ and "danger note" in summ

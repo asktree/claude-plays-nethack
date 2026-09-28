@@ -109,39 +109,53 @@ _REFLECT = re.compile(r"\b(?:shield of reflection|polished silver shield|silver 
                       r"silver dragon scales|amulet of reflection)\b")
 
 
-def piety(letter: str | None = None) -> str | None:
+def piety(letter: str | None = None, probe: bool = False) -> str | None:
     """Your alignment record in words, from a stethoscope applied to
     yourself ('Status of Brunhild (piously lawful): ...'; the first use
-    each turn is free): 'piously' = 20+, what the quest leader requires.
-    Remembered as game.piety. Returns the word ('' = exactly 3), or None
-    without a stethoscope (a wand of probing zapped at yourself or
-    enlightenment also tell)."""
+    each turn is free): 'piously' = 20+, what the quest leader requires
+    (and crowning). Remembered as game.piety. Returns the word ('' =
+    exactly 3), or None without a stethoscope. probe=True: with no
+    stethoscope, zap an identified wand of probing at yourself instead (a
+    charge and a turn; it prints the same status line). A potion/wand of
+    enlightenment tells too ('You are piously aligned')."""
     s = ctx.require_command("piety()")
-    it = next((i for i in inventory() if (letter and i["letter"] == letter)
+    inv = inventory()
+    it = next((i for i in inv if (letter and i["letter"] == letter)
                or (not letter and re.search(r"\bstethoscope\b", i["text"]))), None)
-    if it is None:
-        print("piety(): no stethoscope — a wand of probing zapped at yourself (.) or a potion/wand of "
-              "enlightenment tells too ('You are piously aligned')")
+    if it is None or (letter and re.search(r"\bwand of probing\b", it["text"])):
+        wand = it if it is not None else (
+            next((i for i in inv if re.search(r"\bwand of probing\b", i["text"])), None) if probe else None)
+        if wand is None:
+            print("piety(): no stethoscope — " + ("and no identified wand of probing; " if probe else
+                                                  "piety(probe=True) zaps a known wand of probing at yourself "
+                                                  "(a charge); ")
+                  + "a potion/wand of enlightenment tells too ('You are piously aligned')")
+            return None
+        from .combat import zap
+        t0 = s.status.turn or 0
+        s = zap(wand["letter"], ".")          # (p3 shift 19 #27 had to do this by hand)
+        text = " ".join(list(s.messages or []) + [m for (t, m) in (getattr(ctx.game, "history", None) or [])[-40:]
+                                                  if (t or 0) >= t0])
+    else:
+        s = ctx.do("a", quiet=True)
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"piety(): 'a' gave {s.state.kind}: {s.state.prompt!r}")
+        s = ctx.do(it["letter"], quiet=True)
+        if s.state.kind == "direction":
+            s = ctx.do(".", quiet=True)
+        text = " ".join(s.messages)
+    found = re.findall(r"Status of .+? \((?:(\w+) )?(lawful|neutral|chaotic)\)", text)
+    if not found:
+        print(f"piety(): no status line in {text[:200]!r}")
         return None
-    s = ctx.do("a", quiet=True)
-    if s.state.kind != "object":
-        if s.state.kind != "command":
-            ctx.do("<Esc>", quiet=True)
-        raise RuntimeError(f"piety(): 'a' gave {s.state.kind}: {s.state.prompt!r}")
-    s = ctx.do(it["letter"], quiet=True)
-    if s.state.kind == "direction":
-        s = ctx.do(".", quiet=True)
-    text = " ".join(s.messages)
-    m = re.search(r"Status of .+? \((?:(\w+) )?(lawful|neutral|chaotic)\)", text)
-    if not m:
-        print(f"piety(): no status line in {s.messages}")
-        return None
-    word = m.group(1) or ""
+    word, align = found[-1]
     ctx.game.piety = word
-    print(f"piety(): {word or 'plainly'} {m.group(2)}" + (" — ready for the quest leader (record 20+)"
-                                                          if word == "piously" else
-                                                          " — NOT yet 'piously': the quest leader would count a "
-                                                          "rejection (kill hostiles; no murders, no hypocrisy)"))
+    print(f"piety(): {word or 'plainly'} {align}" + (" — ready for the quest leader (record 20+)"
+                                                     if word == "piously" else
+                                                     " — NOT yet 'piously': the quest leader would count a "
+                                                     "rejection (kill hostiles; no murders, no hypocrisy)"))
     return word
 
 
@@ -1135,6 +1149,8 @@ def pickup(pattern: str | None = None, force: bool = False) -> list:
     if ("You see no objects here" in look or not look) and not blind:
         print(f"pickup({pattern!r}): there are no objects here" + (f" ({look})" if look else ""))
         return []
+    if not getattr(ctx.game, "gloves", "x") and (blind or re.search(r"c(?:o|hi)ckatrice corpse", look or "")):
+        inventory()        # the core's cockatrice guard lets a GLOVED pickup through once it knows (p3 shift 19 #503)
     if blind:
         look = ""          # (a remembered look may be stale: the ',' menu itself tells what you feel)
     if pattern and pattern.strip().lower() in ("ring", "rings"):
@@ -1251,6 +1267,9 @@ def _dig(direction, tool, max_applies, auto_fightable):
         raise RuntimeError(f"dig(): your weapon {welded['letter']} - {welded['text']} is CURSED, so it is welded to "
                            "your hand, and applying a pick-axe has to wield it: NetHack refuses. Dig with a wand "
                            "of digging instead (zap it: '>' down, or a direction), or uncurse the weapon first.")
+    if direction == ">":
+        from .nav import castle_pause
+        castle_pause("dig('>')")      # (p3 shift 19 #282: a hole dug on D24 dropped into the Castle's west maze)
     ldesc0 = ctx.last().status.ldesc
     ids0 = {m.get("id") for m in ctx.last().hostiles(7) if m.get("id") is not None}   # already known when you began
     routine = [re.compile(p) for p in _DIG_OK + [r"^You stop digging\.$"] + list(BENIGN)] + list(DEFAULT_BENIGN)

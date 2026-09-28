@@ -2251,6 +2251,9 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
                 _retried: bool = False, pass_hostile: bool = False, _via_map: bool = False):
     s = ctx.last()
     engulfed_check(s, "go_down()" if ch == ">" else "go_up()")
+    if ch == ">":
+        castle_pause("go_down()", s)
+        s = ctx.last()
     if s.status.ok and "Lev" in s.status.conditions:
         raise NavError("you are LEVITATING: you can't reach the stairs (\"You are floating high above the "
                        "stairs\") — remove the ring/boots of levitation or wait for it to wear off")
@@ -2440,6 +2443,72 @@ def _wait_for_pet(s, turns: int):
     print("stairs: your pet " + (f"({left[0].get('desc')} at ({left[0]['x']},{left[0]['y']})) " if left else "")
           + f"didn't come next to you in {turns} turns — it stays behind")
     return s
+
+
+_CASTLE_WARNED: set = set()      # level keys whose "the level below may be the Castle" pause was given
+
+
+def _dod_level(key) -> int | None:
+    m = re.match(r"^The Dungeons of Doom / Level (\d+)$", key or "")
+    return int(m.group(1)) if m else None
+
+
+def castle_below(s=None) -> str:
+    """'' unless the next level DOWN from here in the Dungeons of Doom may be the CASTLE; then why.
+    dungeon.def: the Dungeons have 25-29 levels, the Castle is the last one, and Medusa's level lies 1-4
+    levels above it (dungeon.c level_range(): medusa @ (-5, 4), castle @ (-1)). ^O's "levels 1 to N" is only
+    the deepest level you have REACHED (dunlev_ureached), not the bottom — it can't tell (p3 shift 19 #282:
+    a hole dug on D24, two levels below Medusa, dropped into the Castle's west maze)."""
+    s = s or ctx.last()
+    if not s.status.ok:
+        return ""
+    n = _dod_level(ctx.game.level_key(s.status))
+    if n is None:
+        return ""
+    flags = getattr(ctx.game, "level_flags", None) or {}
+    ids = getattr(ctx.game, "desmap_ids", None) or {}
+
+    def known(name: str, fl: set) -> set:
+        out = {_dod_level(k) for k, f in flags.items() if set(f) & fl}
+        out |= {_dod_level(k) for k, v in ids.items() if (v or {}).get("level") == name and not v.get("ambiguous")}
+        return {d for d in out if d is not None}
+    below = n + 1
+    castle = known("castle", {"castle"})
+    if castle:
+        return f"the level below (DL{below}) IS the CASTLE (seen before)" if below in castle else ""
+    medusa = known("medusa", {"medusa", "medusa_dead"})
+    if medusa:
+        top = min(medusa)
+        cands = [d for d in range(top + 1, top + 5) if 25 <= d <= 29 and d > n]
+        why = f"Medusa's level is DL{top} and the Castle lies 1-4 levels below it, at DL25-29"
+    else:
+        cands = [d for d in range(25, 30) if d > n]
+        why = "the Castle is the Dungeons' last level, DL25-29 (Medusa's, 1-4 above it, not identified yet)"
+    if below not in cands:
+        return ""
+    sure = cands == [below]
+    return (f"the level below (DL{below}) {'IS' if sure else 'may be'} the CASTLE ({why}"
+            + ("" if sure else f"; it is one of DL{', DL'.join(map(str, cands))}") + "). "
+            "The Castle: no teleporting on it (a confused/cursed scroll of teleportation still level-teleports), "
+            "the floor can't be dug, no down stairs (its trap doors lead on); you arrive in the WEST maze "
+            "(minotaurs roam it) — by the stairs on its up stairs, by a hole anywhere in that maze. Inside the "
+            "moat (giant eels, sharks): ~50 soldiers, dragons, liches, xorns; the drawbridge opens to the "
+            "passtune or breaks to force bolt/striking. Go with magic resistance and reflection, full HP, "
+            "escapes ready")
+
+
+def castle_pause(who: str, s=None) -> None:
+    """Pause once per level when castle_below() warns (go_down(), dig('>')). cont goes on."""
+    s = s or ctx.last()
+    if not s.status.ok:
+        return
+    key = ctx.game.level_key(s.status)
+    if key in _CASTLE_WARNED:
+        return
+    warn = castle_below(s)
+    if warn:
+        _CASTLE_WARNED.add(key)
+        ctx.pause(f"{who}: {warn}. (Once per level: cont goes on.)")
 
 
 def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostile: bool = False):
