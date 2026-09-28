@@ -280,7 +280,22 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 left.append(f"{len(in_room)} frontier(s) inside the {'/'.join(sorted({zone[c] for c in in_room}))} "
                             f"(e.g. {in_room[:3]}): kept out while its monsters live — forget_room() to go in")
         if unreachable:
-            left.append(f"frontiers {unreachable} travel couldn't reach")
+            # a monster in a 1-wide corridor (often only a WARNING digit) can be the whole reason (p2 shift 36
+            # #787/#939: the verdict suggested digging; the monster moved and the next explore() walked in)
+            from .mapview import MONSTER_CHARS
+            blockers: dict = {}
+            if now.hero is not None:
+                for f in unreachable[:4]:
+                    if bfs_path(now, now.hero, f, allow_monsters=False, allow_pets=True) is None:
+                        for c in bfs_path(now, now.hero, f, allow_monsters=True, allow_pets=True) or []:
+                            ch = now.screen.at(*c)
+                            if c != f and (ch in MONSTER_CHARS or ch in "12345"):
+                                blockers[c] = ch
+            left.append(f"frontiers {unreachable} travel couldn't reach"
+                        + (" — MONSTERS stand on the only known way: " + ", ".join(
+                            f"{c} {ch!r}" + (" (a warning digit: unseen)" if ch in "12345" else "")
+                            for c, ch in list(blockers.items())[:4]) + " — kill them or wait for them to move"
+                           if blockers else ""))
         cut = [c for c in (why["avoided"] or []) + unreachable if c not in niches]
         digs = dig_throughs(now, cut) if cut and not _no_dig_level(now) else []
         if digs:
