@@ -44,7 +44,10 @@ in `docs/legacy-nle-CLAUDE.md`.
 
 ## Development rules
 
-- Test against the local build: `bin/nh start-local <name> --seed N [--wizard]`; restart the daemon after
+- Test against the local build: `bin/nh start-local <name> --seed N [--wizard]` (wizard-mode games all lock as
+  "wizard": one per playground — `scripts/make_playground.sh w2` clones one for a parallel QA game, started with
+  `--nethack ~/.local/nethack-w2/bin/nethack`; from a git worktree set a short `NH_RUN_DIR`, e.g. /tmp/nhq, or the
+  daemon socket path gets too long); restart the daemon after
   core changes with `bin/nh --game <name> daemon`; tactics changes: `bin/nh --game <name> reload`.
   Don't restart the daemon of a game a player agent is using mid-shift.
 - Unit tests: `PYTHONPATH=src python3 -m pytest -q tests/test_nh_parse.py tests/test_nh_data.py tests/test_nh_monitor.py tests/test_sokoban_data.py tests/test_tactics.py` (the other files in tests/ belong to the legacy NLE harness).

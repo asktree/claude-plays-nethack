@@ -148,6 +148,33 @@ def _claim_current(name: str) -> None:
     set_current(name)
 
 
+def _hackdir_of(meta_or_binary) -> Path:
+    """The NetHack playground (lock/save files) a game runs in: <prefix>/lib/nethackdir beside the
+    <prefix>/bin/nethack launcher — a meta's command's binary, or a binary path."""
+    binary = shlex.split(meta_or_binary.get("command") or "")[0] if isinstance(meta_or_binary, dict) \
+        else meta_or_binary
+    return Path(binary or LOCAL_NETHACK).resolve().parent.parent / "lib" / "nethackdir"
+
+
+def _lock_pid(lock: Path) -> int | None:
+    """The process id at the start of a NetHack lock file (a native int), or None."""
+    try:
+        raw = lock.read_bytes()[:4]
+    except OSError:
+        return None
+    return int.from_bytes(raw, sys.byteorder) if len(raw) == 4 else None
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def _lock_name(meta_or_player, wizard: bool) -> str:
     # NetHack names wizard-mode (-D) games "wizard": all of them share one lock
     return "wizard" if wizard else meta_or_player
@@ -173,11 +200,22 @@ def cmd_start_local(a) -> int:
             # (a session whose game saved or ended keeps its dead pane: that holds no lock)
             panes = _tmux("list-panes", "-t", f"={om['tmux_session']}", "-F", "#{pane_dead}", check=False)
             alive = "0" in (getattr(panes, "stdout", "") or "").split()
-        if alive and _lock_name(om.get("player", ""), bool(om.get("wizard"))) == mine:
+        if alive and _lock_name(om.get("player", ""), bool(om.get("wizard"))) == mine \
+                and _hackdir_of(om) == _hackdir_of(a.nethack):
+            # (another playground — its own lock and save files: a second wizard-mode slot for parallel QA)
             why = 'wizard-mode games all lock as "wizard"' if a.wizard else "same player"
             raise SystemExit(f"refusing: running game {other.parent.name!r} uses the same NetHack lock name "
                              f"{mine!r} ({why}); "
                              "starting would ask 'Destroy old game?' and answering y would wipe that game")
+    # NetHack's own lock file in the playground: <uid><name>.0 starts with the owning process id (unixunix.c
+    # getlock()). A live one belongs to a running game whatever run dir started it (another agent's NH_RUN_DIR):
+    # starting would ask "Destroy old game?" and --fresh would delete that game's files
+    lock = _hackdir_of(a.nethack) / f"{os.getuid()}{mine}.0"
+    pid = _lock_pid(lock)
+    if pid and _pid_alive(pid) and not (d / "meta.json").exists():
+        raise SystemExit(f"refusing: {lock} belongs to a running NetHack (pid {pid}) — another game uses the lock "
+                         f"name {mine!r} in this playground" + (" (wizard-mode games all lock as \"wizard\": use "
+                                                                 "another playground via --nethack)" if a.wizard else ""))
     if a.fresh:
         _tmux("kill-session", "-t", f"=nh-{name}", check=False)
         import shutil
