@@ -353,6 +353,10 @@ def prayer_check() -> dict:
     for c in st.conditions:
         if c in ("Stone", "Slime", "Strngl", "FoodPois", "TermIll"):
             reasons_major.append(c)
+        elif c == "Blind" and getattr(ctx.game, "blindfolded", None):
+            # pray.c in_trouble(): TROUBLE_BLIND is timed blindness only (Blinded > 1), never a blindfold you wear
+            # (p3 shift 23 #6) — while it is on, the status line can't show whether you are also timed-blind
+            continue
         elif c in ("Blind", "Deaf", "Stun", "Conf", "Hallu"):
             reasons_minor.append(c)      # (pray.c: timed deafness counts as TROUBLE_BLIND)
     if st.hunger in ("Weak", "Fainting", "Fainted"):

@@ -5606,3 +5606,25 @@ def test_clear_I_while_blind_searches_when_adjacent(monkeypatch):
     monkeypatch.setattr(ctx, "require_command", lambda who: far)
     with pytest.raises(nav.NavError, match="Blind"):
         nav.clear_I(11, 5)
+
+
+def test_prayer_check_ignores_a_worn_blindfold_and_pickup_says_levitating(monkeypatch, capsys):
+    # p3 shift 23 #6: a worn blindfold showed 'Blind' → minor trouble; pray.c counts timed blindness only
+    from tactics import ctx, items, survival
+    g = _G()
+    g.history = []
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(survival, "_harness_state", lambda: {})
+    s = _snap({}, (10, 5), [])
+    s.status.hp, s.status.hpmax, s.status.turn, s.status.xl, s.status.conditions = 90, 90, 5000, 10, ["Blind"]
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    assert survival.prayer_check()["trouble"] == "minor"
+    g.blindfolded = True
+    assert survival.prayer_check()["trouble"] == "none"
+    # p3 shift 23 #530: pickup() while levitating
+    s.status.conditions = ["Lev"]
+    sent = []
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    assert items.pickup("ring") == [] and sent == []
+    assert "LEVITATING" in capsys.readouterr().out

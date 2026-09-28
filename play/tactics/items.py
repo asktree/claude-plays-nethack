@@ -1291,6 +1291,11 @@ def pickup(pattern: str | None = None, force: bool = False) -> list:
     while you are blind or a cockatrice corpse lies here. Returns the
     messages."""
     s0 = ctx.require_command("pickup()")
+    if s0 is not None and s0.status.ok and "Lev" in s0.status.conditions:
+        # (p3 shift 23 #530: "You cannot reach the floor." with no hint)
+        print(f"pickup({pattern!r}): you are LEVITATING — you can't reach the floor: take the levitation ring/boots "
+              "off first (mind water/traps where you land) and put them back on after")
+        return []
     blind = s0 is not None and s0.status.ok and "Blind" in s0.status.conditions
     look = here()
     # (p4 shift 6 #707: force=True didn't reach the loadstone guard, whose refusal names force=True)

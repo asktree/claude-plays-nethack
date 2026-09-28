@@ -700,7 +700,8 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     guard = ctx.monster_filter(dangerous) if ctx.monster_filter else contextlib.nullcontext()
     rules = getattr(ctx, "hp_rules", None)
     with guard, (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
-        for _ in range(max(max_turns, hold)):
+        # (a very fast hero acts ~2 times a turn: hold=40 ran out of loop steps at 33-35 turns — p3 shift 23 #359)
+        for _ in range(max(max_turns, 3 * hold)):
             s = ctx.last()
             if s.state.kind != "command" or s.hero is None:
                 return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
