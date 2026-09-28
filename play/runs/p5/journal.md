@@ -40,3 +40,11 @@
   first monster). Bought a TOWEL (w, 75zm) at Ymla's hardware store (blindfold plan), but the eye drifted off the pile;
   picked the daggers up and killed it from range with 2 more throws. NO corpse (no telepathy).
 - END OF SHIFT 1: T:1883, Minetown DL5 (47,13), HP 40/40, XL3, AC0, $256, not hungry, no prayer used, pet left on DL3.
+
+## Shift 2
+- T:1886 DL5 Minetown — Alley Town confirmed (map origin (24,4); altar (36,8) matches). Baliga's DELICATESSEN (51-53,13-14),
+  door (50,14): bought 2 food rations (x, 68 each) + a CLEAR POTION for 8 zm (y) = UNCURSED WATER (shk.c: uncursed water
+  is priced 0 -> 5 -> x1.5 = 8; blessed/cursed water would be 150+). Left: 1 ration (52,14) 68zm, a tin (52,13) 8zm.
+- T:1911 DL5 — Izchak's lighting store (50-52,7-9), door (52,10): "a lamp (for sale, 75 zorkmids)" = MAGIC LAMP (base 50;
+  oil lamps are already identified in my discoveries, so an oil lamp would be named). BOUGHT it (z). $37 left.
+  Stock left: tallow candles 15 each (5 for 75 at (51,8)), candles 20/30 each, 5 candles for 200 (50,8) = wax.

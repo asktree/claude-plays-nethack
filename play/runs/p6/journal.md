@@ -41,3 +41,13 @@
   path; pickup_thrown took them); 8 darts still missing.
 - END OF SHIFT 1: T:1811, DL4 (60,8) in the armor shop, HP 35/40, XL3, AC0, $0. Kitten adjacent. No hostiles in view
   (the mimic 3 squares away is stationary).
+
+## Shift 2
+- T:1811-1857 DL4 — killed a large kobold in the SW-middle room, took its 19 gold ($19; the cloak costs 89).
+- T:1902 DL4 — bought an ELVEN LEATHER HELM (s, 11zm) from Kadirli ($8 left).
+- T:1935 DL4 — pet test in the 1-wide corridor outside the shop door: dropped helm s + gloves q on (58,11) (next to
+  me), the kitten stepped on with NO "reluctantly" message and picked up the gloves => both NOT cursed. Wore both:
+  AC -2 (both +0). (The kitten had carried a shop long sword out to (58,11): free, left there.)
+- T:1943 killed a gecko; T:1952 destroyed the DL4 dwarf zombie at the stair room door -> XL4 (HP 51/51).
+- T:1962 DL4 stair room: took a white gem (t) and an orcish dagger (u, BUC unknown: throwing only).
+- T:1973 DL5 — arrived (13,16) up stairs, small room with a FOUNTAIN (12,13). Kitten killed a giant bat.

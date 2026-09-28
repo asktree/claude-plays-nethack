@@ -408,3 +408,18 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
    difference matters: "cancellation" must never enter the bag of holding.
 3. descend(n, explore=True) gives up on its cumulative 48-leg budget with half the level unexplored and says "found
    none" (#1326).
+
+## Shift 9 (T:10333-)
+- #1 whole shift: "!! harness code on disk is newer than this daemon's core" — src/nh/kernel.py was edited at 19:47,
+  after the 19:43 daemon restart (uncommitted working-tree change). Not fixable from the player side.
+- #53 T:10351 DL18: explore() returned "stuck: 12 legs in a row showed nothing new ... frontiers: [(44,5), (44,6),
+  (43,7) ...]" while I stood at (43,5) — the frontiers were the squares NEXT to me in a dark room. One manual `l` step,
+  then explore() moved on (and fell through a trap door). Expected: step onto an adjacent frontier square directly
+  instead of trying NetHack's travel to it. Earlier in the same run "A dwarf lord blocks your path." x2 (peaceful in the
+  corridor) may have caused the "nothing new" legs.
+- #380-393 T:10443-10451: hunt(target) returned "no route" for court monsters 5-8 squares away across unexplored dark
+  ground (throne room not yet seen); head_to() then paused 3x on new court members (fine). Idea: hunt() could head_to()
+  the target when no known route exists and the target is past the known map.
+- Good: the crowd pause before explore() led me into the court ("6 hostiles packed ... likely asleep"); hunt() loop over
+  28 sleepers with fight()'s peaceful look worked flawlessly; loot_all(check_traps=3) auto-unlocked the chest and left
+  the gray stone with the loadstone test explained; eat() reported ROTTEN clearly.

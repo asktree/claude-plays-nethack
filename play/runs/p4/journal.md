@@ -298,3 +298,22 @@
 - END OF SHIFT 8: T:10333, DL18 (23,13) corridor N of the hall doorway, HP 109/109, XL10, AC -15, not hungry, $0 loose
   ($2337 bagged), prayer safe (last prayer T:3562). Kills this shift: flesh golem, incubus, jaguar, 11-monster throne
   court (ogre king, orc-captain...), wraith (no corpse), snake, yeti, 4 chickatrices — all for 1 HP of damage.
+
+## Shift 9
+- T:10351 DL18: explore() "stuck" on frontiers next to me in a dark room (43-45,4-7) (a peaceful dwarf lord had
+  blocked the corridor); stepped in by hand; the next explore() walked onto an unseen TRAP DOOR in that room -> DL19.
+- T:10355 DL19: landed at (5,6) next to '<' (6,6); large cat killed (corpse left: cats = aggravate monster).
+  '<' room (3-6,3-7) has 2 locked doors east (7,4) (7,6): unlocked (7,6) with the key (not trapped).
+- T:10413 "Someone shouts 'Off with her head!'" = COURT. T:10443 an awake OGRE KING read ZLORFIK when hit and vanished
+  (ZLORFIK = teleportation, probably). THRONE ROOM (23-35,16-18), top-wall doorways (24,15) (26,15) (30,15), door (28,15)
+  [trapped closet (28,14) behind it: "ad aerarium"], iron bars (32,15), east door (36,18); throne (25,16).
+- T:10453-10510 DL19: cleared the SLEEPING COURT with Stealth, one at a time via hunt(): 28 kills (ogre king x2, 2 trolls
+  x2 revivals, orc-captain, gnome king, gnome lord, mountain/forest/plains centaurs, 2 gnomish wizards, hill orc, bugbears,
+  hobgoblins, kobold, gnome) for ~5 HP. The court ogre king zapped a WAND OF SLEEP: missed, bounced, slept itself.
+  XL 10 -> 11 (T:10481). HP 117.
+- T:10514-10530 ate a TROLL corpse (not Satiated after: nutrition was lower than estimated); the 2nd troll corpse was
+  ROTTEN ("world spins and goes dark", 1-2 turns) — left it (it will revive).
+- Loot: V WAND OF SLEEP, C HIKING BOOTS (unknown, from the other ogre king), chest (30,18): $202, Y ENCHANT WEAPON,
+  W KO BATE, 2 yellow gems (+1 yellow, 1 white gem), gray stone LEFT in the chest (possible loadstone); e magenta potion,
+  H "scroll called create monster?". T:10565 read Y: "Excalibur glows blue ... suddenly vibrates unexpectedly" = +6:
+  NEVER enchant again. Vampire bat killed.
