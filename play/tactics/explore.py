@@ -418,8 +418,13 @@ def _explore(max_legs: int, skip: set, auto_fight: bool = False):
                 unreachable.append(target)
                 continue
         else:
-            from .nav import cursor_to, leg_cap, travel_hazards, waypoint
+            from .nav import cursor_to, leg_cap, lurk_on_leg, lurk_pause, travel_hazards, waypoint
             wp = waypoint(cur, target, leg_cap(cur), avoid=bad)
+            lurk = lurk_on_leg(cur, hero, wp) if hero else []
+            if lurk:
+                ctx.do("<Esc>", quiet=True)          # (close the travel prompt before pausing)
+                lurk_pause("explore", lurk, hero, wp)
+                continue
             hz = travel_hazards(cur, hero, wp) if hero else []
             if hz:
                 # NetHack's travel might walk over a remembered mimic / mold / avoided square on another route

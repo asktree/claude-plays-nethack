@@ -955,6 +955,68 @@ def leg_cap(s=None) -> int:
     return LEG
 
 
+LURK_TURNS = 20     # turns a dangerous hostile out of view keeps the squares round its last-seen spot risky
+_LURK_WARNED: set = set()   # (level, monster id, last-seen turn) already paused for
+
+
+def lurk_zone(s=None) -> dict:
+    """{(x, y): (why, key)}: the squares round where a hostile DANGEROUS for you (threat 'dangerous', or one
+    worst-case turn of it >= a third of your HP; with an active attack) was last seen, if it left view in the
+    last LURK_TURNS turns. In the dark or behind a corner it is likely still there, and a leg that passes next
+    to it hands it free hits (live shift 4 #146/#778: the mumak in dark Minetown, 26 HP in one round; p4 shift
+    2: a black unicorn behind a wall corner, twice)."""
+    from nh.danger import base_name, max_hit, threat_level
+    s = s or ctx.last()
+    tr = getattr(ctx.game, "tracker", None)
+    turn = s.status.turn if s is not None and s.status.ok else None
+    if tr is None or not hasattr(tr, "gone") or turn is None:
+        return {}
+    hp = s.status.hp
+    out: dict = {}
+    for r in tr.gone(turn):
+        d = r.get("desc") or ""
+        ago = turn - (r.get("turn") or 0)
+        if not d or ago > LURK_TURNS or d.startswith(("tame ", "peaceful ")) or r.get("statue") or r.get("blind") \
+                or _passive_only(r):
+            continue
+        name = base_name(d)
+        lvl = threat_level(d, s.status.xl, hp, getattr(ctx.game, "intrinsics", ()))
+        if lvl == "trivial" or (lvl != "dangerous" and not (hp and max_hit(name) * 3 >= hp)):
+            continue
+        why = f"the {name} was last seen at ({r['x']},{r['y']}) {ago} turn{'' if ago == 1 else 's'} ago"
+        key = (ctx.game.level_key(s.status), r.get("id"), r.get("turn"))
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                out.setdefault((r["x"] + dx, r["y"] + dy), (why, key))
+    return out
+
+
+def lurk_on_leg(s, start, goal=None, path=None) -> list:
+    """[(cell, why, key)]: lurk_zone() squares (of lurkers not paused for yet) a leg start -> goal may cross:
+    on some short route NetHack's travel may take, or on `path` when it is walked by hand."""
+    if start is None:
+        return []
+    zone = {c: v for c, v in lurk_zone(s).items() if v[1] not in _LURK_WARNED and c != tuple(start)}
+    if not zone:
+        return []
+    if path is not None:
+        cells = [tuple(c) for c in path if tuple(c) in zone]
+    else:
+        from .mapview import on_short_routes
+        cells = list(on_short_routes(s, start, goal, set(zone))) + ([goal] if goal in zone else [])
+    return [(c, zone[c][0], zone[c][1]) for c in cells]
+
+
+def lurk_pause(who: str, hits: list, start, goal) -> None:
+    """Pause once per lurker sighting (the lurk_on_leg() hits); cont() goes on."""
+    cell, why, _key = hits[0]
+    _LURK_WARNED.update(h[2] for h in hits)
+    ctx.pause(f"{who}: the next leg ({start} -> {goal}) passes {cell}, next to where {why} — out of view now "
+              "(dark, or behind a corner or door): it may be RIGHT THERE and get free hits. cont() goes on (one "
+              "warning per sighting); else let it show itself first (hold()/search a few turns), go around, or "
+              "meet it where you choose (a doorway, Elbereth)")
+
+
 _TRAP_STOP = re.compile(r"^You stop in front of an? ")     # (not "the door": that one is benign)
 
 
@@ -988,7 +1050,7 @@ def travel_hazards(s, start, goal) -> list:
 
 def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fight=True, with_pet=False,
            fight_through=False, near_exploders=False, water_plane=False, medusa_ok=False, quest_ok=False,
-           near_water=False, pass_hostile=False):
+           near_water=False, pass_hostile=False, near_hostile=False):
     """Travel to (x, y) with NetHack's `_` command (auto-pathing over known
     map; stops when something interesting happens). Re-issues while making
     progress. Returns the final Snap (check .hero, .messages).
@@ -1015,6 +1077,10 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     It refuses (NavError) to take a leg that passes within 2 squares of a known
     exploder (yellow/black light, sphere, gas spore): kill it at range first;
     near_exploders=True overrides.
+    A leg that would pass next to where a DANGEROUS hostile was last seen in
+    the last 20 turns (out of view now: dark, a corner — lurk_zone()) walks a
+    detour at most 8 steps longer by hand, else pauses once per sighting
+    (cont() goes on); near_hostile=True skips both.
     On the Plane of Water it refuses (the air bubbles drift and travel walks
     you into the water: soaked scrolls/potions, rust, drowning without
     magical breathing): step() inside your bubble; water_plane=True overrides.
@@ -1031,6 +1097,8 @@ def travel(x, y, max_legs=40, max_dist=None, wait_peaceful=3, leg=None, auto_fig
     import contextlib
     ctx.require_command("travel()")
     s0 = ctx.last()
+    if near_hostile:
+        _LURK_WARNED.update(v[1] for v in lurk_zone(s0).values())     # (desmap.walk legs too)
     if s0.status.ok and s0.status.ldesc == "Water" and not water_plane:
         raise NavError("travel() on the Plane of Water: the air bubbles drift every turn and travel walks you into "
                        "the water (\"You plunge into the water\": scrolls blank, potions dilute, iron rusts; "
@@ -1487,6 +1555,22 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                 continue
         cap = leg_cap(s) if leg is None else (leg or None)
         tx, ty = waypoint(s, (x, y), cap, avoid=bad_squares(s) - {(x, y)})
+        hits = lurk_on_leg(s, h0, (tx, ty)) if h0 is not None else []
+        if hits:
+            lz = set(lurk_zone(s))
+            direct = bfs_path(s, h0, (x, y), allow_monsters=True)
+            detour = None if (x, y) in lz else bfs_path(s, h0, (x, y), avoid=frozenset((bad_squares(s) | lz)
+                                                                                        - {(x, y)}),
+                                                         allow_monsters=False, allow_pets=True)
+            if detour is not None and direct is not None and len(detour) <= len(direct) + 8:
+                print(f"travel: a {len(detour)}-step detour round {hits[0][0]} ({hits[0][1]}, out of view now) — "
+                      "travel(..., near_hostile=True) takes the short way")
+                return walk_path(detour)
+            lurk_pause("travel", hits, h0, (tx, ty))
+            s = ctx.last()
+            if s.state.kind != "command":
+                return s
+            continue
         if not near_exploders and h0 is not None:
             route = bfs_path(s, h0, (tx, ty), allow_monsters=True) or []
             ex = _exploders_near(s, [h0] + route[:8])

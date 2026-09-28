@@ -829,6 +829,14 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
             return s
         chunk = path[:min(stop, 8)]
         h0 = s.hero
+        from .nav import lurk_on_leg, lurk_pause
+        hits = lurk_on_leg(s, h0, chunk[-1], path=chunk)
+        if hits:
+            lurk_pause("desmap.walk", hits, h0, chunk[-1])
+            s = ctx.last()
+            if s.state.kind != "command":
+                return s
+            continue
         try:
             s = walk_path(chunk)
         except NavError as e:

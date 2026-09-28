@@ -497,6 +497,41 @@ class _G:
         return None
 
 
+def test_lurk_zone_warns_once_about_a_dangerous_hostile_out_of_view(monkeypatch):
+    # live shift 4 #146/#778: the mumak in dark Minetown reached melee during travel/explore legs; p4 shift 2: a
+    # black unicorn behind a wall corner, twice. A dwarf (normal, small hits) out of view is no reason to stop.
+    from tactics import ctx, nav
+
+    class Tr:
+        def gone(self, turn=None):
+            return [{"id": 1, "desc": "mumak", "x": 20, "y": 5, "turn": 95},
+                    {"id": 2, "desc": "dwarf", "x": 12, "y": 5, "turn": 99},
+                    {"id": 3, "desc": "floating eye", "x": 30, "y": 5, "turn": 99},
+                    {"id": 4, "desc": "black unicorn", "x": 40, "y": 5, "turn": 60}]    # 40 turns ago: stale
+    g = _G()
+    g.tracker = Tr()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(nav, "_LURK_WARNED", set())
+    s = _snap({5: "        " + "." * 40}, (10, 5), [])
+    s.status.turn, s.status.xl, s.status.hp, s.status.hpmax = 100, 5, 54, 54
+    zone = nav.lurk_zone(s)
+    assert set(zone) == {(x, y) for x in (19, 20, 21) for y in (4, 5, 6)}
+    assert "mumak was last seen at (20,5) 5 turns ago" in zone[(19, 5)][0]
+    path = [(x, 5) for x in range(11, 25)]
+    hits = nav.lurk_on_leg(s, (10, 5), (24, 5), path=path)
+    assert [h[0] for h in hits] == [(19, 5), (20, 5), (21, 5)]
+    assert nav.lurk_on_leg(s, (10, 5), (16, 5), path=path[:6]) == []            # stops short of it
+    pauses = []
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append(reason))
+    nav.lurk_pause("travel", hits, (10, 5), (24, 5))
+    assert len(pauses) == 1 and "passes (19, 5), next to where the mumak was last seen" in pauses[0]
+    assert nav.lurk_on_leg(s, (10, 5), (24, 5), path=path) == []                # once per sighting
+    # a black unicorn (threat 'normal' but 36 a turn) seen recently counts too
+    Tr.gone = lambda self, turn=None: [{"id": 5, "desc": "black unicorn", "x": 40, "y": 5, "turn": 90}]
+    s.status.hp = 66
+    assert (39, 5) in nav.lurk_zone(s)
+
+
 def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
     import pytest
     from tactics import ctx, nav
