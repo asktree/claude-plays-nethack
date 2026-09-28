@@ -66,3 +66,25 @@
   solver fill the pit next to it, then stand there). The stair room's door may be locked: carry a key. Chickatrices
   are speed 4: fight them from the doorway, then from the corridor square below it (one attacker at a time);
   keep 2 lizard corpses.
+
+## Shift 4
+- **Sleeping nymph + Stealth = free kill**: disturb() never wakes anything while you are Stealthy (monmove.c), so
+  hunt() can walk up to a sleeping nymph and hit first (Excalibur killed one in 2 blows before she acted).
+- **Tripe for a dwarf: "Yak - dog food!" starts a VOMITING countdown** (50%): conf at 11, stun at 8, vomit at 0.
+  The unicorn horn cures it, but only "You feel much less nauseated now." proves it: "This makes you feel better!"
+  means an ATTRIBUTE point was restored (3.6.7 apply.c: the horn still restores lost St/Dex... points) and "You feel
+  less confused" only fixed the symptom. Never push Sokoban boulders while a vomit countdown may be running:
+  wait (search) or apply the horn until "much less nauseated". Old food (Sokoban's tripe) is rotten 1 time in 7.
+- **Blocked Sokoban push by an unseen monster on a hole**: a failed push costs no time. ESP not showing it = mindless
+  flyer. Rays and thrown weapons pass over boulders; a ray bounces off the far wall but its range (7-13) is
+  limited — count squares before zapping. A weapon hitting a monster over a hole falls to the level below.
+- Engrave-test in Sokoban works; do it one square away from where you will zap (the test leaves an Elbereth).
+- Scorpion corpse (fresh) gave POISON RESISTANCE at the first try (50%); eat it before bigger risks.
+- **Soldiers lined up in a corridor**: get out of their line first (wands), then a SLEEP RAY down the corridor
+  freezes them ~6d25 turns (sleep_monst sets mfrozen: hitting doesn't wake them) — 3 sergeants died without a swing
+  back. Count the bounce: range 7-13, each hit -2; from 6+ squares before the far wall it can't come back to you.
+- **Object detection finds the Sokoban prize closet** (one of three behind the zoo): plan a route over the zoo's EMPTY
+  squares (the ones next to the room's first door get no monster) so only 1-2 sleepers need killing.
+- **Collectors (centaurs, monkeys, nymphs) pick up floor items**: a wand seen on the floor was gone 60 turns later; it
+  was in the forest centaur's death pile.
+- Unicorn horn messages: "Nothing happens." = no trouble; "Nothing seems to happen." = trouble not fixed this time.

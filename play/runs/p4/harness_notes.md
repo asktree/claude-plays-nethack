@@ -215,3 +215,57 @@ naming the locked door and remedies; go_up(to='Sokoban') by elimination (#2359);
 3. Nymph charm: the GDSM (MR) left UNWORN in the pack with no obs warning (#1346), and the returning thief didn't
    pause (#1386). Also: stale wrong shop rectangles from before the fix still in harness_state (#24) — check the
    live game's file.
+
+## Shift 4
+1. **sokoban.solve() kept pushing while a hostile horse meleed me for 12 turns** (#433-#475, T:6567-6579): "The horse
+   kicks! | The horse bites!" x8 lines (HP 70 -> 62) during steps 15-16, no pause; solve() ended with "hostiles in
+   view: horse at (45,17)" when it was ADJACENT. The horse was a known monster ("horse [seen: telepathy]", seen from
+   T:6345), so no new-monster pause, and each hit was small. A soldier ant or a cockatrice in the same spot would
+   have been attacking the whole time. Expected: inside solve(), an adjacent hostile that ATTACKS (any "The X hits/
+   kicks/bites/stings" line) pauses (or solve() fights it when auto_fightable), like travel()'s blockers.
+2. (minor) engrave_test() paused on the WAND OF ENLIGHTENMENT's attribute menu (#303 T:6481: "unexpected menu prompt
+   'P4 the Valkyrie's attributes:'"). `cont --reply '<Esc>'` finished it fine ('t': enlightenment, auto-identified).
+   Expected: recognise "You feel self-knowledgeable..." + the attributes menu, print its lines (they are useful:
+   "You can safely pray", alignment) and Esc it.
+3. (info, good) An unseen monster on hole (44,17) behind the boulder blocked step 11 (#289): the solver's pause text
+   was right ("kill it first ... throw weapons / zap an attack wand from a square in line with it"). The `I` note says
+   "BLACK LIGHT ... or a stalker": a stalker isn't mindless (ESP would show it). When the `I` stands on a HOLE it must
+   fly/float (gas spore, fog cloud, lights, spheres, vortices), and "unseen" there came from the boulder blocking
+   sight, not invisibility. Useful additions: "thrown weapons and rays pass over boulders" and "a weapon that hits a
+   monster standing on a hole falls to the level below" (my orcish dagger did, #357).
+4. (minor) solve() refuses to push toward a remembered `I` it can't clear (#290); a manual push costs no time when a
+   monster is behind ("You hear a monster behind the boulder", 0 turns): a retry-each-turn option (wait/search, try
+   the push, up to N turns) would handle a monster that wanders off. Here it never moved (greedy approacher).
+5. (minor) `approaching: large cat` paused (#479) for a cat inside a room whose door was closed (and LOCKED): it could
+   not reach me. Doors that are closed/locked between us could exempt a no-hands animal.
+6. (minor) unlock() ends with "opening it is safe" but leaves the door shut; the first #open failed with "The door
+   resists!" (stuck; #492). An `open_door(x, y, tries=5)` that retries "The door resists!" would save a call.
+
+Worked well: hunt() on the sleeping nymph (Stealth; killed before she acted), read_identify() with my own priority
+regexes (amulet first), fight()'s EXPLODER note on the shocking sphere, zap() through the boulder (sleep ray; the
+bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the doorway, eat(pattern=...) + corpse().
+7. **hunt() plans diagonal squeezes between two boulders in Sokoban** (#550 T:6719): `{'reason': "no way toward the
+   giant mimic at (37, 15): the step to (33, 14) failed (['You are carrying too much to get through.'])"}` — the step
+   (32,15)->(33,14) passes between boulders (32,14) and (33,15). In Sokoban that squeeze is ALWAYS refused
+   (hack.c cant_squeeze_thru returns 3 for the hero in Sokoban; elsewhere 2 when inventory > 600). A legal route
+   existed via row 16; travel(36,15) (NetHack's own travel) found it. Expected: hunt()/path_to() treat a diagonal
+   between two boulders/rock as blocked (always in Sokoban, and when the pack is over 600 weight).
+8. **engrave_test() says "an Elbereth is under you now" without reading it back** (#1723 T:7563): the next `:` read
+   "Edbereth" (#1728). Harmless this time (it only over-restricts attacks from that square), but a player could
+   trust a garbled Elbereth as protection. Expected: read it back like elbereth() does (or say "unverified").
+9. (minor) The unicorn-horn messages are easy to misread: "Nothing happens." = no trouble at all, "Nothing seems to
+   happen." = troubles left but none fixed this time, "This makes you feel better!" = an ATTRIBUTE point restored
+   (apply.c 2080), NOT a cure. A helper `unihorn(until='nausea')` that applies until the named trouble's own cure
+   line ("You feel much less nauseated now.") would help — my first loop stopped on "feel better" while the vomit
+   countdown ran on (it then confused me at T:7133 mid-Sokoban; I had waited instead of pushing).
+10. (minor) `approaching:`/`new monster:` pauses for SLEEPING zoo monsters seen through walls by the ESP amulet cost
+   ~6 calls on Sok4 (#1588-#1610: hill orc, rock piercer, lizard, horse... one at a time as each came within 8).
+   The zoo's entry message can't have fired yet (never entered). A per-room "sleeping crowd behind a wall" summary
+   pause (once) would be enough.
+11. (info) zap() through a boulder and down a corridor worked (#350, #1610), and throw() over a boulder (#357); the
+   solver's "monster behind the boulder" pause text (#290) pointed at exactly these remedies.
+### Top 3 (shift 4, ranked)
+1. sokoban.solve() kept pushing while a known hostile (horse) meleed me for 12 turns (item 1, #433-#475): no pause for
+   an adjacent attacker inside solve().
+2. hunt() routes through Sokoban-illegal diagonal squeezes between boulders (item 7, #550).
+3. engrave_test() reports an Elbereth it never read back (item 8, #1723) + unicorn-horn result messages (item 9).

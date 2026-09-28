@@ -115,3 +115,43 @@
 - T:6280-6298 stair room: 3 CHICKATRICES (fought from the doorway, then the corridor square below it; one hiss, no
   stoning) all killed; a gold golem in the west corridor; a FLOATING EYE (45,14) and a MOUNTAIN NYMPH (44,9, asleep?)
   remain. End of shift 3: T:6298, (51,14), HP 85/85, XL8, AC-8.
+
+## Shift 4
+- T:6298-6304 Sok2 stair room: hunt() walked up to the SLEEPING mountain nymph (Stealth: disturb() never wakes her)
+  and killed her in 2 blows before she acted. Her pile: 3rd potion of object detection (e), tin (k), looking glass.
+- T:6308 read identify k, l (priority amulet > rings): o = uncursed AMULET OF ESP (now WORN), S = uncursed RING OF
+  SEARCHING. Pack was FULL (52 letters): dropped the elven mithril-coat, both spellbooks (Wis 9 + metal helm/shoes =
+  ~2% cast chance) and the spare wand of light R at (44,9) on Sok2.
+- T:6313 gold golem wandered into the Sok2 stair room; went up. T:6334 SOKOBAN LEVEL 3 (Dlvl 7) = soko2-2 (wiki 3a).
+- T:6386 shocking sphere: struck first when it came adjacent, it survived and exploded (-16). T:6454 scorpion (ESP
+  amulet showed it boxed in behind boulders) killed in 2 blows, no sting landed; NO corpse.
+- T:6475-6493 an unseen MINDLESS flyer sat on hole (44,17) behind the boulder ("You hear a monster behind the
+  boulder"): 15 retries over 9 turns, it never moved (greedy approacher). Engrave-tests: T curved = SLOW MONSTER,
+  t uranium = ENLIGHTENMENT (menu: "You can safely pray" with no trouble = prayer timeout 0 at T:6481; piously
+  aligned), q hexagonal (found on Sok3 at (32,15)) = sleep/death -> zapped east: "The sleep ray hits it" = WAND OF
+  SLEEP. Then 1 thrown orcish dagger (f) over the boulder killed it (dagger fell through the hole to Sok2).
+- T:6554 flaming sphere exploded on me (-7). Small mimic posing as a boulder at (34,16).
+- T:6557 killed the small mimic (hunt). T:6583 SOKOBAN LEVEL 3 SOLVED (16/16). Killed a hostile horse, then the
+  stair-room door (48,16) was LOCKED again (key g; not trapped; "The door resists!" = stuck, retried): large cat
+  killed in the doorway from (48,17) (fight_until_clear), 2nd scorpion hunted (T:6598), no sting landed.
+- T:6603 ate the fresh scorpion corpse: "tastes okay" + "You feel healthy." = POISON RESISTANCE (no Str loss).
+  Topaz ring (u) picked up where it lay (46,9). Resting on the Sok3 '<' (45,12) before the zoo level.
+- T:6707 SOKOBAN LEVEL 4 (Dlvl 6) = soko1-1 (wiki 4a). ESP amulet showed 2 GIANT MIMICS posing as boulders at
+  (31,11) and (37,15): killed both first (hunt()/travel+fight, no damage) -> XL9 (T:6716). hunt() tried an illegal
+  diagonal squeeze between boulders ("You are carrying too much to get through") -> travel() + fight() instead.
+- T:6790-7477 solve(): gecko/lizard/acid blob/baby purple worm/monkey on the way (all killed). Hunger: lizard +
+  garlic, then tripe (1 ROTTEN: "Blecch!"; 1 "Yak - dog food!" -> vomit countdown: Conf at T:7133 -> unicorn horn
+  x3 until "You feel much less nauseated now"; the horn ALSO restored attribute points: "This makes you feel
+  better!"). SOKOBAN LEVEL 4 SOLVED T:7477 (26/26). All four Sokoban levels done.
+- T:7480 THREE SERGEANTS asleep in the east corridor x=50 (y 15-17) in line with me: stepped out of range, killed the
+  monkey, then from (50,11) zapped the WAND OF SLEEP down the column (bounce range checked: can't return to me):
+  2 hit; hunt() killed all 3 (T:7494-7500, no damage). Loot at (50,16): LEATHER GLOVES (R, BUC unknown), C-ration (f);
+  ate a sergeant corpse (T:7521, 400 nutr.).
+- T:7521 quaffed object detection: the PRIZE pile is in the NORTH closet (42,15) behind door (43,15). The zoo
+  (x44-48, y14-20) holds ~25 sleepers: 11+ hill orcs, 2 ZRUTIES (45,18)/(44,17), a soldier (45,20), a sergeant (48,20),
+  yeti, bugbear, Green-elf (48,17), horse, kitten, lizard (48,16), scorpion (44,14), rock piercer. Empty squares:
+  (47,15), (46,16), (45,17), (44,15), (44,16).
+- T:7542 forest centaur (awake) killed at the gap (34,10): it had picked up the WAND from (29,19) + a FOOD RATION.
+  Jade ring (l) at (30,19). Dropped the tin and cursed scroll n. Iridium wand F: engrave "vanishes" -> zapped down
+  at the pile: it vanished = WAND OF TELEPORTATION (named "teleportation").
+- END OF SHIFT 4: T:7564, (34,10) on Sokoban 4, HP 97/99, XL9, AC-8, $176, not hungry, zoo asleep, prayer safe.

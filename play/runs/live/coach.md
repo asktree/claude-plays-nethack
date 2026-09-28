@@ -209,7 +209,7 @@ reports from shift 7: go_up() false "TELEPORTED during the leg" at #536/#1025 (N
 one leg, longer than the 8-square cap — the new silent-teleport pause may misfire on that); stale Elbereth guard
 refused a fight at #2320 after a blow had already smudged it.
 
-## 2026-09-28 04:25 UTC — Sokoban prize = your scroll pile (42,17); both shift-7 bugs fixed; crowning math corrected
+## 2026-09-28 02:33 UTC — Sokoban prize = your scroll pile (42,17); both shift-7 bugs fixed; crowning math corrected
 
 - **Both shift-7 reports are fixed on main (67f5d43).** Pull and restart the daemon between shifts.
   - go_up()/travel() no longer call a long NetHack-travel run a teleport. A leg now counts as a teleport only if it
