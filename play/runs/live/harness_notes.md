@@ -70,3 +70,15 @@
 - #2698: rest_on_elbereth() stopped correctly for an unseen attacker ("It hits!"); telepathy_scan() then showed an invisible stalker. Fine.
 - #2653: fight_until_clear() in the Big Room paused on each new monster (8 pauses in ~10 turns); expected, but a crowd mode ("pause only for
   danger-noted newcomers") inside fight_until_clear would save calls.
+
+## Shift 10 (T:10388-)
+- #574-#679 T:10716: explore() walked onto the (undiscovered) quest MAGIC PORTAL at DL13 (70,10) -> Quest Home 1 at XL11 (fire ants around).
+  Stepped off and back at once (#682), no leader contact. Not really avoidable once hidden, but on a level flagged "QUEST PORTAL is hidden
+  somewhere" explore() could warn/pause before entering each new room's squares? (low priority). Fine otherwise.
+- #1-#410: Big Room fights, fight_until_clear/hunt/throw/zap all fine. zap() WandEmpty detection worked (y).
+- #406: pickup('dagger') after travel() hit "You have a little trouble lifting ... Continue?" — the travel's final step triggered the pickup
+  prompt? (actually the pickup prompt came from pickup('wand') loop? the exec raised RuntimeError in the NEXT pickup since the prompt was open).
+- #1661-#1669: after a thief (water nymph) came back into view, EVERY exec paused at once with "THIEF BACK in view" — even inside throw()'s
+  inventory() <Esc>, and `-a 'THIEF BACK'` did not suppress it. Two execs wasted; I had to throw with raw `do t / B / l`. The pause should fire
+  once per return (not on every snapshot while it stays in view) and honour -a.
+- #1685: travel() to the thrown-dagger square picked the daggers up by itself (fine), then pickup('dagger|ring') found only the ring — fine.

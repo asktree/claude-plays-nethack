@@ -7,7 +7,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:10388 / DL11 main at (49,17), next to the DOWN stairs (50,17) / XL10 / 99/101 / 18/18 / AC-8, Satiated
+- Turn / Dlvl / XL / HP / Pw / AC: T:11258 / DL9 main, standing ON the neutral altar (34,16) / XL11 / 108/108 / 21/21 / AC-8, not hungry (lembas T:11172)
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
 - The circular amulet got formally IDENTIFIED as 'amulet of reflection' (probably reflected the winter wolf's frost T:8314).
@@ -156,3 +156,20 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - Big Room DL12: fight only from the up stairs (42,16) with HP > 60%, retreat up to rest. Acceptable alternative:
   step off the up stairs on arrival and zap the wand of digging X down to skip it (it has unknown charges).
 - Depth limit stays DL14 until the wish is done. Buy +1 protection at the next temple (400×XL).
+
+## SHIFT 10 CHANGES (T:11258)
+- XL11 (T:10608, DL13 throne room). Sack Y now also holds the 3 uncursed WATERS n (bagged vs fire: sphere/fire-wand explosions boil potions) + ~$6100.
+  V extra healing + u FULL HEALING in the main pack. Wand y (MM) EMPTY, dropped DL13 throne. NEW: a + i = 2 more WANDS OF DIGGING (DL13 court),
+  w copper wand = engrave no-effect group (named "engrave no-effect"), l opal ring (unknown), k 2 orange gems. Food: Q 1 food ration, g 2 slime molds, P lizard.
+  MAGENTA potion = CONFUSION (named). Create monster scrolls left: m blessed, p x1.
+- DL12 Big Room: up (42,16), down (49,5). Orc pack still there (orc-captain, ~4 Uruk-hai, one with a WAND OF FIRE — reflected), gray ooze, shrieker, peacefuls
+  (couatl, white unicorns, tengu, gnomish wizard). Floating eye, wraith, gremlin, yellow lights, spheres dead.
+- DL13 = QUEST PORTAL level: portal (70,10) (visited Home 1 by accident T:10716, left at once; Home 1 has a fountain, no altar). Up (16,15), DOWN (41,18) (room door (43,19) locked,
+  enter from north doors), hole (16,17), throne room (24-31,8-11) cleared, throne (28,11), magic trap (69,6).
+- DL14: up (36,5), DOWN (24,9), fountains (41,7),(68,17), falling rock trap (23,10). Fully explored: NO altar.
+- NO LAWFUL ALTAR DL1-14. PLAN (in progress): CONVERT the DL9 neutral altar (34,16) — not in a temple, no priest. #offer a FRESH corpse (<50 turns) of a
+  non-dwarf/non-unicorn monster while standing on it: rn2(8+XL) > 5 -> converted to Tyr (68% at XL11, Luck +1); else "Unluckily" Luck -1 (then another
+  successful offer is needed before any prayer). Get corpses by killing things next to the altar (scroll of create monster: STASH lamp x / sack Y
+  on the altar first — the first create monster made a WATER NYMPH that stole a ring; killed it, ring recovered; nymph left no corpse).
+  Once the altar reads "lawful altar (Tyr)": take the 3 waters out, drop them ON the altar, prayer_check(), #pray (no trouble; timeout surely 0,
+  Luck must be >= 0) -> holy water. Then dip lamp x in one holy water (blessed), rub('x') -> wish "blessed +2 gray dragon scale mail".

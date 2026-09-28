@@ -200,3 +200,25 @@
 - T:10199-10387 DL11 by the down stairs (49,17): imp followed then fled down. Rested on Elbereth. An INVISIBLE STALKER hit me: blindfold on
   (telepathy showed it), killed it (corpse not eaten: Satiated). Killed jackal. Autopickup back ON.
 - Shift 9 ended T:10388 DL11 (49,17) next to the down stairs, HP 99/101, XL10, AC-8, Satiated.
+
+## Shift 10 (T:10388-)
+- T:10389-10410 DL12 Big Room from the up stairs: killed panther, elf mummy, flaming sphere (exploded -8), 2 yellow lights (MM wand; the 2nd exploded -> Blind, horn cured),
+  imp, little dog, WRAITH (corpse was ROTTEN: no level), gremlin (no intrinsic lost), large dog. Wand y (MM) now EMPTY. A wraith threw a MAGENTA potion = CONFUSION (named).
+  A mindless sphere exploded next to me unseen while blind (-18). HP 58 -> up to DL11, rested on Elbereth to 101/101 (T:10536).
+- T:10538-10560 DL12 again at full HP: killed the floating eye (thrown daggers), gold golem ($193 bagged). Crossed to the down stairs (49,5) (orc pack
+  with an orc-captain, 4 Uruk-hai, 2 kobold shamans w/ wands roaming W side). Dark green potion left at (47,6).
+- T:10560 DL13 (new): QUEST PORTAL LEVEL ("faint telepathic message from the Norn"). Up stairs (16,15), hole (16,17).
+- T:10571-10628 DL13 THRONE ROOM (24-31,8-11, throne (28,11), doorway (24,11)): killed ogre king (-20), xan (legs healed), snake, 5 bugbears,
+  plains centaur, Mordor orc, 2 kobold shamans, gnome king/lord/wizard, hobgoblins, goblins. XL11 T:10608. Got 2 WANDS OF DIGGING (a, i).
+  Dropped the EMPTY wand of MM (y) on the throne.
+- T:10716 explore() stepped onto the hidden QUEST PORTAL DL13 (70,10) -> Quest Home 1 (fire ants); stepped off/on at once, back T:10718. No leader contact.
+- T:10816 DL14 (new): up (36,5), DOWN (24,9), fountains (41,7) and (68,17). Booby-trapped door (53,9) (stun, horn). Got opal ring l, 2 orange gems k.
+  Dropped 4 slime molds + carrot at (9,17) (weight). Lizard corpse left at (36,3). DL14 explored: NO ALTAR, no temple. DL13 no altar either.
+- PLAN: convert DL9's neutral altar (34,16, not in a temple) by #offering fresh corpses (rn2(8+XL)>5 = 68% at XL11; failure = Luck-1),
+  then drop the 3 waters on it and pray (no trouble; timeout surely 0) -> holy water -> bless lamp -> wish.
+- T:11101-11170 back up: DL12 orc pack fight near (44,12): killed 3+ Uruk-hai, kobold shaman (dropped copper wand w), ogre... an Uruk-hai with a
+  WAND OF FIRE zapped me twice: "reflects from your medallion". Auto-fought gray ooze. Ate lembas T:11172 (Hungry). Engrave-test w: no-effect group.
+- T:11192 DL11 killed a ghoul. T:11218 DL10: bagged potions, killed a flaming sphere (exploded -23; potions safe in the sack).
+- T:11237 DL9. T:11248 on the neutral altar (34,16): read create monster p -> WATER NYMPH stole the coral ring; killed it with thrown daggers
+  (ring recovered, no corpse). Dropped lamp on the altar first (then picked it back up).
+- Shift 10 ended T:11258 DL9 ON the neutral altar (34,16), HP 108/108, XL11, AC-8. No prayers this shift.

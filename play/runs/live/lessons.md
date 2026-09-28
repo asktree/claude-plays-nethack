@@ -35,3 +35,7 @@
   only adjacent monsters follow, and one usually does (the imp did, then fled back down).
 - Invisible attacker ("It hits!") on an Elbereth square: put the blindfold on (telepathy) — it was an invisible stalker; killed in 3 blows.
 - Leprechaun hall: toggle autopickup OFF ('@') before hunting so steps onto gold don't feed thieves; bag any loose gold every kill.
+- Scroll of create monster next to your stuff can make a NYMPH: stash the lamp/sack/amulet-level valuables BEFORE reading (it stole a ring at once).
+- Exploding spheres and fire-wand users boil potions: keep the holy-water candidates in the sack while travelling (reflection stops rays, not explosions).
+- Wraith corpses can be ROTTEN even when fresh-ish ("Blecch! Rotten food!") — the level gain isn't guaranteed; eat it right away when it dies.
+- A hidden quest portal: explore() may walk onto it. Stepping off and back on returns at once; harmless if you don't approach the leader.
