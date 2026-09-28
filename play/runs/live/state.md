@@ -7,7 +7,11 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:8141 / SOKOBAN TOP level 4 (Dlvl 4 in Sokoban) / XL9 / 71/92 / 15/15 / AC-4
+- Turn / Dlvl / XL / HP / Pw / AC: T:8968 / DL9 main at (17,15) (west room) / XL9 / 92/92 / 15/15 / AC-8
+- PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
+- T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
+- The circular amulet got formally IDENTIFIED as 'amulet of reflection' (probably reflected the winter wolf's frost T:8314).
+- WORN: h circular amulet = AMULET OF REFLECTION (Sokoban prize, T:8243; BUC unknown, likely uncursed). REFLECTION: yes.
 - Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; EXPERT long sword (T:7145), basic dagger
 - Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047)
 - Luck notes: full moon at game start (+1 while it lasts). Alignment / god anger: none
@@ -22,6 +26,15 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - L: CURSED Excalibur WIELDED + WELDED since T:3838 (enchantment unknown). Spare long sword a DROPPED DL6 (25,16). b: uncursed +0 dagger; c: uncursed +3 small shield (worn)
 - G +0 ELVEN MITHRIL-COAT (worn; proven not cursed by taking it off T:5356), r +0 leather gloves, o +0 dwarvish iron helm, E +0 iron shoes (worn)
 - I faded pall (elven cloak?) from a Green-elf, BUC unknown, NOT worn (a cursed cloak would block the GDSM swap)
+
+## SHIFT 8 CHANGES (T:8483)
+- h AMULET OF REFLECTION worn. Sack Y: $5240 (enough for protection at XL9: 400*9=3600..5399 -> any temple priest, even Minetown's neutral one).
+- WATERS: n uncursed clear, u clear (BUC?), i clear (fountain-made, uncursed) = 3 waters for the lawful-altar prayer.
+- Lamp now letter x (cursed MAGIC lamp). j = yellow gem (fountain). l = scroll THARR (4 THARR total: l, m blessed, p x2).
+- DUAM XNAHT = SCARE MONSTER (turned to dust on pickup). Oracle fountains: ALL 4 DRIED UP (T:8478); Excalibur still CURSED (~9 dips, no luck;
+  it became rustproof). Killed 2 water demons + a vrock there.
+- Dropped: riding boots V? NO (carried). Dropped at Soko top (49,17): cursed horn, elven daggers H/Z, potion 'object detection?'.
+- Food: Q 3 food rations, O lembas, g 4 + v 2 slime molds, w carrot, P lizard.
 
 ## Key inventory — BUC from the Minetown altar drop at T:3836 [seen in inventory T:3837]
 - SHIFT 7 CHANGES (T:8141): in sack Y now: $2700ish, cursed amulet vs poison, conflict ring, 4 cursed wands (iron/maple/2 platinum),
@@ -58,6 +71,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 | Dlvl | branch | features |
 |---|---|---|
 | Soko | Sokoban | ALL 4 LEVELS SOLVED. Top (Dlvl 4, soko1-1): zoo room (44-48,14-20), prize closets (42,15),(42,17),(42,19) behind doors (43,y); east door (49,17) kicked broken; oil lamp dropped (50,17); '>' (27,5). Soko3 (Dlvl5): 2 cursed food rations dropped (37,7). up from DL8 (66,6) |
+| 9 | Dungeons | up (46,14), DOWN (36,4); NEUTRAL altar (34,16) (BUC-test spot, not for holy water); fountain (16,16) DRIED (T:8966); grave (28,6); gold (10,16); partly explored (NE/E/S not done) |
 | 8 | Dungeons | up (22,19), down (53,6), SOKOBAN up stairs (66,6); Ballingeary's BOOKSTORE NW (door 7,4; pays half; no remove curse in stock); hill orcs |
 | 7 | Dungeons | ORACLE (Delphi) centre (37-41,11-13) with 4 fountains; up (69,9), down (10,11); red mold (44,10); rusty scale mail left (64,9); unicorn horn (34,12) |
 | 6 | Dungeons | up (47,14), down (33,9); both fountains DRIED UP; bag of tricks left at (57,13); unicorn horn + lizard at (28,8); rest partly explored |
@@ -78,6 +92,10 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   It follows you (speed 9 vs your 12); it came into shops. 114514's ghost: slow, harmless, blocks corridors.
 
 ## Objective and plan
+- T:8968 (end of shift 8): DL9 main, west room (17,15), full HP, AC-8, reflection worn, protection bought. Excalibur STILL CURSED (~11 fountain
+  dips failed; Oracle's 4 + DL9's fountain are all dry). 3 uncursed waters (n). NEXT: explore DL9 (gold at (10,16), rest of level), then
+  go down (36,4) looking for a LAWFUL altar (drop n on it, pray when prayer_check() allows -> holy water: 1 for Excalibur, 2 for lamp x),
+  or more fountains to dip in. Big Room DL10-12, quest portal DL11-16. Uncursed unknown rings d/D/F/N + riding boots V: orchestrator's call.
 - T:8141 (end of shift 7): standing on a dust Elbereth at (50,15) in the corridor east of the Soko-top ZOO, HP 71/92. Killed so far:
   mumak, 4 Grey-elves, plains centaur, flesh/wood/leather golems, giant zombie, shocking sphere, 2 dust vortices, 2 brown... (1 pudding),
   gray ooze, Mordor orcs (incl. the wand-of-MM one), hill orcs, giant ants, raven, acid blob. STILL LEFT (seen earlier): WEREWOLF (d form,
@@ -106,3 +124,11 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   Trahnil's (magic lamp base price is 50, oil 10: a sell offer of ~25 (or ~18 lowballed) = MAGIC, 5 or 3 = oil). Maybe swap scale mail for the dwarvish mithril-coat after a BUC check.
 - Then back up the Mines to the main dungeon; Sokoban (up stairs on the level below the Oracle).
 - Next prayer: prayer_check() (93% at T:3837 for major trouble).
+
+## ORCHESTRATOR DECISIONS T:8968
+- Riding boots V (uncursed): OK to try on in a safe spot (not near water/stairs/holes); keep if speed/water walking/
+  jumping/elven, remove at once if fumbling or levitation. Price-ID at a shop first if one is at hand.
+- Rings d/D/F/N (uncursed): price-ID before wearing. Never try on a ring whose price class allows polymorph (300),
+  teleportation (200), hunger or aggravate monster (100/150) — unless the candidates are narrowed to harmless ones.
+- Depth: with reflection + AC-8 + XL9, go on down the main dungeon (Big Room DL10-12, quest portal DL11-16),
+  looking for a LAWFUL altar and fountains. No deeper than DL14 for now; no Medusa/Castle without MR (the lamp wish).

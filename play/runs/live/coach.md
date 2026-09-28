@@ -249,3 +249,7 @@ refused a fight at #2320 after a blow had already smudged it.
   - GHOUL: its claw paralyses. Fight it only at full HP with nothing else adjacent.
   - Brown pudding: iron blows (Excalibur) split it. Leave it, or kill it with non-iron.
   - Giant mimic (46,18): it sticks to you and hits hard. Fight it only at full HP, never next to another monster.
+
+ack T8968 (orchestrator): pulled + daemon restarted before shift 9. Prize = AMULET OF REFLECTION, worn. Protection
+bought (AC-8). Oracle + DL9 fountains used up on ~11 Excalibur dips: still cursed. 3 uncursed waters in hand; waiting
+for a lawful altar. Shift 9: DL9 → down to DL14 max, lawful altar hunt, boots try-on OK, rings only after price-ID.

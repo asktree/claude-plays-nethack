@@ -161,3 +161,23 @@
 - T:8083-8141 — killed the wand-of-MM Mordor orc + another (took WAND OF MAGIC MISSILE U, riding boots V (unknown BUC), scroll READ ME W,
   $2086 -> bagged). Dropped oil lamp J (50,17) (Burdened). Killed a gray ooze with thrown daggers. Resting on Elbereth at (50,15).
 - Shift 7 ended T:8141 Soko top, HP 71/92, XL9, AC-4, on Elbereth (50,15). Zoo partly cleared (see state.md). No prayers this shift.
+
+## Shift 8
+- T:8225 rested to full on Elbereth. T:8227 killed a brown pudding (+ its split) at the east door. Picked up $2302 (bagged: sack Y now $5240).
+- T:8234 the '$' at (48,18) was the GIANT MIMIC (search found it); killed it (92->82). Dropped riding boots V + cursed horn i at the doorway (49,17) (Burdened).
+- T:8242 SOKOBAN PRIZE at (42,17) (burned Elbereth): circular amulet h = AMULET OF REFLECTION (named) — WORN T:8243. Scroll DUAM XNAHT there turned
+  to dust on pickup = SCARE MONSTER (named). Werewolf/ghoul/gold golem not seen in the zoo room.
+- T:8249 ate partly eaten ration (Hungry). Took food ration + dark green potion i from the zoo door pile; dropped elven daggers H,Z and potion z (object detection?) at (49,17) Soko top (weight).
+- T:8300-8383 descending Sokoban: killed orc zombie x2, human zombie, housecat, WINTER WOLF (Soko top), horse (Soko2). T:8419 up to DL7 (Oracle) from DL8.
+- T:8455-8483 DL7 ORACLE: stashed valuables at (35,14); diluted dark green potion i -> WATER (3 waters now). Dipped Excalibur ~9 times over the
+  4 fountains: no uncurse ("A feeling of loss" = the uncurse roll hit the uncursed potion), became rustproof; 2 WATER DEMONS (no wish) + a summoned
+  VROCK, all killed with Excalibur (HP min 84). All 4 fountains DRY. Got a yellow gem and a THARR scroll. Picked the stash back up.
+- T:8483-8638 headed to MINETOWN to buy protection with the $5240 (400*XL9=3600): DL7->DL4 main (floating eye on DL5 near the up stairs (20,11)),
+  Mines 5-6 (killed hobgoblin, fox), arrived Minetown (Mines 7) up stairs (3,2) T:8638.
+- T:8670 MINETOWN temple: donated 3600 to the priestess of Odin -> PROTECTION, AC -4 -> -7. $1640 back in sack Y.
+- T:8672-8675 BUC-tested all unknown items on the Odin altar (see state.md): nearly all uncursed; THARR l + earth k cursed. Faded pall I
+  (= elven cloak) uncursed -> WORN, AC-8. The 3 waters merged: n - 3 uncursed clear potions. Amulet shows as 'amulet of reflection' (identified).
+- T:8675-8890 back up out of the Mines (quasit seen Mines 6, peaceful tengu) and down the main dungeon to DL8 (ate a food ration T:8836). No fights of note.
+- T:8916 DL9 (new): killed a fog cloud (not a vampire). NEUTRAL altar (34,16), down stairs (36,4), fountain (16,16): stashed valuables,
+  2 Excalibur dips -> dried, still cursed. Picked stash back up.
+- Shift 8 ended T:8968 DL9 (17,15), HP 92/92, XL9, AC-8. Gains: amulet of reflection (worn), protection (AC-4->-7), elven cloak (-8), 3 waters. No prayers.

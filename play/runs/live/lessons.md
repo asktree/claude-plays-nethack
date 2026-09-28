@@ -25,3 +25,7 @@
   queue — stand diagonal/out of that row once a zapper shows up. A mumak in the doorway at HP 58 took me to 22 in two turns:
   start zoo fights at FULL HP and back off at ~60%, not 55%.
 - Potion appearances get identified when monsters quaff them in view (swirly = extra healing): check discoveries before a crisis.
+- Fountain dips: "A feeling of loss comes over you." = the UNCURSE roll landed on an item that wasn't cursed (wasted). 11 Excalibur dips over
+  5 fountains gave no uncurse and 2 water demons (+ a summoned vrock) — at XL9/AC-4 Excalibur killed each in 1-3 blows; a stash of valuables
+  on the floor first costs 3 harness calls and removes the nymph risk.
+- Any temple priest (cross-aligned too) sells protection: 400*XL gold gave AC-3 at once. Carry the zoo gold to the nearest temple.

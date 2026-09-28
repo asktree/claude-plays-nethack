@@ -54,3 +54,10 @@
   engraving after any melee/throw from the square (or re-read it) instead of blocking the next fight.
 - rest_on_elbereth() stops for an Elbereth-ignoring Grey-elf — correct; worked well otherwise. elbereth() retries worked (3 garbles seen).
 - The giant-mimic-as-boulder check in sokoban.solve() ("unexpected boulders ... often a MIMIC") was spot on (#1096).
+
+## Shift 8 (T:8141-8968)
+- No harness problems. rest_on_elbereth, fight/fight_until_clear (puddings split, mimic, water demons, vrock), descend(), buy_protection(),
+  dip() loop, pickup(pattern) after an altar drop all worked. fight_until_clear's "attacked from OUT OF VIEW (blast of frost)" after the
+  winter wolf was already killed was a harmless false alarm (#272).
+- Minor: the pickup of '$' zoo gold at the Soko door opened a 'little trouble lifting ... Continue?' prompt from a plain step (#43) — fine.
+- exec budget pause "47 steps / 113s" inside a go_down loop (#1110) — fine, just cont.
