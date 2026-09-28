@@ -4433,6 +4433,32 @@ def test_fight_swings_at_a_warning_digit(monkeypatch):
     assert sent[:1] == ["Fl"]
 
 
+def test_fight_follows_a_moving_warning_digit(monkeypatch):
+    # p1 shift 38 #121/#136: the invisible Wizard jumped to another square next to you after each blow; fight(x, y)
+    # swung at the stale 'I' (thin air) instead of following his warning digit
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    frames = [_snap({5: "        ..@5."}, (10, 5), []),       # the '5' east of you
+              _snap({4: "          4", 5: "        ..@I."}, (10, 5), []),     # hit: now 'I' east, '4' north
+              _snap({5: "        ..@.."}, (10, 5), [])]
+    for f in frames:
+        f.status.hp, f.status.hpmax = 100, 100
+    frames[2].messages = ["You kill it!"]
+    cur = {"i": 0}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["i"] = min(cur["i"] + 1, 2)
+        return frames[cur["i"]]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: frames[cur["i"]])
+    combat.fight(11, 5)
+    assert sent[:2] == ["Fl", "Fk"]
+
+
 def test_dip_calls_a_town_fountain_warning_a_stop(monkeypatch):
     # p3 shift 17 #1275/#1321: "The flow reduces to a trickle." read as "fountain dried up" and the watch
     # captain's "Hey, stop using that fountain!" as "nothing special" — one more dry-up angers the Watch

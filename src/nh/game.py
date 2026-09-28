@@ -104,10 +104,12 @@ class Snap:
         """Parsed menu/text window (items with letter/text/selected/header) or None."""
         return self.state.menu
 
-    def hostiles(self, radius: int | None = None) -> list:
+    def hostiles(self, radius: int | None = None, mobile: bool = False) -> list:
         """Monsters that are not tame/peaceful/statues, optionally within
         radius. Excludes what can't be judged: 'I' markers (unseen, maybe a
-        peaceful) and anything seen while hallucinating."""
+        peaceful) and anything seen while hallucinating. mobile=True leaves
+        out the ones that never move (molds, lichens' kin...: a script's "while
+        hostiles near: fight" loop spun 35 times on a brown mold — p4 shift 3)."""
         out = []
         for m in self.monsters:
             d = m.get("desc", "")
@@ -117,6 +119,10 @@ class Snap:
                 continue
             if radius is not None and (m.get("dist") is None or m["dist"] > radius):
                 continue
+            if mobile:
+                from .monitor import _stationary
+                if _stationary(d):
+                    continue
             out.append(m)
         return out
 
@@ -1574,7 +1580,10 @@ class Game:
                 dx, dy = self._MOVE[step]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
                 if (tx, ty) in self.traps.get(self.level_key(snap.status), ()) \
-                        and snap.screen.at(tx, ty) not in ".#":
+                        and snap.screen.at(tx, ty) not in ".#" \
+                        and (self.feature_desc.get(self.level_key(snap.status)) or {}).get((tx, ty)) \
+                        != "squeaky board":
+                    # (a squeaky board only squeaks — wakes monsters nearby: p2 shift 36 asked to step on them)
                     # (plain floor/corridor there: NetHack knows no trap on it — our memory is stale, the step is
                     # fine; _note_traps forgets it: p3 shift 18 #312, p1 shift 37 #633)
                     raise PermissionError(

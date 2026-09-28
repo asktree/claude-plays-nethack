@@ -240,7 +240,7 @@ def rewield_main(who: str = "fight()"):
     if it is None or not it["class"].startswith("Weapons") or not getattr(g, "wield_tool", False):
         return None
     tool = g.wielded
-    s = ctx.do("w" + mw["letter"], ok=[r"^[a-zA-Z] - ", r"welded to your"])
+    s = ctx.do("w" + mw["letter"], ok=[r"^[a-zA-Z] - ", r"welded to your"] + ROUTINE)   # (p4 shift 3 #180)
     if any("welded" in m for m in s.messages):
         print(f"{who}: {tool} is WELDED to your hand (cursed) — fighting with it")
     else:
@@ -297,6 +297,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
     from nh.danger import STOP_PASSIVES, base_name, explodes_at_you, max_hit, passive_attacks, passive_max
     s = ctx.last()
     locked_on = None                 # fight(x, y): the species that was on (x, y) at the first blow
+    unseen_hits = 0                  # blows at an unseen/warning-digit square in this fight
     checked: set = set()             # (id, x, y) of targets looked at before their first blow
     engulf_warned = False
     inside = False                   # swung from inside an engulfer during this call
@@ -385,6 +386,15 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 print(f"fight: ({x},{y}) holds a STATUE, not a monster — nothing to fight there")
                 return s
             targets = [m for m in targets if (m["x"], m["y"]) == (x, y)]
+            if not targets and unseen_hits and s.hero is not None and s.screen.at(x, y) not in "12345":
+                # the unseen monster moved: its WARNING digit shows where it is now, while the square you hit may
+                # keep a stale 'I' (p1 shift 38 #121/#136: an invisible Wizard jumping square to square; fight(x, y)
+                # swung at thin air) — follow the one digit next to you
+                digits = [(s.hero[0] + dx, s.hero[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                          if (dx or dy) and s.screen.at(s.hero[0] + dx, s.hero[1] + dy) in "12345"]
+                if len(digits) == 1:
+                    print(f"fight: the warning digit moved from ({x},{y}) to {digits[0]} — following it")
+                    x, y = digits[0]
             if not targets and (s.screen.at(x, y) == "I" or s.screen.at(x, y) in "12345") \
                     and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
                 # an unseen (invisible) monster you asked for by square: swing at it — or a WARNING digit
@@ -392,6 +402,7 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 # an iron golem next to a blindfolded hero, did nothing six times)
                 s = ctx.do("F" + DIR_KEY[(x - s.hero[0], y - s.hero[1])], ok=ROUTINE, force=force)
                 seen.extend(s.messages)
+                unseen_hits += 1
                 continue
             hidden = (getattr(s, "mimic_mem", None) or {}).get((x, y))
             if not targets and hidden and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1 \
