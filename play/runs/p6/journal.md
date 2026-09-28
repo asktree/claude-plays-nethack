@@ -27,3 +27,17 @@
   shoplifters" = a SHOP on DL4. T:1595 hidden passage at (36,10) (dead end (36,9)). Dead end again at (39,16).
 - T:1614 WEAK -> T:1617 PRAYED (1st prayer): SUCCESS, "Tyr is well-pleased", hunger fixed. Next prayer not before
   ~T:2700 (prayer_check()).
+- T:1210 — "Your acid blob corpse rots away." (carried corpses other than lizard/lichen vanish after ~250 turns).
+- T:1620 DL4 — hidden door (39,17) south of the dead end; 2 jackals + a dwarf zombie came through: held the corridor,
+  fight_until_clear() killed both jackals (no damage). The dwarf zombie hit twice (T:1631, T:1634); explore() walked
+  on past it (my -a pattern had silenced its hits). Large kobold left alone.
+- T:1666 DL4 — KADIRLI'S USED ARMOR DEALERSHIP (58-67,3-8), door (58,9); '>' (63,18). A MIMIC posing as ']' (63,5).
+  Priced the stock by farlook from inside (see state.md). Bought +2 STUDDED LEATHER ARMOR (47zm; spe>0 => never
+  generated cursed) and leather gloves q (11zm, untested). Wore the armor: AC5 -> AC0. $0 left.
+- T:1678-1686 — a giant bat in the shop: 40 -> 21 HP before it died (fast, erratic; I hit ~60%). No prayer
+  available, so I set an Elbereth fallback at HP<17 (not needed). Rested to 35/40 by T:1811 in the shop's front row.
+- The kitten carried shop goods around (crossbow bolt, hiking boots, long sword, the "piece of cloth" cloak,
+  dwarvish cloak) => all those are NOT cursed. My dagger b + 5 darts came back (the kitten had dropped them in my
+  path; pickup_thrown took them); 8 darts still missing.
+- END OF SHIFT 1: T:1811, DL4 (60,8) in the armor shop, HP 35/40, XL3, AC0, $0. Kitten adjacent. No hostiles in view
+  (the mimic 3 squares away is stationary).
