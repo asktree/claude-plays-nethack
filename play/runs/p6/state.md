@@ -11,7 +11,7 @@
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
-| — | none yet (first prayer fine from ~T:100-300 in MAJOR trouble only) | |
+| T:1617 | Weak (hunger), DL4 (39,16) | SUCCESS, well-pleased; hunger fixed. Timeout reset (~50-1000): prayer_check() first |
 
 ## Equipment worn/wielded (letter: item)
 - a: uncursed +1 long sword (wielded). c: uncursed +3 small shield (worn). b: uncursed +0 dagger (alternate).

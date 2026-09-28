@@ -16,3 +16,14 @@
 - T:1000 killed a kobold -> XL3 (40 HP). It dropped 13 darts (i). Falling rock trap at (3,6) (-3 HP).
 - T:1043-1079 large box (15,18) locked: force_box() with the dagger, 11 turns. Scrolls ASHPD SODALG (k), PHOL ENDE
   WODAN (l), puce potion (m), 2 yellowish brown gems (n). Emerald potion (j) from the NW room.
+- T:1160 DL3 — explored the east half: a bat (35->28 HP) killed. TWO '>' on DL3: (49,7) and (52,18). Scroll GARVEN
+  DEH (o) at (46,5). West half of DL3 unreached (dead ends (58,20) (41,8) (31,13) not searched).
+- T:1325 took DL3 '>' (49,7) -> Dungeons DL4 (^O) => DL3 (52,18) = GNOMISH MINES branch (by elimination).
+- T:1390-1452 DL4 — FLOATING EYE in the SW room (9,18): 13 darts from (9,17) (8 hits, unskilled d3-2 ~1 each), the
+  dagger missed; it survived. All missiles stop at the monster's square (hit or miss) -> lay under it. Waited 45
+  turns (it didn't move), fetched 5 rocks from the up stairs; on return the eye AND the whole pile were gone (no
+  message; the kitten probably carries the darts/dagger). Eye last seen (12,19). LOST: 13 darts, +0 dagger b.
+- T:1515 Hungry; T:1576 DL4 hidden passage at (25,8) (dead end (25,9)); cash register chime + "someone cursing
+  shoplifters" = a SHOP on DL4. T:1595 hidden passage at (36,10) (dead end (36,9)). Dead end again at (39,16).
+- T:1614 WEAK -> T:1617 PRAYED (1st prayer): SUCCESS, "Tyr is well-pleased", hunger fixed. Next prayer not before
+  ~T:2700 (prayer_check()).

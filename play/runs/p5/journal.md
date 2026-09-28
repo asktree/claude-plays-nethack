@@ -15,3 +15,20 @@
 - DL2 has TWO '>': (39,5) = GNOMISH MINES (taken T:1026), (54,18) = main Dungeons DL3. Trap-victim pile (39,16)
   (runed broadsword there = cursed, left). Locked door (19,9). Up stairs (35,12).
 - T:1026 Mines 1 (DL3): arrived at (8,20) with the kitten. Peaceful gnome.
+- T:1201 Mines 1 (DL3) — anti-magic field (36,12) (drains Pw only). T:1220 MAGIC TRAP (44,12): blind ~10 turns + deaf,
+  "deafening roar" (trap.c: also creates 1-4 monsters next to you). Stood on the '>' (43,12) as an escape hatch and
+  searched until sight returned; the unseen "I" was my kitten; only a shrieker came (killed). No damage.
+- T:1249-1296 Mines 1 — took o orcish dagger (27,10), p dagger (20,6), q puce potion (10,3), r SPLINT MAIL (3,5);
+  fox killed. Human corpse pile (19,18) = trap victim, avoided. Kitten -> housecat.
+- T:1330 Mines 1 — large box (7,12) forced (17 turns): s effervescent potion, t orange potion, u red gem.
+- T:1351 — pet test of the splint mail inconclusive (dead-end nook); WORE it anyway (a generated-cursed armor is
+  almost always negative; this one is +0): AC -1. Pack now > 600 wt: no diagonal squeezes (Mines!).
+- T:1370 Mines 1 — hidden RUST TRAP (17,9): splint mail rusty (AC 0). T:1419 left the housecat on Mines 1: it would not
+  cross the anti-magic field in the 1-wide passage (36,12) (pets refuse seen traps 39/40). go_down() raised PetLost
+  (good); went on without it.
+- T:1420 Mines 2 (DL4): gecko -> XL3 (HP 40). T:1509 Hungry: ration f was ROTTEN ("Blecch!", reduced nutrition).
+  '>' found by descend(explore=True).
+- T:1571 DL5 = Mines 3 = MINETOWN (a ROOM-type variant: minetn-2/3/4 = central town room + random rooms joined by
+  corridors; the '<' (64,6) is in an outer room). '>' (66,15).
+- T:1660 DL5 — killed a guardian naga hatchling (ate it: SAFE, no poison res this time). Gas spore at distance 2:
+  lined up and killed it with a thrown dagger from 2 squares — the blast missed me.
