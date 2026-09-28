@@ -443,11 +443,13 @@ class MonsterTracker:
         # a zap this turn whose zapper wasn't lined up with you BEFORE the step (it moved into line and zapped
         # in one turn): the monsters of that name lined up with you now (p2 shift 39 #94: with no id the note
         # went onto all 4 bone devils)
+        # (only when exactly ONE of that name is lined up, and you aren't invisible: a monster zaps at where it
+        # THINKS you are — monmove.c set_apparxy() — so an invisible hero's zapper may not be lined up at all)
         for wname, wz in ((getattr(snap, "wand_users", None) or {}).items() if hero is not None and st.ok else ()):
-            if not wz.get("ids") and wz.get("turn") == st.turn:
+            if not wz.get("ids") and wz.get("turn") == st.turn and not self._hero_invisible():
                 lined = {m["id"] for m in mons if base_name(m.get("desc") or "") == wname and not m.get("statue")
                          and _in_line(hero, (m["x"], m["y"]))}
-                if lined:
+                if len(lined) == 1:
                     wz["ids"] = lined
         for m in mons:
             d = m.get("desc", "")
@@ -590,6 +592,19 @@ class MonsterTracker:
                         r["desc"] = k["desc"]
                     else:
                         del self.recent[k["id"]]
+
+    _INVIS_ON = re.compile(r"(?:All of a sudden|Far out, man!  You),? you can(?:'t see| see right through) yourself|"
+                           r"^Suddenly you cannot see yourself|^Body\? What body\?")
+    _INVIS_OFF = re.compile(r"^You are no longer invisible|^Suddenly you can see yourself|^You can see yourself")
+
+    def _hero_invisible(self) -> bool:
+        """Did the hero turn invisible more recently than visible again (message history)?"""
+        for _t, m in reversed(list(getattr(self.game, "history", None) or [])[-400:]):
+            if self._INVIS_OFF.search(m):
+                return False
+            if self._INVIS_ON.search(m):
+                return True
+        return False
 
     def _forget_killed(self, names: list[str], vanished: set, hero, turn: int | None = None,
                        target=None) -> list:

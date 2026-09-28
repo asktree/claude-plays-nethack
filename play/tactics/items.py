@@ -76,6 +76,8 @@ def inventory():
             empty.intersection_update({k for k, t in wands.items() if not re.search(r"\(\d+:[1-9]\d*\)", t)})
         ctx.game.helmet = next((it["text"] for it in items if "(being worn)" in it["text"]
                                 and re.search(r"\b(?:helm|helmet|hat|cap|cornuthaum|fedora|kabuto)\b", it["text"])), "")
+        w_cursed = _welded(items)
+        ctx.game.welded_weapon = w_cursed["text"] if w_cursed else ""
         ctx.game.cursed_worn = [it["text"] for it in items if re.search(r"\bcursed\b", it["text"])
                                 and not re.search(r"\buncursed\b", it["text"])
                                 and re.search(r"\((?:being worn|on (?:left|right) hand|weapon in \w+|"
@@ -1103,6 +1105,33 @@ def _zero_nutrition(item: str) -> bool:
     return bool(rec) and rec.get("nutrition") == 0
 
 
+# timeout.c nh_timeout() / the status timeouts that stop an occupation without any danger
+_RESUME_OK = re.compile(r"^You stop eating |^You are no longer invisible\.$|^You feel less confused now\.$|"
+                        r"^You feel a bit steadier now\.$|^You can see again\.$|^You can hear again\.$|"
+                        r"^You feel yourself slowing down|^Your legs feel somewhat better\.$|"
+                        r"^Everything looks SO boring now\.$")
+
+
+def _resume_blocker(s, st0, letter) -> str:
+    """Why an interrupted meal must NOT be resumed on its own (review of 4c3f55f: an unseen or hallucinated
+    attacker, a missile from the dark, or 'Your limbs are stiffening.' each stopped the meal too)."""
+    if letter is not None:
+        return ("the bitten piece got a NEW inventory letter (eat.c touchfood() splits it off): "
+                "eat(<the 'partly eaten' letter>) to go on")
+    conds = set(s.status.conditions if s.status.ok else ())
+    bad = conds & {"Stone", "Slime", "Strngl", "FoodPois", "TermIll", "Hallu", "Blind"}
+    if bad:
+        return "status " + "/".join(sorted(bad))
+    if st0 is not None and st0.ok and s.status.ok and s.status.hp < st0.hp:
+        return f"HP {st0.hp} -> {s.status.hp}"
+    other = [m for m in s.messages if not _RESUME_OK.search(m)]
+    if other:
+        return f"{other[0]!r}"
+    if s.hostiles() or any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
+        return "a hostile or unseen monster is here"
+    return ""
+
+
 def eat(letter: str | None = None, pattern: str | None = None, force: bool = False, _resumed: int = 0) -> list:
     """Eat inventory item `letter`, or (letter=None) the food on the floor
     here. NetHack first offers each floor corpse ("There is a jackal corpse
@@ -1122,12 +1151,12 @@ def eat(letter: str | None = None, pattern: str | None = None, force: bool = Fal
     zero_ok = False
     st = ctx.last().status
     if st.ok and st.hunger == "Satiated":
-        if rx is not None:
+        if rx is not None and letter is None:
+            # (floor food only: inventory() data can be stale — a letter that once held a wraith corpse may hold
+            # a one-bite food now, and force would skip the Satiated guard: choking at 2000 nutrition)
             floor = here()
             hits = [t for t in re.split(r"\n|\s*\|\s*|(?<=\.)\s+", floor) if rx.search(t)]
-        else:
-            hits = [it["text"] for it in getattr(ctx.game, "inv_items", None) or [] if it.get("letter") == letter]
-        zero_ok = bool(hits) and all(_zero_nutrition(t) for t in hits)
+            zero_ok = bool(hits) and all(_zero_nutrition(t) for t in hits)
         if not (zero_ok or force or "Stone" in (st.conditions or ())):
             # (p2 shift 39 #81: resuming a partly eaten corpse raised the harness's Satiated guard mid-loop)
             print("eat(): Satiated — not eating (past 2000 nutrition you choke); a partly eaten meal waits "
@@ -1167,11 +1196,14 @@ def eat(letter: str | None = None, pattern: str | None = None, force: bool = Fal
         msgs += s.messages
     text = " | ".join(msgs)
     s = ctx.last()
-    if any(m.startswith("You stop eating") for m in msgs) and _resumed < 2 and s.state.kind == "command" \
-            and not s.hostiles() and not re.search(r"rises from the dead|Rotten|world spins", text):
-        # (p4 shift 7: "You are no longer invisible." -> "You stop eating the Grey-elf corpse.")
-        print("eat(): the meal was interrupted with nothing hostile in view — resuming it")
-        return msgs + eat(letter, pattern, force, _resumed=_resumed + 1)
+    if any(m.startswith("You stop eating") for m in msgs) and _resumed < 2 and s.state.kind == "command":
+        why = _resume_blocker(s, st, letter)
+        if why:
+            print(f"eat(): the meal was interrupted — not resuming it ({why})")
+        else:
+            # (p4 shift 7: "You are no longer invisible." -> "You stop eating the Grey-elf corpse.")
+            print("eat(): a status change interrupted the meal, nothing hostile around — resuming it")
+            return msgs + eat(letter, pattern, force, _resumed=_resumed + 1)
     if re.search(r"rises from the dead", text):
         print("eat(): the troll REVIVED mid-meal — kill it, then eat the new corpse at once (or tin it / keep "
               "it off the floor)")

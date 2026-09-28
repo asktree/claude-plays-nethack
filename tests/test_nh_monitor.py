@@ -1694,3 +1694,56 @@ def test_your_alignments_unicorn_gets_a_note():
     s = snap({(44, 10): "u"}, 70)          # the status line says Lawful
     m = t.update(s)[0]
     assert m["note"].startswith("YOUR ALIGNMENT'S UNICORN: never kill it")
+
+
+def test_trice_pickup_lines_burdened_and_unpaid():
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    for m in ("You have a little trouble lifting J - a cockatrice corpse.",
+              "J - a cockatrice corpse (unpaid, 8 zorkmids).", "J - 2 chickatrice corpses."):
+        assert g._TRICE_TAKEN.match(m), m
+    assert not g._TRICE_TAKEN.match("J - a cockatrice corpse (weapon in hand).")
+
+
+def test_wand_zapper_fill_needs_exactly_one_lined_up_and_a_visible_hero():
+    fg = FakeGame()
+    fg.history = []
+    t = MonsterTracker(fg)
+    cells = {(44, 10): "&", (40, 14): "&"}            # both lined up with the hero at (40,10)
+    fg.truth = {c: "bone devil" for c in cells}
+    rec = {"kind": "lightning", "wand": "a wand of lightning", "turn": 61, "ids": set()}
+    s = snap(cells, 61)
+    s.wand_users = {"bone devil": rec}
+    t.update(s)
+    assert rec["ids"] == set()                         # two candidates: unknown
+    fg2 = FakeGame()
+    fg2.history = [(50, "Gee!  All of a sudden, you can't see yourself.")]
+    t2 = MonsterTracker(fg2)
+    fg2.truth = {(44, 10): "bone devil"}
+    rec2 = {"kind": "lightning", "wand": "a wand of lightning", "turn": 61, "ids": set()}
+    s2 = snap({(44, 10): "&"}, 61)
+    s2.wand_users = {"bone devil": rec2}
+    t2.update(s2)
+    assert rec2["ids"] == set()                        # invisible: it aimed where it guessed you are
+
+
+def test_thief_back_the_turn_after_the_theft_pauses():
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    g.last_theft = {"turn": 100, "msg": "The water nymph stole a blindfold.", "what": "a blindfold",
+                    "who": "The water nymph"}
+    a = snap({}, 100)
+    a.messages = ["The water nymph stole a blindfold."]
+    a.monsters = []
+    a.theft_note = g.theft_note(100)
+    k._check_events(snap({}, 99), a)
+    b = snap({}, 101)
+    b.monsters = [{"ch": "n", "x": 49, "y": 10, "desc": "water nymph", "dist": 9, "id": 7}]
+    b.theft_note = g.theft_note(101)
+    reasons.clear()
+    k._check_events(snap({}, 100), b)
+    assert any(r.startswith("THIEF BACK") for r in reasons)

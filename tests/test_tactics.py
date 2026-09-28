@@ -5707,11 +5707,19 @@ def test_fight_until_clear_blind_searches_a_stale_I_and_hits_only_an_attacker(mo
     monkeypatch.setattr(ctx, "do", do_stays)
     r = combat.fight_until_clear(unseen=True, max_turns=4)
     assert sent == [("s", False)] and "unseen monster stays at (11, 5)" in r["reason"]
-    # 3) it attacked you ("It hits!"): the blow goes through the guard
+    # 3) it MELEEd you ("It hits!"): the blow goes through the blind-'I' guard only (game.blind_I_ok), not force
     sent.clear()
     ctx.game.history = [(99, "It hits!")]
+    ok_at = []
+
+    def do_hit(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        ok_at.append(getattr(ctx.game, "blind_I_ok", None))
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", do_hit)
     combat.fight_until_clear(unseen=True, max_turns=2)
-    assert sent[:2] == [("s", False), ("Fl", True)]
+    assert sent[:2] == [("s", False), ("Fl", False)] and ok_at[1] == (11, 5)
+    assert ctx.game.blind_I_ok is None                  # one blow only
 
 
 def test_zap_vanished_counts_a_monster_that_stepped_aside():
@@ -5870,3 +5878,140 @@ def test_the_unicorn_of_your_alignment_is_never_attacked(monkeypatch):
     monkeypatch.setattr(ctx, "require_command", lambda who: s)
     combat.fight(11, 5)
     assert paused and "YOUR alignment" in paused[0] and not any(k.startswith("F") for k in sent)
+
+
+def _blind_I_snap(i_cells, turn=100, msgs=()):
+    rows = {y: list(" " * 20) for y in (4, 5, 6)}
+    for y in rows:
+        for x in range(8, 13):
+            rows[y][x] = "."
+    rows[5][10] = "@"
+    for (x, y) in i_cells:
+        rows[y][x] = "I"
+    mons = [{"x": x, "y": y, "ch": "I", "unseen": True, "dist": max(abs(x - 10), abs(y - 5))}
+            for (x, y) in sorted(i_cells, key=lambda c: (max(abs(c[0] - 10), abs(c[1] - 5)), c[1], c[0]))]
+    s = _snap({y: "".join(r) for y, r in rows.items()}, (10, 5), mons)
+    s.status.turn, s.status.hp, s.status.hpmax, s.status.conditions = turn, 50, 50, ["Blind"]
+    s.messages = list(msgs)
+    return s
+
+
+def test_fight_until_clear_blind_never_swings_at_an_I_its_own_search_made(monkeypatch):
+    # review of 4c3f55f: the attacker is at (11,5) ("It hits!"); the blind search FEELS your pet at (9,4) and
+    # maps an 'I' there (detect.c mfind0 -> map_invisible) — the forced blow went north-west, at the pet
+    from tactics import combat, ctx
+    cur = {"s": _blind_I_snap([(11, 5)])}
+    sent = []
+
+    def do(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        if keys == "s":
+            cur["s"] = _blind_I_snap([(9, 4), (11, 5)], msgs=["You feel an unseen monster!"])
+        return cur["s"]
+    _fuc_setup(monkeypatch, cur["s"], history=[(99, "It hits!")])
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "do", do)
+    combat.fight_until_clear(unseen=True, max_turns=4)
+    assert not any(k == "Fy" for k, _f in sent) and ("Fl", False) in sent and not any(f for _k, f in sent)
+    # two candidates nobody's search made, one attack: which one hit you can't be told — no blow at all
+    cur["s"] = _blind_I_snap([(9, 4), (11, 5)])
+    sent.clear()
+
+    def do2(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        return cur["s"]
+    _fuc_setup(monkeypatch, cur["s"], history=[(99, "It hits!")])
+    monkeypatch.setattr(ctx, "do", do2)
+    r = combat.fight_until_clear(unseen=True, max_turns=3)
+    assert not any(k.startswith("F") for k, _f in sent) and "unseen monster stays" in r["reason"]
+
+
+def test_fight_until_clear_blind_missile_miss_is_no_melee_and_a_passed_I_can_be_hit_later(monkeypatch):
+    # mthrowu.c thitu(): a missile missing you while blind prints "It misses." (period): not the adjacent 'I'
+    from tactics import combat, ctx
+    cur = {"s": _blind_I_snap([(11, 5)])}
+    sent = []
+
+    def do(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        return cur["s"]
+    _fuc_setup(monkeypatch, cur["s"], history=[(99, "It misses.")])
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "do", do)
+    combat.fight_until_clear(unseen=True, max_turns=3)
+    assert not any(k.startswith("F") for k, _f in sent)
+    # holding: it was left alone, then it starts hitting you — the next turn swings at it
+    sent.clear()
+    turn = {"t": 100}
+
+    def do_hold(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        turn["t"] += 1
+        cur["s"] = _blind_I_snap([(11, 5)], turn=turn["t"])
+        if turn["t"] >= 103:
+            ctx.game.history.append((turn["t"], "It hits!"))
+        return cur["s"]
+    _fuc_setup(monkeypatch, cur["s"], history=[])
+    monkeypatch.setattr(ctx, "do", do_hold)
+    combat.fight_until_clear(unseen=True, hold=8, max_turns=8)
+    assert ("Fl", False) in sent
+
+
+def test_eat_does_not_resume_under_attack_stoned_or_for_inventory_food(monkeypatch, capsys):
+    # review of 4c3f55f: "It bites! | You stop eating" (an unseen attacker), "Your limbs are stiffening." (the last
+    # turn to cure stoning) and inventory food (the bitten piece gets a new letter) must not auto-resume
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+
+    def snap(kind="command", prompt=None, msgs=(), conds=(), hp=40):
+        s = _snap({}, (10, 5), [])
+        s.state = State(kind, prompt=prompt)
+        s.status.hp, s.status.hpmax, s.status.conditions = hp, 40, list(conds)
+        s.messages = list(msgs)
+        return s
+    for stop, conds in ((["It bites!", "You stop eating the Grey-elf corpse."], ()),
+                        (["Your limbs are stiffening.", "You stop eating the Grey-elf corpse."], ("Stone",))):
+        base = snap()
+        frames = iter([snap("yn", "There is a Grey-elf corpse here; eat it? [ynq] (n)"),
+                       snap(msgs=stop, conds=conds, hp=35)])
+        cur = {"s": base}
+        sent = []
+
+        def fake_do(keys, **kw):
+            sent.append(keys)
+            cur["s"] = next(frames)
+            return cur["s"]
+        monkeypatch.setattr(ctx, "do", fake_do)
+        monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+        monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+        items.eat(pattern="Grey-elf corpse")
+        assert sent == ["e", "y"], stop
+        assert "not resuming" in capsys.readouterr().out
+    base = snap()
+    frames = iter([snap("object", "What do you want to eat? [fg or ?*]"),
+                   snap(msgs=["You are no longer invisible.", "You stop eating the food ration."])])
+    cur = {"s": base}
+    sent = []
+
+    def fake_do2(keys, **kw):
+        sent.append(keys)
+        cur["s"] = next(frames)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do2)
+    items.eat("f")
+    assert sent == ["e", "f"] and "partly eaten" in capsys.readouterr().out
+
+
+def test_major_cursed_needs_a_real_welded_weapon(monkeypatch):
+    # review of 4c3f55f: only weapons/weapon-tools weld (wield.c will_weld()); a cursed wielded corpse beside a
+    # cursed shield is minor trouble (praying at timeout 101-200 then is "too soon")
+    from tactics import ctx, survival
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    g.welded_weapon = ""
+    assert survival._major_cursed(["J - a cursed cockatrice corpse (weapon in hand)",
+                                   "c - a cursed +3 small shield (being worn)"]) == []
+    g.welded_weapon = "a - a cursed long sword (weapon in hand)"
+    assert len(survival._major_cursed(["a - a cursed long sword (weapon in hand)",
+                                       "c - a cursed +3 small shield (being worn)"])) == 2

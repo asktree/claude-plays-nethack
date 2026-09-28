@@ -701,11 +701,28 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     t0 = ctx.last().status.turn or 0
     kills: list = []
     best, idle = None, 0
-    felt: set = set()          # 'I' squares searched while blind (unseen=True)
-    passed: set = set()        # 'I' squares left alone: something there that never attacked
+    felt: set = set()          # 'I' squares a blind search already felt (unseen=True)
+    search_marked: set = set()  # 'I' squares that appeared because OUR search felt a monster there (pet, peaceful)
+    passed: set = set()        # 'I' squares left alone: couldn't tell it was the attacker
 
     def out(reason):
         return {"reason": reason, "kills": kills, "turns": (ctx.last().status.turn or t0) - t0}
+
+    def adjacent_I(s1) -> set:
+        h = s1.hero
+        return {(x, y) for x in range(h[0] - 1, h[0] + 2) for y in range(h[1] - 1, h[1] + 2)
+                if (x, y) != h and s1.screen.at(x, y) == "I"} if h is not None else set()
+
+    def search_step():
+        """One search: a blind search maps an 'I' on each monster it feels (detect.c mfind0(): "You feel an
+        unseen monster!") — pets and peacefuls too: remember those squares, they are no attacker's mark."""
+        before = adjacent_I(ctx.last())
+        s1 = ctx.do("s", ok=ROUTINE + [r"^You feel an unseen monster", r"^You find "])
+        after = adjacent_I(s1)
+        felt.update(before | after)
+        if any(m.startswith("You feel an unseen monster") for m in s1.messages):
+            search_marked.update(after - before)
+        return s1
 
     guard = ctx.monster_filter(dangerous) if ctx.monster_filter else contextlib.nullcontext()
     rules = getattr(ctx, "hp_rules", None)
@@ -753,39 +770,58 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                     return out(f"HP {s.status.hp}/{s.status.hpmax} below {stop_hp:.0%} with hostiles adjacent")
                 continue
             if unseen:
+                blind = "Blind" in (s.status.conditions if s.status.ok else ())
+                # (a passed 'I' stays a candidate while blind: it may start hitting you later)
                 ivs = [m for m in s.monsters or [] if m.get("unseen") and m.get("dist") == 1
-                       and (m["x"], m["y"]) not in passed]
+                       and (blind or (m["x"], m["y"]) not in passed)]
                 if not ivs and s.hero is not None:
                     # a WARNING digit next to you (display.c display_warning(): only ever a hostile you can't
                     # see — p1 shift 37: the invisible Wizard showed as a '4')
                     ivs = [{"x": s.hero[0] + dx, "y": s.hero[1] + dy} for dx in (-1, 0, 1) for dy in (-1, 0, 1)
                            if (dx or dy) and s.screen.at(s.hero[0] + dx, s.hero[1] + dy) in "12345"]
-                key = _key_toward(s.hero, ivs[0]) if ivs else None
-                blow_force = False
-                if key and s.screen.at(ivs[0]["x"], ivs[0]["y"]) == "I" \
-                        and "Blind" in (s.status.conditions if s.status.ok else ()):
-                    # blind, the harness refuses a blow at an 'I' (it may be a peaceful: NetHack doesn't ask).
-                    # A search feels the squares around you (detect.c dosearch0() -> feel_location()): a STALE
-                    # marker goes, a monster that is there stays 'I' (p2 shift 39 #302 / p1 shift 41: the
-                    # PermissionError ended the fight right when an unseen attacker stood there)
-                    tgt = (ivs[0]["x"], ivs[0]["y"])
+                adj_I = sorted((m["x"], m["y"]) for m in ivs if s.screen.at(m["x"], m["y"]) == "I") if blind else []
+                key = _key_toward(s.hero, ivs[0]) if ivs and not adj_I else None
+                if adj_I:
+                    # BLIND, next to remembered unseen monsters 'I': an F blow never asks (uhitm.c attack_checks():
+                    # context.forcefight) and the harness guard refuses it — a peaceful may stand there. A blind
+                    # search feels every square round you (detect.c dosearch0() -> feel_location()): a stale 'I'
+                    # goes; but it also MAPS an 'I' on every monster it feels (mfind0() -> map_invisible(): your
+                    # pet, a shopkeeper...) — never swing at one of those. (p2 shift 39 #302 / p1 shift 41 #128:
+                    # the PermissionError ended the fight; review of 4c3f55f: the forced blow hit the wrong 'I')
                     hider = any("hiding" in (m.get("desc") or "") and m.get("dist") == 1 for m in s.monsters or [])
-                    if tgt not in felt and not hider:
-                        felt.add(tgt)
-                        s = ctx.do("s", ok=ROUTINE + [r"^You feel an unseen monster", r"^You find "])
+                    if any(c not in felt for c in adj_I) and not hider:
+                        s = search_step()
                         kills += killed_names(s.messages, include_it=True)
                         continue
-                    if _unseen_attacked(s):
-                        blow_force = True           # something you can't see is hitting you: hostile
-                    else:
-                        passed.add(tgt)             # something is there but hasn't attacked (a peaceful?)
-                        print(f"fight_until_clear(): an unseen monster stays at {tgt} after a search but hasn't "
-                              "attacked you — left alone (fight(x, y, force=True) if it is hostile)")
-                        key = None
+                    cands = [c for c in adj_I if c not in search_marked]
+                    if len(cands) == 1 and _unseen_melee(s):
+                        # exactly one candidate, and something unseen MELEEd you ("It hits!" / "It misses!" — not a
+                        # missile's "It misses."): that one is the attacker — lift only the blind-'I' guard for it
+                        tgt = cands[0]
+                        passed.discard(tgt)
+                        ctx.game.blind_I_ok = tgt
+                        try:
+                            s = ctx.do("F" + _key_toward(s.hero, {"x": tgt[0], "y": tgt[1]}),
+                                       ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
+                                                     r"^Wait!  There's (?:something|\w+) there"])
+                        except PermissionError as e:
+                            # (a daemon whose core predates game.blind_I_ok)
+                            return out(f"blind: the guard refused the blow at the attacking 'I' {tgt} ({e}) — "
+                                       f"fight({tgt[0]}, {tgt[1]}, force=True) if it is attacking you")
+                        finally:
+                            ctx.game.blind_I_ok = None
+                        kills += killed_names(s.messages, include_it=True)
+                        continue
+                    new_pass = [c for c in adj_I if c not in passed]
+                    passed.update(adj_I)
+                    if new_pass:
+                        print("fight_until_clear(): blind, unseen monster(s) at " + ", ".join(map(str, adj_I))
+                              + (" — which one attacked can't be told" if len(cands) > 1 else
+                                 " — felt by your own search, or no melee attack from it") + ": left alone "
+                              "(fight(x, y, force=True) at the one hitting you)")
                 if key:
-                    s = ctx.do("F" + key, force=blow_force,
-                               ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
-                                             r"^Wait!  There's (?:something|\w+) there"])
+                    s = ctx.do("F" + key, ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
+                                                        r"^Wait!  There's (?:something|\w+) there"])
                     kills += killed_names(s.messages, include_it=True)
                     continue
             # (p2 shift 38 #526/#532/#623: the ignored species and HIDDEN trappers/lurkers above — they never come —
@@ -797,7 +833,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 # keep the square: wait for the next one to come — searching, unless a HIDDEN hider is next to you
                 # (an explicit search un-hides it: detect.c mfind0 — and it engulfs)
                 hider = any("hiding" in (m.get("desc") or "") and m.get("dist") == 1 for m in s.monsters or [])
-                s = ctx.do("." if hider else "s", ok=ROUTINE)
+                s = ctx.do(".", ok=ROUTINE) if hider else search_step()
                 kills += killed_names(s.messages, include_it=True)
                 continue
             if not near:
@@ -1067,6 +1103,21 @@ def _monsters_in_line(direction: str, maxlen: int = 13, s=None) -> list:
         if (x, y) in mons:
             out.append(mons[(x, y)])
     return out
+
+
+# mhitu.c hitmsg()/missmu(): a monster you can't see MELEEing you — "It hits!", "It bites!", "It misses!" /
+# "It just misses!" (mthrowu.c thitu()'s missile miss while blind is "It misses." with a period: not melee)
+_UNSEEN_MELEE = re.compile(r"^It (?:hits|bites|kicks|stings|butts)!$|^It touches you!$|^Its tentacles suck you!$|"
+                           r"^It (?:just )?misses!$")
+
+
+def _unseen_melee(s, turns: int = 3) -> bool:
+    """Did something you can't see MELEE you in the last `turns` turns?"""
+    now = s.status.turn if s.status.ok else None
+    if now is None:
+        return False
+    return any(t is not None and t >= now - turns and _UNSEEN_MELEE.search(m)
+               for t, m in list(getattr(ctx.game, "history", []))[-60:])
 
 
 # mhitu.c: a monster you can't see attacking you is "It" ("It hits!", "It bites!", "It misses.")

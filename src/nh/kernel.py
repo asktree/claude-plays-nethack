@@ -964,7 +964,8 @@ class Kernel:
         if view is None or view["key"] != key:
             view = self._thief_view = {"key": key, "in_view": False, "last": lt.get("turn") or turn}
         if lt.get("msg") in snap.messages:          # the theft itself (its own pause)
-            view.update(in_view=bool(now), last=turn)
+            # (gone at once — it teleported: any sighting after this is a return, even the next turn)
+            view.update(in_view=bool(now), last=turn if now else turn - 3)
             return None
         if not now:
             view["in_view"] = False

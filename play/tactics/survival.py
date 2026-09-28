@@ -334,9 +334,17 @@ def _major_cursed(cw: list) -> list:
     cursed blindfold or towel over your eyes (TROUBLE_CURSED_BLINDFOLD), cursed levitation boots / ring of
     levitation (TROUBLE_CURSED_LEVITATION), a welded weapon leaving no free hand — two-handed, or beside a
     cursed shield (TROUBLE_UNUSEABLE_HANDS). Other cursed worn items are minor (worst_cursed_item())."""
+    welded = getattr(ctx.game, "welded_weapon", None)
+    if welded is None:                      # (no inventory() since the daemon started: judge by the text)
+        from nh.game import is_weapon_text
+        welds = lambda t: is_weapon_text(t)     # noqa: E731
+    else:
+        welds = lambda t: bool(welded) and t == welded    # noqa: E731
+    # (pray.c: only weapons/weapon-tools weld (wield.c will_weld()) — a cursed wielded corpse, wand or lamp
+    # doesn't, and beside a cursed shield it is minor trouble: review of 4c3f55f)
     out = [t for t in cw if (re.search(r"\b(?:blindfold|towel)\b", t) and "(being worn)" in t)
-           or re.search(r"\blevitation\b", t) or "(weapon in hands)" in t]
-    wep = [t for t in cw if "(weapon in hand)" in t]
+           or re.search(r"\blevitation\b", t) or ("(weapon in hands)" in t and welds(t))]
+    wep = [t for t in cw if "(weapon in hand)" in t and welds(t)]
     shield = [t for t in cw if re.search(r"shield\b", t) and "(being worn)" in t]
     return out + (wep + shield if wep and shield else [])
 

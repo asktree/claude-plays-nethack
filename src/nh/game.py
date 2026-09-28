@@ -509,6 +509,7 @@ class Game:
         self.kicked_stones: dict[str, set] = {}   # level -> squares where a gray stone kick_test() slid landed
         self.unknown_buc: list[str] = []          # inventory(): items whose B/U/C isn't known ("w (a ring ...)")
         self.blindfolded: bool | None = None      # inventory(): wearing a blindfold/towel on purpose
+        self.blind_I_ok = None                    # (x, y): the next F blow there passes the blind-'I' guard only
         self.quest_given = False                  # the quest leader assigned the quest (its speech, or ^O's
                                                   # "Given quest by ..."): visits to it are harmless from then on
         self.real_xl: int | None = None    # last XL read while not polymorphed
@@ -1675,7 +1676,10 @@ class Game:
                         "tell what it is (a peaceful? a floating eye?) and NetHack does NOT ask 'Really attack?' "
                         "while you hallucinate. Wait it out, cure it (unicorn horn), or force=True if it is "
                         "certainly hostile (it attacked you).")
-                if "Blind" in conds and target == "I":
+                ok_sq, self.blind_I_ok = getattr(self, "blind_I_ok", None), None     # (one step only)
+                if "Blind" in conds and target == "I" and ok_sq != (tx, ty):
+                    # (game.blind_I_ok = (x, y): a helper that proved this 'I' is the attacker lifts THIS guard for
+                    # one blow — force=True would lift every guard: Conf/Stun, peacefuls, Elbereth)
                     raise PermissionError(
                         f"refusing to attack the remembered unseen monster 'I' at {(tx, ty)} while blind: it may be "
                         "a peaceful (shopkeeper, priest, watchman) and NetHack does not ask when it can't see "
@@ -2627,8 +2631,9 @@ class Game:
                 self.trice_wielders.setdefault(self.level_key(snap.status), {})[who] = snap.status.turn
 
     # "J - a cockatrice corpse." (pickup.c: the pickup's inventory line; a wielded one says "(weapon in hand)")
-    _TRICE_TAKEN = re.compile(r"^[a-zA-Z] - (?:an? |(?P<n>\d+) )?(?:(?:blessed|uncursed|cursed|partly eaten) )*"
-                              r"(?:cockatrice|chickatrice) corpses?\.$")
+    _TRICE_TAKEN = re.compile(r"^(?:You have a little trouble lifting )?[a-zA-Z] - (?:an? |(?P<n>\d+) )?"
+                              r"(?:(?:blessed|uncursed|cursed|partly eaten) )*(?:cockatrice|chickatrice) corpses?"
+                              r"(?: \(unpaid, \d+ zorkmids?\))?\.$")
 
     def _note_trice_taken(self, snap: Snap, messages: list) -> None:
         """You picked up a cockatrice corpse you killed: drop its kill record on your square, so the "corpse
