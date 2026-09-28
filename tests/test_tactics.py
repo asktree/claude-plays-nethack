@@ -641,6 +641,39 @@ def test_fight_until_clear_unseen_swings_at_a_warning_digit_and_fight_noise(monk
         assert any(re.search(p, m) for p in combat.ROUTINE), m
 
 
+def test_desmap_candidates_respect_the_dungeon_depths():
+    # p4 shift 3 #551/#2062: ordinary DL7 and the Oracle level (DL9) were taken for bigrm-1 (the Big Room exists
+    # only on DL10-12) and travel() walked the wrong map into rock
+    from tactics import desmap
+    names = lambda key: {m["level"] for m in desmap._candidates(key)}
+    assert not any(n.startswith("bigrm") for n in names("The Dungeons of Doom / Level 7"))
+    assert not any(n.startswith("bigrm") for n in names("The Dungeons of Doom / Level 9"))
+    assert any(n.startswith("bigrm") for n in names("The Dungeons of Doom / Level 11"))
+    assert not any(n.startswith(("medusa", "castle")) for n in names("The Dungeons of Doom / Level 12"))
+    assert any(n.startswith("medusa") for n in names("The Dungeons of Doom / Level 22"))
+    assert desmap._depth_ok("bigrm-3", "Gehennom / Level 40")          # other branches: no depth rule
+
+
+def test_lurk_zone_skips_squares_beside_you_and_a_thief_that_teleported(monkeypatch):
+    # p4 shift 3 #1351: a lurker pause for the nymph's last square, diagonal to the hero in a lit room, after she
+    # had stolen and teleported off
+    from tactics import ctx, nav
+
+    class Tr:
+        def gone(self, turn=None):
+            return [{"id": 1, "desc": "mumak", "x": 11, "y": 6, "turn": 98},
+                    {"id": 2, "desc": "mountain nymph", "x": 20, "y": 5, "turn": 95}]
+    g = _G()
+    g.tracker = Tr()
+    g.last_theft = {"turn": 96, "who": "The mountain nymph", "what": "a helm", "msg": "..."}
+    monkeypatch.setattr(ctx, "game", g)
+    s = _snap({5: "        " + "." * 30}, (10, 5), [])
+    s.status.turn, s.status.xl, s.status.hp, s.status.hpmax = 100, 1, 12, 12
+    assert nav.lurk_zone(s) == {}                  # the mumak's square is next to you: you'd see it
+    s.status.conditions = ["Blind"]
+    assert (11, 6) in nav.lurk_zone(s)             # blind: you wouldn't
+
+
 def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
     import pytest
     from tactics import ctx, nav

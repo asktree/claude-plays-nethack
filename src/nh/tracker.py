@@ -60,6 +60,18 @@ MON_TRAP_RE = re.compile(
     r"^A trigger appears in a pile of soil|pulls free\.\.\.|eats a bear trap|munches on some spikes")
 
 
+def _desmap_depth_ok(level: str, key: str) -> bool:
+    """A saved special-level placement that the Dungeons of Doom's structure rules out (dungeon.def: the Big Room
+    only on DL10-12, Medusa and the Castle at the bottom) is dropped on load — older harnesses placed bigrm-1 on
+    ordinary DL7 and on the Oracle level (p4 shift 3; tactics/desmap.py _DEPTHS filters new placements)."""
+    m = re.match(r"The Dungeons of Doom / Level (\d+)$", key or "")
+    if not m:
+        return True
+    n = int(m.group(1))
+    return all(lo <= n <= hi for pre, lo, hi in (("bigrm", 10, 12), ("medusa", 20, 60), ("castle", 24, 60))
+               if (level or "").startswith(pre))
+
+
 class Tracker:
     def __init__(self, game: Game, path: Path):
         self.game = game
@@ -121,7 +133,7 @@ class Tracker:
                     "kind": r[0], "prev": tuple(r[1]) if r[1] else None, "turn": r[2]} for c, r in lv["rooms"].items()}
             if lv.get("mimics") and isinstance(getattr(game, "mimics", None), dict):
                 game.mimics[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["mimics"].items()}
-            if lv.get("desmap"):
+            if lv.get("desmap") and _desmap_depth_ok(lv["desmap"].get("level", ""), key):
                 if getattr(game, "desmap_ids", None) is None:
                     game.desmap_ids = {}
                 game.desmap_ids.setdefault(key, dict(lv["desmap"]))

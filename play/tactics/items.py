@@ -164,9 +164,16 @@ def find_item(pattern: str, inv=None):
     return None
 
 
-def here():
-    """What's on the floor here (':' look). Takes no game time."""
-    ctx.require_command("here()")
+def here(force: bool = False):
+    """What's on the floor here (':' look). Takes no game time — except while BLIND: then feeling the floor costs
+    a turn (invent.c look_here() returns !!Blind; p2 shift 36 #12 lost a round to four attackers), so blind it
+    answers from what the harness saw on this square before (tagged "(remembered)") unless force=True."""
+    s0 = ctx.require_command("here()")
+    if not force and s0 is not None and s0.status.ok and "Blind" in s0.status.conditions:
+        txt = ctx.game._here_text(s0) if hasattr(ctx.game, "_here_text") else ""
+        print("here(): Blind — feeling the floor costs a turn; " + ("the harness's memory of this square: "
+              f"{txt!r}" if txt else "nothing remembered for this square") + " (here(force=True) feels it)")
+        return (txt.replace("\n", " | ") + " (remembered)") if txt else ""
     with ctx.no_monster_pauses():
         s = ctx.do(":", quiet=True)
     return " | ".join(s.messages)
@@ -1122,11 +1129,14 @@ def pickup(pattern: str | None = None, force: bool = False) -> list:
     you Stressed or worse) is answered no — the item stays and is named;
     force=True takes it ("a little trouble" = Burdened is taken). Returns the
     messages."""
-    ctx.require_command("pickup()")
+    s0 = ctx.require_command("pickup()")
+    blind = s0 is not None and s0.status.ok and "Blind" in s0.status.conditions
     look = here()
-    if "You see no objects here" in look or not look:
+    if ("You see no objects here" in look or not look) and not blind:
         print(f"pickup({pattern!r}): there are no objects here" + (f" ({look})" if look else ""))
         return []
+    if blind:
+        look = ""          # (a remembered look may be stale: the ',' menu itself tells what you feel)
     if pattern and pattern.strip().lower() in ("ring", "rings"):
         pattern = r"\brings?\b(?!\s+mail)"          # a ring, not a ring mail (250 weight)
     if pattern:

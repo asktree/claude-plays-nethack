@@ -1403,3 +1403,51 @@ def test_silent_teleport_pauses():
     assert "TELEPORTED" in check(b"20s", (10, 5), (60, 15))
     assert check(b"l", (10, 5), (11, 5)) == ""                    # a plain step
     assert check(b"_", (10, 5), (60, 15)) == ""                   # travel moves far on purpose
+
+
+def test_sokoban_no_teleport_suffix_only_for_thieves():
+    # p4 shift 3 #3447 (SAFETY): the floating eye's note ("... Corpse = telepathy.") got "BUT teleporting is
+    # blocked in Sokoban: corner it and kill it" appended — meleeing a floating eye paralyses you
+    class SokoGame(FakeGame):
+        def level_key(self, status=None):
+            return "Sokoban / Level 2"
+    g = SokoGame()
+    g.truth = {(42, 10): "floating eye", (44, 12): "water nymph"}
+    t = MonsterTracker(g)
+    ms = by_pos(t.update(snap({(42, 10): "e", (44, 12): "n"}, 100, color=4)))
+    assert "corner it" not in ms[(42, 10)]["note"] and "NEVER melee" in ms[(42, 10)]["note"]
+    assert "corner it and kill it" in ms[(44, 12)]["note"]
+
+
+
+def test_thief_back_in_view_pauses():
+    # p4 shift 3 #1386: the nymph that had just robbed you came back into view at d=9 with no pause
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    g.last_theft = {"turn": 100, "msg": "The mountain nymph stole a +0 orcish helm.", "what": "a +0 orcish helm",
+                    "who": "The mountain nymph"}
+    b, a = snap({}, 120), snap({}, 121)
+    b.monsters = []
+    a.monsters = [{"ch": "n", "x": 49, "y": 10, "desc": "mountain nymph", "dist": 9, "id": 7}]
+    a.theft_note = g.theft_note(121)
+    k._check_events(b, a)
+    assert reasons and reasons[-1].startswith("THIEF BACK in view: the mountain nymph at (49,10)")
+
+
+def test_summoned_burst_is_named():
+    # p2 shift 36 #389: the Wizard's summon nasties put 4 monsters round the hero with no message
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    b, a = snap({}, 200), snap({}, 201)
+    a.monsters = [{"ch": c, "x": 40 + dx, "y": 10 + dy, "desc": d, "new": True, "dist": 1, "id": 900 + i}
+                  for i, (c, dx, dy, d) in enumerate([("H", 1, 0, "storm giant"), ("U", -1, 0, "umber hulk"),
+                                                      ("D", 0, 1, "silver dragon"), ("A", 0, -1, "Aleax")])]
+    k._check_events(b, a)
+    assert reasons and reasons[-1].startswith("SUMMONED: 4 monsters appeared right around you")

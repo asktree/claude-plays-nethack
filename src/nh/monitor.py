@@ -446,7 +446,10 @@ class MonsterTracker:
                     # 3.6.7 vampire shape-shifting: a vampire lord (1 in 10) or Vlad without the Candelabrum
                     # (1 in 3) becomes a wolf; its "death" raises the vampire at full HP next to you
                     m["note"] = ((m["note"] + " — ") if m["note"] else "") + VAMP_WOLF_NOTE
-                if no_tele and "telep" in m["note"]:
+                if no_tele and re.search(r"\bteleports\b", m["note"]) and not _stationary(d) \
+                        and not re.search(r"NEVER melee", m["note"]):
+                    # (a thief's "steals ... and teleports": not "Corpse = telepathy" — p4 shift 3 #3447: the
+                    # floating eye's note ended "corner it and kill it", i.e. melee it = paralysis)
                     m["note"] += " — BUT teleporting is blocked in Sokoban: corner it and kill it"
 
         flags = getattr(self.game, "level_flags", None)

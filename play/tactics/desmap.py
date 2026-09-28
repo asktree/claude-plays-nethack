@@ -143,6 +143,21 @@ def _screen_cls(s) -> dict:
 MIN_CELLS = 20      # smaller maps (Juiblex's 8x5 stair pockets of 'x') match any floor anywhere: never candidates
 
 
+# dungeon.def: where the Dungeons of Doom's special levels can be (bigrm @ (10,3); medusa @ (-5,4) and the castle
+# @ (-1,0) at the bottom of a 25-29 level dungeon). p4 shift 3 #551/#2062: ordinary DL7 and the Oracle level (DL9)
+# were taken for bigrm-1, and travel() walked its map into solid rock. (The Oracle's own map isn't in the data: its
+# centre is a ROOM, not a MAP.)
+_DEPTHS = (("bigrm", 10, 12), ("medusa", 20, 60), ("castle", 24, 60))
+
+
+def _depth_ok(level: str, key: str) -> bool:
+    m = re.match(r"The Dungeons of Doom / Level (\d+)$", key or "")
+    if not m:
+        return True
+    n = int(m.group(1))
+    return all(lo <= n <= hi for pre, lo, hi in _DEPTHS if level.startswith(pre))
+
+
 def _candidates(key: str, names=None) -> list:
     if names:
         want = {names} if isinstance(names, str) else set(names)
@@ -150,7 +165,8 @@ def _candidates(key: str, names=None) -> list:
     files = next((f for pre, f in _CONTEXT if key.startswith(pre)), None)
     if key in ENDGAME:
         files = ("endgame.des",)
-    return [m for m in maps() if (files is None or m["file"] in files) and _size(m) >= MIN_CELLS]
+    return [m for m in maps() if (files is None or m["file"] in files) and _size(m) >= MIN_CELLS
+            and _depth_ok(m["level"], key)]
 
 
 def _size(m: dict) -> int:
@@ -459,7 +475,9 @@ def identify(names=None, s=None, min_score: int = 30, remember: bool = True) -> 
                 runner = max(runner, second)
             elif m["rows"] != best["rows"]:
                 runner = max(runner, sc)
-        if best is None or best["score"] < min_score or best["bad"] * 4 > best["good"]:
+        if best is None or best["score"] < min_score or best["bad"] * 4 > best["good"] \
+                or (best["level"].startswith("bigrm") and best["bad"] * 10 > best["good"]):
+            # (the Big Room is one open lit room: walls or rock inside it are a strong no)
             return None
     best.pop("rows", None)
     if runner >= best["score"] - max(4, best["score"] // 10):

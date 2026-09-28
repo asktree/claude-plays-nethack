@@ -61,6 +61,7 @@ class Snap:
     feature_desc: dict = field(default_factory=dict)   # {(x, y): "trap door"} looked up on this level
     feature_mem: dict = field(default_factory=dict)    # {(x, y): '<'/'>'/'{'/'_'/'\\'/'^' portal/'~' vib. square}
     theft_note: str = ""       # set for a while after a monster stole something from you
+    charm_note: str = ""       # armor a nymph's charm took off and nobody put on again
     rogue: bool = False        # the Rogue level: no colours, '%' stairs, '+' doorways, ':' food, ']' armor...
     floor_mem: set = field(default_factory=set)   # Rogue level: floor seen before (dark rooms forget it)
     flags: set = field(default_factory=set)       # this level's flags ("rogue", "castle", "medusa?", "medusa"...)
@@ -986,11 +987,31 @@ class Game:
             if mem is not None and isinstance(getattr(mem, "state", None), dict):
                 mem.state["quest_given"] = True
 
+    _CHARMED_OFF = re.compile(r"^You gladly (?:start removing|continue removing|hand over|let (?:her|him) take) "
+                              r"your (?P<what>.+?)\.$")
+
     def _note_theft(self, messages: list[str], turn) -> None:
         for m in messages:
+            cm = self._CHARMED_OFF.search(m)
+            if cm:
+                # steal.c: a nymph's/foocubus's charm takes armor OFF first; a second charm can replace the
+                # steal target and leave the first piece unworn in your pack (p4 shift 3 #1346: the gray dragon
+                # scale mail — no MR, AC 4 — and only the AC number said so)
+                self.charmed_off = [c for c in (getattr(self, "charmed_off", None) or [])
+                                    if c["what"] != cm.group("what")] + [{"turn": turn, "what": cm.group("what")}]
+                continue
+            co = getattr(self, "charmed_off", None)
+            if co and (re.search(r"^You finish your dressing maneuver|^You are now wearing ", m)
+                       or re.match(r"^[a-zA-Z] - .*\(being worn\)", m)):
+                word = m.lower()
+                self.charmed_off = [c for c in co if c["what"].split()[-1].lower() not in word]
             mm = self.THEFT_RE.search(m)
             if mm and " from " not in (mm.group("what") or "") and "some gold from" not in m:
-                self.last_theft = {"turn": turn, "msg": m, "what": (mm.group("what") or "gold").strip()}
+                self.last_theft = {"turn": turn, "msg": m, "what": (mm.group("what") or "gold").strip(),
+                                   "who": (mm.group("who") or "").strip()}
+                if co:
+                    stolen = (mm.group("what") or "").lower()
+                    self.charmed_off = [c for c in co if c["what"].split()[-1].lower() not in stolen]
                 continue
             lt = self.last_theft
             if lt and re.match(r"^[a-zA-Z$] - ", m):
@@ -1051,6 +1072,16 @@ class Game:
                 + (f" at {pl['at']}" if pl.get("at") else "") + (f" ({pl['why']})" if pl.get("why") else "")
                 + f", T:{pl['turn']}: go back for it (a pet follows only from a square next to you), or go on "
                   "without it")
+
+    def charm_note(self, turn) -> str:
+        """Armor a charm took off that isn't known to be worn again (or stolen), else ''."""
+        co = [c for c in (getattr(self, "charmed_off", None) or [])
+              if turn is not None and c.get("turn") is not None and 0 <= turn - c["turn"] <= 500]
+        if not co:
+            return ""
+        return ("a charm took OFF your " + ", ".join(f"{c['what']} (T:{c['turn']})" for c in co)
+                + " — NOT WORN now: W to wear it again (its AC — and magic resistance/reflection, if it gave them — "
+                  "are gone meanwhile)")
 
     def theft_note(self, turn) -> str:
         lt = self.last_theft
@@ -1167,6 +1198,27 @@ class Game:
             # one shop per shopkeeper: a new welcome replaces a wrong old record of the same shop
             lst[:] = [e for e in lst if (e[2] < x1 or e[0] > x2 or e[3] < y1 or e[1] > y2) and e[4] != name]
             lst.append([x1, y1, x2, y2, name])
+
+    def _validate_shops(self, snap: Snap) -> None:
+        """Drop a recorded shop room whose ring (the walls round it) shows open floor in 2+ places on the screen:
+        an older harness recorded the street outside east/south doors as the shop (p4 shift 3 #24: the stale
+        records survived the fix); a real shop's ring is wall but for its one door."""
+        if not snap.status.ok or snap.hero is None:
+            return
+        lst = self.shops.get(self.level_key(snap.status))
+        if not lst:
+            return
+        scr = snap.screen
+        keep = []
+        for e in lst:
+            x1, y1, x2, y2 = e[:4]
+            ring = [(cx, cy) for cx in range(x1 - 1, x2 + 2) for cy in (y1 - 1, y2 + 1)] + \
+                   [(cx, cy) for cy in range(y1, y2 + 1) for cx in (x1 - 1, x2 + 1)]
+            open_ = sum(1 for c in ring if scr.at(*c) in ".#" and c != snap.hero)
+            if open_ < 2:
+                keep.append(e)
+        if len(keep) != len(lst):
+            lst[:] = keep
 
     def shop_at(self, cell, status: Status | None = None) -> str:
         """The name of the known shop that `cell` is in — its interior or its
@@ -1978,6 +2030,7 @@ class Game:
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
                     self._note_special_room(snap, messages, prev_hero=cur.hero if cur is not None else None)
                     self._note_shop(snap, messages, prev_hero=cur.hero if cur is not None and not moved else None)
+                    self._validate_shops(snap)
                     if (cur.state.kind == "direction" or b"z" in data[:2]) and data[-1:] == b">":
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
                         # moves or erases the engraving here without a word (zap.c)
@@ -2391,6 +2444,7 @@ class Game:
         snap.feature_desc = self.feature_desc.setdefault(key, {}) if key is not None else {}
         snap.feature_mem = dict(self.terrain_seen.get(key, {})) if key is not None else {}
         snap.theft_note = self.theft_note(snap.status.turn if snap.status.ok else None)
+        snap.charm_note = self.charm_note(snap.status.turn if snap.status.ok else None)
         snap.pet_note = self.pet_left_note(snap)
         snap.rogue = key is not None and "rogue" in self.level_flags.get(key, ())
         snap.medusa_risk = self._medusa_risk(snap, key)

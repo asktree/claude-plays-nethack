@@ -577,6 +577,18 @@ class Kernel:
         lt = getattr(self.game, "last_theft", None)
         if lt and lt.get("msg") in snap.messages and getattr(snap, "theft_note", ""):
             reasons.insert(0, "THEFT — " + snap.theft_note)
+        elif lt and getattr(snap, "theft_note", "") and before is not None and snap.monsters is not None:
+            # the thief coming back into view (p4 shift 3 #1386: the nymph returned at d=9, not "new", no pause)
+            from .danger import base_name
+            thief = base_name(re.sub(r"^(?:The|the) ", "", lt.get("who") or ""))
+            if thief and thief.lower() not in ("she", "he", "it", "someone"):
+                now = [m for m in snap.monsters if base_name(m.get("desc") or "") == thief
+                       and not m.get("tame") and not m.get("peaceful") and not m.get("statue")]
+                was = [m for m in (before.monsters or []) if base_name(m.get("desc") or "") == thief]
+                if now and not was:
+                    reasons.insert(0, f"THIEF BACK in view: the {thief} at ({now[0]['x']},{now[0]['y']}) — it stole "
+                                      f"{lt.get('what')} at T:{lt.get('turn')}: kill it to get it back (at range if "
+                                      "you can: it steals again and teleports off), or keep away")
         if getattr(snap, "niche_note", ""):
             reasons.insert(0, "TRAPPED CLOSET — " + snap.niche_note)
         if getattr(snap, "room_note", ""):
@@ -761,6 +773,14 @@ class Kernel:
             if snap.monsters:
                 new = [m for m in snap.monsters if m.get("new") and not m.get("statue")
                        and not m.get("tame") and not m.get("peaceful")]
+                burst = [m for m in new if m.get("dist") is not None and m["dist"] <= 2]
+                if len(burst) >= 3:
+                    # wizard.c nasty() / a demon gate / create monster: several monsters appear around you at once
+                    # with no message (p2 shift 36 #389: a storm giant, umber hulk, silver dragon and Aleax)
+                    reasons.insert(0, f"SUMMONED: {len(burst)} monsters appeared right around you at once ("
+                                      + ", ".join(m.get("desc") or m["ch"] for m in burst[:5])
+                                      + ") — the Wizard's summon nasties or a gate: get out (teleport, levelport, "
+                                        "stairs; Elbereth doesn't stop @ or minotaurs) or fight from a corridor")
                 if new and self.new_monster_filter is not None:
                     try:
                         new = [m for m in new if self.new_monster_filter(m)]

@@ -1102,6 +1102,49 @@ def test_shop_rect_on_east_and_south_doors_in_minetown():
                                               [29, 11, 31, 13, "Izchak's lighting store"]]
 
 
+def test_stale_street_shop_records_are_dropped_and_charm_note(tmp_path):
+    # p4 shift 3 #24: shop rectangles recorded by the old harness (the street) survived the fix
+    import json
+    from nh.game import Snap
+    from nh.parse import State
+    from nh.tracker import Tracker
+    status = {22: STATUS1, 23: "Dlvl:8 $:107 HP:69(78) Pw:10(10) AC:3 Xp:7 T:4131"}
+    rows = {10: '                            -----',
+            11: '                            |(((|  -----',
+            12: '                        +   |@((|   ....',
+            13: '                        |.  |..G|  -...   --+----------',
+            14: '                       --...--.--  |..-    ...........',
+            15: '                       |......(.|  |..|  -----....--------',
+            16: '                       |  #.....----..|  |%..-....|......|',
+            17: '                        -....{........|  |%!.|....-....).|',
+            18: '                        -..|....#.....--------....|......|',
+            19: '                        .. --.....................|-------',
+            20: '                      -..-  --------..-------.-...|'}
+    g = _guard_game()
+    scr = mk({**rows, **status}, cursor=(25, 17))
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+    key = g.level_key(s.status)
+    g.shops[key] = [[24, 15, 31, 19, "Izchak's lighting store"], [29, 11, 31, 13, "Izchak's lighting store"]]
+    g._validate_shops(s)
+    assert g.shops[key] == [[29, 11, 31, 13, "Izchak's lighting store"]]
+    # a nymph's charm takes armor off; a 2nd charm can leave it unworn in the pack (p4 shift 3 #1346)
+    g._note_theft(["The mountain nymph charms you.", "You gladly start removing your dragon mail."], 5057)
+    g._note_theft(["You gladly start removing your helm.", "The mountain nymph stole a +0 orcish helm."], 5059)
+    note = g.charm_note(5060)
+    assert "dragon mail" in note and "helm" not in note and "NOT WORN" in note
+    g._note_theft(["d - a +2 gray dragon scale mail (being worn)."], 5070)
+    assert g.charm_note(5071) == ""
+    # a saved Big Room placement on ordinary DL7 (older harness) is dropped on load
+    path = tmp_path / "harness_state.json"
+    path.write_text(json.dumps({"levels": {
+        "The Dungeons of Doom / Level 7": {"desmap": {"level": "bigrm-1", "index": 0, "ox": 3, "oy": 3}},
+        "The Dungeons of Doom / Level 11": {"desmap": {"level": "bigrm-2", "index": 0, "ox": 3, "oy": 3}}}}))
+    g2 = _guard_game()
+    Tracker(g2, path)
+    assert "The Dungeons of Doom / Level 7" not in g2.desmap_ids
+    assert g2.desmap_ids["The Dungeons of Doom / Level 11"]["level"] == "bigrm-2"
+
+
 def test_shop_rect_spellbook_and_dark_street():
     """A spellbook '+' in the scan line doesn't end the shop scan; when the walls can't tell (a dark street), the
     side you came from is the outside."""

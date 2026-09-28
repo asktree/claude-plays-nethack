@@ -1002,6 +1002,13 @@ def lurk_zone(s=None) -> dict:
                 or _passive_only(r):
             continue
         name = base_name(d)
+        if s.hero is not None and "Blind" not in s.status.conditions \
+                and max(abs(r["x"] - s.hero[0]), abs(r["y"] - s.hero[1])) <= 1:
+            continue                  # next to you and not shown: it isn't there (p4 shift 3 #1351)
+        lt = getattr(ctx.game, "last_theft", None) or {}
+        if lt.get("turn") is not None and lt["turn"] >= (r.get("turn") or 0) \
+                and base_name(re.sub(r"^(?:The|the) ", "", lt.get("who") or "")) == name:
+            continue                  # it stole and teleported off (steal.c): nothing lurks where it stood
         lvl = threat_level(d, s.status.xl, hp, getattr(ctx.game, "intrinsics", ()))
         if lvl == "trivial" or (lvl != "dangerous" and not (hp and max_hit(name) * 3 >= hp)):
             continue
