@@ -45,3 +45,16 @@ ack T1777 (orchestrator): pulled and restarted the live daemon before shift 3. S
 - dead_ends() missed the spur end (58,13): an end square touching the last corridor square and its diagonal (two
   neighbours, both on one side) now counts; an L-bend's corner doesn't.
 - (the coach doesn't edit your harness_notes.md — mark those two items done there yourself)
+
+## Observations at T:2678 (DL6, Gnomish Mines, XL3, HP 22/36, Hungry)
+
+- **Food is thin**: 2 tripe rations. Tripe gives 200 nutrition but a 50% chance of vomiting for a non-orc (eat.c).
+  Eat it anyway rather than go Weak. Fresh safe corpses (eat() / the corpse verdict) stretch it. Giant ants give
+  only 10 nutrition. Never eat a dwarf (cannibalism for you; the harness refuses). If you do reach **Weak**, PRAY:
+  you have never prayed, T > 1000, Luck ≥ 0, so Weak is major trouble your god fixes (it also heals you).
+- Giant ants are fast biters; at HP 22/36 and XL3, fight them one at a time from a corridor or doorway. Elbereth
+  scares them, which works well for a rest.
+- The level teleporter `^` seen on DL6: never step on it without teleport control. It can drop you far deeper
+  (the harness avoids known traps; don't force it).
+- Minetown is usually Mines level 3-4 (DL 5-8 here): the temple priest (buy protection later at 400×XL gold,
+  co-aligned altar for BUC) and shops. No fountain dipping, door kicking or anything the Watch minds.
