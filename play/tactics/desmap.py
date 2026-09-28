@@ -615,6 +615,35 @@ def features(s=None, names=None) -> list:
     return [dict(ft, x=ft["x"] + f["ox"], y=ft["y"] + f["oy"]) for ft in m["features"]]
 
 
+def objects(s=None, names=None, name: str | None = None) -> list:
+    """The level file's fixed objects in SCREEN coordinates: [{"name", "squares", "one_of", "contents"?}] —
+    "one_of": a shuffled $place list, the object lies on ONE of those squares (Mines' End's luckstone, the
+    Castle's wand-of-wishing chest, Sokoban's prize, Perseus' statue); `name` filters (a substring)."""
+    m, f = _current(s, names)
+    out = []
+    for o in m.get("objects") or ():
+        if name and name.lower() not in (o["name"] + " " + " ".join(o.get("contents") or ())).lower():
+            continue
+        out.append(dict(o, squares=[(x + f["ox"], y + f["oy"]) for x, y in o["squares"]]))
+    return out
+
+
+def _objects_lines(objs: list) -> list:
+    """show()'s object lines: fixed squares one by one; a shuffled list once, with everything placed on it."""
+    lines, shared = [], {}
+    for o in objs:
+        what = o["name"] + (f" (holding {', '.join(o['contents'])})" if o.get("contents") else "")
+        if o["one_of"] and len(o["squares"]) > 1:
+            shared.setdefault(tuple(o["squares"]), {}).setdefault(o.get("slot") or what, []).append(what)
+        else:
+            lines.append(f"  object     {o['squares'][0]} {what}")
+    for sq, slots in shared.items():
+        # (each $place[N] is a different one of the shuffled squares; things on the same slot lie together)
+        lines.append(f"  shuffled spots {', '.join(map(str, sq))}: " + "; ".join(
+            ("one spot: " if k == 0 else "another: ") + " + ".join(w) for k, w in enumerate(slots.values())))
+    return lines
+
+
 # secret doors the .des maps don't place at a fixed square: (map rectangle of the room, walls, source)
 RANDOM_SDOORS = {
     "wizard1": ((12, 1, 20, 9), "south, east or west", "mkmaze.c fixup_special(): the Wizard's room"),
@@ -647,6 +676,7 @@ def show(s=None, names=None) -> str:
         lines.append(f"  {ft['kind']:10} ({ft['x']},{ft['y']}) {detail}")
     if secret:
         lines.append(f"  secret doors: {secret[:20]}" + (" ..." if len(secret) > 20 else ""))
+    lines += _objects_lines(objects(s, names))
     groups = [v for v in variants(s, names) if len(v["cells"]) > 1 or v["p"] >= 50]
     for v in groups[:8]:
         state = {True: "HAPPENED (seen)", False: "did not happen (seen)", None: "not seen yet"}[v["state"]]

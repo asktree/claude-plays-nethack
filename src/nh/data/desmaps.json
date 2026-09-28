@@ -270,6 +270,18 @@
 "y": 19,
 "detail": "a random 'S' (class)"
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+25,
+10
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -560,6 +572,18 @@
 "y": 14,
 "detail": "Minion of Huhetotl"
 }
+],
+"objects": [
+{
+"name": "crystal ball",
+"squares": [
+[
+50,
+14
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -832,6 +856,18 @@
 ".",
 "T"
 ]
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+9,
+5
+]
+],
+"one_of": false
 }
 ]
 },
@@ -1135,6 +1171,18 @@
 "y": 4,
 "detail": "Thoth Amon"
 }
+],
+"objects": [
+{
+"name": "luckstone",
+"squares": [
+[
+63,
+4
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -1327,6 +1375,18 @@
 "x": 69,
 "y": 11,
 "detail": "bugbear"
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+34,
+2
+]
+],
+"one_of": false
 }
 ]
 },
@@ -1528,6 +1588,18 @@
 "y": 11,
 "detail": "shrieker"
 }
+],
+"objects": [
+{
+"name": "mace",
+"squares": [
+[
+23,
+10
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -1717,6 +1789,18 @@
 "."
 ]
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+37,
+10
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -1814,6 +1898,28 @@
 "x": 20,
 "y": 6,
 "detail": "Cyclops"
+}
+],
+"objects": [
+{
+"name": "quarterstaff",
+"squares": [
+[
+20,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "wand of lightning",
+"squares": [
+[
+20,
+6
+]
+],
+"one_of": false
 }
 ]
 },
@@ -2093,6 +2199,18 @@
 "x": 36,
 "y": 0,
 "detail": "quasit"
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+9,
+7
+]
+],
+"one_of": false
 }
 ]
 },
@@ -2465,6 +2583,18 @@
 "x": 50,
 "y": 6,
 "detail": "Ixoth"
+}
+],
+"objects": [
+{
+"name": "mirror",
+"squares": [
+[
+50,
+6
+]
+],
+"one_of": false
 }
 ]
 },
@@ -2846,6 +2976,23 @@
 "y": 5,
 "detail": "up"
 }
+],
+"objects": [
+{
+"name": "lenses",
+"squares": [
+[
+14,
+4
+],
+[
+13,
+7
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+}
 ]
 },
 {
@@ -3167,6 +3314,18 @@
 "T"
 ]
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+27,
+10
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -3279,6 +3438,23 @@
 "x": 20,
 "y": 5,
 "detail": "up"
+}
+],
+"objects": [
+{
+"name": "helm of brilliance",
+"squares": [
+[
+14,
+4
+],
+[
+13,
+7
+]
+],
+"one_of": true,
+"slot": "$place[0]"
 }
 ]
 },
@@ -3503,6 +3679,18 @@
 "x": 21,
 "y": 17,
 "detail": "forest centaur"
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+20,
+10
+]
+],
+"one_of": false
 }
 ]
 },
@@ -3787,6 +3975,28 @@
 "x": 33,
 "y": 9,
 "detail": "scorpion"
+}
+],
+"objects": [
+{
+"name": "bow",
+"squares": [
+[
+37,
+10
+]
+],
+"one_of": false
+},
+{
+"name": "chest",
+"squares": [
+[
+37,
+10
+]
+],
+"one_of": false
 }
 ]
 },
@@ -4210,6 +4420,18 @@
 "y": 18,
 "detail": "water nymph"
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+36,
+11
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -4241,7 +4463,19 @@
 "|...........|............................-----                |....|",
 "------------------------------------------                    ------"
 ],
-"features": []
+"features": [],
+"objects": [
+{
+"name": "scroll of teleportation",
+"squares": [
+[
+11,
+18
+]
+],
+"one_of": false
+}
+]
 },
 {
 "level": "Rog-goal",
@@ -4308,6 +4542,28 @@
 "x": 58,
 "y": 10,
 "detail": "shark"
+}
+],
+"objects": [
+{
+"name": "skeleton key",
+"squares": [
+[
+38,
+10
+]
+],
+"one_of": false
+},
+{
+"name": "tin",
+"squares": [
+[
+26,
+12
+]
+],
+"one_of": false
 }
 ]
 },
@@ -4537,6 +4793,18 @@
 "x": 68,
 "y": 2,
 "detail": "ninja"
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+20,
+4
+]
+],
+"one_of": false
 }
 ]
 },
@@ -4948,6 +5216,18 @@
 "y": 10,
 "detail": "Ashikaga Takauji"
 }
+],
+"objects": [
+{
+"name": "tsurugi",
+"squares": [
+[
+22,
+10
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -5264,6 +5544,18 @@
 "y": 9,
 "detail": "kraken"
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+64,
+3
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -5516,6 +5808,28 @@
 "x": 73,
 "y": 16,
 "detail": "closed"
+}
+],
+"objects": [
+{
+"name": "scroll of blank paper",
+"squares": [
+[
+71,
+12
+]
+],
+"one_of": false
+},
+{
+"name": "scroll of blank paper",
+"squares": [
+[
+71,
+12
+]
+],
+"one_of": false
 }
 ]
 },
@@ -5836,6 +6150,18 @@
 "y": 10,
 "detail": "watchman"
 }
+],
+"objects": [
+{
+"name": "credit card",
+"squares": [
+[
+4,
+1
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -6023,6 +6349,18 @@
 "y": 16,
 "detail": "fire giant"
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+36,
+10
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -6190,6 +6528,18 @@
 "x": 24,
 "y": 10,
 "detail": "fire giant"
+}
+],
+"objects": [
+{
+"name": "crystal ball",
+"squares": [
+[
+17,
+8
+]
+],
+"one_of": false
 }
 ]
 },
@@ -6457,6 +6807,18 @@
 ".",
 "C"
 ]
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+24,
+5
+]
+],
+"one_of": false
 }
 ]
 },
@@ -6828,6 +7190,18 @@
 "x": 41,
 "y": 11,
 "detail": "prisoner"
+}
+],
+"objects": [
+{
+"name": "amulet of ESP",
+"squares": [
+[
+16,
+11
+]
+],
+"one_of": false
 }
 ]
 },
@@ -7772,6 +8146,67 @@
 "x": 57,
 "y": 16,
 "detail": "shark"
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+4,
+2
+],
+[
+58,
+2
+],
+[
+4,
+14
+],
+[
+58,
+14
+]
+],
+"one_of": true,
+"slot": "$place[0]",
+"contents": [
+"wand of wishing"
+]
+},
+{
+"name": "scroll of scare monster",
+"squares": [
+[
+4,
+2
+],
+[
+58,
+2
+],
+[
+4,
+14
+],
+[
+58,
+14
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "chest",
+"squares": [
+[
+37,
+8
+]
+],
+"one_of": false
 }
 ]
 },
@@ -10789,6 +11224,128 @@
 ]
 ]
 }
+],
+"objects": [
+{
+"name": "diamond",
+"squares": [
+[
+19,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "diamond",
+"squares": [
+[
+20,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "diamond",
+"squares": [
+[
+21,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "emerald",
+"squares": [
+[
+19,
+13
+]
+],
+"one_of": false
+},
+{
+"name": "emerald",
+"squares": [
+[
+20,
+13
+]
+],
+"one_of": false
+},
+{
+"name": "emerald",
+"squares": [
+[
+21,
+13
+]
+],
+"one_of": false
+},
+{
+"name": "ruby",
+"squares": [
+[
+46,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "ruby",
+"squares": [
+[
+47,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "ruby",
+"squares": [
+[
+48,
+6
+]
+],
+"one_of": false
+},
+{
+"name": "amethyst",
+"squares": [
+[
+46,
+13
+]
+],
+"one_of": false
+},
+{
+"name": "amethyst",
+"squares": [
+[
+47,
+13
+]
+],
+"one_of": false
+},
+{
+"name": "amethyst",
+"squares": [
+[
+48,
+13
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -10933,6 +11490,24 @@
 "x": 38,
 "y": 12,
 "detail": "a random 'S' (class)"
+}
+],
+"objects": [
+{
+"name": "statue of Perseus",
+"squares": [
+[
+36,
+10
+]
+],
+"one_of": false,
+"contents": [
+"shield of reflection (75%)",
+"levitation boots (25%)",
+"scimitar (50%)",
+"sack (50%)"
+]
 }
 ]
 },
@@ -11109,6 +11684,104 @@
 "y": 11,
 "detail": "yellow light"
 }
+],
+"objects": [
+{
+"name": "statue of Perseus",
+"squares": [
+[
+68,
+10
+]
+],
+"one_of": false,
+"contents": [
+"shield of reflection (25%)",
+"levitation boots (75%)",
+"scimitar (50%)",
+"sack (50%)"
+]
+},
+{
+"name": "statue",
+"squares": [
+[
+64,
+8
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+65,
+8
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+64,
+9
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+65,
+9
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+64,
+10
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+65,
+10
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+64,
+11
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+65,
+11
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -11163,6 +11836,53 @@
 "x": 48,
 "y": 15,
 "detail": "locked"
+}
+],
+"objects": [
+{
+"name": "statue of Perseus",
+"squares": [
+[
+8,
+6
+],
+[
+66,
+5
+],
+[
+46,
+15
+]
+],
+"one_of": true,
+"slot": "$place[2]",
+"contents": [
+"shield of reflection (75%)",
+"levitation boots (25%)",
+"scimitar (50%)",
+"sack (50%)"
+]
+},
+{
+"name": "scroll of blank paper",
+"squares": [
+[
+48,
+18
+]
+],
+"one_of": false
+},
+{
+"name": "scroll of blank paper",
+"squares": [
+[
+48,
+18
+]
+],
+"one_of": false
 }
 ]
 },
@@ -11263,6 +11983,57 @@
 "y": 5,
 "detail": "baby yellow dragon",
 "cond": true
+}
+],
+"objects": [
+{
+"name": "crystal ball",
+"squares": [
+[
+7,
+8
+]
+],
+"one_of": false
+},
+{
+"name": "statue of Perseus",
+"squares": [
+[
+4,
+8
+],
+[
+10,
+4
+],
+[
+10,
+8
+],
+[
+10,
+12
+]
+],
+"one_of": true,
+"slot": "$place[1]",
+"contents": [
+"shield of reflection (75%)",
+"levitation boots (25%)",
+"scimitar (50%)",
+"sack (50%)"
+]
+},
+{
+"name": "egg",
+"squares": [
+[
+5,
+4
+]
+],
+"one_of": false
 }
 ]
 },
@@ -11427,6 +12198,817 @@
 "|",
 "."
 ]
+}
+],
+"objects": [
+{
+"name": "corpse",
+"squares": [
+[
+20,
+12
+]
+],
+"one_of": false
+},
+{
+"name": "corpse",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "corpse",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "corpse",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "corpse",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "corpse",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[4]"
+},
+{
+"name": "wax candle",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "wax candle",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "wax candle",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "tallow candle",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "tallow candle",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "tallow candle",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "oil lamp",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "wand of striking",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "wand of striking",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "wand of striking",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[4]"
+},
+{
+"name": "wand of magic missile",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[4]"
+},
+{
+"name": "wand of magic missile",
+"squares": [
+[
+5,
+4
+],
+[
+9,
+5
+],
+[
+13,
+4
+],
+[
+26,
+4
+],
+[
+31,
+5
+],
+[
+30,
+14
+],
+[
+5,
+14
+],
+[
+10,
+13
+],
+[
+26,
+14
+],
+[
+27,
+13
+]
+],
+"one_of": true,
+"slot": "$place[0]"
 }
 ]
 },
@@ -11852,6 +13434,28 @@
 ]
 ]
 }
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+73,
+19
+]
+],
+"one_of": false
+},
+{
+"name": "statue",
+"squares": [
+[
+38,
+15
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -12088,6 +13692,778 @@
 "y": 4,
 "detail": "up"
 }
+],
+"objects": [
+{
+"name": "diamond",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "emerald",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "worthless piece of violet glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "a MIMIC posing as a luckstone",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "worthless piece of white glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "emerald",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "amethyst",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "a MIMIC posing as a loadstone",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[1]"
+},
+{
+"name": "diamond",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "worthless piece of green glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "amethyst",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "a MIMIC posing as a flint",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[2]"
+},
+{
+"name": "worthless piece of white glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "emerald",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "worthless piece of violet glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "a MIMIC posing as a touchstone",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[3]"
+},
+{
+"name": "worthless piece of red glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[4]"
+},
+{
+"name": "ruby",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[4]"
+},
+{
+"name": "loadstone",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[4]"
+},
+{
+"name": "ruby",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[5]"
+},
+{
+"name": "worthless piece of red glass",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[5]"
+},
+{
+"name": "luckstone",
+"squares": [
+[
+8,
+16
+],
+[
+13,
+7
+],
+[
+21,
+8
+],
+[
+41,
+14
+],
+[
+50,
+4
+],
+[
+50,
+16
+],
+[
+66,
+1
+]
+],
+"one_of": true,
+"slot": "$place[5]"
+}
 ]
 },
 {
@@ -12250,6 +14626,178 @@
 ]
 ]
 }
+],
+"objects": [
+{
+"name": "potion of booze",
+"squares": [
+[
+10,
+7
+]
+],
+"one_of": false
+},
+{
+"name": "potion of booze",
+"squares": [
+[
+10,
+7
+]
+],
+"one_of": false
+},
+{
+"name": "potion of booze",
+"squares": [
+[
+10,
+8
+]
+],
+"one_of": false
+},
+{
+"name": "potion of booze",
+"squares": [
+[
+10,
+8
+]
+],
+"one_of": false
+},
+{
+"name": "potion of booze",
+"squares": [
+[
+10,
+9
+]
+],
+"one_of": false
+},
+{
+"name": "potion of booze",
+"squares": [
+[
+10,
+9
+]
+],
+"one_of": false
+},
+{
+"name": "potion of object detection",
+"squares": [
+[
+10,
+9
+]
+],
+"one_of": false
+},
+{
+"name": "luckstone",
+"squares": [
+[
+70,
+5
+]
+],
+"one_of": false
+},
+{
+"name": "diamond",
+"squares": [
+[
+69,
+4
+]
+],
+"one_of": false
+},
+{
+"name": "diamond",
+"squares": [
+[
+69,
+4
+]
+],
+"one_of": false
+},
+{
+"name": "emerald",
+"squares": [
+[
+70,
+4
+]
+],
+"one_of": false
+},
+{
+"name": "emerald",
+"squares": [
+[
+70,
+4
+]
+],
+"one_of": false
+},
+{
+"name": "emerald",
+"squares": [
+[
+69,
+5
+]
+],
+"one_of": false
+},
+{
+"name": "ruby",
+"squares": [
+[
+69,
+5
+]
+],
+"one_of": false
+},
+{
+"name": "ruby",
+"squares": [
+[
+70,
+5
+]
+],
+"one_of": false
+},
+{
+"name": "amethyst",
+"squares": [
+[
+70,
+5
+]
+],
+"one_of": false
+},
+{
+"name": "amethyst",
+"squares": [
+[
+70,
+5
+]
+],
+"one_of": false
+}
 ]
 },
 {
@@ -12319,6 +14867,46 @@
 "x": 42,
 "y": 8,
 "detail": "up"
+}
+],
+"objects": [
+{
+"name": "luckstone",
+"squares": [
+[
+1,
+15
+],
+[
+68,
+6
+],
+[
+1,
+13
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "flint",
+"squares": [
+[
+1,
+15
+],
+[
+68,
+6
+],
+[
+1,
+13
+]
+],
+"one_of": true,
+"slot": "$place[1]"
 }
 ]
 },
@@ -12409,6 +14997,28 @@
 "x": 7,
 "y": 10,
 "detail": "pit"
+}
+],
+"objects": [
+{
+"name": "scroll of earth",
+"squares": [
+[
+2,
+11
+]
+],
+"one_of": false
+},
+{
+"name": "scroll of earth",
+"squares": [
+[
+3,
+11
+]
+],
+"one_of": false
 }
 ]
 },
@@ -12503,6 +15113,28 @@
 "x": 6,
 "y": 8,
 "detail": "pit"
+}
+],
+"objects": [
+{
+"name": "scroll of earth",
+"squares": [
+[
+1,
+9
+]
+],
+"one_of": false
+},
+{
+"name": "scroll of earth",
+"squares": [
+[
+2,
+9
+]
+],
+"one_of": false
 }
 ]
 },
@@ -13114,6 +15746,65 @@
 "y": 15,
 "detail": "closed"
 }
+],
+"objects": [
+{
+"name": "bag of holding (maybe: an IF/chance line)",
+"squares": [
+[
+16,
+11
+],
+[
+16,
+13
+],
+[
+16,
+15
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "amulet of reflection (maybe: an IF/chance line)",
+"squares": [
+[
+16,
+11
+],
+[
+16,
+13
+],
+[
+16,
+15
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "scroll of scare monster",
+"squares": [
+[
+16,
+11
+],
+[
+16,
+13
+],
+[
+16,
+15
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+}
 ]
 },
 {
@@ -13280,6 +15971,65 @@
 "y": 14,
 "detail": "closed"
 }
+],
+"objects": [
+{
+"name": "bag of holding (maybe: an IF/chance line)",
+"squares": [
+[
+16,
+10
+],
+[
+16,
+12
+],
+[
+16,
+14
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "amulet of reflection (maybe: an IF/chance line)",
+"squares": [
+[
+16,
+10
+],
+[
+16,
+12
+],
+[
+16,
+14
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+},
+{
+"name": "scroll of scare monster",
+"squares": [
+[
+16,
+10
+],
+[
+16,
+12
+],
+[
+16,
+14
+]
+],
+"one_of": true,
+"slot": "$place[0]"
+}
 ]
 },
 {
@@ -13355,6 +16105,210 @@
 "x": 3,
 "y": 6,
 "detail": "closed"
+}
+],
+"objects": [
+{
+"name": "chest",
+"squares": [
+[
+7,
+5
+]
+],
+"one_of": false
+},
+{
+"name": "chest",
+"squares": [
+[
+3,
+1
+],
+[
+3,
+9
+],
+[
+7,
+1
+],
+[
+7,
+9
+],
+[
+11,
+1
+],
+[
+11,
+9
+]
+],
+"one_of": true,
+"slot": "$niches[0]"
+},
+{
+"name": "chest",
+"squares": [
+[
+3,
+1
+],
+[
+3,
+9
+],
+[
+7,
+1
+],
+[
+7,
+9
+],
+[
+11,
+1
+],
+[
+11,
+9
+]
+],
+"one_of": true,
+"slot": "$niches[1]"
+},
+{
+"name": "chest",
+"squares": [
+[
+3,
+1
+],
+[
+3,
+9
+],
+[
+7,
+1
+],
+[
+7,
+9
+],
+[
+11,
+1
+],
+[
+11,
+9
+]
+],
+"one_of": true,
+"slot": "$niches[2]"
+},
+{
+"name": "chest",
+"squares": [
+[
+3,
+1
+],
+[
+3,
+9
+],
+[
+7,
+1
+],
+[
+7,
+9
+],
+[
+11,
+1
+],
+[
+11,
+9
+]
+],
+"one_of": true,
+"slot": "$niches[3]"
+},
+{
+"name": "chest",
+"squares": [
+[
+3,
+1
+],
+[
+3,
+9
+],
+[
+7,
+1
+],
+[
+7,
+9
+],
+[
+11,
+1
+],
+[
+11,
+9
+]
+],
+"one_of": true,
+"slot": "$niches[4]",
+"contents": [
+"wax candle"
+]
+},
+{
+"name": "chest",
+"squares": [
+[
+3,
+1
+],
+[
+3,
+9
+],
+[
+7,
+1
+],
+[
+7,
+9
+],
+[
+11,
+1
+],
+[
+11,
+9
+]
+],
+"one_of": true,
+"slot": "$niches[5]",
+"contents": [
+"tallow candle"
+]
 }
 ]
 },
@@ -13581,6 +16535,18 @@
 "x": 17,
 "y": 5,
 "detail": "board"
+}
+],
+"objects": [
+{
+"name": "spellbook of Book of the Dead",
+"squares": [
+[
+16,
+5
+]
+],
+"one_of": false
 }
 ]
 },

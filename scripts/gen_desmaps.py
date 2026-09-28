@@ -57,6 +57,25 @@ _FEATS = [
 ]
 
 
+# fixed objects: OBJECT/CONTAINER at explicit coordinates or at a $place[N] of a coordinate list (usually SHUFFLEd:
+# then it is ONE of the list's squares), and mimics posing as an object (MONSTER:'m',...,m_object "luckstone").
+# p4 shift 6: the Catacombs' luckstone squares had to be read from mines.des by hand
+_PLACES = re.compile(r"^\s*\$(\w+)\s*=\s*\{(.*)\}\s*$")
+_WHERE = rf"(?:{_XY}|\$(\w+)\[\s*(\d+)\s*\])"
+_OBJ = re.compile(rf"^\s*(OBJECT|CONTAINER)\s*:\s*\(\s*'(.)'\s*,\s*\"([^\"]+)\"\s*\)\s*,\s*(?:(?:not_)?trapped\s*,\s*)?"
+                  rf"{_WHERE}")
+_OBJ_IN = re.compile(r"^\s*(?:\[\s*(\d+)\s*%\s*\]\s*:\s*)?OBJECT\s*:\s*\(\s*'(.)'\s*,\s*\"([^\"]+)\"\s*\)"
+                     r"\s*(?:,\s*[a-z_+\-].*)?$")
+_MIMIC = re.compile(rf"^\s*MONSTER\s*:\s*'m'\s*,\s*{_WHERE}\s*,\s*m_object\s*\"([^\"]+)\"")
+_CLASS = {"*": "", "/": "wand of ", "?": "scroll of ", "!": "potion of ", "=": "ring of ", '"': "amulet of ",
+          "+": "spellbook of "}
+
+
+def _obj_name(cls: str, name: str) -> str:
+    pre = _CLASS.get(cls, "")
+    return name if not pre or name.startswith(pre.split()[0]) else pre + name
+
+
 _PCT = re.compile(r"^\s*\[\s*(\d+)\s*%\s*\]\s*:\s*")
 _IF = re.compile(r"^\s*IF\s*\[\s*(\d+)\s*%\s*\]\s*\{\s*$")
 _ELSE = re.compile(r"^\s*\}\s*ELSE\s*\{\s*$")
@@ -118,15 +137,39 @@ def parse(path: Path) -> list[dict]:
     cur = None
     blocks: list = []      # open { } blocks: [conditional?, group of this branch, IF chance]
     lines = path.read_text(errors="replace").splitlines()
+    places: dict = {}      # $name -> [[x, y], ...] (coordinate lists of this level)
+    shuffled: set = set()
+    container = None       # the objects entry of an open CONTAINER block
     i = 0
     while i < len(lines):
         ln = lines[i]
         m = _LEVEL.match(ln)
         if m:
             level, geometry, cur, init, blocks = m.group(1), None, None, False, []
+            places, shuffled, container = {}, set(), None
             i += 1
             continue
         code = "" if ln.lstrip().startswith("#") else ln       # (no .des file has inline comments)
+        pl = _PLACES.match(code)
+        if pl:
+            pts = re.findall(_XY, pl.group(2))
+            if pts and len(pts) == len(re.findall(r"\(", pl.group(2))):
+                places[pl.group(1)] = [[int(x), int(y)] for x, y in pts]
+        sh = re.match(r"^\s*SHUFFLE\s*:\s*\$(\w+)", code)
+        if sh:
+            shuffled.add(sh.group(1))
+        if cur is not None and code.strip():
+            maybe = _PCT.match(code) is not None or any(b[0] for b in blocks)
+            _objects(cur, code, places, shuffled, maybe)
+            om = _OBJ.match(code)
+            if om and om.group(1) == "CONTAINER" and "{" in code and cur.get("objects"):
+                container = cur["objects"][-1]
+            elif container is not None and _OBJ_IN.match(code) and not _OBJ.match(code):
+                im = _OBJ_IN.match(code)
+                container.setdefault("contents", []).append(
+                    _obj_name(im.group(2), im.group(3)) + (f" ({im.group(1)}%)" if im.group(1) else ""))
+            if code.strip().startswith("}"):
+                container = None
         if _ELSE.match(code):
             prev = blocks.pop() if blocks else [True, None, 50]
             blocks.append([True, {"else_of": prev[1]}, 100 - prev[2]])
@@ -211,6 +254,43 @@ def parse(path: Path) -> list[dict]:
         if not m["variants"]:
             m.pop("variants")
     return out
+
+
+def _objects(cur: dict, code: str, places: dict, shuffled: set, maybe: bool = False) -> None:
+    """Record an OBJECT/CONTAINER at a fixed square or at $place[N], or a mimic posing as an object, in
+    cur["objects"]: {"name", "squares": [[x, y], ...], "one_of": bool (a shuffled list: ONE of these squares)}."""
+    om = _OBJ.match(code)
+    mm = _MIMIC.match(code) if om is None else None
+    if om is not None:
+        name = _obj_name(om.group(2), om.group(3))
+        who = re.search(r'name\s*:\s*"([^"]+)"', code)
+        if om.group(3) == "statue" and who:
+            name = f"statue of {who.group(1)}"
+        g = om.groups()[3:7]
+    elif mm is not None:
+        name = f"a MIMIC posing as a {mm.group(5)}"
+        g = mm.groups()[:4]
+    else:
+        return
+    if name == "boulder":
+        return                       # (Sokoban's boulders: tactics/sokoban_data.py has them)
+    if maybe:
+        name += " (maybe: an IF/chance line)"
+    if g[0] is not None:
+        squares, one_of = [[int(g[0]), int(g[1])]], False
+    else:
+        lst = places.get(g[2])
+        if not lst:
+            return
+        k = int(g[3])
+        one_of = g[2] in shuffled
+        squares = [list(c) for c in lst] if one_of else ([list(lst[k])] if k < len(lst) else [])
+        if not squares:
+            return
+    ent = {"name": name, "squares": squares, "one_of": one_of}
+    if g[0] is None and one_of:
+        ent["slot"] = f"${g[2]}[{g[3]}]"
+    cur.setdefault("objects", []).append(ent)
 
 
 def _group(cur: dict, blk, p: int) -> dict:

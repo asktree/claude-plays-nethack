@@ -692,6 +692,21 @@ def test_desmap_candidates_respect_the_dungeon_depths():
     assert desmap._depth_ok("bigrm-3", "Gehennom / Level 40")          # other branches: no depth rule
 
 
+def test_desmap_objects_list_the_fixed_object_places(monkeypatch):
+    # p4 shift 6 idea: the Catacombs' luckstone spots (and the Castle's wand chest) had to come from the .des by hand
+    from tactics import desmap
+    cat = next(m for m in desmap.maps() if m["level"] == "minend-3")
+    monkeypatch.setattr(desmap, "_current", lambda s=None, names=None: (cat, {"ox": 2, "oy": 4}))
+    luck = desmap.objects(name="luckstone")
+    assert luck and luck[0]["one_of"] and set(luck[0]["squares"]) == {(3, 19), (70, 10), (3, 17)}
+    castle = next(m for m in desmap.maps() if m["level"] == "castle")
+    monkeypatch.setattr(desmap, "_current", lambda s=None, names=None: (castle, {"ox": 0, "oy": 0}))
+    wish = desmap.objects(name="wishing")
+    assert wish and wish[0]["name"] == "chest" and len(wish[0]["squares"]) == 4
+    lines = desmap._objects_lines(desmap.objects())
+    assert any("chest (holding wand of wishing)" in ln for ln in lines)
+
+
 def test_desmap_mines_levels_respect_the_mines_depths(monkeypatch):
     # p4 shift 6 #233/#1229: minend-1 matched Mines level 7 (DL11; the Mines start at DL5 there) and travel()
     # walked its map over floor that wasn't there
