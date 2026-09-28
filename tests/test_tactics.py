@@ -4859,3 +4859,80 @@ def test_travel_leg_teleport_check_allows_a_long_real_walk():
     assert nav._teleported_leg((10, 5), (40, 15), 8, 1000, 1002)
     assert not nav._teleported_leg((10, 5), (18, 5), 8, 1000, 1001)        # within the cap
     assert nav._teleported_leg((10, 5), (40, 15), 8, None, None)           # no turn counter: the cap decides
+
+
+def test_sokoban_no_diagonal_squeeze_between_boulders():
+    # p4 shift 4 #550: hunt() planned (32,15)->(33,14) between boulders (32,14) and (33,15); Sokoban refuses that
+    # squeeze always (hack.c cant_squeeze_thru() returns 3 for the hero)
+    from tactics.mapview import bfs_path
+    rows = {13: "   ......", 14: "   ..0...", 15: "   ...0..", 16: "   ......"}
+    s = _snap(rows, (5, 15), [])
+    assert bfs_path(s, (5, 15), (6, 14)) == [(6, 14)]           # elsewhere: a squeeze is fine (light pack)
+    s.sokoban = True
+    path = bfs_path(s, (5, 15), (6, 14))
+    assert path is not None and (6, 14) == path[-1] and len(path) > 1   # goes round
+
+
+def test_sokoban_solver_stops_when_an_adjacent_hostile_attacks(monkeypatch):
+    # p4 shift 4 #433-#475: solve() pushed on while a known horse kicked and bit for 12 turns (its lines are BENIGN)
+    from tactics import combat, ctx, sokoban
+    horse = {"x": 6, "y": 5, "ch": "u", "desc": "horse", "dist": 1}
+    s = _snap({5: "   ..@u.."}, (5, 5), [horse])
+    s.messages = ["With great effort you move the boulder.", "The horse kicks!", "The horse bites!"]
+    monkeypatch.setattr(s.__class__, "adjacent_hostiles", lambda self: [horse], raising=False)
+    pauses, fought = [], []
+    monkeypatch.setattr(ctx, "pause", lambda r: pauses.append(r))
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(combat, "auto_fightable", lambda m, snap: False)
+    assert sokoban._attacked(s, "push") and "horse at (6,5)" in pauses[0] and "ATTACKING" in pauses[0]
+    # a trivial one is fought instead
+    monkeypatch.setattr(combat, "auto_fightable", lambda m, snap: True)
+    monkeypatch.setattr(combat, "fight", lambda x, y, **kw: fought.append((x, y)))
+    assert not sokoban._attacked(s, "push") and fought == [(6, 5)]
+    # no attack line: nothing to do; a pet's fight is not an attack on you
+    s.messages = ["With great effort you move the boulder.", "The little dog bites the newt."]
+    assert not sokoban._attacked(s, "push")
+
+
+def test_unihorn_stops_on_the_real_cure(monkeypatch):
+    # p4 shift 4 #1133: a horn loop stopped on "This makes you feel better!" (an attribute point) while the vomiting
+    # countdown ran on
+    import pytest
+    from tactics import ctx, items, survival
+    monkeypatch.setattr(ctx, "require_command", lambda who: None)
+    monkeypatch.setattr(items, "inventory", lambda: [{"letter": "f", "text": "an uncursed unicorn horn",
+                                                      "class": "Tools"}])
+    s = _snap({5: "   ..@.."}, (5, 5), [])
+    replies = iter([["Nothing seems to happen."], ["This makes you feel better!"],
+                    ["You feel much less nauseated now."]])
+
+    def do(keys, **kw):
+        if keys == "a":
+            s.state = State("object", prompt="What do you want to use or apply? [f or ?*]")
+            s.messages = []
+        else:
+            s.state = State("command")
+            s.messages = next(replies)
+        return s
+    from nh.parse import State
+    monkeypatch.setattr(ctx, "do", do)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    r = survival.unihorn("nausea")
+    assert r["done"] and r["applies"] == 3
+    # a condition: stops as soon as it is off the status line
+    s.status.conditions = ["Conf"]
+    replies = iter([["Nothing seems to happen."], ["You feel less confused now."]])
+
+    def do2(keys, **kw):
+        out = do(keys, **kw)
+        if keys != "a" and "less confused" in " ".join(s.messages):
+            s.status.conditions = []
+        return out
+    monkeypatch.setattr(ctx, "do", do2)
+    r = survival.unihorn("conf")
+    assert r["done"] and r["applies"] == 2
+    # a cursed horn is refused
+    monkeypatch.setattr(items, "inventory", lambda: [{"letter": "f", "text": "a cursed unicorn horn",
+                                                      "class": "Tools"}])
+    with pytest.raises(PermissionError):
+        survival.unihorn()

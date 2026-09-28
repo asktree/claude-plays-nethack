@@ -278,6 +278,14 @@ def engrave_test(letter: str, text: str = "Elbereth", prep: bool = True, force: 
             wrote = True
         elif k == "command":
             break
+        elif k in ("menu", "text", "more") and re.search(
+                r"attributes|self-knowledgeable", " ".join([p, (s.state.menu.title if s.state.menu else "") or ""]
+                                                          + list(s.messages))):
+            # a wand of ENLIGHTENMENT (auto-identified): its attribute window — print it and close it (p4 shift 4
+            # #303 paused on it; "You can safely pray" and your alignment are worth reading)
+            lines = [i.text.strip() for i in (s.state.menu.items if s.state.menu else []) if i.text.strip()]
+            print("engrave_test: ENLIGHTENMENT — " + " | ".join(lines[:25]))
+            s = ctx.do("<Esc>", quiet=True)
         else:
             ctx.pause(f"engrave_test: unexpected {k} prompt {p!r}")
             s = ctx.last()
@@ -296,12 +304,24 @@ def engrave_test(letter: str, text: str = "Elbereth", prep: bool = True, force: 
         verdict = _narrow_verdict(verdict)
     cur = ctx.last()
     if wrote and cur.hero is not None and cur.status.ok and hasattr(ctx.game, "engr_seen"):
-        # the test left `text` engraved here: the harness must know (attacking from an Elbereth
-        # square erases it and costs -5 alignment — "You feel like a hypocrite")
-        ctx.game.engr_seen.setdefault(ctx.game.level_key(cur.status), {})[cur.hero] = text
+        # read it back (':', no game time) — a letter can slip, and a vanish/teleport wand leaves nothing
+        # (p4 shift 4 #1723: "an Elbereth is under you" while the square read "Edbereth"); the look also
+        # files what it read for the attack-from-Elbereth guard
+        back = engraving_here() if cur.state.kind == "command" and "Blind" not in cur.status.conditions else ""
+        got = re.search(r'You (?:read|feel the words): "(.*)"', back or "")
+        if got is None and "Blind" in cur.status.conditions:
+            # can't feel dust while blind: assume the text for the guard (attacking from it would be hypocrisy)
+            ctx.game.engr_seen.setdefault(ctx.game.level_key(cur.status), {})[cur.hero] = text
         if text.strip().lower() == "elbereth":
-            print(f"engrave_test: an Elbereth is under you now at {cur.hero} — step off before attacking "
-                  "(melee, zap, throw or kick from it erases it and costs -5 alignment)")
+            if got is not None and got.group(1).strip().lower() == "elbereth":
+                print(f"engrave_test: an Elbereth is under you now at {cur.hero} (read back) — step off before "
+                      "attacking (melee, zap, throw or kick from it erases it and costs -5 alignment)")
+            elif got is not None:
+                print(f"engrave_test: the engraving here reads {got.group(1)!r} — NOT a working Elbereth (a letter "
+                      "slipped): elbereth() writes one and reads it back")
+            else:
+                print("engrave_test: the Elbereth here is UNVERIFIED (blind, or the wand left nothing readable) — "
+                      "don't count on it")
     print(f"engrave_test({letter!r}): {verdict}" + (" (auto-identified)" if auto else ""))
     return {"verdict": verdict, "messages": msgs, "autoidentified": auto}
 

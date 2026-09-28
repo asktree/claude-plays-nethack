@@ -210,8 +210,9 @@ def bfs_path(s, start, goal, avoid=frozenset(), allow_monsters=False, allow_trap
             diag = nx != cur[0] and ny != cur[1]
             if diag and (is_door(s, *cur) or is_door(s, nx, ny)):
                 continue
-            if diag and getattr(s, "no_squeeze", False) and is_solid(s, nx, cur[1]) and is_solid(s, cur[0], ny):
-                continue              # "You are carrying too much to get through" was seen: no squeezes
+            if diag and (getattr(s, "no_squeeze", False) or getattr(s, "sokoban", False)) \
+                    and is_solid(s, nx, cur[1]) and is_solid(s, cur[0], ny):
+                continue              # "You are carrying too much to get through" was seen, or Sokoban: no squeezes
             prev[nxt] = cur
             if nxt == goal:
                 path = [nxt]

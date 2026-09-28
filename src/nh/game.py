@@ -77,6 +77,7 @@ class Snap:
     pet_note: str = ""         # for a while after the stairs: your pet didn't come along (Game.pet_left_note)
     niche_mem: dict = field(default_factory=dict)   # {(x, y): 'teleport'/'trapdoor'} trapped closets here
     no_squeeze: bool = False   # a diagonal squeeze between rock failed (pack over 600): planners avoid them
+    sokoban: bool = False      # a Sokoban level: never a diagonal squeeze between boulders/rock (hack.c)
     room_note: str = ""        # set on the step that entered a special room (zoo, anthole, beehive...)
     room_mem: dict = field(default_factory=dict)    # {(x, y) entry: {"kind", "prev", "turn"}} special rooms here
     mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
@@ -2530,6 +2531,9 @@ class Game:
         snap.solid_mem = set(solid or ())
         snap.niche_mem = dict(self.niches.get(key, {})) if key is not None else {}
         snap.no_squeeze = bool(getattr(self, "no_squeeze", False))
+        # hack.c cant_squeeze_thru(): in Sokoban the hero NEVER squeezes diagonally between boulders/rock (p4 shift 4
+        # #550: hunt() planned one between two boulders)
+        snap.sokoban = bool(key and str(key).startswith("Sokoban"))
         snap.wand_users = dict(self.wand_users.get(key, {})) if key is not None else {}
         snap.held_trap = getattr(self, "held_trap", "") or ""
         snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}

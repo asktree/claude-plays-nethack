@@ -235,6 +235,69 @@ _RESTORED_MSG = re.compile(r"^This makes you feel great!$|^Wow!  ?This makes you
                            r"|^You feel in good health again\.$|^There's a tiger in your tank\.$")
 
 
+_HORN_CONDS = {"conf": "Conf", "confusion": "Conf", "stun": "Stun", "blind": "Blind", "blindness": "Blind",
+               "hallu": "Hallu", "hallucination": "Hallu", "foodpois": "FoodPois", "termill": "TermIll",
+               "sick": ("FoodPois", "TermIll"), "illness": ("FoodPois", "TermIll")}
+
+
+def unihorn(until: str | None = None, max_applies: int = 12, letter: str | None = None) -> dict:
+    """Apply your unicorn horn until the trouble is gone (apply.c use_unicorn_horn(); a turn each).
+    until: 'conf', 'stun', 'blind', 'hallu', 'sick' (FoodPois/TermIll) — stops once that condition is off the
+    status line; 'nausea' (vomiting has no status flag) — stops at "You feel much less nauseated now.";
+    'attributes' — stops at "This makes you feel great!"; None — until nothing is left: "Nothing happens."
+    (no trouble at all) or "... feel great!". The messages mislead (p4 shift 4 #1133): "Nothing seems to
+    happen." = troubles left but this try fixed none (apply again); "This makes you feel better!" = an
+    ATTRIBUTE point came back — not a cure of anything else. Refuses a CURSED horn (it CAUSES troubles).
+    Returns {"applies", "done", "messages"}."""
+    from .items import inventory
+    ctx.require_command("unihorn()")
+    horn = next((i for i in inventory() if (letter and i["letter"] == letter)
+                 or (not letter and re.search(r"\bunicorn horns?\b", i["text"]))), None)
+    if horn is None:
+        raise ValueError("unihorn(): no unicorn horn in the inventory" + (f" (letter {letter!r})" if letter else ""))
+    if re.search(r"\bcursed\b", horn["text"]) and not re.search(r"\buncursed\b", horn["text"]):
+        raise PermissionError(f"unihorn(): {horn['letter']} - {horn['text']} is CURSED: applying it makes you sick, "
+                              "blind, confused, stunned, hallucinating or drains an attribute. Uncurse it first.")
+    key = (until or "").strip().lower()
+    conds = _HORN_CONDS.get(key)
+    conds = (conds,) if isinstance(conds, str) else conds
+    if key and conds is None and key not in ("nausea", "vomiting", "attributes", "attribute"):
+        raise ValueError(f"unihorn(until={until!r}): use conf/stun/blind/hallu/sick/nausea/attributes or None")
+    msgs: list = []
+    n, done = 0, False
+    for n in range(1, max_applies + 1):
+        s = ctx.last()
+        if conds and not set(conds) & set(s.status.conditions):
+            n -= 1
+            done = True
+            break
+        s = ctx.do("a", quiet=True)
+        if s.state.kind != "object":
+            if s.state.kind != "command":
+                ctx.do("<Esc>", quiet=True)
+            raise RuntimeError(f"unihorn(): 'a' gave {s.state.kind} {s.state.prompt!r}")
+        s = ctx.do(horn["letter"], ok=[r"^Nothing (?:seems to )?happens?", r"^This makes you feel (?:great|better)!",
+                                        r"^You feel much less nauseated now", r"^You can see again",
+                                        r"^You feel less confused now", r"^You feel a bit steadier now",
+                                        r"^Everything looks SO boring now", r"^You feel cured"])
+        msgs += s.messages
+        text = " | ".join(s.messages)
+        if "Nothing happens" in text or "feel great" in text:
+            done = True
+            break
+        if key in ("nausea", "vomiting") and "less nauseated" in text:
+            done = True
+            break
+        if conds and not set(conds) & set(ctx.last().status.conditions):
+            done = True
+            break
+        if s.state.kind != "command":
+            break
+    print(f"unihorn({until!r}): {n} apply(s) — " + ("done" if done else "NOT done yet (apply again or wait it out)")
+          + (f"; last: {msgs[-1]!r}" if msgs else ""))
+    return {"applies": n, "done": done, "messages": msgs}
+
+
 def drained_attributes(hist: list | None = None) -> list:
     """Messages since the last full restore that lowered an attribute (TROUBLE_POISONED: minor trouble, and
     with it a prayer's 'pat on the head' is no longer certain — p3 shift 19 #27). [] when none (or all fixed)."""

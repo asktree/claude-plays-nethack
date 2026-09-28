@@ -60,7 +60,7 @@ from tactics.items import check_box  # noqa: E402,F401
 from tactics.combat import throw_can_hit  # noqa: E402,F401
 from tactics.combat import WandEmpty  # noqa: E402,F401
 from tactics import desmap  # noqa: E402,F401
-from tactics.survival import burn_elbereth, offer, prayer_verdict, telepathy_scan  # noqa: E402,F401
+from tactics.survival import burn_elbereth, offer, prayer_verdict, telepathy_scan, unihorn  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401
 from tactics.combat import auto_fightable, hunt  # noqa: E402,F401
 from tactics.endgame import ascend, invoke, on_vibrating_square  # noqa: E402,F401

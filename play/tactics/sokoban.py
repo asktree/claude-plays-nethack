@@ -13,6 +13,7 @@ Symbols with our options: boulder '0', hole/trap '^'.
 
 from __future__ import annotations
 
+import re
 from collections import deque
 
 from . import ctx
@@ -115,6 +116,36 @@ def _hostiles_near(s) -> list:
     return [m for m in s.adjacent_hostiles() if not m.get("statue")]
 
 
+# a monster's melee lines (mhitu.c: "The horse kicks!", "The horse misses.", "It bites!") are routine noise to the
+# step machinery (BENIGN), so the solver has to look for them itself
+_MELEE_LINE = re.compile(r"^(?:The |An? )?[\w' -]+ (?:bites|stings|hits|butts|kicks|claws|scratches|touches)!$"
+                         r"|^(?:The |An? )?[\w' -]+ (?:just )?misses[.!]$")
+
+
+def _attacked(s, who: str) -> bool:
+    """A hostile next to you attacked during this step: a trivial one is fought (fight(), checked), anything else
+    pauses — solve() used to push on while a known horse kicked and bit for 12 turns (p4 shift 4 #433-#475).
+    True = paused: stop."""
+    lines = [m for m in s.messages if _MELEE_LINE.search(m)]
+    if not lines or s.state.kind != "command":
+        return False
+    adj = _hostiles_near(s)
+    if not adj:
+        if any(m.startswith("It ") for m in lines):
+            ctx.pause(f"{who}: something UNSEEN is attacking you ({lines[-1]!r}) — an `I` next to you: fight it "
+                      "(fight(x, y) on the I square), then solve() again (it resumes)")
+            return True
+        return False
+    from .combat import auto_fightable, fight
+    if all(auto_fightable(m, s) for m in adj):
+        for m in adj:
+            fight(m["x"], m["y"])
+        return False
+    ctx.pause(f"{who}: " + ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in adj)
+              + f" next to you is ATTACKING you ({lines[-1]!r}) — fight() it, then solve() again (it resumes)")
+    return True
+
+
 def walk(keys: str):
     """Walk a key path one step at a time, verifying each step moved us.
     Never steps into a (non-pet) monster: waits for a peaceful to move, but
@@ -147,6 +178,9 @@ def walk(keys: str):
                 ctx.do("<Esc>", quiet=True)   # e.g. an attack confirmation: decline
             ctx.pause(f"walk: step {k!r} from {before} didn't arrive (now at {ctx.last().hero})")
             return ctx.last()
+        if _attacked(s, "walk"):
+            return ctx.last()
+        s = ctx.last()
     return s
 
 
@@ -224,6 +258,8 @@ def push(bx: int, by: int, dirs: str):
                               + " next to you blocks the way — fight() it, then solve() again")
                     return ctx.last(), b
                 s = ctx.do(".", ok=PUSH_OK)      # a monster blocks the way: give it time to move
+                if _attacked(s, "push"):
+                    return ctx.last(), b
                 waited += 1
                 path = route(s, s.hero, stand)
             if path is None:
@@ -237,7 +273,9 @@ def push(bx: int, by: int, dirs: str):
         waits = 0
         while "behind the boulder" in text and waits < 6:
             # something (often the pet) is on the far side: wait and retry
-            ctx.do(".", ok=PUSH_OK)
+            w = ctx.do(".", ok=PUSH_OK)
+            if _attacked(w, "push"):
+                return ctx.last(), b
             waits += 1
             s = ctx.do(d, ok=PUSH_OK)
             text = " ".join(s.messages)
@@ -246,6 +284,8 @@ def push(bx: int, by: int, dirs: str):
             return s, None
         if s.screen.at(*nb) == "0" and s.hero == b:
             b = nb
+            if _attacked(s, "push"):
+                return ctx.last(), b
             continue
         ctx.pause(f"push: boulder {b} did not move {d} as expected (messages: {text!r})")
         return ctx.last(), b
