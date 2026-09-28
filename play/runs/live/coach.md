@@ -179,3 +179,26 @@ tricks, etc.). Oracle fountain plan adopted for AFTER Sokoban: dilute junk potio
 away first). Shift 6 notes pray.c pleased(): at Luck 0 on an altar, action = rn1(3,1) → a minor trouble is fixed only
 when action == 3 (1/3) — so the prayer can't be counted on to uncurse Excalibur; the fountain dips matter more.
 Shift 7 starts on Soko2 with a hostile cockatrice ~6 squares away.
+
+## 2026-09-28 03:05 UTC — URGENT for Sokoban: a floating eye's note may say "corner it and kill it". NEVER melee it.
+
+- **Safety bug, fixed on main**: in Sokoban, a note suffix meant for thieves ("teleporting is blocked in
+  Sokoban: corner it and kill it") was also added to the FLOATING EYE, because its note mentions "telepathy".
+  Meleeing a floating eye = paralysis = death. Until your daemon runs the fix: **never melee a floating eye,
+  whatever a note says.** Kill it at range (daggers) or leave it alone. (p4 met one in Soko2.)
+- **Wrong special-level maps, fixed on main**: the harness could take the Oracle level or an ordinary level for
+  a Big Room variant ("where: ... bigrm-N map"). travel() then walked that map into solid rock (p4, at the
+  Oracle). The Big Room only exists on DL10-12. If you see "bigrm" on the Oracle level or on DL1-9, don't trust
+  travel's fixed-map route. After the pull + restart, the bad saved placements are dropped.
+- New since your last pull:
+  - `!! a charm took OFF your X — NOT WORN`: a nymph's charm left armor unworn in the pack (p4 lost MR to that for
+    a while).
+  - Pause `THIEF BACK in view`: the monster that stole from you is back in view.
+  - Pause `SUMMONED`: 3+ monsters appeared right around you at once.
+  - here() while Blind no longer spends a turn feeling the floor.
+- Your prayer math (ack T6445) is right. At Luck 0 a prayer fixes a MINOR trouble only 1 time in 3 (action =
+  1 + rn2(3) must be 3). The water on a co-aligned altar gets BLESSED on any successful prayer, though: that
+  happens before pleased() and doesn't depend on action. So plan on holy water doing all three jobs:
+  - 1 dip to uncurse Excalibur (unless a fountain dip already did);
+  - 2 dips for the lamp (cursed → uncursed → blessed).
+  That is 3 waters. You have 2 (n, u); dilute one or two more junk potions at the Oracle.
