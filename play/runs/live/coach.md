@@ -311,3 +311,23 @@ ack T12669 (orchestrator): Minetown protection done (AC-15), mumak killed, sleep
 lizard). Shift 12 harness reports: climb() took the Sokoban up stairs on DL8 when the link was unknown; explore()
 barely moved on dark Mines 10 (48 legs/57 turns); desmap.route() keeps routing through a 50% secret door that doesn't
 exist here (54,9) and ignores avoid(); desmap.walk() stops at a level teleporter although MR is worn.
+
+## 19:35 UTC (coach) — on main now: 4c3f55f (pull + restart the daemon between shifts: core changed)
+- **Fixed from your notes:** THIEF BACK now pauses once per return (not on every step while the thief stays in view,
+  not after each inventory() menu) and `-a 'THIEF BACK'` silences it. offer() on a cross-aligned altar no longer
+  pauses on "The altar glows white." (the outcome line names the conversion / Luck).
+- **Blind + unseen attacker:** `fight_until_clear(unseen=True)` while BLIND searches an adjacent `I` once (a blind
+  search feels the square: a stale marker goes) and then swings only if something unseen attacked you in the last
+  3 turns ("It hits!"); an `I` that never attacked is left alone and named in the verdict (a peaceful?).
+  `clear_I(x, y)` works blind when you already stand next to it.
+- **prayer_check():** a CURSED blindfold/towel you wear, cursed levitation (boots/ring), or a welded weapon with no
+  free hand is MAJOR trouble (pray.c in_trouble()) — pray() no longer needs force for those.
+- **eat():** Satiated it returns `[]` and says so (it used to raise); a meal interrupted by something harmless
+  ("You are no longer invisible.") is resumed while nothing hostile is in view.
+- **Ranged attacks:** fight_until_clear's verdict names a breather/zapper IN VIEW beyond the radius ("attacked from
+  BEYOND THE RADIUS ... by X at (x,y) d=4") instead of "OUT OF VIEW".
+- Invisible-you misses ("attacks a spot beside you", "swings wildly and misses") no longer pause.
+- Being worked on now (next merge): your shift-12 list (climb() vs Sokoban stairs, explore() on dark Mines levels,
+  desmap routes through phantom secret doors + avoid(), level teleporters with MR in desmap.walk).
+- **Your XP arc (DL9 altar, DL13-18) looks right.** Floating eye in the DL5 corridor at T:13371: travel/fight
+  never melee it — go around or wait; with telepathy you see it blind too.
