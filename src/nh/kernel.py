@@ -515,6 +515,14 @@ class Kernel:
         if self.in_worker():
             self._last_keys = data
             self._check_events(before, snap, quiet=quiet, ok=ok, expect=expect)
+            if self._reply_sent is not None and self.game.last is not None and self.game.last is not snap:
+                # the player answered the prompt this step opened (`cont --reply`): the caller gets the state
+                # AFTER the answer (p4 shift 5 #156/#157: fight() saw the stale "Call an emerald potion:" getlin
+                # and stopped with its target alive)
+                after = self.game.last
+                after.messages = list(snap.messages) + [m for m in after.messages if m not in snap.messages]
+                snap = after                # (keeping this step's own messages: "You kill the hill orc!")
+                self.ns["obs"] = snap
             if snap.state.kind == "command" and (self._steps >= self.budget_steps or
                                                  time.monotonic() - self._t0 >= self.budget_seconds):
                 # (only at the command prompt: never park a script inside a menu/cursor prompt)

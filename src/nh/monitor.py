@@ -435,6 +435,8 @@ class MonsterTracker:
                     # (it zapped a wand at you on this level: that doesn't change with its next farlook)
                     kind = wz.get("kind")
                     m["note"] = (f"ZAPPED A WAND{' OF ' + kind.upper() if kind else ''} AT YOU (T:{wz.get('turn')})"
+                                 + (" (its ray destroys your POTIONS (cold) / scrolls and potions (fire) even when "
+                                    "you resist it: bag them)" if kind in ("cold", "fire") else "")
                                  + (" — " + m["note"] if m["note"] else ""))
                 refl = ((getattr(self.game, "reflectors", None) or {}).get(lk) or {})
                 if m["id"] in refl:

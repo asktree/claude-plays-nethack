@@ -746,7 +746,10 @@ def telepathy_scan(letter: str | None = None, describe: bool = True) -> list:
              if rest and not any(not m["desc"] for m in rest) else
              f"\n  ... {len(rest)} more ({sum(1 for m in rest if not m['desc'])} of them NOT looked at)" if rest
              else "")
-          + (_unseen_summary(unseen) if unseen else ""))
+          + (_unseen_summary(unseen) if unseen else "")
+          + "\n  (telepathy never shows MINDLESS monsters: zombies Z, mummies M, golems ', elementals E, blobs b, "
+            "jellies j, puddings P, F, lights y, vortices v, spheres e — a square the scan shows empty can still hold "
+            "one: p4 shift 5 planned a zoo route over 'empty' squares that held mummies and jellies)")
     return out
 
 

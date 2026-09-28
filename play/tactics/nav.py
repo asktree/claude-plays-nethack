@@ -2553,20 +2553,40 @@ def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostil
     return _use_stairs(">", wait_pet=wait_pet, to=to, with_pet=with_pet, pass_hostile=pass_hostile)
 
 
-def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None):
+def descend(levels: int = 1, wait_pet: int = 6, to: str | None = None, pause_trivial: bool = False):
     """go_down() `levels` times in a row (the Dungeons' main stairs by default,
     or toward `to`). The level changes don't pause; newcomers farther than 6
-    squares without a danger note wait until they come near (defer_far);
-    anything dangerous, adjacent, HP loss or a message still pauses. Stops
-    early (returns) at a prompt or when a go_down() stops short. Returns the
-    last snap."""
+    squares without a danger note wait until they come near (defer_far), and
+    TRIVIAL newcomers (threat() 'trivial': grid bugs, rats, newts...) don't
+    pause at all unless pause_trivial=True; anything else dangerous, adjacent,
+    HP loss or a message still pauses. Stops early (returns) at a prompt, when
+    a go_down() stops short, or — after at least one level — on a level with
+    no known '>' (it says so). Returns the last snap."""
     import contextlib
+    from .info import threat
     far = getattr(ctx, "defer_far", None)
+    filt = getattr(ctx, "monster_filter", None)
+
+    def nontrivial(m):
+        if not m.get("desc"):
+            return True             # not looked at yet: pause as before
+        try:
+            return threat(m["desc"]) != "trivial"
+        except Exception:  # noqa: BLE001
+            return True
     s = ctx.last()
-    with (far(6) if far is not None else contextlib.nullcontext()):
+    with (far(6) if far is not None else contextlib.nullcontext()), \
+            (filt(nontrivial) if filt is not None and not pause_trivial else contextlib.nullcontext()):
         for i in range(levels):
             ld0 = ctx.last().status.ldesc
-            s = go_down(wait_pet=wait_pet, to=to)
+            try:
+                s = go_down(wait_pet=wait_pet, to=to)
+            except NavError as e:
+                if i == 0:
+                    raise
+                # (p4 shift 5 #464: DL10 had no known '>' — the caller's next statements were lost to the raise)
+                print(f"descend(): stopped on {ld0} after {i}/{levels} level(s) — {e}")
+                return ctx.last()
             if s.state.kind != "command" or ctx.last().status.ldesc == ld0:
                 return s
             print(f"descend(): {ld0} -> {ctx.last().status.ldesc} ({i + 1}/{levels})")

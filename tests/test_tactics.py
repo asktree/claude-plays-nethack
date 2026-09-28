@@ -1355,6 +1355,26 @@ def test_descend_goes_down_several_levels_and_stops_short(monkeypatch):
     monkeypatch.setattr(ctx, "defer_far", None)
     s = nav.descend(5)
     assert len(calls) == 3 and s.status.ldesc == "Dlvl:7"      # the third go_down stayed on Dlvl:7: stop
+    # p4 shift 5 #464: a level with no known '>' after the first ends the trip with a note, not a raise
+    import pytest
+    levels = iter(["Dlvl:8", "Dlvl:9"])
+
+    def go_down_then_stuck(wait_pet=6, to=None):
+        calls.append(to)
+        if cur["s"].status.ldesc == "Dlvl:9":
+            raise nav.NavError("no '>' known on this level")
+        s = _snap({}, (10, 5), [])
+        s.status.ldesc = next(levels)
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(nav, "go_down", go_down_then_stuck)
+    filters = []
+    import contextlib
+    monkeypatch.setattr(ctx, "monster_filter", lambda fn: (filters.append(fn), contextlib.nullcontext())[1])
+    s = nav.descend(5)
+    assert s.status.ldesc == "Dlvl:9" and filters                # trivial newcomers filtered by default
+    with pytest.raises(nav.NavError):
+        nav.descend(1)                                           # no level done yet: raise as before
 
 
 def test_stationary_hostiles_are_avoided_and_not_waited_for(monkeypatch):
