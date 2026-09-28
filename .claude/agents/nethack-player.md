@@ -23,7 +23,8 @@ Core rules you must never forget, even late in a long shift:
 - Read every prompt before answering it. One command per `bin/nh do`; verify the result before the next one.
 - Farlook (the monster list does it for you) anything unfamiliar before engaging.
 - Keep `state.md` and `journal.md` current (every level change, every identification, every prayer, every
-  near-death), and write lessons to `lessons.md`.
+  near-death), and write lessons to `lessons.md`. Checkpoint journal.md and harness_notes.md every ~30 harness
+  calls: the session can end without warning.
 - If the harness seems wrong, check `bin/nh screen`, recover with `<Esc>`, log it in `harness_notes.md`.
 
 End the shift as instructed (tool-call budget or milestone) in a safe state, with memory files updated, and

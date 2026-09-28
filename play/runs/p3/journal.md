@@ -291,3 +291,17 @@ T:16731-16878 — back up: Mines 1 (acid blob killed; potion of blindness), D4, 
 T:16940 DL1 — fountain (19,3): 5 dips, dried. WISH HUNT TOTAL: 31 dips, NO water demon.
 T:16981 DL1 — killed a jaguar.
 T:17000 DL1 — END OF SHIFT 17 on the down stairs (57,6): HP 142/142, XL13 (Exp 50293), AC -9, Luck ~+3, never prayed, not hungry. A lichen at (55,10).
+
+## Shift 18 (first half, reconstructed from `nh history` after a container restart; the previous agent was cut off at ~T:17900 without updating memory)
+T:17001-17015 — D1 -> D2 -> D3. T:17023 "You feel agile!" (^X at T:17900: St 18/10 Dx 15 Co 19 In 9 Wi 12 Ch 10).
+T:17066-17122 DL3 — "Closed for inventory": KYZYL'S LIQUOR EMPORIUM (potion shop) behind a locked door (key, T:17112); mummy wrapping on, pick-axe bagged. Prices (Ch10): see invisible 67, healing 133, CYAN 267, PINK 267, SKY BLUE 67, BRILLIANT BLUE 89. Price-ID: sky blue AND brilliant blue = base 50 (booze/fruit juice/sickness: junk); cyan/pink = base 150 (gain energy/monster detection) or 200 (enlightenment/levitation/POLYMORPH). Sell offer for the emerald potion declined. Bought nothing.
+T:17167-17242 — D3 -> D4 -> D5 (yellow light exploded: blind a moment; killed a large dog; "Rotten food!" twice, unconscious briefly) -> D6.
+T:17257-17312 DL6 — a thrown potion of sleeping (slept briefly), killed a kobold; hidden doors; killed a floating eye with thrown elven daggers.
+T:17380-17401 DL6 — hidden door, locked door unlocked, killed a bugbear: AKLAVIK'S GENERAL STORE (the level's "heard: shop"). Seen: sapphire ring 133 (base 100), crystal plate mail 1093, bronze plate mail 533, a BAG 266 (base-100 bag that held an extra healing: holding or oilskin), cram, darts, battle-axe, looking glass, tin, brilliant blue potion 89. Killed a small mimic. BOUGHT food ration 60, cram 47, potion of extra healing 133, dwarvish iron helm 27 (= $267) -> $1350, bagged. Cloak of invisibility back on.
+T:17434-17615 — down D7 ... D13 by the known stairs (D12: destroyed the old ettin zombie; D13: Hungry, ate the cram, killed a soldier ant).
+T:17633 DL13 — Tyr altar: wand of lightning B, extra healing, lizard corpse, food, dwarvish iron helm all UNCURSED; swapped the elven leather helm for the dwarvish iron helm; killed a titanothere.
+T:17648-17651 DL14 — valuables bagged, then READ-TESTS: VE FORBRYDERNE = GOLD DETECTION; VELOX NEB = DESTROY ARMOR (it destroyed the new dwarvish iron helm: some_armor() picks the helm 1 time in 4 even with a cloak on); NR 9 = CONFUSE MONSTER (hands glow red). Elven leather helm back on (AC -9).
+T:17688-17803 — D14 -> D15 -> D16 -> D17 -> D18 -> my hole (44,6) -> D19 (T:17793) -> D20 (T:17803).
+T:17804-17874 DL20 — telepathy scan; read the 2nd gold detection -> the D20 VAULT; from its "ad aerarium" closet dug west with the pick-axe (3 walls + 6 rock, ~25 turns): $767+1960+1024+620 = $4371, no guard, no Ludios portal. BAG GOLD NOW $5721 (the $1617 of T:17000 = $267 spent at Aklavik's + $1350 bagged). Quaffed the cursed object detection (nothing noted). Pick-axe bagged; found a hidden door.
+T:17875-17900 DL21 — telepathy scan; entered the GRAVEYARD blindfolded by the W doorway (graves "Elvis" (65,4) = empty box, "Rip Torn"); blindfold off; destroyed a dwarf zombie and a gnome zombie and KILLED THE 2nd MARILITH (70,8) in 2 blows. Exp 50932. HP 142/142.
+T:17900 — container restart; shift 18 resumed by a new agent at (69,7) inside the graveyard among the sleepers.

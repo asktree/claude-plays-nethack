@@ -387,7 +387,9 @@ Your context window is temporary; the files are not. Run memory lives in `play/r
 - `journal.md` — append-only log, 1–3 lines per notable event: `T:1234 DL3 — killed a hill orc pack
   with Elbereth; HP 9/30; prayed (2nd prayer, first at T:650)`.
 Update both at least every level change, after any fight that went badly, after identifying anything,
-and before ending your shift. If you learn a general lesson (a mistake to never repeat, a harness quirk),
+and before ending your shift — and **checkpoint every ~30 harness calls** (journal lines + harness_notes.md
+items so far): a session can end without warning (a container restart killed four shifts mid-way once, and
+only the one that had checkpointed kept its notes). If you learn a general lesson (a mistake to never repeat, a harness quirk),
 add it to `play/runs/<game>/lessons.md`.
 
 ## 5. Shift protocol
