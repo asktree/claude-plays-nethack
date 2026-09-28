@@ -764,3 +764,19 @@ No "harness code on disk is newer" line this shift.
 1. Silent teleportitis jumps still don't pause/abort travel (#181: 18 turns of travel from the wrong place let the covetous Wizard heal to full) — the most expensive harness gap this shift.
 2. fight(x, y) on a moving warning digit swings at thin air (#121, #136): covetous monsters jump every move; follow the digit or stop after one blow.
 3. "harness code on disk is newer than this daemon's core" all shift (#16 on): the new shift-38 features may not be loaded; plus trap types missing from travel's NavError (#561) and stale CURSED-ITEMS suspects (#281).
+
+## Shift 39 (T:29581 -> ; step numbers from #0 of this daemon)
+1. #12: hunt((72,15)) on the zruty the scan had sensed 0 turns before (shown as warning digit '3') returned "no route toward the zruty telepathy_scan() sensed at (72, 15)" although the known route (74,11)->(74,10)->(72,10)->column 72 existed; it still took one step south first. hunt('zruty') by name: "no hostile 'zruty' in view". Expected: hunt() treats a warning digit on/near the sensed square as the target and routes to a square next to it.
+2. #192: path_to(7, 20, avoid_bad=False, through_monsters=True) returned None while both of my exits held warning digits '5' (invisible Wizards). through_monsters should also pass warning digits / 'I' squares.
+3. #192, #200: the CURSED ITEMS pause listed "i (a silver bell)" as a suspect although I had DROPPED the Bell at #49 (it lay under me: rndcurse only hits carried items). The suspects come from the last inventory() only; drops (and thefts, noted in shift 38) aren't subtracted.
+4. Worked well: the ctx.hp_rules(0.5) context around my own fight loop (plain 's' waits no longer paused on every hit); fight(x, y, max_blows=1) on warning digits (#100-#192: dozens of hits on invisible Wizards); the THEFT pause (#210) and the full-map telepathy obs after 'P' blindfold (#215) showing both Wizards' squares; zap('p','>') as a one-action escape (#218); the TELEPORTED-by-QM pause (#227, #231).
+5. #379, #387 (T:29769-29777, DL24): the obs kept the line "MEDUSA'S LEVEL (you are Blind or wear reflection): reflection turns her gaze back..." after I fell from DL23 into DL24 (a corridor maze). Stale special-level note after a level change by falling.
+6. #606 (T:29881, Valley spiked pit (16,7)): desmap.walk() stopped with "no progress at (16, 7) (['You are still in a pit.'])" after ONE try; travel() keeps stepping while "still in a pit", desmap.walk() should too (cost 2 extra calls: my own climb loop).
+7. #449 (T:29806): trek(4, 3, cross_traps=[...]) in the Valley said "no known way even across all known traps (known: (5,3) sleeping gas trap, (6,9) anti-magic field, ...)". The real blocker was the LOCKED door A (8,8) (I locked it myself); the error didn't mention the locked door. desmap.walk() then walked it fine and stopped AT the door with "a locked door — unlock() it".
+8. #418 onward: "!! harness code on disk is newer than this daemon's core" after `bin/nh reload` (expected: core changes need a daemon restart).
+9. Worked well (continued): desmap.walk() across the Valley (stops at each trap/locked door; defer_far(4) kept graveyard monsters from pausing it); SUMMONED pause (#650) naming all 3 summons; the yellow-light rule in fight() ("striking first") (#587); zap('U','l') bounce reporting (#653); the TELEPORTED-during-leg NavError (#307: teleportitis dropped me on the `>`); dig('>') chain DL22 -> DL23, DL24 -> DL25 with the python interruption handled.
+
+### Shift 39 — ranked summary
+1. hunt()/path_to() don't treat warning digits as targets/passable monsters (#12, #192): against invisible covetous Wizards the digit is all you have.
+2. CURSED ITEMS suspects list includes dropped items (#192, #200) — the Bell on the floor was listed.
+3. desmap.walk() gives up in a pit after one "still in a pit" (#606); trek()'s NavError hides a locked door (#449); stale Medusa note on DL24 (#379).
