@@ -829,3 +829,8 @@ No "harness code on disk is newer" line this shift.
 1. Stale/wrong feature memory: the phantom trap (3,20) survived the restart and blocked travel (#37); hole landings are filed as "up stairs (under you)" (#323, #361).
 2. Trap-crossing helpers stall: desmap.walk gives up while climbing out of a pit (#257); step_onto(hole) stops at "You escape your hole." (#322, #360, #416).
 3. trek()/travel() NavError didn't name the melted gateway water as the blocker (#52).
+
+## Shift 43 (T:30975 -> ; step numbers from #0 of this daemon)
+1. #0 (T:30975): the obs said "!! harness code on disk is newer than this daemon's core" right at the start although the daemon had just been restarted (19:46:46): src/nh/kernel.py was edited at 19:47:23 (an uncommitted change: other_monster_killed()), so the notice was correct; from #592 it also names play/tactics. `reload` (#3, #815) loads tactics only. Harmless for me, but the notice can't be cleared by the player.
+2. #816 (T:31439): zap('F','l') on the pack's "uncursed wand of lightning" (no charge count shown) -> "Nothing happens" = EMPTY (turn spent). Correctly raised WandEmpty. Suggestion: inventory() could flag wands with no (x:y) that the notes/harness have never seen zapped successfully ("charges unknown") so a player doesn't pick them in an emergency.
+3. Worked well: fight_until_clear(hold=300, unseen=True, pause_new='rated') on the stairs — 300 turns in ~6 calls, swung at invisible attackers' 'I' squares; the SUMMONED-style pause on the jabberwock + guardian naga + umber hulk (#964) gave me the turn to climb before any of them acted; telepathy_scan() summary on arrival (#1007); dig('>') re-wielded Excalibur after the fall.

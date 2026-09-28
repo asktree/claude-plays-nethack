@@ -388,3 +388,19 @@ T:20366 — SE tower door (63,17) was open: NO CHEST on its chest spot (66,18). 
 T:20411-20416 — heading for the north hall, met an INVISIBLE DEMILICH at the west door (34,12); it slipped into the dark corridor, then cast AGGRAVATE ("You feel that monsters are aware of your presence."): the BARRACKS soldiers woke (~18 in the south barracks incl. 2 sergeants + 2 lieutenants; more came out of the north barracks door (34,9)).
 T:20419-20433 — retreated E through the throne room and the trap-door corridor to the east land (66,11) (soldiers following never reached the trap doors). T:20433-20470 held 35 turns: nothing came; soldiers bunch at the corridor mouth (44-47, 9-13) with the demilich.
 T:20470 DL25 — END OF SHIFT 23 on the east land (66,11), levitating, HP 147/147, AC -9, XL13 (Exp 64628), not hungry, prayer ~93% for major trouble. Plan: thin the soldiers at the trap-door corridor, kill the demilich, then the north hall -> NE or NW tower for the wand.
+
+## Shift 24
+T:20470 DL25 — start on the east land (66,11), HP 147/147. telepathy_scan: 18 soldiers (2 sgt, 2 lt) packed in the SOUTH BARRACKS, whose door (34,15) is LOCKED (castle.des: DOOR:locked,(26,11)) = they are locked in; 4 soldiers + the DEMILICH at the throne room's east doorway; 2 soldiers in the NE tower; none in the NW tower. Ate the C-ration ("bland").
+T:20477-20493 DL25 — stood at (56,12) in the dark trap-door corridor, 9 squares from the doorway (out of line-up range): THREE SOLDIERS walked east onto the (48,12) trap door ("Suddenly, the soldier disappears out of sight.") and the invisible DEMILICH vanished from the level too (unseen in the dark corridor: fell through). The trap-door filter works when you wait IN the corridor at a distance (they approach: should_see is false in the dark).
+T:20498-20520 — crossed the empty throne room to the broken north door (40,8), west along the north hall: the NW tower door (15,7) was OPEN and the chest spot (12,6) showed a SCROLL PILE.
+T:20522-20524 — (12,6): cursed scare monster scroll (VENZAR BORGAVVE) + chest + burned Elbereth. Ring s off; loot_all(): chest locked -> unlocked with the key -> j - a short wand = THE WAND OF WISHING.
+T:20524-20533 DL25 NW tower (12,6), on the scare-monster square — WISHES from the Castle wand (it had 3 charges):
+  1. "blessed +2 gray dragon scale mail" -> l, came out +0 (the 1-in-5 +2 -> +0 roll): MAGIC RESISTANCE. Swapped for the elven mithril O.
+  2. "blessed +2 shield of reflection" -> m - a +2 polished silver shield: REFLECTION. Swapped for the +4 small shield c.
+  3. "blessed amulet of life saving" -> z - a concave amulet, worn, #called 'life saving'.
+  AC -9 -> -12. Wand j now (x:0); each wish added 50-149 to the prayer timeout (zap.c 5350): NO reliable prayer for a few hundred turns.
+T:20535-20539 DL25 NW tower — dropped the spare elven mithril O and the +4 small shield c on (12,6). Blessed the scroll of charging (dip into holy water: "light blue aura"), read it on j: "Your wand of wishing glows blue for a moment." = (1:3). Three more wishes:
+  4. "2 blessed potions of gain level" -> I - 2 potions of gain level.
+  5. "2 blessed scrolls of genocide" -> L - 2 scrolls labeled PRATYAVAYAH (#called genocide).
+  6. "blessed magic marker" -> N - a magic marker.
+  Wand j now (1:0): recharged once, never charge it again (explodes); only a 1/121 wrest is left. 6 wishes = +300-900 prayer timeout.

@@ -59,3 +59,22 @@
 - T:2538 tried to kill the rock piercer (speed 1) for food: missed, an ant came back, piercer bit: 27 -> 18 HP (35%).
   Re-engraved Elbereth, rested to 27. T:2608 Weak -> T:2611 PRAYED (2nd prayer, 994 turns after the 1st): SUCCESS,
   hunger fixed. Kitten lost somewhere on DL7 (last seen near the up stairs room (19,11)).
+- T:2801 full HP on the Elbereth at (48,7). 113 exp (XL5 needs 160). Explored east: T:2811 a GIANT SPIDER (lvl 5, speed
+  15, poison 2d4; ~2% instadeath per full melee from poison) bit me at (56,9) next to the DL7 '>' (58,6). Elbereth
+  (garbled twice, the helper re-engraved). Also on DL7: giant ants, giant bat, little dog, dingo, a WEREJACKAL (howling).
+- T:2929 full HP. My wait-loop fired when the spider stepped out of view (out of view != far): it ended up ON the stairs
+  next to me. Re-engraved Elbereth at (57,7) (no damage), the spider fled, stepped onto '>' with nothing adjacent.
+- T:2935 DL8 — arrived at up stairs (60,8), alone (kitten lost on DL7). Peaceful dwarf lord here. DL7 room (55-68,3-8)
+  has a scroll (64,6) and food (67,4) left behind.
+- T:3091 DL8 — explore: TWO up staircases (60,8) and (51,15) => DL7 was the ORACLE level and (51,15) leads to
+  SOKOBAN. Trapped closet "Vlad was here" (38,1) marked avoided. Gold: $19 -> $94 (enough for the 89zm cloak).
+- T:3126 SOKOBAN 1 (soko4-2 / wiki 1a): took a food ration on the arrival stairs. sokoban.solve() did 16/16 pushes by
+  T:3444 with interruptions: giant rat, goblin (killed; dropped 2 scrolls VENZAR BORGAVVE), acid blob (killed with a
+  thrown orcish dagger hit + a KICK — sword untouched), little dog (killed, 51 -> 42), red naga hatchling (killed).
+  A stale trap record at every filled pit of the (33,8-13) column made the step guard refuse; forced those steps after
+  game.rescan_terrain() showed no trap there (harness_notes #4).
+- T:3445 Weak again (hunger ran ~1.1/turn); T:3474 ate the red naga hatchling corpse ("You feel strong!": St 14 from
+  exercise, no resistance) + a food ration. Loot: 2 candy bars + 1 more, food ration, moonstone ring (y), scrolls x.
+- T:3504 a SNAKE (poisonous, speed 15) bit once at (40,13); Elbereth (garbled once, re-engraved, verified). The snake
+  went out of view at (39,14) — probably hiding under the orcish dagger (38,14).
+- END OF SHIFT 2: T:3506, Sokoban 1 (40,13) ON ELBERETH, HP 49/51, XL4 (~143 exp), AC-2, $94, not hungry. No pet.

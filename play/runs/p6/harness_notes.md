@@ -58,3 +58,41 @@ prayer_check(); go_down() keeping the kitten both times; the Elbereth fallback p
    on-disk lines 394-408 of src/nh/danger.py into the loaded nh.danger module (in memory only, no file changed);
    fight_until_clear() then worked. Expected: `reload` refuses (or warns and keeps the old tactics) when the new
    tactics import core names the daemon doesn't have — e.g. run that same import scan before swapping modules in.
+4. **(#1470-#1472, T:3244, Sokoban 1a step 12/16) STALE TRAP blocks the solver.** sokoban.solve() raised
+   `PermissionError: refusing to step onto the known trap at (33, 13)` although boulder J had filled that pit (step 10,
+   whose last push ran right after a pause/resume) and boulder B was visibly resting ON (33,13). `game.rescan_terrain()`
+   returned traps {(33,8)..(33,12)} and listed (33,13) as 'plain', yet the step guard still refused afterwards (its trap
+   store isn't the one the rescan refreshes). Earlier fills in the same exec (row 14 holes) were forgotten correctly.
+   Workaround: after verifying with rescan_terrain() that the game has no trap there, `do('k', force=True)` (the push
+   went through: "The boulder fills a pit."). Expected: "The boulder fills a pit/plugs a hole" (and a boulder standing
+   on the square) clears the trap from every store; rescan_terrain() overrides the guard's memory.
+   RECURRED 5 more times (#1539, #1625, #1665, #1726, #1741): every walk up/down the filled column (33,8)-(33,13) —
+   including (33,8), filled by the level's LAST push — was refused as "known trap"; each time rescan_terrain()
+   said the game has no trap there (at the end `traps: set()` for the whole level). I wrapped solve() in a loop:
+   on that PermissionError, verify with rescan_terrain(), then `do(<dir>, force=True)`. sokoban.solve() then resumed
+   correctly every time ("resuming step N after K of its pushes") — the solver itself is solid.
+5. (#1063, T:2930, DL7) go_down(with_pet=False) printed "a 3-step detour round (59,6) (the giant spider was last seen
+   at (60,6) 1 turn ago, out of view now)" and then walked me to (57,7), next to the stairs the spider was standing on
+   (NavError: "giant spider at (58,6) is on (58,6)"). The lurker detour avoided the squares next to the last-seen
+   spot, but the stairs themselves were within its reach. My own loop started it (I took "out of view" for "gone"),
+   so this is mostly my error; suggestion: when a DANGEROUS hostile was last seen within 2 squares of the go_down()
+   target in the last few turns, pause before the final leg instead of walking into its reach.
+6. (info) The "helpers newer — bin/nh reload" notice came back 4-5 times during the shift (live edits of
+   play/tactics). After the #738 breakage I reloaded only once more (#1350), followed by the same import scan
+   (0 missing) — worth building into `reload` itself.
+
+Worked well: elbereth() re-engraving garbled text (up to 3 in a row) and rest_on_elbereth() — ~400 turns on Elbereth
+vs ants/spider/dog/dingo/bat/piercer with no melee hit taken; pray()/prayer_check() (94% estimate, success);
+sokoban.solve() resuming after every monster pause; fight() on acid blob refused nothing wrong (I kicked it instead);
+throw() + autopickup of thrown missiles; the TRAPPED CLOSET pause on DL8; go_up(to='Sokoban') by elimination.
+
+### Shift 2 top issues (ranked)
+1. **`bin/nh reload` can load tactics that need core names the running daemon lacks** (#738): fight(),
+   fight_until_clear(), auto_fightable() (travel/explore auto-fight) and friendly_in_line() (throw/zap) all raised
+   ImportError (nh.danger.coaligned_unicorn) with a hostile 2 squares away. Fix: reload should check every
+   `from nh.* import` name against the loaded modules and refuse/warn; restart the daemon when core changes.
+2. **Stale trap records at filled Sokoban pits block the step guard** (#1470 and 5 more): "The boulder fills a pit"
+   and rescan_terrain() don't clear the guard's trap memory; every pass through the filled column needed force=True.
+3. Old p6 daemon (pid 1236) still running after the restart, and core edited 1 minute after the restart (#6).
+4. PetLost's advice names `hold(n)`, which doesn't exist in the kernel (#715).
+5. go_down() walked me into a dangerous monster's reach at the stairs right after a lurker detour (#1063, suggestion).

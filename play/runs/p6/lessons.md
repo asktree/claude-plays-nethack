@@ -19,3 +19,21 @@
   explore() walked on with it adjacent.
 - DL4 had three hidden passages in a row: when explore() says "blocked: boulders ... no down stairs seen yet",
   check dead_ends() and search there (10-20 turns each) before pushing boulders.
+
+## Shift 2
+- **XL4 with a +1 long sword hits AC3 monsters only ~40%** (1 + AC + XL + 1 vs d20). Two giant ants (speed 18) took
+  me 51 -> 18 over two fights; a giant spider or a snake would have cost ~25-35 HP plus a ~2% poison-instadeath risk
+  per full melee (1/8 poisoned per bite, 1/30 of those deadly). Don't go below the Oracle before XL5+Excalibur; leave
+  poisonous fast monsters to Elbereth/stairs/range until poison resistance.
+- **Elbereth + rest_on_elbereth() is a complete survival loop** vs ants, bats, dogs, spiders, snakes, piercers: every
+  one "turned to flee" for 400 turns. Engrave BEFORE the HP drop (it can come out garbled 1-3 times in a row).
+- **"Out of view" is not "far away"**: my wait-for-a-gap loop treated the spider stepping into the dark as a gap; it
+  was standing next to the stairs. Wait for "not in view for several turns AND last seen far", or a fresh "turns to
+  flee" right before moving.
+- **Stairs escape**: a monster follows only if adjacent when you press '>'. Right after it "turns to flee" from
+  Elbereth next to the stairs, one step + '>' leaves it behind (T:2935).
+- **Pet test in a 1-wide corridor next to you** works even in the dark (adjacent squares are always seen): the kitten
+  had to cross the drop square to reach me — no "steps reluctantly" + it picked the gloves up = not cursed.
+- **Hunger**: after a prayer (900 nutrition) Hungry came ~740 turns later and Weak ~95 after that. Keep 2 rations;
+  Sokoban levels carry several (Soko 1: 3 rations + 3 candy bars).
+- **Acid blob**: thrown daggers/darts, then a KICK finished it — no sword contact, no corrosion.

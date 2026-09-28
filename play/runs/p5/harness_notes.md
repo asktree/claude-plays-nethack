@@ -89,3 +89,29 @@ wrong-side-of-the-door bug looks fixed; throw() refusing through peacefuls; the 
    the middle of a helper's drop/pickup pair.
 
 4. (minor) `bin/nh history` contains the whole Discoveries menu text (T:1998) — noise from a helper reading `\`.
+
+5. **SEVERE: `bin/nh reload` loaded helpers that need a newer CORE -> ImportError in fight()/travel()** (#342, #405,
+   #414; T:2024-2077). After the reloads the obs asked for (#154, #292, #378, #402), play/tactics/combat.py does
+   `from nh.danger import coaligned_unicorn`, which the daemon's in-memory core (older) lacks:
+   - `fight(36,17)` vs a small mimic: ImportError before the first blow (#342) — fought by hand with `F j`.
+   - travel(): "monster_filter error: ImportError(...)" pause on a new bat (#405), then travel() CRASHED in
+     fight_trivial() -> auto_fightable() with the bat adjacent (#414) — killed it with `F l` by hand.
+   Workaround: manual F blows, `travel(..., auto_fight=False)`. Expected: `reload` should refuse (or warn loudly) when
+   the new helpers import core names the running core doesn't have — or the kernel could reload the core modules the
+   helpers depend on. Orchestrator: please restart p5's daemon before the next shift.
+
+6. **travel()'s NetHack `_` leg "guessed" me back INTO a shop next to a disguised mimic** (#341, T:2023). From the street
+   (33,16), `go_up()` -> travel(64,6): no known path (the town's east door square was never seen), but the first `_`
+   travel moved me from (33,16) into Wonotobo's shop to (37,15) (NetHack's travel falls back to "closest reachable
+   square" when there's no path), then head_to() stopped at (36,16) next to the small mimic at (36,17). Expected: when
+   the harness's own path_to() finds no path, never send `_` (go straight to head_to), and never route through a shop
+   next to a remembered mimic.
+
+7. **travel()'s "step back to let a peaceful pass" chose a diagonal step INTO a doorway** (#318, T:2010): from (35,15)
+   inside the shop to the door (34,16) -> "You can't move diagonally into an intact doorway." Same family as #1.
+
+8. (info, player lesson) Waiting with `s` next to a disguised mimic unmasks it ("You find a small mimic.", #342). Wait
+   with `.` there. Also: a shopkeeper standing on his post (the square inside the door) only steps aside at random and
+   walks straight back while you stand IN LINE with him (shk.c shk_move: satdoor -> random step; next move back if
+   onlineu). From (36,16)/(35,15)... it took 9 turns at (35,15) before he stepped to (36,17) (off-line) and stayed.
+   travel()'s peaceful-waiting could pick a waiting square that leaves the shk an off-line square.

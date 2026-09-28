@@ -325,3 +325,17 @@
 - T:10615 DL20: '<' (3,14) in the room (2-5,14-17); a HOLE at (2,17) (-> DL21). $181 bagged. WATER ELEMENTAL (mindless,
   appeared adjacent in a corridor) killed in 2 blows. Large box (15,19) locked, empty. Gray stone (17,17) left.
   explore(): blocked by a boulder (19,14) at the corridor's east end.
+- T:10695-10806 DL20: pushed the boulder (19,14) east; rock mole, hobgoblin killed; "Vlad was here" trapped closet (45,5)
+  = one-time trap door (avoided); 2nd LEPRECHAUN HALL (66-73,5-7), 16 sleepers — explore() stepped into its doorway
+  (65,5) ("A leprechaun blocks your path"), I stepped out ($0 loose; not farmed: calls better spent on the '>').
+- T:10836 DL20: SWALLOWED BY A TRAPPER at (51,14) during explore() (it had been sensed at (58,14) 4 turns before, then
+  out of ESP range). "The trapper digests you!" -> fight() from inside killed it in 2 blows (-8 HP).
+- T:10901 horse killed (it had followed me); explore() hit "carrying too much to get through" at a diagonal squeeze
+  (29,16)->(28,17): tunnel(28,17) dug 1 square. T:10983 GELATINOUS CUBE adjacent (touched me, no freeze): fight(...,
+  allow_passive=True) — frozen once for a moment, it missed, killed. Its pile held a WAND OF SLOW MONSTER (n).
+  FREEZING SPHERE exploded on me: "You seem unaffected" (cold res). T:11025 WARHORSE killed in one blow.
+- T:11037 DL20: a LICH (sensed by ESP, then invisible) killed in the room (28-39,7-10) — "You destroy the invisible lich!",
+  no damage, no spell landed. It dropped a SCROLL OF TELEPORTATION (bagged) = ZLORFIK identified.
+- END OF SHIFT 9: T:11039, DL20 (30,9), HP 117/117, XL11, AC -15, Satiated, $0 loose (~$2783 bagged), Excalibur +6,
+  prayer safe (last prayer T:3562). DL20 '>' not found yet (south half unexplored). Kills this shift: ~40 (28-monster
+  court, trapper, lich, warhorse, water elemental, gelatinous cube, yeti, trolls x4...) for ~15 HP total.

@@ -434,3 +434,28 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
   every tactics module in a dry run and check `from nh.X import Y` targets against the loaded modules; or tactics should
   guard new core imports with a fallback.
 - #759 read_identify() paused for a revived troll 3 squares away mid-menu flow (fine), `cont` finished it cleanly.
+- #1513 T:10836 DL20: explore() walked me into a TRAPPER's engulf at (51,14). The same (or another) trapper had been
+  sensed by ESP at (58,14) at T:10799 ("!! engulfs and digests"), then left ESP range. Docs say routes keep a square
+  away from a HIDDEN trapper known by telepathy — once it is out of range that memory seems dropped. Expected: keep a
+  trapper/lurker's last-seen square (and its neighbours, trappers are speed 3) avoided for ~50 turns after it leaves
+  ESP range. The SWALLOWED pause itself was excellent (named the timer, fight() from inside, digging, prayer).
+- #1794 T:10968 explore() raised a raw NavError from walk_path ("can't squeeze diagonally ... carrying too much") instead
+  of returning a verdict; tunnel(28,17) fixed it in 1 dig. Idea: explore() could dig the orthogonal square itself when
+  a pick-axe is carried, or return {'reason': 'squeeze: ...'} with the tunnel() hint.
+- #1871 T:11024 explore() raised NavError (walk_path: "warhorse ... is on (22,13) — a plain step there would attack it")
+  for a non-trivial hostile that walked into the path — fine behaviour, but a verdict dict would be friendlier to loops.
+- #1821 fight(x, y, allow_passive=True) on a gelatinous cube: worked; the refusal note "PARALYSES you when you hit it
+  (deadly without free action)" overstates it for a cube alone (d(1,4) turns, 2/3, only while it lives); maybe rate it by
+  the monsters around.
+- #1831 fight() on an adjacent freezing sphere said "striking first" (good) — it survived and exploded; the obs knew I
+  resist cold, so the explosion pause could have been routine ("You seem unaffected by it.").
+- #1884 lich newcomer pause + hunt('lich') -> "a look shows a invisible lich [seen: telepathy]" (grammar: "an invisible");
+  hunt() followed it by telepathy and killed it. Good.
+### Top issues (shift 9, ranked)
+1. **reload vs core skew (#763)**: `bin/nh reload` (which the obs asks for) loaded tactics importing a core function the
+   running daemon lacks -> ImportError inside fight_until_clear()/fight()/hunt(). Dangerous mid-fight on the live
+   server. Make reload verify core imports (or tactics fall back) before swapping modules. Bridged at runtime in p4's
+   kernel (nh.danger.coaligned_unicorn injected); a daemon restart clears it.
+2. **Trapper out of ESP range forgotten (#1513)**: explore() walked into an engulf 4 turns after the trapper was sensed.
+3. **explore() in dark rooms / squeezes (#53, #1794)**: "stuck" with frontiers adjacent to me in a dark room; raw NavError
+   on a diagonal squeeze instead of a verdict (tunnel() one square fixes it).

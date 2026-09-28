@@ -164,3 +164,33 @@
 - **descend(1, explore=True) has a leg budget (48)**: on a big level it gives up with unexplored space left; then
   call explore() directly.
 - **Monsters behind rock**: ESP shows a wraith 2 squares away with rock between; dig() one square toward it and hunt().
+
+## Shift 9 (DL18-20: what the live game should know)
+- **Sleeping COURT on DL19 = 28 kills for ~5 HP and XL10 -> 11** (hunt() loop, nearest first, HP check between targets;
+  -a 'new monster: (court species)'). Court monsters are made hostile even if the species would be peaceful (gnome lord,
+  gnome king for a dwarf): fight() still looks first. The ogre-king ruler carried a WAND OF SLEEP (sleep resistance made it
+  harmless; its bounce slept the ogre king itself) and the other ogre king read a teleport scroll when hit. The court
+  chest (under a corpse pile, not visible) held $202 + enchant weapon + a scroll + gems: visit every pile with here().
+- **Trolls revive in 5-30 turns and a ROTTEN troll corpse can't be eaten** ("Blecch! Rotten food!" flags it): eat the
+  first troll corpse at once (15 turns; stop to kill a reviving one, then eat() resumes the meal); each revival is just
+  more XP at AC -15 (troll hits mostly miss, ~1 damage each).
+- **Hunger estimates drift**: after a full troll (800) I was still not Satiated -> nutrition had been < 200. Eat big safe
+  corpses whenever not Satiated; you can't choke on a meal STARTED while not Satiated (eat.c canchoke).
+- **Trappers (DL20) engulf out of nowhere**: ESP showed one, it left ESP range, and explore() walked into it 4 turns later.
+  At AC -15 the digestion timer is long (~25+ turns): fight() from inside, every blow hits (2 Excalibur blows). A wand of
+  digging zapped inside also frees you.
+- **Gelatinous cube**: passive paralysis is only 1-4 turns (d(1,4), 2/3 while it survives a blow), its touch ~1 dmg at
+  AC -15: fight(x, y, allow_passive=True) is fine when NOTHING else is around (mindless monsters don't show on ESP).
+- **Freezing sphere**: harmless with cold resistance (Valkyrie), even when it explodes. A LICH's cold touch is resisted too,
+  and MR blocks its destroy-armor; kill it fast (curse items is its one real threat, only adjacent).
+- **Pack over 600 blocks diagonal squeezes** ("You are carrying too much to get through."): tunnel(x, y) one square.
+- **Enchant weapon at exactly +5 is safe** (wield.c chwepon evaporates only when spe > 5 BEFORE the read): Excalibur +6 now,
+  "suddenly vibrates unexpectedly" = stop forever.
+- **MEDUSA ARRIVAL (dat/medusa.des 3.6.7, all 4 variants)**: Medusa is always inside a closed building (walls/locked doors)
+  far from the '<'; medusa-1/2 generate her asleep; every FALL/levelport arrival region ('down' TELEPORT_REGION) is on the
+  up-stairs side. Her gaze needs couldsee() (monmove.c: m_respond when she is active and her square is in your line of
+  sight) and she waits (STRAT_WAITFORU) until she can see you. So arriving by the '<', a hole or a trap door is safe;
+  exploring toward her building is not. The camera applied at yourself blinds you 5+rnd(25) turns (zap.c: flashburn;
+  it can't be renewed while already Blind): a cheap way to arrive blind and read the level with telepathy.
+- **Coming back UP from below Medusa lands on HER '>' next to her** (medusa-3/4: awake). Stay above her until the quest is
+  done or a blindfold/towel/reflection is in hand.

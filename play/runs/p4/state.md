@@ -2,8 +2,8 @@
 
 ## Character
 - Name/role: P4, lawful female dwarven Valkyrie, god: Tyr. Seed 404 (local practice game).
-- Turn / Dlvl / XL / HP / Pw / AC: T:10333 / DUNGEONS DL18 at (23,13) (corridor just N of a LEPRECHAUN HALL's doorway
-  (23,14); ~30 sleepers) / XL10 / 109/109 / 17/17 / AC -15 / $0 loose ($2337 in bag k).
+- Turn / Dlvl / XL / HP / Pw / AC: T:11039 / DUNGEONS DL20 at (30,9) (room 28-39,7-10, quiet) / XL11 / 117/117 / 19/19 /
+  AC -15 / $0 loose (~$2783 in bag k) / SATIATED (troll + yeti eaten T:10528/T:10608).
 - (Shift 8 began from a `recover` restore to T:9820: the T:9820-9927 events of shift 7 on DL13 were undone.)
 - Attributes: St 18/05, Dx 11, Co 19, In 7, Wi 9, Ch 8. Skills: long sword EXPERT, dagger Basic.
 - Intrinsics: cold res (Valk), stealth, infravision, SPEED, TELEPATHY (floating eye), MAGIC RESISTANCE (worn GDSM X),
@@ -13,9 +13,9 @@
 - LUCKSTONE K (uncursed) carried: +3 Luck while carried, and Luck no longer times out (good or bad) — never do
   Luck-losing things now (no gem-throwing at cross-aligned unicorns: random Luck gets locked in).
 - Enlightenment T:8565: PIOUSLY aligned, "You can safely pray".
-- Hunger: NOT HUNGRY (Satiated wore off ~T:10240). Nutrition estimate: Hungry around ~T:10900. Food left: f C-ration,
-  w tripe (dwarf: vomit risk), p 2 tins wolf meat, lizard corpses J x2 + S (keep for stoning). FOOD IS THIN: eat
-  fresh safe corpses (corpse()) whenever not Satiated; buy/collect rations.
+- Hunger: SATIATED at T:11039 (yeti eaten T:10608 reached "hard time getting it all down" = ~1500+). Hungry not before
+  ~T:12300. Food left: f C-ration, h 2 apples, w tripe (dwarf: vomit risk), p 2 tins wolf meat, lizard corpses J x2 + S
+  (keep for stoning). Eat fresh safe corpses (corpse()) whenever not Satiated.
 
 ## Prayer log
 | turn | reason | result |
@@ -25,7 +25,8 @@
 | T:6481 / T:8565 | wand of enlightenment: "You can safely pray" | prayer SAFE (no prayer since T:3562) |
 
 ## Equipment worn/wielded (AC -15)
-- a: blessed rustproof +5 EXCALIBUR (wielded) — DO NOT enchant further (evaporation above +5).
+- a: blessed rustproof +6 EXCALIBUR (wielded) — read EW T:10565 ("vibrates unexpectedly"): NEVER enchant again
+  (above +5 every read evaporates it 2/3).
 - X: blessed +2 GRAY DRAGON SCALE MAIL (MR). l: blessed +2 leather cloak (MC1). R: uncursed +0 leather gloves.
   c: +3 small shield. j: uncursed +0 orcish helm. O: uncursed +0 iron shoes. o: amulet of ESP.
 - A NYMPH CAN CHARM ARMOR OFF. After any nymph contact: check `inventory()` for "(being worn)".
@@ -42,6 +43,10 @@
 - A = scroll of light (ASHPD SODALG) in the main pack.
 - Wands (charges known): U DIGGING (0:5), m COLD (0:6), x POLYMORPH (0:5), P STRIKING (0:3), T SLOW MONSTER (0:4),
   q SLEEP (0:1), r light (0:13), t enlightenment (0:13), F TELEPORTATION (0:0) = EMPTY (wrest 1/121 only).
+  NEW (charges UNKNOWN): V WAND OF SLEEP (DL19 court ogre king's — it zapped it once), n WAND OF SLOW MONSTER (DL20).
+- Bag k additions (shift 9): SCROLL OF TELEPORTATION (from a lich; ZLORFIK), 2nd KO BATE, "scroll called create monster?",
+  magenta potion (unknown); only ONE uncursed identify left (one read on the boots = elven boots, dropped).
+- Main pack gems: M white gem, N yellow gem, Z 2 yellow gems (unknown).
 - K = LUCKSTONE. D = 2 AMETHYSTS. B, E = worthless glass.
 - Weapons: b +0 dagger, i 2 +0 orcish daggers, Q cursed -1 elven dagger (throwing only).
 - Tools: g skeleton KEY, G PICK-AXE (main pack now; bag it before entering shops), L +0 unicorn horn, I camera (0:65).
@@ -50,7 +55,7 @@
 - wands: iridium = TELEPORTATION; hexagonal = SLEEP; curved = SLOW MONSTER; uranium = ENLIGHTENMENT; zinc = COLD;
   crystal = DIGGING; silver = make invisible; steel = STRIKING; balsa = LIGHT; marble = POLYMORPH.
 - spherical amulet = ESP; copper ring = searching. gray stone = luckstone (K).
-- scrolls: MAPIRO MAHAMA DIROMAT = identify; GARVEN DEH = earth; DUAM XNAHT = SCARE MONSTER; STRC PRST SKRZ KRK =
+- scrolls: ZLORFIK = TELEPORTATION (1 in the bag); MAPIRO MAHAMA DIROMAT = identify; GARVEN DEH = earth; DUAM XNAHT = SCARE MONSTER; STRC PRST SKRZ KRK =
   ENCHANT WEAPON; PRATYAVAYAH = REMOVE CURSE; NR 9 = PUNISHMENT; ASHPD SODALG = light (price); TEMOV = base 200
   (amnesia/create monster/taming); YUM YUM, KO BATE, ANDOVA BEGARIN = base 100; ETAOIN SHRDLU base 200 ("create monster?").
 - potions: EMERALD = ACID; DARK = blindness; EFFERVESCENT = extra healing; BUBBLY = object detection; ORANGE = SPEED;
@@ -75,7 +80,9 @@
 | 15 | Dungeons | QUEST PORTAL LEVEL. '<' (17,14); MAGIC PORTAL (52,15); THRONE ROOM (74-76,11-15) door (73,14): court killed, '>' (74,13) under the looted chest, throne (75,12) (never sit); wood nymph asleep in the NW room (3-11,4-5); fountain (36,8); grave (66,4). |
 | 16 | Dungeons | '<' (72,17). '>' found by explore (~28 turns). |
 | 17 | Dungeons | ROGUE LEVEL. '<' (45,11) (arrow trap (44,9), pit (45,9)); peaceful gnome king. |
-| 18 | Dungeons | '<' (5,15). LEPRECHAUN HALL (19-28,15-17) doorway (23,14), ~30 sleepers; cleared chickatrice room (2-10,5-8) door (8,9); peaceful dwarf lord. '>' NOT FOUND yet (east half unexplored). |
+| 18 | Dungeons | '<' (5,15). LEPRECHAUN HALL (19-28,15-17) doorway (23,14), ~30 sleepers; cleared chickatrice room (2-10,5-8) door (8,9); peaceful dwarf lord. '>' NOT FOUND. TRAP DOOR in the dark room (43-45,4-7) near (44,5) -> DL19 (used T:10355). |
+| 19 | Dungeons | '<' (6,6) (room 3-6,3-7; spiked pit (5,5); doors (7,4) locked, (7,6)). '>' (42,17) in room (41-44,16-19); OCHRE JELLY at (42,16) beside it (left alive). THRONE ROOM (23-35,16-18) CLEARED (28 kills); throne (25,16); trapped closet (28,14) behind door (28,15) ("ad aerarium": vault teleporter / level teleporter, harmless with MR); chest (30,18) looted (gray stone left inside); a troll corpse at (32,18) keeps REVIVING (rotten). Large mimic (24,13) in the corridor. Grave (43,19). |
+| 20 | Dungeons | '<' (3,14) (room 2-5,14-17); HOLE (2,17) -> DL21. Rooms: (7-15,3-8), (15-18,17-19) (empty large box), (28-39,7-10) + grave (36,10), (41-49,6-11), (55-59,5-10); trapped closet TRAP DOOR (45,5) ("Vlad was here", avoided); LEPRECHAUN HALL (66-73,5-7) door (65,5) W + (69,8) S, 16 sleepers. Small mimic (49,9), rock piercer. '>' NOT FOUND (unexplored: the south half rows 15-21 east of x=20, and east of x=75; corridor south at (63,15), door (69,14)). |
 | Sok 1-4 | Sokoban | ALL SOLVED; prize taken. |
 | Mines 1-3 (DL5-7) | Mines | DL7: '<' (13,6), '>' (69,9). |
 | 8 | MINETOWN (minetn-6) | '<' (15,13), '>' (60,18); temple of Tyr (co-aligned altar (55,17)); deli out of rations; Izchak ~(30,13). |
@@ -90,15 +97,22 @@
 - MIND FLAYERS (Int 7!): never melee; F is EMPTY now -> dig down (U / pick-axe) or leave the level.
 - Fire: no resistance (flaming sphere blast -14). Keep scrolls/potions in the bag.
 - At AC -15 a monster's RAY still hits ~40%: soldiers/wand users remain dangerous without reflection (sleep is now resisted).
+- DL19-20 population: trappers (hidden engulfers — one swallowed me on DL20), gelatinous cubes and water elementals
+  (mindless: ESP misses them), liches (curse items when adjacent), trolls (revive). All beaten at AC -15 without trouble.
 
 ## Objective and plan
-- NEXT: DL18: find the '>' (explore the east half; descend(1, explore=True) gave up after its 48-leg budget —
-  call explore() directly). Optional: farm the DL18 leprechaun hall from its doorway (23,14) with $0 loose for XP +
-  gold (forget_room() first; bag gold at once).
-- Then DL19-20 toward MEDUSA (DL21-24). BEFORE Medusa: a BLINDFOLD/TOWEL (none carried!) or reflection; crossing
-  water: wand of cold m (0:6) freezes a path, or levitation. A wand of CANCELLATION zapped at Medusa (asleep) makes
-  her gaze harmless — still go blind to approach.
+- NEXT: DL20: find the '>' (explore the south half; corridor south from (63,15), door (69,14)). The HOLE (2,17) next to
+  the '<' also goes to DL21 (random landing; on Medusa's level the landing region is always the up-stairs side).
+- DL21-24 may be MEDUSA. SOURCE-CHECKED ARRIVAL PLAN, NOT YET TRIED IN PLAY (see lessons shift 9; test the camera
+  blindness once on a quiet level first: `do('aI')`, direction '.'): stand on the '>' of the level above, apply
+  the CAMERA I at yourself ('.') -> Blind 6-30 turns; press '>' at once; intrinsic telepathy then shows every minded
+  monster on the level: "Medusa" listed = her level -> '<' straight back up (or dig down with U beside the '<' on a
+  square with NO water neighbour — only if you accept not coming back up without a blindfold/reflection). Even
+  sighted, all 4 medusa.des variants keep her inside a closed building far from the '<' (medusa-1/2 asleep): never
+  open her building / cross toward her island without blindness or reflection.
+- Stay ABOVE Medusa until XL14 + the quest (portal DL15 (52,15)): coming back up from below lands next to her.
 - XL: need XL14 (80000 exp) for the quest (portal DL15 (52,15)). Wraith corpses (+1 XL each) are the fastest help.
-- Food: thin (C-ration, 2 tins, tripe): eat fresh safe corpses when not Satiated.
-- Wants: REFLECTION (top), fire resistance, blindfold/towel, food rations, holy water (uncurse the gain level potion).
+- Food: Satiated now; reserve = C-ration, 2 apples, 2 tins, tripe: keep eating fresh safe corpses when not Satiated.
+- Wants: REFLECTION (top), BLINDFOLD/TOWEL, fire resistance, holy water (uncurse the gain level potion).
+- Escapes: scroll of teleportation (bag), wand of digging U (0:5) + 2nd in the sack, cursed gain level (up), '<'.
 - Long-term: reflection, then the Castle wand of wishing (PLAYBOOK A1).

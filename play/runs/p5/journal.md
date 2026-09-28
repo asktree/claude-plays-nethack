@@ -55,3 +55,12 @@
   n FOOBIE BLETCH 40 (base 80: enchant armor / remove curse), j HACKEM MUCHE 25 (= LIGHT; sold it, $62), q puce 75 and
   s effervescent 75 (base 150), t orange 150 (base 300: gain ability/gain level/paralysis), A cyan 50 (base 100).
 - T:2004 Hungry: ate a food ration in the shop — ROTTEN (quarter nutrition, no side effect).
+- T:2007 sold j (light) for 25 ($62). T:2024 my own 's' (used as "wait") in Wonotobo's shop UNMASKED the small mimic at
+  (36,17): killed it by hand (F j; fight() broken by a harness ImportError) — HP 51 -> 35. Wonotobo then sat on his post
+  (35,16) for ~20 turns; got out by waiting at (35,15) until he stepped off-line to (36,17).
+- Minetown exit = the SE doorway (56,19) -> corridor x=57 north -> '<' room (64,6) (the east wall x=56 has no door).
+- T:2121 Mines 2 (DL4): C - 2 candles + D yellow gem at (55,15). T:2154 giant bat killed (HP 51->29 with the mimic
+  damage), dwarf zombie destroyed. E - CORAL RING (unknown, not worn) at (36,4).
+- T:2198 Mines 1 (DL3): crossed the anti-magic field with trek(); the housecat killed a green mold. Pile (27,11) next to
+  the mold: F black, G red, H violet, I white gems (helm left). Two giant rats killed. HOUSECAT BACK WITH ME.
+- T:2295 DL2 at the Mines '>' (39,5), HP 46/51, cat adjacent.
