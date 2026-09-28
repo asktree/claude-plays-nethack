@@ -572,6 +572,28 @@ def test_guard_cockatrice_corpse_pickup_and_blind_step():
     g._guard(s, b",", force=False)
 
 
+def test_guard_blind_step_onto_a_cockatrice_kill_square():
+    # p2 shift 35 #14: two cockatrices killed ON the zoo doorway (39,8) with Fj from (39,7) — never stood on, so no
+    # "You see here" memory — then a blindfolded step onto it: stoned (life saving used up)
+    import pytest
+    g = _guard_game()
+    blind = _cmd_snap([], hero=(9, 5), conditions=["Blind"])
+    blind.status.turn = 22530
+    key = g.level_key(blind.status)
+    g.kills[key] = [("cockatrice", (10, 5), 22481), ("cockatrice", (10, 5), 22495), ("newt", (8, 5), 22500)]
+    with pytest.raises(PermissionError, match=r"where a cockatrice was killed 35 turns ago"):
+        g._guard(blind, b"l", force=False)
+    g._guard(blind, b"h", force=False)                   # a newt died there: fine
+    g._guard(blind, b"l", force=True)
+    blind.status.turn = 22900                            # long rotted away
+    g._guard(blind, b"l", force=False)
+    seeing = _cmd_snap([], hero=(9, 5))
+    seeing.status.turn = 22530
+    g._guard(seeing, b"l", force=False)                  # sighted steps never touch what lies there
+    blind.status.turn = 22530
+    assert g.trice_squares(blind) == {(10, 5)}           # (travel/explore routes avoid it while blind)
+
+
 def test_guard_water_lava_and_choking():
     import pytest
     from nh.game import Snap

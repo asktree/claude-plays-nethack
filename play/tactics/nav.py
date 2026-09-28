@@ -126,7 +126,29 @@ def bad_squares(s=None) -> set:
         if not (rec.get("statue") or c == s.hero) and s.screen.at(*c) != "#" and not is_door(s, *c):
             mimics.add(c)
     zone = set(special_room_zone(s))
-    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics | zone
+    trice = set()
+    if s.status.ok and "Blind" in s.status.conditions and hasattr(ctx.game, "trice_squares"):
+        trice = ctx.game.trice_squares(s) - {s.hero}   # (blind, you feel what you step on: a corpse stones you)
+    return set(ctx.game.traps.get(lv, set())) | set(ctx.game.avoid.get(lv, set())) | mimics | zone | trice \
+        | (hider_margin(s) - {s.hero})
+
+
+def hider_margin(s=None) -> set:
+    """The squares next to a HIDING trapper / lurker above known from telepathy or a scan (in view now or seen
+    lately): harmless only while hidden, and your search or Excalibur's autosearch un-hides it next to you — it
+    engulfs at once (p2 shift 35 #57/#61: desmap.walk passed beside one in the wizard2 zoo)."""
+    from nh.danger import base_name
+    s = s or ctx.last()
+    recs = list(s.monsters or [])
+    tr = getattr(ctx.game, "tracker", None)
+    if tr is not None and hasattr(tr, "gone") and s.status.ok:
+        recs += tr.gone(s.status.turn)
+    out = set()
+    for m in recs:
+        d = m.get("desc") or ""
+        if base_name(d) in ("trapper", "lurker above") and "hiding" in d and not d.startswith(("tame ", "peaceful ")):
+            out |= {(m["x"] + dx, m["y"] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy}
+    return out
 
 
 # sp_lev.c create_room(): a random room is at most 14 squares wide and 6 high inside (special rooms are picked

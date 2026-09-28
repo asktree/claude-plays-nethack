@@ -1326,3 +1326,21 @@ def test_wand_zaps_are_pinned_on_the_right_monster():
     s3 = snap({}, 43)
     g._note_wand_zaps(s3, ["You hear a nearby zap.", "The sleep ray hits you!"], snap({}, 42))
     assert s3.wand_kind == "sleep" and s3.wand_note.startswith("a wand ray came at you")
+
+
+def test_you_find_a_monster_relabels_the_one_beside_you():
+    # p2 shift 35 #295: "You find a piranha." — the ';' next to you had inherited a stale "kraken, hiding" label
+    g = FakeGame()
+    g.truth = {(41, 10): "kraken, hiding"}
+    t = MonsterTracker(g)
+    s1 = snap({(41, 10): ";"}, 100, color=1)
+    by_pos(t.update(s1))
+    g.truth = {}                                  # no look needed: the message says what it is
+    s2 = snap({(41, 11): ";"}, 101, color=1)
+    s2.messages = ["You find a piranha."]
+    m = by_pos(t.update(s2))[(41, 11)]
+    assert m["desc"] == "piranha"
+    # "You find a hidden passage." is not a monster
+    s3 = snap({(41, 11): ";"}, 102, color=1)
+    s3.messages = ["You find a hidden passage."]
+    assert by_pos(t.update(s3))[(41, 11)]["desc"] == "piranha"

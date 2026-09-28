@@ -570,6 +570,22 @@ def test_loot_all_leaves_a_known_bag_of_tricks_alone(monkeypatch):
     assert sent == ["#loot<CR>", "n"] and any("bag of tricks alone" in m for m in msgs)
 
 
+def test_bad_squares_keep_a_margin_round_a_hiding_trapper(monkeypatch):
+    # p2 shift 35 #57/#61: desmap.walk passed next to "trapper, hiding on the floor" (known by telepathy);
+    # autosearch un-hid it and it engulfed at once
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(nav, "special_room_zone", lambda s: {})
+    trap = {"x": 34, "y": 12, "ch": "t", "desc": "trapper, hiding on the floor"}
+    s = _snap({12: " " * 30 + "........"}, (31, 12), [trap])
+    s.status.turn = 100
+    bad = nav.bad_squares(s)
+    assert {(33, 12), (35, 11), (33, 13)} <= bad and (31, 12) not in bad
+    s.monsters = [dict(trap, desc="trapper")]         # un-hidden (seen, fighting): no margin, fight it
+    assert (33, 12) not in nav.bad_squares(s)
+
+
 def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
     import pytest
     from tactics import ctx, nav

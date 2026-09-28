@@ -708,6 +708,25 @@ class Game:
             ages = [turn - t for n, c, t in recs if n == "it" and c == tuple(cell) and 0 <= turn - t <= 50]
         return max(ages) if ages else None
 
+    def _trice_killed_on(self, snap: Snap, cell, within: int = 300):
+        """(name, turns ago) of a cockatrice/chickatrice killed on `cell` of this level in the last `within`
+        turns (a corpse lies where its monster died and rots away after ~250 turns), else None."""
+        turn = snap.status.turn if snap.status.ok else None
+        hits = [(n, turn - t if turn is not None else 0) for n, c, t in self.kills.get(self.level_key(snap.status), [])
+                if n in ("cockatrice", "chickatrice") and tuple(c) == tuple(cell)
+                and (turn is None or 0 <= turn - t <= within)]
+        return min(hits, key=lambda h: h[1]) if hits else None
+
+    def trice_squares(self, snap: Snap) -> set:
+        """Squares of this level where a cockatrice/chickatrice corpse probably lies: seen there ("You see
+        here ...") or killed there in the last 300 turns. Blind, stepping onto one is instant stoning."""
+        if not snap.status.ok:
+            return set()
+        key = self.level_key(snap.status)
+        out = {c for c, txt in self.here_seen.get(key, {}).items() if self.COCKATRICE_CORPSE.search(txt or "")}
+        out |= {tuple(c) for n, c, t in self.kills.get(key, []) if self._trice_killed_on(snap, c)}
+        return out
+
     def _recently_gone(self, snap: Snap) -> list:
         """Monsters with a danger note that left view within ~20 turns (a gas
         spore in a dark corridor is invisible to telepathy: mind where it was)."""
@@ -1604,11 +1623,19 @@ class Game:
                         "luckstone/touchstone/flint slides — kick_test(x, y) does that. force=True once you know.")
             if step in self._MOVE and snap.hero is not None and "Blind" in conds:
                 dx, dy = self._MOVE[step]
-                if self.COCKATRICE_CORPSE.search(self._here_text(snap, (snap.hero[0] + dx, snap.hero[1] + dy))):
+                tgt = (snap.hero[0] + dx, snap.hero[1] + dy)
+                killed = self._trice_killed_on(snap, tgt)
+                if self.COCKATRICE_CORPSE.search(self._here_text(snap, tgt)) or killed:
+                    # (the kill memory too: p2 shift 35 killed two cockatrices ON a doorway with F from beside
+                    # it, never stood there, then stepped onto it blindfolded — stoned, life saving used up)
                     raise PermissionError(
-                        "refusing to step blind onto the square with the cockatrice corpse: while blind you feel "
-                        "the objects you step on, and feeling it bare-handed is instant stoning. Wait until you "
-                        "can see, go around, or force=True if you wear gloves.")
+                        "refusing to step blind onto "
+                        + (f"{tgt}, where a {killed[0]} was killed {killed[1]} turns ago (its corpse is probably "
+                           "still there)" if killed and not self.COCKATRICE_CORPSE.search(self._here_text(snap, tgt))
+                           else "the square with the cockatrice corpse")
+                        + ": while blind you feel the objects you step on, and feeling it bare-handed is instant "
+                        "stoning. Wait until you can see (take the blindfold off), go around, or force=True if you "
+                        "wear gloves.")
             fkey = key if unit[:1] == b"F" else None
             if (step in self._MOVE or fkey in self._MOVE) and snap.hero is not None and conds & {"Conf", "Stun"}:
                 # hack.c domove(): stunned, every move/F-blow goes in a random direction (confused, 1 in 5),

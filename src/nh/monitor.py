@@ -47,6 +47,9 @@ _KILL_RES = [
 ]
 
 
+_FOUND_MON = re.compile(r"^You find an? (.+?)\.$")
+
+
 def killed_names(messages, include_it: bool = False) -> list[str]:
     """Monster names reported killed in these messages ("You kill the
     jackal!", "The kitten kills the newt.", "The gnome is killed!").
@@ -392,6 +395,25 @@ class MonsterTracker:
             else:
                 m["new"] = not m.get("statue")
 
+        # "You find a piranha." (a search / Excalibur's autosearch un-hid a monster next to you): that is what
+        # stands there, whatever label its glyph inherited (p2 shift 35 #295: a stale "kraken, hiding" label
+        # moved onto a newly found piranha — the label decides whether fighting beside the water is safe)
+        for x in getattr(snap, "messages", None) or []:
+            fm = _FOUND_MON.search(x)
+            if not fm or hero is None:
+                continue
+            from .danger import monster_record
+            rec = monster_record(base_name(fm.group(1)))
+            if not rec:
+                continue                          # a hidden door, passage or trap
+            near = [m for m in mons if max(abs(m["x"] - hero[0]), abs(m["y"] - hero[1])) == 1
+                    and m["ch"] == rec.get("symbol") and not m.get("statue")]
+            for m in near:
+                if len(near) == 1:
+                    m["desc"] = ("peaceful " if (m.get("desc") or "").startswith("peaceful ") else "") + fm.group(1)
+                    m["looked"] = True
+                else:
+                    m["desc"] = ""                # which one? look again
         xl = st.xl if st.ok else None
         # (the snapshot's own level: during a step game.last is still the PREVIOUS level's snapshot)
         lk = self.game.level_key(st) if hasattr(self.game, "level_key") else ""
