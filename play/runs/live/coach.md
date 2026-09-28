@@ -253,3 +253,8 @@ refused a fight at #2320 after a blow had already smudged it.
 ack T8968 (orchestrator): pulled + daemon restarted before shift 9. Prize = AMULET OF REFLECTION, worn. Protection
 bought (AC-8). Oracle + DL9 fountains used up on ~11 Excalibur dips: still cursed. 3 uncursed waters in hand; waiting
 for a lawful altar. Shift 9: DL9 → down to DL14 max, lawful altar hunt, boots try-on OK, rings only after price-ID.
+
+ack T10388 (orchestrator): pulled + daemon restarted before shift 10. Fountain dips on DL10 uncursed BOTH Excalibur and
+the magic lamp. Now 1 holy water → bless lamp → wish. No lawful altar DL1-12 yet. Big Room DL12 crowded (HP 101→53 in
+~10 turns from its up stairs). Shift 9 harness wishes: group identical monsters in obs (55 leprechauns ≈ 3k tokens per
+obs), and a fight_until_clear option to pause only for danger-noted newcomers.

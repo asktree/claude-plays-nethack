@@ -148,3 +148,11 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   teleportation (200), hunger or aggravate monster (100/150) — unless the candidates are narrowed to harmless ones.
 - Depth: with reflection + AC-8 + XL9, go on down the main dungeon (Big Room DL10-12, quest portal DL11-16),
   looking for a LAWFUL altar and fountains. No deeper than DL14 for now; no Medusa/Castle without MR (the lamp wish).
+
+## ORCHESTRATOR DECISIONS T:10388
+- Lamp x is UNCURSED: do NOT rub it (20% wish; 80% the lamp is spent). It needs ONE holy water → blessed → rub (80%).
+  Holy water sources: a lawful altar prayer with the waters on it (timeout is surely 0 now: last prayer T:2717), or a
+  shop's clear potion that a (any) altar shows as blessed.
+- Big Room DL12: fight only from the up stairs (42,16) with HP > 60%, retreat up to rest. Acceptable alternative:
+  step off the up stairs on arrival and zap the wand of digging X down to skip it (it has unknown charges).
+- Depth limit stays DL14 until the wish is done. Buy +1 protection at the next temple (400×XL).
