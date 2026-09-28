@@ -103,3 +103,25 @@
   Fight them from a 1-wide passage: the summoned wolves then come one at a time.
 - **A sleeping nymph next to the stairs**: watch 3-4 turns from a distance (no movement = asleep) and walk past with
   Stealth instead of risking a failed one-blow kill (she then steals: maybe the GDSM or the bag).
+
+## Shift 6
+- **Mines' End (Catacombs) luckstone, cheaply**: mines.des `$place = {(1,15),(68,6),(1,13)}` + the map offset gives the
+  3 spots; SHUFFLE puts the luckstone, the flint (both on LEVEL TELEPORTERS: harmless with MR, "wrenching sensation")
+  and nothing. The maze walls dig (not the closets): tunnel() with the pick-axe along one row is fast and
+  predictable; the stair room's exits are SECRET doors (tunnel digs through them). To tell luckstone from flint:
+  carry the stone and zap enlightenment — an uncursed luckstone shows "You are lucky" (+3); no luck line = flint.
+- **Mines' End is the Mines' 8th or 9th level** (dungeon.def (8,2) = rn1(2,8)); a desmap "minend" match anywhere
+  shallower is false. Check the depth before trusting an identification.
+- **Mind flayer with low Int**: don't melee. A wand of TELEPORTATION zapped at it (even adjacent) has no resistance
+  roll and sends it away; digging down is the other clean exit. Its psychic blast locks on through an amulet of ESP
+  (~25 HP in a few turns). Grease the helmet (can of grease) before any planned fight: tentacles slip off it.
+- **Quantum mechanics** teleport you on a hit (MC1 stops only 30%): it can drop you next to the monster you fled
+  from. Kill them fast or keep away when something worse is on the level.
+- **At AC -15 a monster's RAY still hits ~40%** (zap.c zap_hit: AC_VALUE(-15) = -rnd(15)); only melee to-hit is
+  crushed by low AC. Wand carriers (soldiers) remain dangerous without reflection/sleep resistance.
+- **Food rations can be rotten** (1 in 7 once older than 30 turns): "Blecch!" = confusion (unicorn horn) and HALF the
+  nutrition — hunger comes back ~400 turns later. Keep 2+ rations; buy every ration in reach.
+- **Gas spore in a dark corridor**: step back until 2 squares away and throw a dagger down the line even when you
+  can't see it — "You kill it!" and its blast (adjacent squares only) misses you.
+- **Soldier squads in a maze**: a 1-wide dug tunnel with a wall on each side is a perfect chokepoint; 4 soldiers +
+  undead died for 1 HP. The room side of a doorway (walls both sides) did the same against 7 Uruk-hai.

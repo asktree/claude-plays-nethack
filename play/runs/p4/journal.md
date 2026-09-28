@@ -188,3 +188,42 @@
   "Thou hast been rewarded for thy devotion." AC -11 -> -14 (3 points). Altar tests: leather gloves, ANDOVA BEGARIN
   scroll, orange + ruby potions UNCURSED; granite, jade, topaz rings all CURSED. Gloves worn -> AC -15.
 - END OF SHIFT 5: T:8196, Minetown temple altar (55,17), HP 99/99, XL9, AC -15, $2207 in the bag, prayer safe.
+
+## Shift 6
+- T:8217 Minetown: a leftover wolf killed at the '>' (60,18) -> XL10 (HP 109). DL9 (Mines 5): 2 giant spiders killed
+  on the '<'; stumbled into a web at (57,16) (leash there); black gem. '>' DL9 (55,17).
+- T:8330 DL10 (Mines 6): a MIND FLAYER sensed at (31,16) (Int is only 7): did not engage — dug down with the pick-axe
+  from (39,14) (8 turns). DL10 known: '<' (51,10); '>' not found (west part unexplored, flayer there).
+- T:8338 DL11 (Mines 7): desmap.identify() said "minend-1" (42 good / 10 bad) — FALSE (Mines have rn1(2,8) = 8-9
+  levels). Killed a red naga, a pit viper, a fog cloud; picked up an unidentified BAG (C) at (23,2) — NOT bagged.
+  '>' (21,7); '<' of DL11 NOT known (arrived by falling at (47,4)).
+- T:8429 DL12 (Mines 8): '<' (5,17), '>' (21,12). Wolf, bugbear killed.
+- T:8465 DL13 = MINES' END, CATACOMBS (minend-3, offset (2,4), '<' (44,12) in a closed room whose exits (39,12),
+  (49,12) are secret doors). Luckstone places (des $place + offset): (3,17), (3,19) [west closets, secret doors
+  (4,17)/(4,19)], (70,10) [NE closet, secret door (75,9)]. Tunnelled with the pick-axe along row 12 (maze walls dig).
+  Killed 2 VAMPIRES (both first as vampire bats; Excalibur = drain res, one bite no effect), giant spiders, ettin
+  mummy, elf zombie, freezing sphere (exploded, cold res). (3,17): gray stone H on a level teleporter (MR: "wrenching
+  sensation"); (3,19) empty. Wand of enlightenment: no "lucky" line -> H = FLINT (dropped at (4,19)).
+- T:8617-8637 7 URUK-HAI at the east door: killed 5 from the room side of the doorway (48,12), no damage.
+- T:8679 NE closet (70,10): K = gray stone = THE LUCKSTONE (by elimination), type named "luckstone". Hungry T:8685:
+  ate C-ration f. Teleport trap (66,12) in my tunnel (MR -> harmless; trek(cross_traps=True) crosses it).
+- T:8700-8736 a SOLDIER squad (4) + gnome mummies, human/elf/ettin zombies: all killed in the tunnel, HP 109/109.
+  Back on the Mines' End '<' (44,12) with the luckstone.
+- T:8737-8810 climb: DL12 -> DL11; DL11's '<' unknown: explore() wandered west; the FALSE minend-1 identification made
+  travel plan "12-step" routes over non-existent floor -> patched desmap._candidates in the kernel (minend only on
+  DL13) and dropped the cached id. Bear trap (41,13) (-15 HP, escape_trap 5 pulls), sleeping gas trap (39,17) (slept
+  briefly, no harm). Found '<' (17,15) T:8889.
+- T:8889 DL10: large cat killed on the '>' (25,13). MIND FLAYER psychic blasts ("It locks on to your telepathy!")
+  took ~25 HP (105 -> 80). T:8907 the flayer came ADJACENT (zapped a wand of striking: MR "Boing!") -> zapped wand of
+  TELEPORTATION at it: gone. Hungry T:8944 -> food ration n was ROTTEN ("Blecch!", confused; half nutrition) ->
+  unicorn horn fixed the confusion. Dug (37,9)->(41,9) to join the '<' corridor. A QUANTUM MECHANIC's hit teleported
+  me TWICE — the 2nd time right next to the mind flayer (T:9000): zapped teleport at it again (F used 4x in all).
+  Reached '<' T:9033.
+- T:9039 Minetown: killed the LARGE MIMIC (it had moved to Bojolali's deli door (45,16)); pick-axe into the bag to
+  enter; bought the only FOOD RATION (60zm; pay() needed the shopkeeper's square: 2 shopkeepers in range).
+- T:9106 Mines DL7: a GAS SPORE blocked the corridor; stepped back to 2 squares and killed it with a thrown dagger
+  (blind throw into the dark: "You kill it!", no blast on me; dagger y left there). T:9204 back on DL4.
+- T:9204-9294 descend(6) main dungeon: DL5, 6, 7, 8. DL8: the wood nymph still asleep beside the '<' -> passed with
+  Stealth (go_down(pass_hostile=True)). Hungry T:9316 -> ate the new food ration (fine). A hill orc threw an ACID
+  potion (-2); killed a hill orc and an elf mummy.
+- END OF SHIFT 6: T:9333, DL8 main (24,7), HP 107/109, XL10, AC -15, fed, LUCKSTONE carried, prayer safe.

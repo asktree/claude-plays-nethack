@@ -299,3 +299,48 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
 2. fight() stops after an in-fight getlin prompt ("Call an emerald potion:") is answered (#156-#157).
 3. Trip helpers (descend/go_up/travel) pause for trivial newcomers (#648 etc.) and descend() raises instead of
    returning at a level with no known '>' (#464).
+
+## Shift 6
+1. **desmap.identify() false positive** (#233, T:8350): on Mines level 7 (DL11) it returned minend-1 with 42 good /
+   10 bad squares and the `where:` line named it ("minend-1 map at offset (2,4)"). Mines' End can only be the branch's
+   LAST level (dungeon.def (8,2) -> rn1(2,8) = 8 or 9 levels; here Mines 1 = DL5). Expected: minend-* only on the
+   Mines' bottom level (or at least Mines depth >= 8), and no identification with 10 mismatches. The fixed '<' it
+   placed at (38,8) was next to a seen wall on an open row. My own helper trusted it and stopped a descent.
+2. **pickup(pattern, force=True) doesn't lift the gray-stone guard** (#707, T:8560): "refusing to pick up the gray
+   stone ... force=True once you know" — but pickup('gray stone', force=True) raised the same PermissionError;
+   do(',', force=True) worked. (The Catacombs' des places only hold a luckstone or a flint.) Either pass force through
+   or change the message to say `do(',', force=True)`.
+3. **trek()/travel() blocked by a STALE monster glyph** (#905, T:8695): "the way is blocked by soldier at (53, 12) —
+   then trek again", 6 times with no game time, while that soldier had walked off in the dark (its '@' stayed on the
+   map; the monster list no longer had it there). Expected: a monster glyph on a dark square the hero can't see and
+   doesn't sense is uncertain — walk up to it (as trek(54,12) then did: the lurker pause fired and the glyph cleared).
+4. (idea) desmap.show() lists no fixed OBJECTS: for the Catacombs the luckstone/flint $place squares ((3,17), (3,19),
+   (70,10) here) had to come from mines.des by hand. Listing des OBJECT/TRAP places (with "one of" for shuffled
+   $place lists) would make Mines' End (and the Castle's wand chest) one call.
+5. (minor) exec pauses on routine monster item handling ("The soldier picks up an orcish bow.", "puts on an orcish
+   helm", "removes a pair of low boots") — needed -a patterns in every call during the soldier fight.
+6. **The false minend-1 id (item 1) also steered travel()** (#1229, T:8857, DL11): "travel: the identified
+   special-level map has a 12-step way to (53, 15) (the seen map: none) — walking it with desmap.walk()" — over floor
+   that doesn't exist; head_to()/explore() wasted ~2 calls. The id is cached in game.desmap_ids per level, so it kept
+   coming back. SESSION-ONLY WORKAROUND still live in the p4 kernel: I wrapped `desmap._candidates` to drop minend-*
+   maps on any Mines level but 13 and popped DL11's cached id (`desmap._p4_patched = True`). A daemon restart/reload
+   removes it. Suggested fix: _depth_ok() for the Mines (minend only on the branch's bottom level; minetn at Mines
+   level 3-4... per dungeon.def), and reject fixed-offset matches with bad*4 > good as the sliding path already does.
+7. (minor) pay() raised RuntimeError "Pay whom? — several shopkeepers in range" (#1641) although I stood INSIDE
+   Bojolali's shop, which the harness had recorded. It could answer with the shopkeeper of the shop you're in.
+8. (minor) Minetown noises paused execs: "The dungeon acoustics noticeably change.", "You hear a door open." (#1591,
+   #1680). Routine once per level at most.
+9. (idea) `ascend(n)` / `descend(n, explore=True)`: explore for an unknown '<'/'>' then take it (my own mines_up /
+   mines_down helpers did this; they're in the p4 kernel namespace). DL11's '<' needed 3 calls of head_to/explore.
+10. (info, good) zap('F', dir) at an ADJACENT mind flayer twice (#1380, #1512) and the "TELEPORTED by a monster's hit
+   (quantum mechanic)" pause (#1490, #1509) were exactly right; descend(6, to='Dungeons') and
+   go_down(pass_hostile=True) past a sleeping nymph worked first time; tunnel() through the Catacombs was excellent.
+11. (minor) hunt('quantum mechanic') walked up to it and it got the first hit (teleport). For monsters whose HIT is
+   the danger (quantum mechanic, nymph, leprechaun), hunt could wait for them to step adjacent (fight_until_clear
+   style) instead of stepping into their reach.
+### Top 3 (shift 6, ranked)
+1. desmap false identification (minend-1 on Mines level 7, 42 good / 10 bad) that is cached AND drives travel()
+   routes over non-existent floor (#233, #1229).
+2. trek()/travel() refuse forever (no game time) because of a STALE monster glyph on a dark square (#905).
+3. pickup(pattern, force=True) doesn't lift the gray-stone guard; the refusal message tells you to use force=True
+   (#707).
