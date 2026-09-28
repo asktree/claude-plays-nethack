@@ -222,3 +222,17 @@
 - T:11237 DL9. T:11248 on the neutral altar (34,16): read create monster p -> WATER NYMPH stole the coral ring; killed it with thrown daggers
   (ring recovered, no corpse). Dropped lamp on the altar first (then picked it back up).
 - Shift 10 ended T:11258 DL9 ON the neutral altar (34,16), HP 108/108, XL11, AC-8. No prayers this shift.
+
+## Shift 11 (T:11258-)
+- T:11259 DL9 altar (34,16): dropped lamp x + sack Y on it (sack showed black flash = cursed, known). Read create monster p -> fog cloud (killed, no corpse);
+  read blessed create monster m -> PEACEFUL tengu (left alone). Telepathy scan: 2 rothes, 2 garter snakes, 4 mimics in Vergt's shop, peaceful white unicorn.
+- T:11268 killed a rothe next to the altar; T:11273 offered it: "You sense a conflict between Tyr and Odin. You feel the power of Tyr increase.
+  The altar glows white." -> ALTAR (34,16) IS NOW LAWFUL (Tyr) (first try, Luck +1).
+- T:11279 took the 3 waters out of sack Y, dropped them on the now-lawful altar; prayer_check: no trouble, 8562 turns since last prayer.
+- T:11282 PRAYED on the lawful altar (2nd prayer): "The potions on the altar glow light blue" + "Tyr is well-pleased" -> n = 3 BLESSED clear potions = HOLY WATER.
+- T:11285 killed a 2nd rothe next to the altar.
+- T:11291 offered the 2nd rothe on the lawful altar: "hopeful feeling" (timeout lowered). Dipped lamp x into holy water n: "glows light blue" -> BLESSED.
+- T:11292 rub('x') 2nd rub: DJINNI, "I will grant one wish!" -> wished "blessed +2 gray dragon scale mail" -> z - a gray dragon scale mail. 2 holy waters n left.
+- T:11293-11302 hostile warhorse hit once, fled. Took off cloak + elven mithril, WORE the GDSM (AC -> -13), cloak back on: AC-14, MAGIC RESISTANCE.
+  Mithril left on the altar. altar_test(): V extra healing cursed, l opal ring cursed (left on altar), i digging cursed, J cursed; VAS CORP scroll G blessed.
+  2 holy waters bagged in sack Y. Shift 11 end T:11316 on the altar, HP 108/108.

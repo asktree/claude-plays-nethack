@@ -7,7 +7,8 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:11258 / DL9 main, standing ON the neutral altar (34,16) / XL11 / 108/108 / 21/21 / AC-8, not hungry (lembas T:11172)
+- Turn / Dlvl / XL / HP / Pw / AC: T:11316 / DL9 main, standing ON the now-LAWFUL altar (34,16) / XL11 / 108/108 / 21/21 / AC-14, not hungry (lembas T:11172)
+- T:11292 WISH DONE: z - blessed +2 GRAY DRAGON SCALE MAIL, WORN (MAGIC RESISTANCE) under the faded pall I (elven cloak). Elven mithril G left on the DL9 altar.
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
 - The circular amulet got formally IDENTIFIED as 'amulet of reflection' (probably reflected the winter wolf's frost T:8314).
@@ -20,6 +21,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 | turn | reason | result |
 |---|---|---|
 | 2717 | Weak (hunger) | SUCCESS, well-pleased, hunger fixed |
+| 11282 | none (holy water, on the converted lawful DL9 altar) | SUCCESS, well-pleased, 3 waters -> HOLY. Rothe sacrificed T:11291: 'hopeful feeling' (timeout lowered). Wish T:11292 adds 50-149 |
 (prayer_check at T:3837: 93% the timeout is <=200. Never pray ON the neutral Minetown altar — cross-aligned.)
 
 ## Equipment worn/wielded (letter: item)
@@ -173,6 +175,14 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   on the altar first — the first create monster made a WATER NYMPH that stole a ring; killed it, ring recovered; nymph left no corpse).
   Once the altar reads "lawful altar (Tyr)": take the 3 waters out, drop them ON the altar, prayer_check(), #pray (no trouble; timeout surely 0,
   Luck must be >= 0) -> holy water. Then dip lamp x in one holy water (blessed), rub('x') -> wish "blessed +2 gray dragon scale mail".
+
+## SHIFT 11 CHANGES (T:11316)
+- DL9 altar (34,16) CONVERTED to TYR (lawful) T:11273 (rothe offered, first try, Luck +1). Co-aligned altar: BUC tests, sacrifices (gift chance
+  when the timeout is 0), holy water making. On it now: +0 elven mithril-coat (stash), cursed opal ring.
+- Both create monster scrolls used (fog cloud, peaceful tengu). Lamp x used up by the djinni (now a blessed OIL lamp).
+- 2 HOLY WATERS (n, "potions called water", blessed) in sack Y. altar BUC: V extra healing CURSED, u full healing uncursed, J ETAOIN CURSED,
+  G VAS CORP BET MANI BLESSED, wands w/a uncursed, i digging CURSED, gems M/k/v uncursed.
+- Wounded hostile warhorse fled somewhere on DL9.
 
 ## ORCHESTRATOR DECISIONS T:11258
 - APPROVED: convert the DL9 neutral altar (34,16) to Tyr by #offering fresh corpses on it (altar.c/pray.c dosacrifice:
