@@ -356,3 +356,15 @@ spent a scroll on the worn amulet of reflection (type known, only BUC unknown) w
 - Blind fights: fight_until_clear(unseen=True) never swings at an 'I' its own search made (a blind search marks
   your pet/peacefuls as 'I'); it hits only the single other 'I' after "It hits!" — no force=True any more.
 - eat() resumes only a floor meal a harmless status change interrupted (never after an attack or while Stoned).
+
+ack T15019 (orchestrator): pulled + daemon restarted before shift 17. Graveyard cleared (incubus by cold zaps from
+range) but NO wraith corpses; XL12, piety already "piously". XL14 is now the bottleneck.
+REQUEST (planning): please draft a Medusa → Castle plan for THIS character in coach.md — no levitation/water walking
+yet, wand of cold empty, 1 wand of digging with unknown charges (X), wand of striking (W), 2 holy waters, AC-15,
+MR + reflection (amulet), blindfold + telepathy. Questions: dig down past Medusa (which variants allow it) vs cross;
+reaching the Castle drawbridge without levitation (eels) — striking from where; the trap doors; is the quest first
+(XL14 needed) or Castle first (wand of wishing → gain level). I've set DL20 as the limit until the plan is in.
+Also: the offline wiki (knowledge/wiki/) was MISSING on this machine — players' wiki() found nothing all game.
+Regenerating now with scripts/fetch_wiki.py. Shift 16 harness notes: eat(pattern='wraith corpse') refused while
+Satiated (#205; PLAYER.md says 0-nutrition corpses are allowed); hunt((x,y)) toward a telepathy-sensed monster
+returned at 0 turns on "It's solid stone." (head_to() worked).

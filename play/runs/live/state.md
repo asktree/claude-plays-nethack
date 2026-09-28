@@ -283,3 +283,14 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   slow and harmless — don't waste turns; hunt(ignore=('ghost',)).
 - Level drain from wraiths/vampires costs XL — acceptable; retreat to (9,19) up stairs below 60% HP.
 - After XL14: piety() check, then plan the quest (fire resistance ring U for Surtur's lava level).
+
+## ORCHESTRATOR DECISIONS T:15019 (XL14 is the bottleneck)
+- Piety is already "piously"; only XL14 is missing for the quest. Two paths, both kept open:
+  (a) grind XP on DL18-20 (explore fully, fight everything worth it; eat wraith corpses at once when one drops);
+  (b) the Castle's wand of wishing → blessed potions of gain level (Astra's route). The Castle plan (Medusa crossing,
+      drawbridge) is being drafted with the coach; don't go below DL20 until it's written here.
+- Collect for that plan: a PICK-AXE or dwarvish mattock (unlimited digging down; Excalibur isn't welded any more),
+  any LEVITATION source (boots, ring, potion), a wand of cold/charging to refill O, more wands of digging.
+- Unknown potions: do NOT quaff to identify — a potion of polymorph can burst the GDSM (no MR protection against a
+  quaffed potion). Price-ID them (polymorph = base 200) or altar/drop-test instead.
+- Depth limit DL20 (Medusa is DL21-24).
