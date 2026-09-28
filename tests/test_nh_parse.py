@@ -1930,3 +1930,110 @@ def test_monsters_line_groups_a_crowd_of_one_kind():
     assert out.count(note) == 2                        # the group once + the adjacent one
     assert "leprechaun x6 at (20,5) d=3" in out and "(1 NEW)" in out
     assert "leprechaun at (11,5) d=1  <-- ADJACENT" in out and "jackal at (12,7)" in out
+
+
+def _bump_game(msg, bottom="Dlvl:17 $:0 HP:106(177) Pw:35(35) AC:-10 Xp:16/337059 T:30334 Satiated Blind"):
+    """A Game at (29,14) next to an 'I' at (30,13); the next key shows `msg` and leaves the map as it was."""
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify
+    g = Game(term=None, timing=Timing.local())
+    rows = {13: " " * 20 + "#---------I----", 14: " " * 20 + "#|.......@....|", 22: STATUS1, 23: bottom}
+    scr = mk(rows, cursor=(29, 14))
+    g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+
+    def fake_send(data):
+        r = dict(rows)
+        r[0] = msg
+        s2 = mk(r, cursor=(29, 14))
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send
+    return g, rows
+
+
+def test_move_right_into_an_I_proves_it_real():
+    # p1 shift 41 #16/#17: step() refused a stale-looking 'I' in a doorway; `m`-direction answered "You move right
+    # into it." — a real, unseen, hostile monster (the mindless green slime that slimed the hero 45 turns later)
+    g, rows = _bump_game("You move right into it.")
+    g.intrinsics.add("telepathy")
+    s = g.step("mu")
+    rec = g.unseen_real["Dlvl:17"][(30, 13)]
+    assert rec == {"turn": 30334, "msg": "You move right into it.", "hostile": True, "blind": True,
+                   "telepathy": True}
+    assert g.unseen_real_for(s) == {(30, 13): rec}
+    # the marker gone from the map (searched away, the monster seen or killed): forgotten
+    r2 = dict(rows)
+    r2[13] = " " * 20 + "#---------.----"
+    s.screen = mk(r2, cursor=(29, 14))
+    assert g.unseen_real_for(s) == {} and "Dlvl:17" not in g.unseen_real
+    # "Pardon me, <name>." = a PEACEFUL monster stands there
+    g, _ = _bump_game("Pardon me, Asidonhopo.")
+    g.step("mu")
+    assert g.unseen_real["Dlvl:17"][(30, 13)]["peaceful"] == "Asidonhopo"
+    # hallucinating, a peaceful one bumps the same way: real, but maybe peaceful
+    g, _ = _bump_game("You move right into it.", "Dlvl:17 $:0 HP:106(177) Pw:35(35) AC:-10 Xp:16/337059 T:30334 Hallu")
+    g.step("mu")
+    assert g.unseen_real["Dlvl:17"][(30, 13)]["hostile"] is False
+    # not an 'm' move into the marker: nothing learned
+    g, _ = _bump_game("You move right into it.")
+    g.step("k")
+    assert g.unseen_real == {}
+
+
+def test_teleport_at_will_note():
+    # p1 shift 41 #221: ^T took 30 Pw (35 -> 5) — the player had planned with 19 (3.4.3's cost); 3.6.7's dotele()
+    # charges 5 x the teleport away spell's level
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify
+    from nh.render import render
+    g = Game(term=None, timing=Timing.local())
+    st = parse_status(mk({22: STATUS1, 23: "Dlvl:17 $:0 HP:36(177) Pw:35(35) AC:-10 Xp:16/337059 T:30411"}))
+    key = "The Dungeons of Doom / Level 17"
+    assert g.tele_note(st, key) == ""                               # no teleportitis known
+    g.intrinsics.add("teleportitis")
+    note = g.tele_note(st, key)
+    assert note.startswith("^T (teleport at will): ready — 30 Pw a jump (Pw 35/35: 1 jump), 100 nutrition each")
+    assert "to a RANDOM square (no teleport control)" in note
+    st.pw = 5
+    assert "NOT NOW — it needs 30 Pw, you have 5" in g.tele_note(st, key)
+    st.pw = 35
+    assert "NO-TELEPORT level" in g.tele_note(st, "Sokoban / Level 3")
+    g.intrinsics.add("teleport control")
+    assert "to a square you pick (teleport control)" in g.tele_note(st, key)
+    st.xl = 10
+    assert g.tele_note(st, key).startswith("teleportitis: random jumps only — ^T (teleport at will) needs XL12")
+    # the obs shows it below half HP only (escape-planning time)
+    scr = mk({5: "          @", 22: STATUS1, 23: "Dlvl:17 $:0 HP:36(177) Pw:35(35) AC:-10 Xp:16/337059 T:30411"},
+             cursor=(10, 5))
+    low = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    g._annotate(low)
+    assert low.tele_note.startswith("^T (teleport at will): ready") and "ESCAPE: ^T" in render(low)
+    scr2 = mk({5: "          @", 22: STATUS1, 23: "Dlvl:17 $:0 HP:150(177) Pw:35(35) AC:-10 Xp:16/337059 T:30411"},
+              cursor=(10, 5))
+    high = Snap(screen=scr2, state=classify(scr2), status=parse_status(scr2))
+    g._annotate(high)
+    assert high.tele_note == "" and "ESCAPE" not in render(high)
+
+
+def test_tracker_restores_every_levels_stair_links(tmp_path):
+    # p1 shift 41 #371: after a daemon restart go_up() knew no stairs' destinations — the left_behind restore had been
+    # inserted in the middle of the per-level loop, so `stairs_to` was restored once, for one level (or none)
+    import json
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify
+    from nh.tracker import Tracker
+    d17, d18 = "The Dungeons of Doom / Level 17", "The Dungeons of Doom / Level 18"
+    wiz = {"Wizard of Yendor": {"x": 36, "y": 5, "seen": 30500, "left": 30510, "ldesc": "Dlvl:17"}}
+    for lb in ({}, {d17: wiz}):
+        state = {"levels": {d17: {"stairs_to": {"71,16": d18}}, d18: {"stairs_to": {"37,4": d17}}},
+                 "left_behind": lb, "intrinsics": ["cold", "stealth", "teleportitis"]}
+        p = tmp_path / "harness_state.json"
+        p.write_text(json.dumps(state))
+        g = Game(term=None, timing=Timing.local())
+        tr = Tracker(g, p)
+        assert g.stair_links == {d17: {(71, 16): d18}, d18: {(37, 4): d17}}
+        assert g.left_behind == ({d17: wiz} if lb else {})
+    # `nh info` names the teleport-at-will cost
+    scr = mk({5: "          @", 22: STATUS1, 23: "Dlvl:17 $:0 HP:150(177) Pw:35(35) AC:-10 Xp:16/337059 T:30600"},
+             cursor=(10, 5))
+    g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+    assert "escape: ^T (teleport at will): ready — 30 Pw a jump" in tr.summary()

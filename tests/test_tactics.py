@@ -6063,3 +6063,222 @@ def test_combat_helpers_load_on_a_core_without_coaligned_unicorn():
         nh.danger.coaligned_unicorn = saved
         importlib.reload(_combat)
     assert _combat.coaligned_unicorn is saved
+
+
+def _dig_world(monkeypatch, inv, frames, g=None):
+    """dig() against played-back snapshots: returns (sent keys, pauses as (reason, keys sent before it))."""
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", g or _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(items, "inventory", lambda: inv)
+
+    def snap(ld="Dlvl:21", kind="command", msgs=()):
+        s = _snap({}, (10, 5), [])
+        s.status.ldesc, s.status.turn = ld, 30609
+        s.state = State(kind)
+        s.messages = list(msgs)
+        return s
+    cur = {"s": snap()}
+    sent, pauses = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        f = frames[keys]
+        cur["s"] = f(snap) if callable(f) else snap(*f)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append((reason, list(sent))))
+    return sent, pauses
+
+
+def test_dig_wields_the_usual_weapon_when_the_pick_is_already_in_hand(monkeypatch):
+    # p1 shift 41 #551/#562: an earlier dig's exec was dropped with the pick-axe in hand; the next two dig('>') found
+    # no OTHER wielded item, fell through and left the pick-axe wielded — the second time with no pause at all
+    from tactics import items
+    g = _G()
+    g.main_weapon = {"letter": "a", "text": "the blessed rustproof +6 Excalibur"}
+    inv = [{"letter": "a", "text": "the blessed rustproof +6 Excalibur", "class": "Weapons"},
+           {"letter": "G", "text": "an uncursed pick-axe (weapon in hand)", "class": "Tools"}]
+    frames = {"a": ("Dlvl:21", "object"), "G": ("Dlvl:21", "direction"),
+              ">": ("Dlvl:22", "command", ["You dig a hole through the floor.", "You fall through..."]),
+              "wa": ("Dlvl:22", "command", ["a - the blessed rustproof +6 Excalibur (weapon in hand)."])}
+    sent, pauses = _dig_world(monkeypatch, inv, frames, g)
+    items.dig(">")
+    assert sent == ["a", "G", ">", "wa"] and pauses == []
+    # _weapon_back(): the wielded weapon; the usual one only when the tool itself is in hand and it is still there
+    assert items._weapon_back([{"letter": "b", "text": "a dagger (weapon in hand)"}, inv[1]], "G") == "b"
+    assert items._weapon_back(inv, "G") == "a"
+    assert items._weapon_back([inv[0], {"letter": "G", "text": "an uncursed pick-axe", "class": "Tools"}], "G") is None
+    moved = [{"letter": "a", "text": "a brass lantern", "class": "Tools"}, inv[1]]
+    assert items._weapon_back(moved, "G") is None                  # (the letter holds something else now)
+
+
+def test_dig_wields_the_weapon_again_before_a_kernel_pause(monkeypatch):
+    # p1 shift 41 #540: "You notice a black glow surrounding you." made the KERNEL pause inside the dig step (CURSED
+    # ITEMS), before dig() wielded Excalibur again; the player's next exec dropped the re-wield
+    import contextlib
+    from tactics import ctx, items
+    held = []
+
+    @contextlib.contextmanager
+    def fake_hold():
+        yield held
+        assert held == []                          # dig() showed them itself (no second pause at the block's end)
+    monkeypatch.setattr(ctx, "held_pauses", fake_hold)
+    inv = [{"letter": "a", "text": "the blessed rustproof +6 Excalibur (weapon in hand)", "class": "Weapons"},
+           {"letter": "G", "text": "an uncursed pick-axe", "class": "Tools"}]
+
+    def curse(snap):
+        s = snap("Dlvl:21", "command", ["You dig a pit in the floor.", "You notice a black glow surrounding you."])
+        held.append(("CURSED ITEMS — a curse hit you", s))       # (what the kernel holds inside hold_pauses())
+        return s
+    frames = {"a": ("Dlvl:21", "object"), "G": ("Dlvl:21", "direction", ["You now wield an uncursed pick-axe."]),
+              ">": curse, "wa": ("Dlvl:21", "command", ["a - the blessed rustproof +6 Excalibur (weapon in hand)."])}
+    sent, pauses = _dig_world(monkeypatch, inv, frames)
+    items.dig(">")
+    assert sent == ["a", "G", ">", "wa"]
+    assert len(pauses) == 1 and pauses[0][1][-1] == "wa" and "CURSED ITEMS" in pauses[0][0]
+    assert "black glow" in pauses[0][0] and "weapon (a) is wielded again" in pauses[0][0]
+    # a held reason alone (no message of its own: an HP loss) also stops the digging, weapon first
+    held.clear()
+
+    def hurt(snap):
+        s = snap("Dlvl:21", "command", ["You dig a pit in the floor."])
+        held.append(("HP 150->110/177", s))
+        return s
+    frames[">"] = hurt
+    sent, pauses = _dig_world(monkeypatch, inv, frames)
+    items.dig(">")
+    assert sent == ["a", "G", ">", "wa"] and len(pauses) == 1 and pauses[0][0].startswith("dig(): HP 150->110/177")
+
+
+class _StairsG(_G):
+    """ctx.game on a named level with the ^O overview of p1 shift 41."""
+    OVERVIEW = ("The Dungeons of Doom: levels 1 to 25\nLevel 3:\nA general store.\nStairs down to The Gnomish Mines.\n"
+                "Level 7:\nStairs up to Sokoban, level 6.\nLevel 17:\nA fountain.\nLevel 18:\nA primitive area.\n"
+                "Gehennom: levels 26 to 44\nLevel 26: <- You are here.\nValley of the Dead.\n"
+                "Level 38:\nStairs up to Vlad's Tower, level 37.\nThe Gnomish Mines: levels 4 to 11\n"
+                "Sokoban: levels 6 up to 3\nVlad's Tower: levels 37 up to 35\nThe Quest: levels 1 to 5")
+
+    def __init__(self, key):
+        super().__init__()
+        from types import SimpleNamespace
+        self.key = key
+        self.stair_links, self.terrain_seen, self.left_behind = {}, {}, {}
+        self.memory = SimpleNamespace(state={"overview": self.OVERVIEW})
+
+    def level_key(self, status=None):
+        return self.key
+
+
+def test_stairs_dest_infers_where_stairs_never_taken_lead(monkeypatch):
+    # p1 shift 41 #371: the DL18 '<' (DL18 reached by digging) had no known link, so go_up() couldn't tell that it
+    # led to DL17, where the Wizard waited
+    from tactics import ctx, nav
+    s = _snap({}, (37, 4), [])
+
+    def dest(key, ch, links=None, seen=None):
+        g = _StairsG(key)
+        g.stair_links = links or {}
+        g.terrain_seen = seen or {}
+        monkeypatch.setattr(ctx, "game", g)
+        return nav.stairs_dest(ch, s)
+    d17, d18 = "The Dungeons of Doom / Level 17", "The Dungeons of Doom / Level 18"
+    assert dest(d18, "<", links={d18: {(37, 4): "Sokoban / Level 5"}}) == (["Sokoban / Level 5"], "")   # learned
+    got, how = dest(d18, "<")
+    assert got == [d17] and "not taken yet: the level above in The Dungeons of Doom" in how
+    assert dest(d17, ">")[0] == [d18]
+    # a level with a branch staircase that way: both candidates
+    assert dest("The Dungeons of Doom / Level 3", ">")[0] == ["The Dungeons of Doom / Level 4",
+                                                             "The Gnomish Mines / Level 4"]
+    assert dest("The Dungeons of Doom / Level 7", "<")[0] == ["The Dungeons of Doom / Level 6", "Sokoban / Level 6"]
+    assert dest("Gehennom / Level 38", "<")[0] == ["Gehennom / Level 37", "Vlad's Tower / Level 37"]
+    assert dest(d18, ">", seen={d18: {(16, 2): ">", (50, 9): ">"}})[0] == [
+        "The Dungeons of Doom / Level 19"]                            # (two '>' known, no other branch named)
+    # a branch's end staircases lead to its parent dungeon
+    assert dest("The Gnomish Mines / Level 4", "<")[0] == ["The Dungeons of Doom / Level 3"]
+    assert dest("Gehennom / Level 26", "<")[0] == ["The Dungeons of Doom / Level 25"]     # the Valley -> Castle
+    assert dest("Sokoban / Level 6", ">")[0] == ["The Dungeons of Doom / Level 7"]
+    assert dest("Sokoban / Level 6", "<")[0] == ["Sokoban / Level 5"]
+    assert dest("Vlad's Tower / Level 37", ">")[0] == ["Gehennom / Level 38"]
+    assert dest("The Gnomish Mines / Level 6", "<")[0] == ["The Gnomish Mines / Level 5"]
+    # nothing to say: out of the dungeon, the quest's first level, a level not named yet
+    assert dest("The Dungeons of Doom / Level 1", "<") == ([], "")
+    assert dest("The Quest / Level 1", "<") == ([], "")
+    assert dest("Dlvl:18", "<") == ([], "")
+
+
+def test_go_up_warns_about_a_covetous_monster_behind_stairs_never_taken(monkeypatch):
+    # p1 shift 41 #371: go_up() from DL18 did NOT pause before the stairs although DL17 held the Wizard left there
+    # (only the arrival pause came — he was adjacent with 4 summons a turn later)
+    from tactics import ctx, nav
+    d17, d18 = "The Dungeons of Doom / Level 17", "The Dungeons of Doom / Level 18"
+    g = _StairsG(d18)
+    g.left_behind = {d17: {"Wizard of Yendor": {"x": 36, "y": 5, "seen": 30500, "left": 30510, "ldesc": "Dlvl:17"}}}
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(nav, "_LEFT_WARNED", set())
+    s = _snap({}, (37, 4), [])
+    s.status.turn = 30538
+    pauses = []
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append(reason))
+    nav._left_behind_pause("go_up()", s, "<")
+    assert len(pauses) == 1 and pauses[0].startswith(f"go_up(): the level these stairs lead to ({d17} — not taken "
+                                                     "yet: the level above in The Dungeons of Doom) holds the "
+                                                     "Wizard of Yendor you left there at T:30510")
+    nav._left_behind_pause("go_up()", s, "<")
+    assert len(pauses) == 1                                          # once per turn
+    nav._left_behind_pause("go_down()", s, ">")                     # DL19: nothing left there
+    assert len(pauses) == 1
+
+
+def test_an_I_proven_real_is_not_treated_as_a_stale_marker(monkeypatch):
+    # p1 shift 41 #16/#17: after "You move right into it." the 'I' is a real hostile: travel/explore must not
+    # suggest (or do) clear_I as for a stale marker, and NetHack's own travel (which attacks an 'I' on its route)
+    # must not be sent across it
+    import pytest
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    rows = {4: "        ----------", 5: "        |........|", 6: "        |........|", 7: "        ----------"}
+    real = {"ch": "I", "x": 12, "y": 5, "dist": 2, "unseen": True, "real": True, "hostile": True,
+            "desc": "unseen HOSTILE monster (real)",
+            "note": "REAL, not a stale marker ('You move right into it.' at T:30334): hostile, unseen — not on "
+                    "telepathy: MINDLESS? (...)"}
+    s = _snap(rows, (10, 5), [real])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    with pytest.raises(nav.NavError) as e:
+        nav._check_free(s, (12, 5), "step()")
+    assert "a REAL unseen hostile monster ('I': unseen HOSTILE monster (real) — REAL, not a stale marker" in str(e.value)
+    with pytest.raises(nav.NavError) as e:
+        nav._travel(12, 5, 40, None, 3, 0, False)
+    assert "is taken by a REAL unseen hostile monster" in str(e.value) and "holds an 'I'" not in str(e.value)
+    assert (12, 5) in nav.bad_squares(s)
+    stale = dict(real, real=False, hostile=False, desc="remembered, unseen monster")
+    s.monsters = [stale]
+    assert (12, 5) not in nav.bad_squares(s)
+    with pytest.raises(nav.NavError, match="holds an 'I'"):
+        nav._travel(12, 5, 40, None, 3, 0, False)
+
+
+def test_fight_never_swings_at_an_I_that_said_pardon_me(monkeypatch):
+    # an `m` move into an 'I' answered "Pardon me, Asidonhopo." (a peaceful shopkeeper, unseen): an F blow never
+    # asks "Really attack?" — fight(x, y) and fight_until_clear(unseen=True) must not swing at it
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    shk = {"ch": "I", "x": 11, "y": 5, "dist": 1, "unseen": True, "real": True, "peaceful": True,
+           "desc": "peaceful Asidonhopo (unseen)",
+           "note": "a PEACEFUL Asidonhopo stands on this 'I' ('Pardon me, Asidonhopo.' at T:500) — don't attack it"}
+    s = _snap({5: "        ..@I."}, (10, 5), [shk])
+    s.status.hp, s.status.hpmax, s.status.turn = 100, 100, 501
+    sent, pauses = [], []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append(reason))
+    combat.fight(11, 5)
+    assert sent == [] and pauses and "is a PEACEFUL monster (peaceful Asidonhopo (unseen)" in pauses[0]
+    r = combat.fight_until_clear(unseen=True, max_turns=1)
+    assert not any(k.startswith("F") for k in sent), (sent, r)

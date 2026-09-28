@@ -54,7 +54,8 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
     parts = []
     statues = [m for m in mons if m.get("statue")]
     mons = [m for m in mons if not m.get("statue")]
-    unseen = [m for m in mons if m.get("unseen") and m["ch"] == "I" and m["dist"] != 1]
+    # (an 'I' proven real by a bump keeps its own line and note)
+    unseen = [m for m in mons if m.get("unseen") and m["ch"] == "I" and m["dist"] != 1 and not m.get("real")]
     if len(unseen) > 2:
         # remembered 'I' markers far off: one line (each carries the same note)
         mons = [m for m in mons if m not in unseen]
@@ -141,6 +142,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     trice_warn = getattr(snap, "trice_note", "")
     if trice_warn and snap.state.kind == "command":
         lines.append(f"!! {trice_warn}")
+    tele = getattr(snap, "tele_note", "")
+    if tele and snap.state.kind == "command":
+        lines.append(f"ESCAPE: {tele}")
     k = snap.state.kind
     if k != "command":
         if snap.state.prompt:

@@ -421,6 +421,13 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                 if len(digits) == 1:
                     print(f"fight: the warning digit moved from ({x},{y}) to {digits[0]} — following it")
                     x, y = digits[0]
+            pardon = next((m for m in s.monsters or [] if (m["x"], m["y"]) == (x, y) and m.get("unseen")
+                           and m.get("peaceful")), None)
+            if not targets and pardon is not None and not attack_peaceful:
+                # (an 'I' that answered an `m` move with "Pardon me, <name>." — Game._note_unseen_bump)
+                ctx.pause(f"fight: the 'I' at ({x},{y}) is a PEACEFUL monster ({pardon.get('desc')}: "
+                          f"{(pardon.get('note') or '').split(' — ')[0]}) — attack_peaceful=True hits it anyway")
+                return ctx.last()
             if not targets and (s.screen.at(x, y) == "I" or s.screen.at(x, y) in "12345") \
                     and max(abs(x - s.hero[0]), abs(y - s.hero[1])) == 1:
                 # an unseen (invisible) monster you asked for by square: swing at it — or a WARNING digit
@@ -797,6 +804,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 blind = "Blind" in (s.status.conditions if s.status.ok else ())
                 # (a passed 'I' stays a candidate while blind: it may start hitting you later)
                 ivs = [m for m in s.monsters or [] if m.get("unseen") and m.get("dist") == 1
+                       and not m.get("peaceful")      # (an 'I' that said "Pardon me, <name>." is peaceful)
                        and (blind or (m["x"], m["y"]) not in passed)]
                 if not ivs and s.hero is not None:
                     # a WARNING digit next to you (display.c display_warning(): only ever a hostile you can't

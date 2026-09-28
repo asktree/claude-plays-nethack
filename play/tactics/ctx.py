@@ -18,6 +18,17 @@ _long_task = None       # with long_task(): a later exec-budget pause (kernel)
 watch_monsters = None   # watch_monsters(mons, near=6): 'approaching' pause for monsters already seen (kernel)
 quiet_messages = None   # quiet_messages(msgs): those the kernel wouldn't pause on (exec -a patterns...) (kernel)
 unwatch_monsters = None  # unwatch_monsters(ids): no 'approaching' pause for a helper's own target (kernel)
+hold_pauses = None      # with hold_pauses() as held: do()'s event pauses are collected until the block ends (kernel)
+
+
+def held_pauses():
+    """A block in which do()'s event pauses (HP, status, curses, arrival notes...) are collected instead of
+    stopping the script — urgent ones still stop it — yielding the list of (reason, snap): the helper acts
+    first (dig(): your weapon back in hand), then pauses with them itself (emptying the list), or the block
+    pauses once when it ends. Outside the kernel (or an older daemon) it yields an empty list and pauses come
+    as they happen."""
+    import contextlib
+    return hold_pauses() if hold_pauses is not None else contextlib.nullcontext([])
 
 
 def long_task(steps: int = 1200, seconds: float = 330.0):

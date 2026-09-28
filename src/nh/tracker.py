@@ -154,13 +154,15 @@ class Tracker:
                 game.desmap_ids.setdefault(key, dict(lv["desmap"]))
             if lv.get("flags") and hasattr(game, "level_flags"):
                 game.level_flags.setdefault(key, set()).update(lv["flags"])
+            if lv.get("stairs_to") and hasattr(game, "stair_links"):
+                # (every level's: p1 shift 41 — a block inserted above this made it run once, after the loop, for
+                # one level only, so after a daemon restart the stairs' destinations were forgotten)
+                game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
+                                         for c, dest in lv["stairs_to"].items()}
         if isinstance(self.state.get("left_behind"), dict) and isinstance(getattr(game, "left_behind", None), dict):
             # covetous monsters left on other levels (game._note_departure)
             for key, ents in self.state["left_behind"].items():
                 game.left_behind.setdefault(key, {}).update(ents or {})
-            if lv.get("stairs_to") and hasattr(game, "stair_links"):
-                game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
-                                         for c, dest in lv["stairs_to"].items()}
         lf = getattr(game, "level_flags", None)
         if isinstance(lf, dict):
             # Medusa is unique: the level where she died is hers; a "medusa" flag elsewhere came from a look-alike
@@ -570,6 +572,10 @@ class Tracker:
                          + (f" -> {last['outcome']}" if last.get("outcome") else ""))
         else:
             lines.append("prayers: none yet (first prayer is safe from about T:300 when in real trouble)")
+        if st is not None and hasattr(self.game, "tele_note"):
+            tele = self.game.tele_note(st, self.game.level_key(st) if st.ok else None)
+            if tele:
+                lines.append("escape: " + tele)
         return "\n".join(lines)
 
     def levels_text(self) -> str:

@@ -86,6 +86,7 @@ class Snap:
     mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
     melee_kill: tuple | None = None   # (name, (x, y)): the monster your blow killed this step, on the square hit
     engr_repeat: bool = False  # this step read the same engraving text as last time on this square
+    tele_note: str = ""        # below half HP with teleportitis: what ^T costs and whether it works now (Game.tele_note)
 
     def __repr__(self) -> str:
         st = self.status.short() if self.status.ok else "?"
@@ -478,6 +479,8 @@ class Game:
         self.special_rooms: dict[str, dict] = {}  # level key -> {(x, y) where you entered: {"kind", "prev", "turn"}}
         self.mimics: dict[str, dict] = {}         # level key -> {(x, y): 'giant mimic'}: mimics seen unmasked,
                                                   # hiding again as objects there (MonsterTracker._note_mimics)
+        self.unseen_real: dict[str, dict] = {}    # level key -> {(x, y): record}: an 'I' a move bumped into — a
+                                                  # REAL monster, not a stale marker (_note_unseen_bump)
         self.desmap_ids: dict[str, dict] = {}     # level key -> the fixed special-level map placed there (desmap)
         self.wielded: str | None = None           # what inventory() last showed "(weapon in hand)"; None = unknown
         self.gloves: str | None = None            # worn gloves/gauntlets per inventory(); "" none; None = unknown
@@ -540,7 +543,7 @@ class Game:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
                   self.niches, self.mimics, self.desmap_ids, self.special_rooms, self.wand_users,
-                  self.trice_wielders, self.left_behind):
+                  self.trice_wielders, self.left_behind, self.unseen_real):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -936,6 +939,52 @@ class Game:
                 self.traps.setdefault(key, set()).add(c)
                 self.feature_desc.setdefault(key, {})[c] = "hole"
 
+    # hack.c domove(): 'm' + a direction onto a remembered 'I' where a monster really stands wastes the turn with
+    # "You move right into it." (one you can neither see nor sense — and not peaceful: a peaceful one says "Pardon
+    # me, <name>.", except while you hallucinate). A stale 'I' lets you step onto its square instead.
+    _PARDON = re.compile(r"^Pardon me, (?P<n>.+)\.$")
+
+    def _note_unseen_bump(self, cur: Snap, snap: Snap, data: bytes, messages: list[str]) -> None:
+        """Remember an 'I' proven REAL by bumping into it (p1 shift 41 #16/#17: step() refused a stale-looking 'I'
+        in a doorway; `m`-direction answered "You move right into it." — the mindless green slime that slimed
+        the hero 45 turns later). The monster tracker labels it (unseen_real_for) and the movement helpers keep
+        off it; the record goes when the map stops showing the 'I' there."""
+        if cur is None or cur.hero is None or snap.hero != cur.hero or not snap.status.ok:
+            return
+        data = bytes(data or b"")
+        if len(data) != 2 or data[:1] != b"m" or data[1] not in self._MOVE:
+            return
+        dx, dy = self._MOVE[data[1]]
+        cell = (cur.hero[0] + dx, cur.hero[1] + dy)
+        if cur.screen.at(*cell) != "I":
+            return
+        conds = set(snap.status.conditions)
+        rec = None
+        for m in messages:
+            pm = self._PARDON.match(m)
+            if m == "You move right into it.":
+                rec = {"turn": snap.status.turn, "msg": m, "hostile": "Hallu" not in conds,
+                       "blind": "Blind" in conds, "telepathy": "telepathy" in (self.intrinsics or ())}
+            elif pm and "Hallu" not in conds:
+                rec = {"turn": snap.status.turn, "msg": m, "peaceful": pm.group("n")}
+        if rec is not None:
+            self.unseen_real.setdefault(self.level_key(snap.status), {})[cell] = rec
+
+    def unseen_real_for(self, snap: Snap) -> dict:
+        """{(x, y): record} of this level's 'I' markers proven real by a bump (_note_unseen_bump) that the map still
+        shows; records whose 'I' is gone (searched away, walked over, the monster seen) are forgotten."""
+        if not snap.status.ok:
+            return {}
+        key = self.level_key(snap.status)
+        mem = self.unseen_real.get(key)
+        if not mem:
+            return {}
+        for c in [c for c in mem if snap.screen.at(*c) != "I"]:
+            del mem[c]
+        if not mem:
+            self.unseen_real.pop(key, None)
+        return dict(mem)
+
     _HELD_RE = re.compile(r"^(?:A|Your) bear trap closes on your |^You are caught in a bear trap")
 
     def _note_held(self, cur: Snap, snap: Snap, messages: list[str]) -> None:
@@ -1156,6 +1205,56 @@ class Game:
                 + (f" at {pl['at']}" if pl.get("at") else "") + (f" ({pl['why']})" if pl.get("why") else "")
                 + f", T:{pl['turn']}: go back for it (a pet follows only from a square next to you), or go on "
                   "without it")
+
+    # teleport.c dotele() (3.6.2+): ^T costs 5 x the level of the teleport away spell (6) = 30 Pw — 3.4.3 charged 19
+    # (p1 shift 41 #221: Pw 35 -> 5; the player had planned with 19)
+    TELE_PW = 30
+    # special levels with FLAGS: noteleport (dat/*.des): ^T there says "A mysterious force prevents you from
+    # teleporting!" and the Pw is spent all the same (plus Sokoban, Vlad's Tower, Fort Ludios, the quest home levels)
+    _NO_TELE_MAPS = ("valley", "juiblex", "orcus", "asmodeus", "baalz", "sanctum", "wizard1", "wizard2", "wizard3",
+                     "tower1", "tower2", "tower3", "medusa-1", "medusa-2", "medusa-3", "medusa-4", "castle", "knox",
+                     "earth", "air", "fire", "water", "astral")
+
+    def no_teleport_level(self, key) -> bool:
+        """Is this level known to forbid teleporting (a no-teleport special level)?"""
+        if not key:
+            return False
+        if str(key).startswith(("Sokoban", "Vlad's Tower", "Fort Ludios")) or key in self.ENDGAME:
+            return True
+        name = ((getattr(self, "desmap_ids", None) or {}).get(key) or {}).get("level") or ""
+        if name in self._NO_TELE_MAPS or name.startswith("soko") or name.endswith("-strt"):
+            return True
+        return bool(set(self.level_flags.get(key, ())) & {"castle", "medusa"})
+
+    def tele_note(self, st, key=None) -> str:
+        """'' without teleportitis (game.intrinsics); else what ^T (teleport at will) costs and whether it works
+        now — teleport.c dotele(): from XL12 (XL8 for Wizards), TELE_PW Pw, nutrition above 10, Str 4+, not
+        Strained or worse ("Your concentration falters from carrying so much."); it costs 100 nutrition too.
+        Without teleport control the square is random. Carrying the Amulet, 1 try in 3 fails ("You feel
+        disoriented for a moment.") — the Pw is spent."""
+        if "teleportitis" not in (self.intrinsics or ()) or st is None or not st.ok:
+            return ""
+        need = 8 if HERO_ROLE == "wizard" else 12
+        if (st.xl or 0) < need:
+            return (f"teleportitis: random jumps only — ^T (teleport at will) needs XL{need} (you: XL{st.xl}); "
+                    f"then it costs {self.TELE_PW} Pw")
+        why = []
+        if st.pw < self.TELE_PW:
+            why.append(f"it needs {self.TELE_PW} Pw, you have {st.pw}")
+        if st.encumbrance in ("Strained", "Overtaxed", "Overloaded"):
+            why.append(f"{st.encumbrance}: your concentration falters")
+        if st.hunger in ("Fainting", "Fainted"):
+            why.append("too weak from hunger (it needs nutrition above 10)")
+        if self.no_teleport_level(key) or st.ldesc in self.ENDGAME + ("Home 1", "Fort Ludios"):
+            why.append("a NO-TELEPORT level: the Pw would be spent for nothing")
+        n = st.pw // self.TELE_PW
+        return ("^T (teleport at will): " + ("ready" if not why else "NOT NOW — " + "; ".join(why))
+                + (" (Weak: it fails once nutrition is 10 or less)" if st.hunger == "Weak" and not why else "")
+                + f" — {self.TELE_PW} Pw a jump (Pw {st.pw}/{st.pwmax}: {n} jump{'' if n == 1 else 's'}), 100 "
+                "nutrition each, "
+                + ("to a RANDOM square (no teleport control)" if "teleport control" not in (self.intrinsics or ())
+                   else "to a RANDOM square (Stunned: your teleport control doesn't work)" if "Stun" in
+                   st.conditions else "to a square you pick (teleport control)"))
 
     def charm_note(self, turn) -> str:
         """Armor a charm took off that isn't known to be worn again (or stolen), else ''."""
@@ -2187,6 +2286,7 @@ class Game:
                     self._note_trice_taken(snap, messages)
                     self._note_held(cur, snap, messages)
                     self._note_monster_hole(cur, snap, messages)
+                    self._note_unseen_bump(cur, snap, data, messages)
                     self._note_used_up(cur, data)
                     self._note_intrinsics(messages)
                     self._note_theft(messages, snap.status.turn)
@@ -2622,6 +2722,9 @@ class Game:
                            "Take it (gloves on: pickup) or keep monsters away from it" if fresh else "")
         snap.held_trap = getattr(self, "held_trap", "") or ""
         snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}
+        st = snap.status
+        # (below half HP — escape-planning time — the obs says what ^T costs: p1 shift 41 planned with 3.4.3's 19 Pw)
+        snap.tele_note = self.tele_note(st, key) if st.ok and st.hpmax and st.hp * 2 < st.hpmax else ""
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,
     # a fall, or the Amulet's mysterious force (1 in 4 climbs in Gehennom: you land somewhere on a DEEPER level)
@@ -2712,10 +2815,8 @@ class Game:
                 if (key == dest or e.get("ldesc") == snap.status.ldesc) and now is not None \
                         and now - (e.get("left") or 0) <= self.LEFT_BEHIND_TURNS:
                     waiting[name] = e
-        pre = getattr(self, "left_prewarned", None) or {}
-        if waiting and dest is not None and pre.get("dest") == dest and now is not None \
-                and 0 <= now - (pre.get("turn") or 0) <= 5:
-            waiting = {}                         # (go_up()/go_down() paused about it before the stairs)
+        # (also after go_up()/go_down() warned before the stairs: this pause shows the level you arrived on — and
+        # stops a climb()/descend() loop there)
         if waiting:
             snap.left_note = ("WAITING HERE: " + "; ".join(
                 f"the {n} you left on this level at T:{e['left']} (last seen at ({e['x']},{e['y']}), T:{e['seen']})"

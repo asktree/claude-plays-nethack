@@ -39,6 +39,27 @@ def _wielded(text: str) -> bool:
     return bool(WIELDED_RE.search(text))
 
 
+def _weapon_back(inv, tool: str) -> str | None:
+    """The letter to wield again after applying `tool` into your hands (dig/tunnel's pick-axe, rub's lamp): what
+    you wield now — or, when the tool itself is already in hand (an earlier dig paused and that exec was dropped
+    before its re-wield: p1 shift 41 #551/#562 fell twice and left the pick-axe wielded), your usual weapon
+    (game.main_weapon) if it is still in the pack. None when you wield nothing."""
+    cur = next((i for i in inv if _wielded(i["text"])), None)
+    if cur is None:
+        return None
+    if cur["letter"] != tool:
+        return cur["letter"]
+    mw = getattr(ctx.game, "main_weapon", None) or {}
+    it = next((i for i in inv if i["letter"] == mw.get("letter") and i["letter"] != tool), None)
+    if it is None or re.search(r"\bpick-axe\b|\bmattock\b", it["text"]):
+        return None
+    from nh.game import _item_core, is_weapon_text
+    if _item_core(it["text"]) != mw.get("text") and not (str(it.get("class") or "").startswith("Weapons")
+                                                          or is_weapon_text(it["text"])):
+        return None                  # (that letter holds something else now)
+    return it["letter"]
+
+
 def _welded(inv) -> dict | None:
     """Your wielded weapon when it is known CURSED: welded to your hand (wield.c will_weld()), so NetHack
     refuses to wield anything else — #rub (a lamp) and applying a pick-axe included (apply.c wield_tool:
@@ -590,7 +611,7 @@ def rub(letter: str, max_rubs: int = 1, rewield: bool = True) -> dict:
         raise RuntimeError(f"rub(): your weapon {welded['letter']} - {welded['text']} is CURSED, so it is welded to "
                            "your hand, and #rub has to WIELD the lamp: NetHack refuses. Uncurse the weapon first "
                            "(holy water: dip it; a scroll of remove curse; a prayer that fixes it), then rub.")
-    weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != letter), None)
+    weapon = _weapon_back(inv, letter)
     msgs: list = []
     outcome, n = "", 0
     for n in range(1, max_rubs + 1):
@@ -1453,7 +1474,7 @@ def _dig(direction, tool, max_applies, auto_fightable):
         if t is None:
             raise RuntimeError("dig(): no pick-axe or mattock in the inventory")
         tool = t["letter"]
-    weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
+    weapon = _weapon_back(inv, tool)
     welded = _welded(inv)
     if welded is not None and welded["letter"] != tool:
         raise RuntimeError(f"dig(): your weapon {welded['letter']} - {welded['text']} is CURSED, so it is welded to "
@@ -1467,62 +1488,71 @@ def _dig(direction, tool, max_applies, auto_fightable):
     routine = [re.compile(p) for p in _DIG_OK + [r"^You stop digging\.$"] + list(BENIGN)] + list(DEFAULT_BENIGN)
     msgs: list = []
     why = ""                       # something dig() must show you AFTER your weapon is back in hand
-    for _ in range(max_applies):
-        s = ctx.do("a", quiet=True)
-        if s.state.kind != "object":
+    fell_to = ""
+    # the kernel's own pauses (a curse, HP, a status, the new level's notes...) wait until the weapon is back in
+    # hand too — urgent ones still stop at once (p1 shift 41 #540: "You notice a black glow surrounding you" paused
+    # the dig step with the pick-axe in hand; the next exec dropped the re-wield)
+    with ctx.held_pauses() as held:
+        for _ in range(max_applies):
+            s = ctx.do("a", quiet=True)
+            if s.state.kind != "object":
+                if s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                raise RuntimeError(f"dig(): expected the apply prompt, got {s.state.kind} {s.state.prompt!r}")
+            s = ctx.do(tool, ok=_DIG_OK)
+            msgs += s.messages
+            if s.state.kind != "direction":
+                if s.state.kind != "command":
+                    ctx.do("<Esc>", quiet=True)
+                why = (f"no dig-direction prompt after applying {tool!r} ({s.state.kind} {s.state.prompt!r}; "
+                       f"messages {s.messages})")
+                break
+            # quiet: the messages of the dig itself (and of the level you fall into) are looked at below, after
+            # the weapon is back in hand (falling through the hole is the point: no level-change pause either)
+            s = ctx.do(direction, ok=_DIG_OK + [r"^You stop digging\.$"], quiet=True,
+                       expect=("level",) if direction == ">" else ())
+            msgs += s.messages
+            text = " ".join(s.messages)
+            fell = s.status.ok and s.status.ldesc != ldesc0
+            news = [m for m in s.messages if not any(p.search(m) for p in routine)]
+            # (a unicorn never steps next to you — danger.keeps_away(): only one already next to you counts; p4
+            # shift 7: dig('>') paused for a gray unicorn 2 squares away)
+            threats = ([m for m in s.hostiles(7) if not auto_fightable(m, s)
+                        and not (keeps_away(m.get("desc") or "") and (m.get("dist") or 0) > 1)
+                        and (fell or m.get("id") not in ids0 or m.get("dist") == 1)]
+                       if s.state.kind == "command" else [])
+            adjacent = s.adjacent_hostiles() if s.state.kind == "command" else []
+            if threats or adjacent:
+                why = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})"
+                                for m in (threats or adjacent)[:3]) + " in view"
+            if news:
+                why = (why + "; " if why else "") + "messages: " + " | ".join(news[:4])
+            if fell:
+                fell_to = s.status.ldesc
+                break                                   # fell through the hole
+            if why or held:
+                break                                   # (something the kernel would have paused on: stop here)
+            if "You stop digging" in text:
+                continue                                # something came and went: dig on
+            if re.search(r"dig a hole through|make an opening|succeed in cutting away|too hard to dig|"
+                         r"cannot|can't|here is too hard|The .* here is too hard|boulder falls apart|"
+                         r"statue shatters", text):
+                break
             if s.state.kind != "command":
-                ctx.do("<Esc>", quiet=True)
-            raise RuntimeError(f"dig(): expected the apply prompt, got {s.state.kind} {s.state.prompt!r}")
-        s = ctx.do(tool, ok=_DIG_OK)
-        msgs += s.messages
-        if s.state.kind != "direction":
-            if s.state.kind != "command":
-                ctx.do("<Esc>", quiet=True)
-            why = (f"no dig-direction prompt after applying {tool!r} ({s.state.kind} {s.state.prompt!r}; "
-                   f"messages {s.messages})")
-            break
-        # quiet: the messages of the dig itself (and of the level you fall into) are looked at below, after
-        # the weapon is back in hand (falling through the hole is the point: no level-change pause either)
-        s = ctx.do(direction, ok=_DIG_OK + [r"^You stop digging\.$"], quiet=True,
-                   expect=("level",) if direction == ">" else ())
-        msgs += s.messages
-        text = " ".join(s.messages)
-        fell = s.status.ok and s.status.ldesc != ldesc0
-        news = [m for m in s.messages if not any(p.search(m) for p in routine)]
-        # (a unicorn never steps next to you — danger.keeps_away(): only one already next to you counts; p4 shift 7:
-        # dig('>') paused for a gray unicorn 2 squares away)
-        threats = ([m for m in s.hostiles(7) if not auto_fightable(m, s)
-                    and not (keeps_away(m.get("desc") or "") and (m.get("dist") or 0) > 1)
-                    and (fell or m.get("id") not in ids0 or m.get("dist") == 1)] if s.state.kind == "command" else [])
-        adjacent = s.adjacent_hostiles() if s.state.kind == "command" else []
-        if threats or adjacent:
-            why = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in (threats or adjacent)[:3]) \
-                  + " in view"
-        if news:
-            why = (why + "; " if why else "") + "messages: " + " | ".join(news[:4])
-        if fell:
-            if why:
-                why = f"fell to {s.status.ldesc} — {why}"
-            break                                   # fell through the hole
-        if why:
-            break
-        if "You stop digging" in text:
-            continue                                # something came and went: dig on
-        if re.search(r"dig a hole through|make an opening|succeed in cutting away|too hard to dig|"
-                     r"cannot|can't|here is too hard|The .* here is too hard|boulder falls apart|"
-                     r"statue shatters", text):
-            break
-        if s.state.kind != "command":
-            break
-    if weapon and ctx.last().state.kind == "command":
-        s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
-        msgs += s.messages
+                break
+        if weapon and ctx.last().state.kind == "command":
+            s = ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
+            msgs += s.messages
+        if held:
+            why = (why + "; " if why else "") + "; ".join(dict.fromkeys(r for r, _ in held))
+            held.clear()                                # (paused below, with the weapon in hand)
     if why:
         done = next((m for m in msgs if re.search(r"^You dig a hole through|^You make an opening|^You succeed in "
                                                   r"cutting away|^The boulder falls apart|^The statue shatters", m)),
                     None)
-        ctx.pause("dig(): " + why + (f" — your weapon ({weapon}) is wielded again" if weapon else "")
-                  + (f"; the dig is DONE ({done})" if done else "; dig() again to go on digging"))
+        ctx.pause("dig(): " + (f"fell to {fell_to} — " if fell_to else "") + why
+                  + (f" — your weapon ({weapon}) is wielded again" if weapon else "")
+                  + ("" if fell_to else f"; the dig is DONE ({done})" if done else "; dig() again to go on digging"))
     return msgs
 
 
@@ -1543,7 +1573,8 @@ def tunnel(x: int, y: int, max_steps: int = 80, tool: str | None = None) -> dict
         if t is None:
             raise RuntimeError("tunnel(): no pick-axe or mattock in the inventory")
         tool = t["letter"]
-    weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
+    weapon = _weapon_back(inv, tool)
+    in_hand0 = any(i["letter"] == tool and _wielded(i["text"]) for i in inv)   # (an earlier dig left it there)
     ldesc0 = s.status.ldesc
     goal = (x, y)
     digs = steps = 0
@@ -1627,7 +1658,7 @@ def tunnel(x: int, y: int, max_steps: int = 80, tool: str | None = None) -> dict
                 reason = f"can't dig toward {nxt}: {text}"
                 break
     finally:
-        if weapon and digs and ctx.last().state.kind == "command":
+        if weapon and (digs or in_hand0) and ctx.last().state.kind == "command":
             ctx.do("w" + weapon, quiet=True, ok=[r"^[a-zA-Z] - "])
     s = ctx.last()
     print(f"tunnel{goal}: {reason} at {s.hero} ({steps} step(s), {digs} dig(s))"

@@ -294,6 +294,31 @@ def _moves_at_most_one(keys: bytes) -> bool:
     return bool(re.fullmatch(rb"[hjklyubn.s]|[Fm][hjklyubn]|n?\d{1,4}[s.]", keys or b""))
 
 
+# a whole command typed in one do() that never moves you: zap/cast/apply/throw + item + direction, fire or kick +
+# direction, eat/quaff/wear/put on/take off/remove/wield + item (the hurtle of a throw or kick while levitating
+# says so: _MOVED_ON_PURPOSE)
+_STAYS_PUT = re.compile(rb"[zZa][a-zA-Z][hjklyubn]|t[a-zA-Z$][hjklyubn]|f[hjklyubn]|\x04[hjklyubn]|[eqWTPRw][a-zA-Z]")
+# commands that move you on purpose, by their first keys (the keys of every prompt answer are appended): travel,
+# runs and rushes (shift/G/g/M/ctrl + direction), counts, stairs, ^T and #teleport/#jump/#ride/#sit/#pray (a prayer
+# can free you from a wall), reading (a scroll of teleportation), redo (^A), and a wand or spell aimed at yourself
+_MOVER_CMD = re.compile(rb"^(?:[_GgMm<>HJKLYUBN\x01\x02\x08\x0a\x0b\x0c\x0e\x14\x15\x19r]|n?\d|#\s*(?:tel|jum|rid|sit|pra)|"
+                        rb"[zZ].\.)")
+# the prompts a command asks on its way (a teleport can come at the end of the command that answered them)
+_PROMPT_KINDS = ("direction", "object", "yn", "menu", "getlin", "count", "extcmd")
+# moved by something that says so: a quantum mechanic (its own pause), a hurtle while levitating (dothrow.c
+# hurtle(): throwing/kicking), a grappling hook's yank, a prayer freeing you from rock, an engulfer that carried you
+# off and let you go
+_MOVED_ON_PURPOSE = re.compile(r"position suddenly seems very uncertain|^You (?:hurtle|float) in the opposite "
+                               r"direction|^You are yanked toward|^Your surroundings change|engulfs you|"
+                               r"^You get (?:expelled|regurgitated)|(?:expels|regurgitates) you")
+
+# event pauses a hold_pauses() block must NOT defer: the helper would act on (a turn to wield a weapon, a key
+# into an open prompt) before you see them
+_URGENT = re.compile(r"GAME OVER|TERMINAL DEAD|LIFE SAVED|SWALLOWED|BEING DIGESTED|\bHELD — |DROWNING|\bSTUCK — |"
+                     r"COCKATRICE HISS|BRAIN EATEN|SLEEP RAY|DEATH RAY|WAND ZAPPED|naming prompt|WISH PROMPT|"
+                     r"status: \+[^;]*\b(?:Stone|Slime|Strngl|FoodPois|TermIll)\b")
+
+
 class Abandon(BaseException):
     """Raised inside a parked worker to unwind it."""
 
@@ -380,6 +405,8 @@ class Kernel:
         self._steps = 0
         self._t0 = 0.0
         self._prev: Snap | None = None
+        self._cmd: dict | None = None   # the command in progress: {"hero", "ldesc", "keys", "engulfed"} (_note_cmd)
+        self._held: list | None = None  # hold_pauses(): [(reason, snap)] event pauses deferred to the block's end
         self._pending_reply: str | None = None
         self.code_counter = 0
         self._stdout = _install_stdout()
@@ -460,6 +487,31 @@ class Kernel:
                 k.fight_floor = old
 
         @contextlib.contextmanager
+        def hold_pauses():
+            """Inside this block the EVENT pauses of do() (HP, status, new monsters, curses, arrival notes...)
+            are collected instead of stopping the script — except urgent ones (a prompt left open, HP below a
+            third of max, game over, swallowed/held/stoning/sleep or death ray...). The block yields the list of
+            (reason, snap): the helper acts first (dig() wields your weapon again) and then pauses itself with
+            them (emptying the list), or the block pauses once with all of them when it ends. Explicit pause()
+            calls are never held. p1 shift 41 #540: a curse message paused a dig with the pick-axe in hand; the
+            next exec dropped the re-wield."""
+            if k._held is not None:
+                yield k._held                  # nested: the outermost block releases them
+                return
+            k._held = held = []
+            done = False
+            try:
+                yield held
+                done = True
+            finally:
+                k._held = None
+                if held and done:
+                    k._release_held(held)
+                elif held:
+                    # (an exception is on its way out: the exec ends with it; say what was held)
+                    print("(pauses held when the helper failed: " + " | ".join(r for r, _ in held) + ")")
+
+        @contextlib.contextmanager
         def defer_far(dist: int = 6):
             """Inside this block a new hostile farther than `dist` squares
             (and without a danger note) doesn't pause yet — it pauses once
@@ -524,7 +576,7 @@ class Kernel:
                        set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task,
                        defer_keepaway=defer_keepaway,
                        watch_monsters=watch_monsters, quiet_messages=quiet_messages,
-                       unwatch_monsters=unwatch_monsters)
+                       unwatch_monsters=unwatch_monsters, hold_pauses=hold_pauses)
         self.ns["obs"] = self.game.last
 
     # --------------------------------------------------------- stepping
@@ -564,6 +616,7 @@ class Kernel:
         self.ns["obs"] = snap
         if self.in_worker():
             self._last_keys = data
+            self._note_cmd(before, data)
             self._check_events(before, snap, quiet=quiet, ok=ok, expect=expect)
             if self._reply_sent is not None and self.game.last is not None and self.game.last is not snap:
                 # the player answered the prompt this step opened (`cont --reply`): the caller gets the state
@@ -573,9 +626,10 @@ class Kernel:
                 after.messages = list(snap.messages) + [m for m in after.messages if m not in snap.messages]
                 snap = after                # (keeping this step's own messages: "You kill the hill orc!")
                 self.ns["obs"] = snap
-            if snap.state.kind == "command" and (self._steps >= self.budget_steps or
-                                                 time.monotonic() - self._t0 >= self.budget_seconds):
-                # (only at the command prompt: never park a script inside a menu/cursor prompt)
+            if snap.state.kind == "command" and self._held is None and (
+                    self._steps >= self.budget_steps or time.monotonic() - self._t0 >= self.budget_seconds):
+                # (only at the command prompt: never park a script inside a menu/cursor prompt — nor inside a
+                # hold_pauses() block: the helper finishes its move first, the budget pause comes at the next step)
                 self._maybe_pause(
                     f"budget: {self._steps} steps / {time.monotonic() - self._t0:.0f}s in this exec "
                     f"— cont() to keep going", snap, force=True)
@@ -650,17 +704,9 @@ class Kernel:
             # a ghost/shade drawn as a blank, a hider) — the movement helpers never attack on purpose
             reasons.insert(0, "YOUR MOVE ATTACKED something you didn't see there (invisible? a hider? a ghost?) "
                               "— look before the next step (it may be peaceful)")
-        if _moves_at_most_one(keys) and before is not None and before.hero is not None and snap.hero is not None \
-                and before.state.kind == "command" and before.status.ok and snap.status.ok \
-                and before.status.ldesc == snap.status.ldesc \
-                and max(abs(snap.hero[0] - before.hero[0]), abs(snap.hero[1] - before.hero[1])) > 1 \
-                and not getattr(snap, "engulfed", False) \
-                and not any("position suddenly seems very uncertain" in m for m in snap.messages):
-            # a step, a search or a rest that left you 2+ squares away: teleported WITHOUT A WORD — teleportitis
-            # (eating a tengu/leprechaun/the Wizard) or an unseen teleport trap (p1 shift 37 #135/#263: go_down()
-            # and tunnel() carried on from the new spot)
-            reasons.insert(0, f"TELEPORTED without a word: {before.hero} -> {snap.hero} (teleportitis? a teleport "
-                              "trap?) — any plan made before this is stale: look around first")
+        tele = self._silent_teleport(before, snap, keys)
+        if tele:
+            reasons.insert(0, tele)
         if before is not None and before.hero is not None and snap.hero is not None and before.hero != snap.hero \
                 and not keys.startswith(b","):
             # a step that auto-picked up something CURSED (pickup_thrown takes back what you threw, cursed or
@@ -948,7 +994,75 @@ class Kernel:
                 if new:
                     reasons.append("new monster in view: " + ",".join(sorted(set(new))))
         if reasons:
-            self._maybe_pause("; ".join(reasons), snap)
+            reason = "; ".join(reasons)
+            if self._held is not None and not self._urgent(reason, snap):
+                self._held.append((reason, snap))      # hold_pauses(): the helper finishes its move first
+                return
+            self._maybe_pause(reason, snap)
+
+    def _note_cmd(self, before: Snap | None, data: bytes) -> None:
+        """Remember where the command in progress began: a step sent at the command prompt starts one (your
+        square, the level), the answers to its prompts are appended — so a teleport at the END of a command that
+        asked something on the way (zap + wand + direction) is measured from where the command began."""
+        if before is not None and before.state.kind == "command":
+            self._cmd = {"hero": before.hero, "ldesc": before.status.ldesc if before.status.ok else None,
+                         "keys": bytes(data or b""), "engulfed": bool(getattr(before, "engulfed", False))}
+        elif self._cmd is not None:
+            self._cmd["keys"] = self._cmd["keys"] + bytes(data or b"")
+
+    def _silent_teleport(self, before: Snap | None, snap: Snap, keys: bytes) -> str:
+        """The TELEPORTED-without-a-word reason, or ''. A command that doesn't move you by design — a step, a
+        search or rest, F/m + direction, or one that asks something on the way (zap/throw/apply + item +
+        direction, eating, wearing...) — that ends with you 2+ squares from where it BEGAN: teleportitis
+        (eating a tengu/leprechaun/the Wizard; allmain.c: 1 in 85 each turn) or an unseen teleport trap
+        (p1 shift 37 #135/#263: go_down() and tunnel() carried on from the new spot; p1 shift 41 #67: the jump
+        came during zap('U', 'j'), whose last key answered the direction prompt — no pause)."""
+        if before is None or snap.hero is None or snap.state.kind != "command" or not snap.status.ok:
+            return ""
+        if getattr(snap, "engulfed", False) or getattr(before, "engulfed", False) \
+                or any(_MOVED_ON_PURPOSE.search(m) for m in snap.messages):
+            return ""
+        if before.state.kind == "command":
+            if before.hero is None or not before.status.ok \
+                    or not (_moves_at_most_one(keys) or _STAYS_PUT.fullmatch(keys or b"")):
+                return ""
+            start, ld0 = before.hero, before.status.ldesc
+        elif before.state.kind in _PROMPT_KINDS:
+            cmd = self._cmd
+            if not cmd or cmd.get("hero") is None or cmd.get("engulfed") or _MOVER_CMD.match(cmd.get("keys") or b""):
+                return ""
+            start, ld0 = cmd["hero"], cmd.get("ldesc")
+        else:
+            return ""               # (a position prompt: travel, a jump, teleport control — moving is the point)
+        if ld0 != snap.status.ldesc or snap.status.ldesc == "Water":      # (the Plane of Water's bubbles drift)
+            return ""
+        if max(abs(snap.hero[0] - start[0]), abs(snap.hero[1] - start[1])) <= 1:
+            return ""
+        return (f"TELEPORTED without a word: {start} -> {snap.hero} (teleportitis? a teleport trap?) — any plan "
+                "made before this is stale: look around first")
+
+    @staticmethod
+    def _urgent(reason: str, snap: Snap) -> bool:
+        """An event pause a hold_pauses() block must not defer: a prompt/menu is open (the helper's next key
+        would go into it), HP is below a third of max, or a named emergency (_URGENT)."""
+        if snap.state.kind != "command":
+            return True
+        st = snap.status
+        if st.ok and st.hpmax and st.hp * 3 < st.hpmax:
+            return True
+        return bool(_URGENT.search(reason))
+
+    def _release_held(self, held: list) -> None:
+        """The end of a hold_pauses() block: one pause with every held reason (the latest snapshot shown)."""
+        items = list(held)
+        held.clear()
+        reason = "; ".join(dict.fromkeys(r for r, _ in items))
+        for _r, s in items:
+            try:
+                s.paused = reason          # (helpers: the player has seen these steps)
+            except Exception:  # noqa: BLE001
+                pass
+        self._maybe_pause(reason, self.game.last or items[-1][1])
 
     def _thief_back(self, lt: dict, snap: Snap, turn: int) -> str | None:
         """The thief coming back into view (p4 shift 3 #1386: the nymph returned at d=9, not "new", no pause):
@@ -1062,6 +1176,7 @@ class Kernel:
         if self._pending_reply is not None:
             r, self._pending_reply = self._pending_reply, None
             try:
+                self._note_cmd(self.game.last, parse_keys(r))     # (the reply is part of the command in progress)
                 snap2 = self.game.step(parse_keys(r))
             except PermissionError as e:
                 # a guard refused the reply (Esc at a wish): the prompt is still open — stay paused
@@ -1093,6 +1208,8 @@ class Kernel:
         self.new_monster_filter = None
         self.activity = ""
         self._reply_sent = None
+        self._held = None
+        self._cmd = None          # (keys sent since the last exec — `nh do` — are not part of any command we saw)
         if self.game.last is None:
             try:
                 self.game.look()           # after a daemon restart: `obs` must not be None
@@ -1191,6 +1308,7 @@ class Kernel:
     # direct (non-exec) step used by `nh do`
     def direct_do(self, keys: str, force: bool = False, multi: bool = False) -> Snap:
         self.drop()
+        self._cmd = None
         data = parse_keys(keys)
         _guard_dangerous(data, force)
         snap = self.game.step(data, multi=multi, force=force)

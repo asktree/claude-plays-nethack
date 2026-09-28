@@ -117,6 +117,9 @@ def bad_squares(s=None) -> set:
     from nh.monitor import _stationary
     mimics = {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("mimic")
               or (not m.get("tame") and not m.get("peaceful") and _stationary(m.get("desc") or ""))}
+    # an 'I' a move bumped into ("You move right into it."): a real hostile — NetHack's own travel walks into an
+    # 'I' on its route and attacks whatever is there (hack.c domove: travel skips the "move right into" stop)
+    mimics |= {(m["x"], m["y"]) for m in (s.monsters or []) if m.get("real") and m.get("hostile")}
     mimics |= set(known_mimics(s))
     sessile = getattr(getattr(ctx.game, "tracker", None), "sessile", None) or {}
     from .mapview import is_door
@@ -406,12 +409,19 @@ def _peacefuls_at(s, cell) -> list:
             and not m.get("tame") and not m.get("pet")]
 
 
+def _real_I_text(m) -> str:
+    """How the move helpers name an 'I' proven real by a bump (Game._note_unseen_bump)."""
+    return (f"a REAL unseen {'hostile ' if m.get('hostile') else ''}monster ('I': {m.get('desc')} — "
+            f"{(m.get('note') or '').split(' — ')[0]})")
+
+
 def _check_free(s, cell, who: str):
     """Movement helpers never attack: refuse a plain step onto a monster."""
     occ = occupants(s, cell)
     if occ:
         m = occ[0]
-        what = "a remembered unseen monster ('I')" if m["ch"] == "I" else _mdesc(occ)
+        what = (_real_I_text(m) if m["ch"] == "I" and m.get("real") and not m.get("peaceful") else
+                "a remembered unseen monster ('I')" if m["ch"] == "I" else _mdesc(occ))
         raise NavError(f"{who}: {what} is on {tuple(cell)} — a plain step there would attack it; stopped at "
                        f"{s.hero}. " + ("Wait a turn ('.') or go around." if m.get("peaceful") else
                                         "fight() it if it's hostile and safe to melee, wait, or go around."))
@@ -697,6 +707,10 @@ def clear_I(x: int, y: int) -> bool:
     s = ctx.require_command("clear_I()")
     if s.screen.at(x, y) != "I":
         return True
+    real = next((m for m in s.monsters or [] if (m["x"], m["y"]) == (x, y) and m.get("real")), None)
+    if real is not None:
+        print(f"clear_I{(x, y)}: careful — this 'I' was proven REAL ({real.get('desc')}: "
+              f"{(real.get('note') or '').split(' — ')[0]}); walking next to it to search")
     h = s.hero
     if h is None:
         return False
@@ -872,7 +886,9 @@ def _trek_blocked(s, goal, bad, allow, names) -> str:
             what = []
             for c in on[:3]:
                 m = mons.get(c) or {}
-                if s.screen.at(*c) == "I":
+                if s.screen.at(*c) == "I" and m.get("real") and not m.get("peaceful"):
+                    what.append(f"{_real_I_text(m)} at {c}")
+                elif s.screen.at(*c) == "I":
                     what.append(f"a remembered unseen monster 'I' at {c}" + (f" (on the {names[c]})" if c in names
                                                                              else "")
                                 + f" — clear_I{c} (a stale marker) or fight it")
@@ -1519,6 +1535,12 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
     occ = [m for m in (s.monsters or []) if (m["x"], m["y"]) == (x, y) and not m.get("tame")
            and not m.get("pet") and not m.get("statue")]
     if occ and s.hero != (x, y):
+        real = [m for m in occ if m["ch"] == "I" and m.get("real") and not m.get("peaceful")]
+        if real:
+            # (not "holds an 'I'": explore() then leaves the frontier instead of walking next to it to clear_I)
+            raise NavError(f"travel target {(x, y)} is taken by {_real_I_text(real[0])} — not a stale marker: "
+                           "fight it (from where its attacks can't reach you, if it is a slime or a pudding) or pick "
+                           "another square")
         if all(m.get("unseen") or m["ch"] == "I" for m in occ):
             raise NavError(f"travel target {(x, y)} holds an 'I' — a REMEMBERED unseen monster, maybe long gone: "
                            f"clear_I({x}, {y}) walks next to it and searches once (a stale marker vanishes; a real "
@@ -1619,6 +1641,8 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     manual = set(ctx.game.avoid.get(ctx.game.level_key(cur.status), set()))
                     zone = set(special_room_zone(cur))
                     lst = sorted(bad)
+                    real_i = sorted({(m["x"], m["y"]) for m in cur.monsters or []
+                                     if m.get("real") and m.get("hostile") and (m["x"], m["y"]) in on})
                     raise NavError(f"travel to {(x, y)}: every known route crosses an avoided square — the direct "
                                    f"one crosses {on[:6]} (traps, avoid() squares, mimics, stationary hostiles, "
                                    f"special rooms: {lst[:12]}" + (f" ... and {len(lst) - 12} more" if len(lst) > 12
@@ -1626,7 +1650,9 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                                    + (f"; {len(manual)} of them are your manual avoid() squares — avoid(clear=True) "
                                       "forgets them" if manual else "")
                                    + ("; a special room's squares count too — forget_room()" if zone & set(on)
-                                      else ""))
+                                      else "")
+                                   + (f"; {real_i} holds a REAL unseen hostile ('I': 'You move right into it.') — "
+                                      "fight it or wait for it to move" if real_i else ""))
                 try:
                     return walk_path(detour)
                 except NavError:
@@ -2414,7 +2440,7 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
                              "turn": s.status.turn if s.status.ok else None, "desc": left["desc"], "at": left["at"]}
         print(f"stairs: your pet ({left['desc']}) is not next to you — taking the {ch} without it (it stays on "
               "this level)")
-    _left_behind_pause("go_down()" if ch == ">" else "go_up()", s)
+    _left_behind_pause("go_down()" if ch == ">" else "go_up()", s, ch)
     ld0 = s.status.ldesc if s.status.ok else None
     d0 = s.status.dlvl if s.status.ok else None
     s = ctx.do(ch, expect=("level",), ok=_STAIRS_OK)   # the level change is the point: no pause for it
@@ -2571,26 +2597,81 @@ def castle_below(s=None) -> str:
 
 _LEFT_WARNED: set = set()
 
+# dungeon.def: where the end staircase of a branch leads — the UP stairs of the Mines' first level and of Gehennom's
+# (the Valley: up to the Castle) go to the Dungeons; Sokoban and Vlad's Tower are built upward from their entry
+# level, whose DOWN stairs lead back to the Dungeons / Gehennom. (The Quest and Fort Ludios hang off portals.)
+_PARENT_BRANCH = {"The Gnomish Mines": "The Dungeons of Doom", "Gehennom": "The Dungeons of Doom",
+                  "Sokoban": "The Dungeons of Doom", "Vlad's Tower": "Gehennom"}
+_UPWARD_BRANCHES = ("Sokoban", "Vlad's Tower")
 
-def _left_behind_pause(who: str, s=None) -> None:
-    """Before taking stairs whose other end is known: covetous monsters you left on that level wait there
-    (game._note_departure) — pause once per departure turn (p1 shift 40 #414/#634: the Wizard was next to the
-    arrival stairs both times). cont goes on."""
+
+def stairs_dest(ch: str, s=None, cell=None) -> tuple:
+    """Where the staircase `ch` ('<' / '>') at `cell` (default: your square) leads: ([level keys], how). A link
+    learned by taking it or arriving on it (game.stair_links) is certain (how == ''). Else it is inferred from the
+    dungeon's structure — stairs always join depths N and N±1: the level above/below in this branch for a plain
+    staircase; the parent dungeon's for the Mines' or Gehennom's first level going up, or Sokoban's / Vlad's
+    Tower's entry level going down; and BOTH candidates where ^O notes a branch staircase that way on this level
+    ("Stairs down to The Gnomish Mines") or 2+ such stairs are known here. [] when nothing can be said (out of
+    the dungeon, a portal branch, a level not named yet). p1 shift 41 #371: go_up() from a dug-into DL18 never
+    warned that DL17 held the Wizard."""
+    s = s or ctx.last()
+    g = ctx.game
+    if not s.status.ok:
+        return [], ""
+    key = g.level_key(s.status)
+    cell = tuple(cell) if cell is not None else (s.hero or getattr(s, "last_pos", None))
+    link = (getattr(g, "stair_links", None) or {}).get(key, {}).get(cell) if cell is not None else None
+    if link:
+        return [link], ""
+    km = re.match(r"^(?P<b>.+?) / Level (?P<n>\d+)$", key or "")
+    if ch not in ("<", ">") or not km:
+        return [], ""
+    branch, n = km.group("b"), int(km.group("n"))
+    t = n - 1 if ch == "<" else n + 1
+    if t < 1:
+        return [], ""
+    from .desmap import _overview_sections
+    mem = getattr(g, "memory", None)
+    ov = _overview_sections(((getattr(mem, "state", None) or {}).get("overview") or "") if mem is not None else "")
+    sec = ov.get(branch) or {}
+    # the branch's entry level: ^O's header names it first ("levels 4 to 11", "levels 6 up to 3"); a header with no
+    # numbers ("The Gnomish Mines:") means only the entry level was reached — this one
+    entry = sec.get("a") if sec.get("a") is not None else (n if branch in ov else None)
+    upward = branch in _UPWARD_BRANCHES
+    parent = _PARENT_BRANCH.get(branch)
+    if parent and entry is not None and n == entry and ch == (">" if upward else "<"):
+        return [f"{parent} / Level {t}"], (f" — not taken yet: {branch}'s {'entry' if upward else 'first'} "
+                                           f"level, whose {ch} leads to {parent}")
+    word = "up" if ch == "<" else "down"
+    notes = " ".join((sec.get("levels") or {}).get(n, []))
+    others = [f"{mm.group(1).strip()} / Level {t}" for mm in re.finditer(rf"Stairs {word} to ([^,.]+)", notes)]
+    same = f"{branch} / Level {t}"
+    here = sum(1 for v in ((getattr(g, "terrain_seen", None) or {}).get(key) or {}).values() if v == ch)
+    if others or here > 1:
+        cands = [same] + [o for o in others if o != same]
+        return cands, f" — not taken yet, and a branch staircase {word} starts on this level too: either one"
+    return [same], f" — not taken yet: the level {'above' if ch == '<' else 'below'} in {branch}"
+
+
+def _left_behind_pause(who: str, s=None, ch: str | None = None) -> None:
+    """Before taking stairs: covetous monsters you left on the level they lead to wait there (game._note_departure)
+    — pause once per departure turn (p1 shift 40 #414/#634: the Wizard was next to the arrival stairs both times).
+    Where the stairs lead comes from stairs_dest(): the learned link, else the level above/below (p1 shift 41
+    #371: the link of stairs never taken was unknown and nothing paused). The arrival pauses too (WAITING HERE).
+    cont goes on."""
     s = s or ctx.last()
     lb = getattr(ctx.game, "left_behind", None) or {}
     if not lb or s.hero is None or not s.status.ok:
         return
-    dest = (getattr(ctx.game, "stair_links", None) or {}).get(ctx.game.level_key(s.status), {}).get(s.hero)
-    ents = lb.get(dest) or {}
+    dests, how = stairs_dest(ch or "", s)
     now = s.status.turn or 0
-    waiting = {n: e for n, e in ents.items() if now - (e.get("left") or 0) <= 3000}
-    if not waiting or (dest, now) in _LEFT_WARNED:
+    waiting = [(d, n, e) for d in dests for n, e in (lb.get(d) or {}).items() if now - (e.get("left") or 0) <= 3000]
+    if not waiting or (tuple(dests), now) in _LEFT_WARNED:
         return
-    _LEFT_WARNED.add((dest, now))
-    ctx.game.left_prewarned = {"dest": dest, "turn": now}     # (the arrival then doesn't pause again)
-    ctx.pause(f"{who}: the level these stairs lead to ({dest}) holds " + "; ".join(
-        f"the {n} you left there at T:{e.get('left')} (last seen at ({e.get('x')},{e.get('y')}))"
-        for n, e in waiting.items())
+    _LEFT_WARNED.add((tuple(dests), now))
+    ctx.pause(f"{who}: the level these stairs lead to ({' or '.join(dests)}{how}) holds " + "; ".join(
+        f"the {n} you left " + (f"on {d} " if len(dests) > 1 else "there ")
+        + f"at T:{e.get('left')} (last seen at ({e.get('x')},{e.get('y')}))" for d, n, e in waiting)
         + " — covetous: it waits (a wounded one on the up stairs) and comes at you on arrival. Arrive at full HP, "
           "blindfold on for telepathy, ready to fight or leave. cont goes on.")
 

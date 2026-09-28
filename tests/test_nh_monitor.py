@@ -1797,3 +1797,145 @@ def test_reload_refuses_new_helpers_on_an_older_core():
                                   _code_mtime=lambda sub: 50.0 if sub == "src/nh" else 400.0)
     assert "`bin/nh reload` between execs loads them" in Daemon._stale_code_note(fake2)
 
+
+def _kernel_with_fake_steps():
+    """A Kernel whose do() runs as inside an exec and whose game.step() plays back prepared snapshots."""
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    k.in_worker = lambda: True
+    k.budget_seconds = 1e9
+    return k, reasons
+
+
+def _at(kind, cursor, turn=40, msgs=()):
+    from nh.parse import State
+    s = snap({}, turn)
+    s.state = State(kind)
+    s.screen.cursor = cursor
+    s.messages = list(msgs)
+    return s
+
+
+def _play(k, reasons, start, steps):
+    """Send each (keys, snapshot after) through the kernel's do(); returns the pause reasons."""
+    reasons.clear()
+    k.game.last = _at("command", start, turn=39)
+    frames = iter([after for _keys, after in steps])
+
+    def fake_step(data, **kw):
+        k.game.last = next(frames)
+        return k.game.last
+    k.game.step = fake_step
+    for keys, _after in steps:
+        k._do(keys)
+    return list(reasons)
+
+
+def test_teleport_during_a_prompted_command_pauses():
+    # p1 shift 41 #67: a teleportitis jump during zap('U', 'j') moved the hero (24,14) -> (25,9) with no pause — the
+    # 'j' answered the direction prompt, and the "one step moved you 2+ squares" check only looked at commands
+    # typed at the command prompt
+    k, reasons = _kernel_with_fake_steps()
+    zap = [("z", _at("object", (30, 0))), ("U", _at("direction", (19, 0)))]
+    hit = ["The bolt of fire hits the guardian naga!"]
+    got = _play(k, reasons, (24, 14), zap + [("j", _at("command", (25, 9), 41, hit))])
+    assert got and got[-1].startswith("TELEPORTED without a word: (24, 14) -> (25, 9)")
+
+    def teleported(got):
+        return any("TELEPORTED" in r for r in got)
+    assert _play(k, reasons, (24, 14), zap + [("j", _at("command", (24, 14), 41, hit))]) == ["message"]   # no jump
+    # moving on purpose: a wand aimed at yourself, travel, a scroll, a hurtle while levitating
+    assert not teleported(_play(k, reasons, (24, 14), zap + [(".", _at("command", (60, 15), 41))]))
+    assert not teleported(_play(k, reasons, (24, 14), [("_", _at("getpos", (24, 14))),
+                                                       (".", _at("command", (60, 15), 41))]))
+    assert not teleported(_play(k, reasons, (24, 14), [("r", _at("object", (30, 0))),
+                                                       ("T", _at("command", (60, 15), 41))]))
+    hurtle = ["You hurtle in the opposite direction."]
+    assert not teleported(_play(k, reasons, (24, 14), [("t", _at("object", (30, 0))), ("b", _at("direction", (19, 0))),
+                                                       ("h", _at("command", (27, 14), 41, hurtle))]))
+    # a multi-turn meal, or a zap typed in one do(): measured from where the command began
+    got = _play(k, reasons, (24, 14), [("e", _at("object", (30, 0))), ("f", _at("command", (60, 15), 45))])
+    assert got and got[-1].startswith("TELEPORTED without a word: (24, 14) -> (60, 15)")
+    got = _play(k, reasons, (24, 14), [("zUj", _at("command", (25, 9), 41, hit))])
+    assert got and got[-1].startswith("TELEPORTED without a word")
+    # keys sent with `nh do` (outside an exec) end the command in progress: no stale starting square
+    _play(k, reasons, (24, 14), zap)
+    assert k._cmd and k._cmd["keys"] == b"zU"
+    k.game.step = lambda data, **kw: _at("command", (60, 15), 41)
+    k.direct_do("j")
+    assert k._cmd is None
+    assert k._silent_teleport(_at("direction", (19, 0)), _at("command", (61, 15), 42), b"j") == ""
+
+
+def test_hold_pauses_defers_event_pauses_until_the_block_ends():
+    # p1 shift 41 #540: "You notice a black glow surrounding you." (CURSED ITEMS) paused dig() in its dig step,
+    # before it wielded the weapon again; that exec was then dropped and the pick-axe stayed in hand
+    k, reasons = _kernel_with_fake_steps()
+    a, b = snap({}, 10), snap({}, 11)
+    b.messages = ["You start digging downward.", "You dig a pit in the floor.",
+                  "You notice a black glow surrounding you."]
+    hold = k.ns["hold_pauses"]
+    with hold() as held:
+        k._check_events(a, b, quiet=True)
+        assert reasons == [] and len(held) == 1 and held[0][0].startswith("CURSED ITEMS")
+        with hold() as inner:                       # nested blocks share the outer list
+            assert inner is held
+        # urgent ones are never held: HP below a third of max
+        c = snap({}, 12)
+        c.status.hp = 5
+        k._check_events(b, c)
+        assert reasons and reasons[-1].startswith("HP 20->5")
+    # released when the block ends: one pause with what was held
+    assert len(reasons) == 2 and reasons[-1].startswith("CURSED ITEMS") and b.paused == reasons[-1]
+    # a helper that shows them itself (emptying the list): no second pause
+    reasons.clear()
+    with hold() as held:
+        k._check_events(a, b, quiet=True)
+        held.clear()
+    assert reasons == []
+    # a prompt left open is urgent (the helper's next key would go into it)
+    with hold():
+        k._check_events(a, _at("yn", (30, 0), 11, ["You notice a black glow surrounding you."]), quiet=True)
+        assert reasons and reasons[-1].startswith("CURSED ITEMS")
+    # outside a block: at once
+    reasons.clear()
+    k._check_events(a, b, quiet=True)
+    assert reasons and reasons[-1].startswith("CURSED ITEMS")
+
+
+def test_an_I_proven_real_is_labelled_and_listed_on_its_own():
+    # p1 shift 41 #16/#17: `m`-direction into a stale-looking 'I' in a doorway said "You move right into it." — a
+    # real, hostile monster the blind hero's telepathy didn't show (a mindless green slime); the obs kept calling it
+    # "remembered, unseen monster ... could be anything"
+    from nh.render import monsters_line
+
+    class G(FakeGame):
+        def __init__(self):
+            super().__init__()
+            self.real = {}
+
+        def unseen_real_for(self, s):
+            return dict(self.real)
+    g = G()
+    t = MonsterTracker(g)
+    g.real = {(42, 9): {"turn": 30334, "msg": "You move right into it.", "hostile": True, "blind": True,
+                        "telepathy": True}}
+    cells = {(42, 9): "I", (50, 12): "I", (52, 14): "I", (55, 3): "I"}
+    m = by_pos(t.update(snap(cells, 30336)))
+    real = m[(42, 9)]
+    assert real["real"] and real["hostile"] and real["unseen"] and not real["peaceful"]
+    assert real["desc"] == "unseen HOSTILE monster (real)"
+    assert "hostile, unseen — not on telepathy: MINDLESS?" in real["note"] and "T:30334, 2 turns ago" in real["note"]
+    assert not m[(50, 12)].get("real") and "could be anything" in m[(50, 12)]["note"]
+    out = monsters_line(None, mons=list(m.values()))
+    assert "I x3 remembered unseen monsters" in out and "(42,9)" not in out.split("\n")[1]
+    assert "I unseen HOSTILE monster (real) at (42,9)" in out
+    # "Pardon me, <name>." = a peaceful one; an old bump no longer counts
+    g.real = {(42, 9): {"turn": 30334, "msg": "Pardon me, Asidonhopo.", "peaceful": "Asidonhopo"}}
+    p = by_pos(t.update(snap(cells, 30337)))[(42, 9)]
+    assert p["peaceful"] and p["desc"] == "peaceful Asidonhopo (unseen)" and "don't attack" in p["note"]
+    g.real = {(42, 9): {"turn": 30000, "msg": "You move right into it.", "hostile": True}}
+    assert not by_pos(t.update(snap(cells, 30338)))[(42, 9)].get("real")

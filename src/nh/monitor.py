@@ -37,6 +37,33 @@ VAMP_WOLF_NOTE = ("down here a wolf may be a shape-shifted VAMPIRE LORD (or Vlad
                   "the vampire at full HP next to you (level-drain bite)")
 RETURN_TURNS = 600     # a looked-at monster back in view FAR from its last sighting: the same species seen
                        # on this level this recently (and out of view now) is taken to be it (no "new" again)
+UNSEEN_REAL_TURNS = 100    # an 'I' a move bumped into (Game._note_unseen_bump) counts as a real monster this long:
+                           # it may move off unseen, leaving the marker behind
+
+
+def _real_unseen_label(rec: dict, turn: int) -> dict:
+    """The monster-dict fields of an 'I' proven real by a bump (Game._note_unseen_bump): "You move right into it."
+    = a monster you can neither see nor sense, not peaceful; "Pardon me, <name>." = that peaceful one."""
+    t = rec.get("turn")
+    when = f"T:{t}" + (f", {turn - t} turns ago" if t is not None and turn - t > 0 else "")
+    if rec.get("peaceful"):
+        name = rec["peaceful"]
+        return {"id": None, "desc": f"peaceful {name} (unseen)", "new": False, "statue": False, "unseen": True,
+                "real": True, "tame": False, "peaceful": True,
+                "note": f"a PEACEFUL {name} stands on this 'I' ({rec.get('msg')!r} at {when}) — don't attack it; "
+                        "wait for it to move or go around"}
+    if not rec.get("hostile", True):
+        return {"id": None, "desc": "unseen monster (real)", "new": False, "statue": False, "unseen": True,
+                "real": True, "tame": False, "peaceful": False,
+                "note": f"a REAL monster stands on this 'I' ({rec.get('msg')!r} at {when}, while you hallucinated: "
+                        "maybe peaceful) — not a stale marker"}
+    why = ("not on telepathy: MINDLESS? (a green slime, a gelatinous cube, a pudding, a black light, a zombie/mummy, "
+           "a golem...)" if rec.get("blind") and rec.get("telepathy") else
+           "you are blind" if rec.get("blind") else "invisible? (you don't see invisible)")
+    return {"id": None, "desc": "unseen HOSTILE monster (real)", "new": False, "statue": False, "unseen": True,
+            "real": True, "hostile": True, "tame": False, "peaceful": False,
+            "note": f"REAL, not a stale marker ({rec.get('msg')!r} at {when}): hostile, unseen — {why}. "
+                    "step()/travel() keep off it; a search next to it only feels it"}
 
 
 # mhitu.c explmu() / mhitm.c: an exploding sphere or light dies in its own blast (p4 shift 7 #773: a flaming
@@ -256,7 +283,17 @@ class MonsterTracker:
         mons = [m for m in allm if m["ch"] not in "I]"]
         for m in mons:
             m.update(id=None, desc="", new=False, statue=False)
+        real = {}
+        if special and hasattr(self.game, "unseen_real_for"):
+            try:
+                real = self.game.unseen_real_for(snap)     # 'I's a move bumped into: real monsters
+            except Exception:  # noqa: BLE001
+                real = {}
         for m in special:
+            rec = real.get((m["x"], m["y"])) if m["ch"] == "I" else None
+            if rec is not None and turn - (rec.get("turn") or turn) <= UNSEEN_REAL_TURNS:
+                m.update(_real_unseen_label(rec, turn))
+                continue
             if m["ch"] == "I":
                 note = "an unseen monster was here (blind/invisible): could be anything, even a peaceful"
                 if "telepathy" in (getattr(self.game, "intrinsics", None) or ()) and "Blind" not in st.conditions:
