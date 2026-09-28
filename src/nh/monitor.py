@@ -39,15 +39,26 @@ RETURN_TURNS = 600     # a looked-at monster back in view FAR from its last sigh
                        # on this level this recently (and out of view now) is taken to be it (no "new" again)
 
 
+# mhitu.c explmu() / mhitm.c: an exploding sphere or light dies in its own blast (p4 shift 7 #773: a flaming
+# sphere that exploded was still a LURKER "last seen 7 turns ago") — monsters only: "A potion explodes!",
+# "Your wand of digging vibrates violently and explodes!" aren't kills
+_EXPLODED = re.compile(r"^(?!It )(?:The |An? |Your )?(?P<n>.+?) explodes(?: at a spot in (?:thin air|empty water))?!$")
 _KILL_RES = [
     re.compile(r"^You (?:kill|destroy) (?:the |an? |poor )?(?P<n>.+?)!$"),
     re.compile(r"^(?:The |An? )?(?P<n>.+?) (?:is|are) (?:killed|destroyed)(?: by [^!]+)?!"),   # (by the blast of fire)
     re.compile(r"^(?:The |An? )?(?P<n>.+?) dies!"),
     re.compile(r"^(?:The |Your |An? )?.+? (?:kills|destroys) (?:the |an? )?(?P<n>.+?)[.!]$"),
+    _EXPLODED,
 ]
 
 
 _FOUND_MON = re.compile(r"^You find an? (.+?)\.$")
+
+
+def _in_line(a, b, reach: int = 13) -> bool:
+    """Same row, column or diagonal, within `reach` squares (game._lined_up: a zap's line to you)."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    return bool(dx or dy) and (dx == 0 or dy == 0 or abs(dx) == abs(dy)) and max(abs(dx), abs(dy)) <= reach
 
 
 def killed_names(messages, include_it: bool = False) -> list[str]:
@@ -55,11 +66,13 @@ def killed_names(messages, include_it: bool = False) -> list[str]:
     jackal!", "The kitten kills the newt.", "The gnome is killed!").
     include_it: "You kill it!" / "You destroy it!" (an unseen or invisible
     monster) counts as "it (unseen)"."""
-    from .danger import base_name
+    from .danger import base_name, monster_record
     out = []
     for msg in messages or []:
         for rx in _KILL_RES:
             m = rx.search(msg)
+            if m and rx is _EXPLODED and not monster_record(base_name(m.group("n"))):
+                continue
             if m and m.group("n") not in ("it", "them"):
                 out.append(base_name(m.group("n")))
                 break
@@ -421,6 +434,16 @@ class MonsterTracker:
         for m in mons:
             if m["id"] is None:
                 m["id"] = self._new_id()
+        # a zap this turn whose zapper wasn't lined up with you BEFORE the step (it moved into line and zapped
+        # in one turn): the monsters of that name lined up with you now (p2 shift 39 #94: with no id the note
+        # went onto all 4 bone devils)
+        for wname, wz in ((getattr(snap, "wand_users", None) or {}).items() if hero is not None and st.ok else ()):
+            if not wz.get("ids") and wz.get("turn") == st.turn:
+                lined = {m["id"] for m in mons if base_name(m.get("desc") or "") == wname and not m.get("statue")
+                         and _in_line(hero, (m["x"], m["y"]))}
+                if lined:
+                    wz["ids"] = lined
+        for m in mons:
             d = m.get("desc", "")
             m["tame"] = d.startswith("tame ")
             m["peaceful"] = d.startswith("peaceful ")
@@ -434,7 +457,11 @@ class MonsterTracker:
                 if wz:
                     # (it zapped a wand at you on this level: that doesn't change with its next farlook)
                     kind = wz.get("kind")
-                    m["note"] = (f"ZAPPED A WAND{' OF ' + kind.upper() if kind else ''} AT YOU (T:{wz.get('turn')})"
+                    same = 0 if wz.get("ids") else sum(
+                        1 for o in mons if base_name(o.get("desc") or "") == base_name(d) and not o.get("statue")
+                        and not (o.get("desc") or "").startswith(("peaceful ", "tame ")))
+                    m["note"] = ((f"one of the {same} {base_name(d)}s here (which one is unknown) " if same > 1 else "")
+                                 + f"ZAPPED A WAND{' OF ' + kind.upper() if kind else ''} AT YOU (T:{wz.get('turn')})"
                                  + (" (its ray destroys your POTIONS (cold) / scrolls and potions (fire) even when "
                                     "you resist it: bag them)" if kind in ("cold", "fire") else "")
                                  + (" — " + m["note"] if m["note"] else ""))

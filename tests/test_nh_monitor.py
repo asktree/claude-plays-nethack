@@ -1496,3 +1496,95 @@ def test_cockatrice_corpse_wielder_gets_a_lethal_note():
     s.trice_wielders = {base_name("priestess of Moloch"): 99}      # (as game._note_trice_wielders files it)
     m = t.update(s)[0]
     assert m["note"].startswith("!! WIELDS A COCKATRICE CORPSE (T:99)")
+
+
+def test_killed_names_counts_exploders_only_when_they_are_monsters():
+    # p4 shift 7 #773: an exploded flaming sphere stayed a LURKER "last seen 7 turns ago"
+    from nh.monitor import killed_names
+    assert killed_names(["The flaming sphere explodes!"]) == ["flaming sphere"]
+    assert killed_names(["The yellow light explodes at a spot in thin air!"]) == ["yellow light"]
+    for m in ("A potion explodes!", "Your wand of digging vibrates violently and explodes!",
+              "The wand suddenly explodes!", "It explodes at a spot in thin air!"):
+        assert killed_names([m], include_it=True) == [], m
+
+
+def test_invisible_hero_misses_are_benign():
+    from nh.kernel import DEFAULT_BENIGN
+    for m in ("The orc mummy attacks a spot beside you.", "The soldier ant snaps wildly and misses!",
+              "The Uruk-hai strikes at thin air!", "The kraken strikes at empty water!",
+              "The succubus smiles seductively at your invisible displaced image...",
+              "The shark is fooled by water reflections and misses!", "The troll swings wildly!"):
+        assert any(p.search(m) for p in DEFAULT_BENIGN), m
+    assert not any(p.search("The soldier ant bites!") for p in DEFAULT_BENIGN)
+
+
+def test_thief_back_pauses_once_per_return_and_honours_autocontinue():
+    # live shift 10 #1661-#1669: every exec paused at once with "THIEF BACK in view" (a menu covering the map made
+    # the thief "come back" after each inventory()), and -a 'THIEF BACK' did not suppress it
+    import re as _re
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    from nh.parse import State
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    g.last_theft = {"turn": 100, "msg": "The water nymph stole a blindfold.", "what": "a blindfold",
+                    "who": "The water nymph"}
+    nymph = {"ch": "n", "x": 49, "y": 10, "desc": "water nymph", "dist": 9, "id": 7}
+
+    def step(turn, seen, kind="command"):
+        a = snap({}, turn)
+        a.state = State(kind)
+        a.monsters = [dict(nymph)] if seen else []
+        a.theft_note = g.theft_note(turn)
+        b = snap({}, turn - 1)
+        b.monsters = []
+        reasons.clear()
+        k._check_events(b, a)
+        return [r for r in reasons if r.startswith("THIEF BACK")]
+    assert step(120, True)                       # back in view: one pause
+    assert not step(121, True)                   # still in view: no more
+    assert not step(121, False, kind="menu")     # a menu over the map (inventory()) isn't "gone"
+    assert not step(121, True)                   # ...so closing it isn't a return
+    assert not step(122, False) and not step(123, True)     # a turn round a corner: not a return
+    assert not step(124, False)
+    assert step(130, True)                       # gone for turns, back: pause again
+    step(131, False)
+    k.autocontinue = [_re.compile("THIEF BACK")]
+    assert not step(140, True)                   # -a 'THIEF BACK'
+
+
+def test_wand_note_names_one_unknown_zapper_among_several():
+    # p2 shift 39 #94: one bone devil zapped lightning; the note went onto all 4 bone devils
+    fg = FakeGame()
+    t = MonsterTracker(fg)
+    cells = {(44, 10): "&", (43, 12): "&", (37, 12): "&"}
+    fg.truth = {c: "bone devil" for c in cells}
+    s = snap(cells, 60)
+    s.wand_users = {"bone devil": {"kind": "lightning", "wand": "a wand of lightning", "turn": 50, "ids": set()}}
+    ms = by_pos(t.update(s))
+    assert all(m["note"].startswith("one of the 3 bone devils here (which one is unknown) ZAPPED A WAND OF "
+                                    "LIGHTNING") for m in ms.values())
+    # a zap THIS turn: the one lined up with you now is the zapper (it stepped into line and zapped)
+    rec = {"kind": "lightning", "wand": "a wand of lightning", "turn": 61, "ids": set()}
+    s2 = snap(cells, 61)
+    s2.wand_users = {"bone devil": rec}
+    ms = by_pos(t.update(s2))
+    assert ms[(44, 10)]["note"].startswith("ZAPPED A WAND OF LIGHTNING")
+    assert not ms[(43, 12)]["note"].startswith(("ZAPPED", "one of")) and rec["ids"] == {ms[(44, 10)]["id"]}
+
+
+def test_cockatrice_corpse_picked_up_drops_its_kill_record():
+    # p2 shift 39 #588: after pickup('cockatrice corpse') the "cockatrice corpse at (48,13) (your kill)" note stayed
+    # all shift (other food on the square still showed '%')
+    from nh.game import Game, Timing
+    g = Game(term=None, timing=Timing.local())
+    s = snap({}, 150)
+    key = g.level_key(s.status)
+    g.kills[key] = [("cockatrice", HERO, 100), ("jackal", HERO, 101), ("cockatrice", (41, 10), 120)]
+    g._note_trice_taken(s, ["J - a cockatrice corpse (weapon in hand)."])       # wielding it: no pickup
+    assert len(g.kills[key]) == 3
+    g._note_trice_taken(s, ["J - a cockatrice corpse."])
+    assert g.kills[key] == [("jackal", HERO, 101), ("cockatrice", (41, 10), 120)]
+    assert g._trice_killed_on(s, HERO) is None and g._trice_killed_on(s, (41, 10))

@@ -12,6 +12,12 @@ import re
 from . import ctx
 from .mapview import DIR_KEY
 
+try:
+    from nh.kernel import INVISIBLE_MISS
+except ImportError:        # (a daemon whose core predates it: `bin/nh reload` only loads new tactics)
+    INVISIBLE_MISS = (r"^(?:The |An? )?.+? (?:(?:swings|snaps|kicks|lunges) wildly(?: and misses)?!|attacks a spot "
+                      r"beside you\.|strikes at (?:thin air|empty water)!)$")
+
 ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misses|stings|butts|kicks|claws|touches)[!.]$",
            # an invisible fight's flavour (p1 shift 37 #470-#488, the Wizard and his clone): a monster going
            # invisible or zapping itself, MR shrugging off destroy armor, a quantum mechanic's teleport blocked
@@ -41,6 +47,8 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^The .+ wields (?:an? |the |\d+ )(?!.*\b(?:cockatrice|chickatrice) corpse)",
            r"^The .+ (?:throws|shoots|fires) ", r"^The .+ breathes ",
            r"^You are hit by ", r"^The .+ misses you[.!]$",
+           # a monster that can't see you (invisible / displaced) swinging at the wrong square (mhitu.c wildmiss)
+           INVISIBLE_MISS,
            r"^(?:The )?.+ (?:kicks|scratches|butts|stings|touches|bites) you[.!]$",   # also "Jay's ghost touches you!"
            # an engulfer's routine attack from inside (mhitu.c gulpmu()); the damage is the HP check's job
            r"^You feel your magical energy drain away", r"^You are pummeled with debris",
@@ -683,6 +691,8 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     t0 = ctx.last().status.turn or 0
     kills: list = []
     best, idle = None, 0
+    felt: set = set()          # 'I' squares searched while blind (unseen=True)
+    passed: set = set()        # 'I' squares left alone: something there that never attacked
 
     def out(reason):
         return {"reason": reason, "kills": kills, "turns": (ctx.last().status.turn or t0) - t0}
@@ -729,16 +739,39 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                     return out(f"HP {s.status.hp}/{s.status.hpmax} below {stop_hp:.0%} with hostiles adjacent")
                 continue
             if unseen:
-                ivs = [m for m in s.monsters or [] if m.get("unseen") and m.get("dist") == 1]
+                ivs = [m for m in s.monsters or [] if m.get("unseen") and m.get("dist") == 1
+                       and (m["x"], m["y"]) not in passed]
                 if not ivs and s.hero is not None:
                     # a WARNING digit next to you (display.c display_warning(): only ever a hostile you can't
                     # see — p1 shift 37: the invisible Wizard showed as a '4')
                     ivs = [{"x": s.hero[0] + dx, "y": s.hero[1] + dy} for dx in (-1, 0, 1) for dy in (-1, 0, 1)
                            if (dx or dy) and s.screen.at(s.hero[0] + dx, s.hero[1] + dy) in "12345"]
                 key = _key_toward(s.hero, ivs[0]) if ivs else None
+                blow_force = False
+                if key and s.screen.at(ivs[0]["x"], ivs[0]["y"]) == "I" \
+                        and "Blind" in (s.status.conditions if s.status.ok else ()):
+                    # blind, the harness refuses a blow at an 'I' (it may be a peaceful: NetHack doesn't ask).
+                    # A search feels the squares around you (detect.c dosearch0() -> feel_location()): a STALE
+                    # marker goes, a monster that is there stays 'I' (p2 shift 39 #302 / p1 shift 41: the
+                    # PermissionError ended the fight right when an unseen attacker stood there)
+                    tgt = (ivs[0]["x"], ivs[0]["y"])
+                    hider = any("hiding" in (m.get("desc") or "") and m.get("dist") == 1 for m in s.monsters or [])
+                    if tgt not in felt and not hider:
+                        felt.add(tgt)
+                        s = ctx.do("s", ok=ROUTINE + [r"^You feel an unseen monster", r"^You find "])
+                        kills += killed_names(s.messages, include_it=True)
+                        continue
+                    if _unseen_attacked(s):
+                        blow_force = True           # something you can't see is hitting you: hostile
+                    else:
+                        passed.add(tgt)             # something is there but hasn't attacked (a peaceful?)
+                        print(f"fight_until_clear(): an unseen monster stays at {tgt} after a search but hasn't "
+                              "attacked you — left alone (fight(x, y, force=True) if it is hostile)")
+                        key = None
                 if key:
-                    s = ctx.do("F" + key, ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
-                                                        r"^Wait!  There's (?:something|\w+) there"])
+                    s = ctx.do("F" + key, force=blow_force,
+                               ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
+                                             r"^Wait!  There's (?:something|\w+) there"])
                     kills += killed_names(s.messages, include_it=True)
                     continue
             # (p2 shift 38 #526/#532/#623: the ignored species and HIDDEN trappers/lurkers above — they never come —
@@ -762,6 +795,19 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                     r"\bbreathes\b|^The (?:blast|bolt|ray|stream|cone|spray|sleep ray|death ray) .*hits you|"
                     r"^You are hit by |^It (?:breathes|spits|throws|shoots|zaps|casts)|^Something (?:breathes|hits)", m)]
                 if ranged and not s.hostiles(radius):
+                    # the attacker in view beyond the radius: named in the message, else a hostile lined up with
+                    # you (p2 shift 39 #58: "The hell hound pup breathes fire!" from d=4 at radius=2 was reported
+                    # as "out of view")
+                    from nh.game import _lined_up
+                    said = [base_name(mm.group(1)) for mm in (re.match(
+                        r"^The (.+?) (?:breathes|spits|throws|shoots|zaps|casts)\b", r) for r in ranged) if mm]
+                    far = [m for m in s.hostiles() if base_name(m.get("desc") or "") in said] or \
+                          [m for m in s.hostiles() if s.hero is not None and _lined_up(s.hero, (m["x"], m["y"]))]
+                    if far:
+                        return out(f"attacked from BEYOND THE RADIUS ({ranged[-1]!r}) by " + ", ".join(
+                            f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m.get('dist')}" for m in far[:3])
+                                   + f" — nothing hostile within {radius}: go for it (hunt()/zap()/throw) or step "
+                                     "out of its line; not 'clear'")
                     # (p1 shift 30: winter wolf cubs breathing frost down a dark corridor — nothing in view)
                     return out(f"attacked from OUT OF VIEW ({ranged[-1]!r}) — nothing hostile shows within {radius}: "
                                "telepathy_scan() / step out of that line; not 'clear'")
@@ -773,7 +819,10 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                            + (" — BUT " + ", ".join(f"{g['desc']} was at ({g['x']},{g['y']}) {g['ago']} turn(s) ago"
                                                      for g in recent[:2])
                               + " and left view: a hit-and-run in the dark (Vlad, a covetous caster)? wait a turn "
-                                "(`s`) and look before moving on" if recent else ""))
+                                "(`s`) and look before moving on" if recent else "")
+                           + (" — an unseen monster stays at " + ", ".join(map(str, sorted(passed)))
+                              + " (it never attacked: left alone — a peaceful? fight(x, y, force=True) if not)"
+                              if passed else ""))
             d = min(m["dist"] for m in near)
             if best is None or d < best:
                 best, idle = d, 0
@@ -1000,13 +1049,30 @@ def _monsters_in_line(direction: str, maxlen: int = 13, s=None) -> list:
     return out
 
 
-def _vanished(before: list, s) -> list:
+# mhitu.c: a monster you can't see attacking you is "It" ("It hits!", "It bites!", "It misses.")
+_UNSEEN_ATTACK = re.compile(r"^It (?:hits|bites|stings|butts|kicks|claws|scratches|touches|misses|thrusts|swings|"
+                            r"lashes|squeezes|grabs|smites|strikes|punches|whips|tickles|engulfs|gazes|breathes|"
+                            r"spits|casts)\b|^You are (?:hit|stung|bitten|kicked|butted) by it\b")
+
+
+def _unseen_attacked(s, turns: int = 3) -> bool:
+    """Did something you can't see attack you in the last `turns` turns (the game's message history)?"""
+    now = s.status.turn if s.status.ok else None
+    if now is None:
+        return False
+    return any(t is not None and t >= now - turns and _UNSEEN_ATTACK.search(m)
+               for t, m in list(getattr(ctx.game, "history", []))[-60:])
+
+
+def _vanished(before: list, s, s0=None) -> list:
     """Monsters from `before` whose square no longer shows them and no kill message names them: a wand of
-    teleportation / make invisible / polymorph leaves no message (p3 shift 12: a minotaur zapped away)."""
+    teleportation / make invisible / polymorph leaves no message (p3 shift 12: a minotaur zapped away).
+    s0: the snapshot before the zap (every monster then: a square one of them stood on isn't a new one's)."""
     from nh.danger import base_name
     from nh.monitor import killed_names
     shown = {(m["x"], m["y"]): m for m in s.monsters or []}
     killed = set(killed_names(s.messages, include_it=True))
+    taken = {(o["x"], o["y"]) for o in ((s0.monsters if s0 is not None else None) or before)}
     out = []
     for m in before:
         now = shown.get((m["x"], m["y"]))
@@ -1018,6 +1084,12 @@ def _vanished(before: list, s) -> list:
         bn = base_name(name) if name else ""
         if bn and any(re.search(rf"\b{re.escape(bn)}\b", msg, re.I) for msg in s.messages or []):
             continue        # the zap named it ("The bolt of fire misses the warg."): it just moved (p1 shift 33)
+        # one of its kind now on a free square near its old one: it stepped (p2 shift 39 #493: "the priestess
+        # of Moloch is gone" — she had moved from (48,14) to (48,15))
+        if any(max(abs(o["x"] - m["x"]), abs(o["y"] - m["y"])) <= 2 and (o["x"], o["y"]) not in taken
+               and (base_name((o.get("desc") or "").split(" [")[0]) == bn if bn else o.get("ch") == m.get("ch"))
+               for o in s.monsters or []):
+            continue
         out.append(m)
     return out
 
@@ -1197,7 +1269,7 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
         _tele_region_note(wand, before, s0)
         s = ctx.do(direction, ok=ZAP_OK + _PROBE_OK, force=force)
         s = _close_probe(s)
-        gone = _vanished(before, s) if s.state.kind == "command" else []
+        gone = _vanished(before, s, s0) if s.state.kind == "command" else []
         if gone:
             print("zap: " + ", ".join(f"the {m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in gone[:3])
                   + " is gone from that square — no message (teleported, turned invisible, or changed shape?)")

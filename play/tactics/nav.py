@@ -691,15 +691,18 @@ def clear_I(x: int, y: int) -> bool:
     walk next to it and search once — detect.c dosearch0() erases an 'I'
     with nothing under it (unmap_invisible) and only FEELS a real invisible
     monster there, never attacking it (a step or F there would attack even a
-    peaceful). One game turn. Returns True when the marker is gone."""
+    peaceful). One game turn. Returns True when the marker is gone. Blind,
+    the search FEELS the squares around you (feel_location()): a stale 'I'
+    goes all the same — but walk next to it yourself first."""
     s = ctx.require_command("clear_I()")
     if s.screen.at(x, y) != "I":
         return True
-    if "Blind" in (s.status.conditions if s.status.ok else ()):
-        raise NavError(f"clear_I{(x, y)}: you are Blind — searching doesn't clear markers then")
     h = s.hero
     if h is None:
         return False
+    if "Blind" in (s.status.conditions if s.status.ok else ()) and max(abs(h[0] - x), abs(h[1] - y)) > 1:
+        raise NavError(f"clear_I{(x, y)}: you are Blind — step next to it yourself first (a blind search next "
+                       "to it does clear a stale marker)")
     if max(abs(h[0] - x), abs(h[1] - y)) > 1:
         from .mapview import is_walkable
         spots = sorted(((x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy),

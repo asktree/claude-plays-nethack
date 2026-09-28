@@ -329,6 +329,18 @@ def drained_attributes(hist: list | None = None) -> list:
     return out
 
 
+def _major_cursed(cw: list) -> list:
+    """The cursed worn/wielded items (inventory texts) that pray.c in_trouble() counts as MAJOR trouble: a
+    cursed blindfold or towel over your eyes (TROUBLE_CURSED_BLINDFOLD), cursed levitation boots / ring of
+    levitation (TROUBLE_CURSED_LEVITATION), a welded weapon leaving no free hand — two-handed, or beside a
+    cursed shield (TROUBLE_UNUSEABLE_HANDS). Other cursed worn items are minor (worst_cursed_item())."""
+    out = [t for t in cw if (re.search(r"\b(?:blindfold|towel)\b", t) and "(being worn)" in t)
+           or re.search(r"\blevitation\b", t) or "(weapon in hands)" in t]
+    wep = [t for t in cw if "(weapon in hand)" in t]
+    shield = [t for t in cw if re.search(r"shield\b", t) and "(being worn)" in t]
+    return out + (wep + shield if wep and shield else [])
+
+
 def prayer_check() -> dict:
     """What would prayer do right now? Returns {trouble, reasons, since_last,
     p_safe, advice}. Mirrors pray.c can_pray(): the prayer timeout must be
@@ -362,10 +374,14 @@ def prayer_check() -> dict:
     if (pun > freed and punished is not False) or (punished and freed < 0):
         reasons_minor.insert(0, "punished (ball and chain)")
     cw = getattr(ctx.game, "cursed_worn", None) or []
-    if cw:
+    cw_major = _major_cursed(cw)
+    if cw_major:
+        # (p1 shift 41: a cursed blindfold stuck on — prayer_check() called it minor; pray() needed force)
+        reasons_major.append("cursed: " + "; ".join(cw_major[:2]))
+    if [t for t in cw if t not in cw_major]:
         # pray.c worst_cursed_item(): cursed worn armor/rings/amulet/blindfold or a welded weapon (known
         # from the last inventory() — inventory() refreshes it)
-        reasons_minor.append("cursed worn: " + "; ".join(cw[:3]))
+        reasons_minor.append("cursed worn: " + "; ".join([t for t in cw if t not in cw_major][:3]))
     stones = [t for t in getattr(ctx.game, "cursed_stones", None) or []
               if "luckstone" in t or st.encumbrance in ("Strained", "Overtaxed", "Overloaded")]
     if stones and not cw:
@@ -532,6 +548,11 @@ _OFFER_OUTCOMES = [
 _SILENT_OFFER = re.compile(r"is consumed in a (?:flash of light|burst of flame)|^Your sacrifice disappears")
 _SILENT_OUTCOME = ("the prayer timeout is 0 (proven: a sacrifice that prints nothing but 'consumed' only happens "
                    "at timeout 0 — recorded for prayer_check())")
+# the lines around an outcome (pray.c dosacrifice()): a converted altar's glow (live shift 11 #37-#40: the
+# conversion paused the exec on "The altar glows white."), the hallucinated versions of the outcomes
+_OFFER_FLAVOUR = [r"^The altar glows [\w -]+\.$", r"^The gods seem tall\.$",
+                  r"^You realize that the gods are not like you and I\.$",
+                  r"^Overall, there is a smell of fried onions\.$", r"^You see crabgrass at your feet"]
 _OWN_RACE = ("dwarf", "dwarf lord", "dwarf king", "dwarf mummy", "dwarf zombie")    # M2_DWARF: our race
 _UNICORN_ALIGN = {"white unicorn": "lawful", "gray unicorn": "neutral", "black unicorn": "chaotic"}
 
@@ -636,7 +657,7 @@ def offer(pattern: str | None = None, max_age: int = 50, letter: str | None = No
             s = ctx.do("n", quiet=True)
         else:
             offered = name
-            s = ctx.do("y", ok=[p for p, _ in _OFFER_OUTCOMES] + [_SILENT_OFFER.pattern])
+            s = ctx.do("y", ok=[p for p, _ in _OFFER_OUTCOMES] + [_SILENT_OFFER.pattern] + _OFFER_FLAVOUR)
         msgs += s.messages
     if s.state.kind != "command":
         ctx.do("<Esc>", quiet=True)

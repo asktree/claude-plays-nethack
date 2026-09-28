@@ -1103,7 +1103,7 @@ def _zero_nutrition(item: str) -> bool:
     return bool(rec) and rec.get("nutrition") == 0
 
 
-def eat(letter: str | None = None, pattern: str | None = None, force: bool = False) -> list:
+def eat(letter: str | None = None, pattern: str | None = None, force: bool = False, _resumed: int = 0) -> list:
     """Eat inventory item `letter`, or (letter=None) the food on the floor
     here. NetHack first offers each floor corpse ("There is a jackal corpse
     here; eat it?"): with a letter those are declined; with `pattern` (a
@@ -1113,14 +1113,26 @@ def eat(letter: str | None = None, pattern: str | None = None, force: bool = Fal
     wraith's) can't choke you, so it is eaten while Satiated too. force=True
     passes the guards (the Satiated one: an emergency lizard — while Stoned
     that one lets you eat anyway). Returns the messages — [] when nothing
-    (matching) was on the floor to eat."""
+    (matching) was on the floor to eat, or when you are Satiated (a meal
+    you stopped can be resumed once you're not). A meal something harmless
+    interrupted ("You are no longer invisible.") is resumed while nothing
+    hostile is in view."""
     ctx.require_command("eat()")
     rx = re.compile(pattern, re.I) if pattern else None
     zero_ok = False
-    if rx is not None and ctx.last().status.hunger == "Satiated":
-        floor = here()
-        hits = [t for t in re.split(r"\n|\s*\|\s*|(?<=\.)\s+", floor) if rx.search(t)]
+    st = ctx.last().status
+    if st.ok and st.hunger == "Satiated":
+        if rx is not None:
+            floor = here()
+            hits = [t for t in re.split(r"\n|\s*\|\s*|(?<=\.)\s+", floor) if rx.search(t)]
+        else:
+            hits = [it["text"] for it in getattr(ctx.game, "inv_items", None) or [] if it.get("letter") == letter]
         zero_ok = bool(hits) and all(_zero_nutrition(t) for t in hits)
+        if not (zero_ok or force or "Stone" in (st.conditions or ())):
+            # (p2 shift 39 #81: resuming a partly eaten corpse raised the harness's Satiated guard mid-loop)
+            print("eat(): Satiated — not eating (past 2000 nutrition you choke); a partly eaten meal waits "
+                  "until you're not Satiated (it keeps rotting on the floor meanwhile)")
+            return []
     s = ctx.do("e", quiet=True, force=zero_ok or force)
     msgs = list(s.messages)
     current = ""
@@ -1154,6 +1166,12 @@ def eat(letter: str | None = None, pattern: str | None = None, force: bool = Fal
             s = ctx.last()
         msgs += s.messages
     text = " | ".join(msgs)
+    s = ctx.last()
+    if any(m.startswith("You stop eating") for m in msgs) and _resumed < 2 and s.state.kind == "command" \
+            and not s.hostiles() and not re.search(r"rises from the dead|Rotten|world spins", text):
+        # (p4 shift 7: "You are no longer invisible." -> "You stop eating the Grey-elf corpse.")
+        print("eat(): the meal was interrupted with nothing hostile in view — resuming it")
+        return msgs + eat(letter, pattern, force, _resumed=_resumed + 1)
     if re.search(r"rises from the dead", text):
         print("eat(): the troll REVIVED mid-meal — kill it, then eat the new corpse at once (or tin it / keep "
               "it off the floor)")

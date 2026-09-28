@@ -50,6 +50,11 @@ COND_HINTS = {
 
 # Messages that never need a human look by themselves (pets, routine
 # noises). They're still shown in the output; they just don't pause an exec.
+INVISIBLE_MISS = (r"^(?:The |An? )?.+? (?:(?:swings|snaps|kicks|lunges) wildly(?: and misses)?!|attacks a spot beside "
+                  r"you\.|strikes at (?:thin air|empty water)!|tries to touch you and misses!|strikes at your "
+                  r"(?:invisible )?displaced image and misses you!|smiles (?:engagingly|seductively) at your "
+                  r"(?:invisible )?displaced image\.\.\.|reaches towards your distorted image\.|is fooled by water "
+                  r"reflections and misses!)$")
 DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You feel full of energy\.$",            # allmain.c: Pw back to max (interrupts a rest)
     # (p2 shift 34: each paused a crowd fight) uhitm.c passive(): a fire elemental's fire, resisted — no damage;
@@ -70,6 +75,9 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^(?:The |An? )?[\w' -]+ (?:removes .+ and )?puts on .+\.$",
     r"^The dungeon acoustics noticeably change\.$", r"^You hear a door (?:unlock and )?open\.$",
     r"^You swap places with ",
+    # mhitu.c wildmiss(): a monster that can't see you (you are invisible / displaced / underwater) misses —
+    # no damage (p4 shift 7 #57: "The orc mummy attacks a spot beside you." paused fight() while invisible)
+    INVISIBLE_MISS,
     # monster-vs-monster melee (mhitm.c), usually your pet's fights; a death, stoning or
     # swallowing still pauses
     r"^(?:The |Your )?[\w' -]+? (?:misses|bites|stings|butts|touches|hits|squeezes) "
@@ -590,20 +598,11 @@ class Kernel:
                    # the square is remembered all the same, and HP loss pauses on its own)
                    and not any(p.search(m) for p in self.autocontinue) and not any(p.search(m) for p in extra)]
         lt = getattr(self.game, "last_theft", None)
+        back = self._thief_back(lt, snap, turn) if lt and getattr(snap, "theft_note", "") else None
         if lt and lt.get("msg") in snap.messages and getattr(snap, "theft_note", ""):
             reasons.insert(0, "THEFT — " + snap.theft_note)
-        elif lt and getattr(snap, "theft_note", "") and before is not None and snap.monsters is not None:
-            # the thief coming back into view (p4 shift 3 #1386: the nymph returned at d=9, not "new", no pause)
-            from .danger import base_name
-            thief = base_name(re.sub(r"^(?:The|the) ", "", lt.get("who") or ""))
-            if thief and thief.lower() not in ("she", "he", "it", "someone"):
-                now = [m for m in snap.monsters if base_name(m.get("desc") or "") == thief
-                       and not m.get("tame") and not m.get("peaceful") and not m.get("statue")]
-                was = [m for m in (before.monsters or []) if base_name(m.get("desc") or "") == thief]
-                if now and not was:
-                    reasons.insert(0, f"THIEF BACK in view: the {thief} at ({now[0]['x']},{now[0]['y']}) — it stole "
-                                      f"{lt.get('what')} at T:{lt.get('turn')}: kill it to get it back (at range if "
-                                      "you can: it steals again and teleports off), or keep away")
+        elif back and not any(p.search(back) for p in self.autocontinue) and not any(p.search(back) for p in extra):
+            reasons.insert(0, back)
         if getattr(snap, "niche_note", ""):
             reasons.insert(0, "TRAPPED CLOSET — " + snap.niche_note)
         if getattr(snap, "room_note", ""):
@@ -892,6 +891,37 @@ class Kernel:
                     reasons.append("new monster in view: " + ",".join(sorted(set(new))))
         if reasons:
             self._maybe_pause("; ".join(reasons), snap)
+
+    def _thief_back(self, lt: dict, snap: Snap, turn: int) -> str | None:
+        """The thief coming back into view (p4 shift 3 #1386: the nymph returned at d=9, not "new", no pause):
+        once per return. Only map snapshots count (live shift 10 #1661-#1669: a menu covering the map made the
+        thief "come back" after every inventory() — each exec paused at once), and a thief out of sight for a
+        turn or two (a corner, a doorway) hasn't left."""
+        if snap.state.kind != "command" or snap.monsters is None:
+            return None
+        from .danger import base_name
+        thief = base_name(re.sub(r"^(?:The|the) ", "", lt.get("who") or ""))
+        if not thief or thief.lower() in ("she", "he", "it", "someone"):
+            return None
+        now = [m for m in snap.monsters if base_name(m.get("desc") or "") == thief
+               and not m.get("tame") and not m.get("peaceful") and not m.get("statue")]
+        key = (lt.get("turn"), lt.get("msg"))
+        view = getattr(self, "_thief_view", None)
+        if view is None or view["key"] != key:
+            view = self._thief_view = {"key": key, "in_view": False, "last": lt.get("turn") or turn}
+        if lt.get("msg") in snap.messages:          # the theft itself (its own pause)
+            view.update(in_view=bool(now), last=turn)
+            return None
+        if not now:
+            view["in_view"] = False
+            return None
+        returned = not view["in_view"] and turn - (view["last"] or 0) > 2
+        view.update(in_view=True, last=turn)
+        if not returned:
+            return None
+        return (f"THIEF BACK in view: the {thief} at ({now[0]['x']},{now[0]['y']}) — it stole {lt.get('what')} at "
+                f"T:{lt.get('turn')}: kill it to get it back (at range if you can: it steals again and teleports "
+                "off), or keep away")
 
     def _heard_before(self, m: str, snap: Snap) -> bool:
         """A ONCE_PER_LEVEL noise already paused for on this level (and, with poison resistance, the

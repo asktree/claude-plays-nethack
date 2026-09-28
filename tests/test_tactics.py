@@ -5422,3 +5422,187 @@ def test_picked_letters_finds_letters_mid_line():
             "You see here a dagger."]
     assert picked_letters(msgs) == ["j", "q"]
     assert picked_letters(["$ - 25 gold pieces."]) == ["$"]
+
+
+def _fuc_setup(monkeypatch, s, history=()):
+    """fight_until_clear() with one fixed snapshot and no kernel hooks; returns the sent-keys list."""
+    from tactics import combat, ctx, nav
+    g = _G()
+    g.history = list(history)
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    monkeypatch.setattr(ctx, "unwatch_monsters", None)
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    monkeypatch.setattr(nav, "drowners_adjacent", lambda s: [])
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    return g
+
+
+def test_fight_until_clear_names_a_breather_beyond_the_radius(monkeypatch):
+    # p2 shift 39 #58: "The hell hound pup breathes fire!" from d=4 at radius=2 came back as "attacked from OUT OF
+    # VIEW — nothing hostile shows within 2" with the pup in plain view
+    from tactics import combat, ctx
+    pup = {"x": 14, "y": 5, "ch": "d", "desc": "hell hound pup", "dist": 4}
+    s = _snap({5: "         .@...d"}, (10, 5), [pup])
+    s.status.turn, s.status.hp, s.status.hpmax = 100, 50, 50
+    _fuc_setup(monkeypatch, s, history=[(100, "The hell hound pup breathes fire!")])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: s)
+    r = combat.fight_until_clear(radius=2, max_turns=2)
+    assert r["reason"].startswith("attacked from BEYOND THE RADIUS") and "hell hound pup at (14,5) d=4" in r["reason"]
+    # nothing in view at all: still "out of view"
+    s.monsters = []
+    r = combat.fight_until_clear(radius=2, max_turns=2)
+    assert r["reason"].startswith("attacked from OUT OF VIEW")
+
+
+def test_fight_until_clear_blind_searches_a_stale_I_and_hits_only_an_attacker(monkeypatch):
+    # p2 shift 39 #302 / p1 shift 41 #128: blind, the harness guard refused the blow at an adjacent 'I' and the
+    # PermissionError ended the fight; a search feels the square: a stale marker goes, a real monster stays
+    from tactics import combat, ctx
+    blind = ["Blind"]
+
+    def mk(with_i):
+        mons = [{"x": 11, "y": 5, "ch": "I", "unseen": True, "dist": 1}] if with_i else []
+        s = _snap({5: "         .@" + ("I" if with_i else ".")}, (10, 5), mons)
+        s.status.turn, s.status.hp, s.status.hpmax, s.status.conditions = 100, 50, 50, list(blind)
+        return s
+    # 1) the marker was stale: one search, then clear
+    cur = {"s": mk(True)}
+    sent = []
+
+    def do_stale(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        cur["s"] = mk(False)
+        return cur["s"]
+    _fuc_setup(monkeypatch, cur["s"])
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "do", do_stale)
+    r = combat.fight_until_clear(unseen=True, max_turns=4)
+    assert sent == [("s", False)] and r["reason"].startswith("clear")
+    # 2) something stays there and never attacked: left alone, said in the verdict
+    cur["s"] = mk(True)
+    sent.clear()
+
+    def do_stays(keys, **kw):
+        sent.append((keys, kw.get("force", False)))
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", do_stays)
+    r = combat.fight_until_clear(unseen=True, max_turns=4)
+    assert sent == [("s", False)] and "unseen monster stays at (11, 5)" in r["reason"]
+    # 3) it attacked you ("It hits!"): the blow goes through the guard
+    sent.clear()
+    ctx.game.history = [(99, "It hits!")]
+    combat.fight_until_clear(unseen=True, max_turns=2)
+    assert sent[:2] == [("s", False), ("Fl", True)]
+
+
+def test_zap_vanished_counts_a_monster_that_stepped_aside():
+    # p2 shift 39 #493: zap('I', 'k') teleported the warg; the priestess of Moloch had only stepped (48,14)->(48,15)
+    from tactics.combat import _vanished
+    pri = {"x": 48, "y": 14, "ch": "@", "desc": "priestess of Moloch", "dist": 1}
+    warg = {"x": 48, "y": 16, "ch": "d", "desc": "warg", "dist": 3}
+    s0 = _snap({}, (48, 13), [pri, warg])
+    after = _snap({}, (48, 13), [dict(pri, y=15, dist=2)])
+    assert _vanished([pri, warg], after, s0) == [warg]
+    # a square another monster stood on before isn't where it went
+    other = {"x": 48, "y": 15, "ch": "@", "desc": "priestess of Moloch", "dist": 2}
+    s0b = _snap({}, (48, 13), [pri, other, warg])
+    after_b = _snap({}, (48, 13), [other])
+    assert _vanished([pri, warg], after_b, s0b) == [pri, warg]
+
+
+def test_eat_returns_empty_when_satiated_and_resumes_an_interrupted_meal(monkeypatch, capsys):
+    # p2 shift 39 #81: eat() raised the Satiated guard's PermissionError when called to resume a meal;
+    # p4 shift 7: "You are no longer invisible." stopped a meal and eat() didn't go on
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+
+    def snap(kind="command", prompt=None, msgs=(), hunger=""):
+        s = _snap({}, (10, 5), [])
+        s.state = State(kind, prompt=prompt)
+        s.status.hunger = hunger
+        s.messages = list(msgs)
+        return s
+    sat = snap(hunger="Satiated")
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or sat)
+    monkeypatch.setattr(ctx, "last", lambda: sat)
+    monkeypatch.setattr(ctx, "require_command", lambda who: sat)
+    monkeypatch.setattr(items, "here", lambda: "You see here a partly eaten silver dragon corpse.")
+    assert items.eat(pattern="silver dragon corpse") == [] and sent == []
+    assert "Satiated" in capsys.readouterr().out
+    # interrupted by a status change, nothing hostile in view: the meal goes on
+    base = snap()
+    frames = iter([snap("yn", "There is a Grey-elf corpse here; eat it? [ynq] (n)"),
+                   snap(msgs=["You are no longer invisible.", "You stop eating the Grey-elf corpse."]),
+                   snap("yn", "There is a partly eaten Grey-elf corpse here; eat it? [ynq] (n)"),
+                   snap(msgs=["You resume your meal.", "You finish eating the Grey-elf corpse."])])
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        cur["s"] = next(frames)
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+    msgs = items.eat(pattern="Grey-elf corpse")
+    assert sent == ["e", "y", "e", "y"] and msgs[-1] == "You finish eating the Grey-elf corpse."
+
+
+def test_prayer_check_cursed_blindfold_levitation_and_no_free_hand_are_major(monkeypatch):
+    # p1 shift 41 #424: pray.c in_trouble() TROUBLE_CURSED_BLINDFOLD is MAJOR; prayer_check() called it minor
+    from tactics import ctx, survival
+    g = _G()
+    g.history = []
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(survival, "_harness_state", lambda: {})
+    s = _snap({}, (10, 5), [])
+    s.status.hp, s.status.hpmax, s.status.turn, s.status.xl = 90, 90, 5000, 10
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    for worn in (["h - a cursed blindfold (being worn)"], ["T - a cursed towel (being worn)"],
+                 ["w - a cursed ring of levitation (on left hand)"], ["o - cursed levitation boots (being worn)"],
+                 ["a - a cursed two-handed sword (weapon in hands)"],
+                 ["a - a cursed long sword (weapon in hand)", "c - a cursed +3 small shield (being worn)"]):
+        g.cursed_worn = worn
+        r = survival.prayer_check()
+        assert r["trouble"] == "major", worn
+    g.cursed_worn = ["a - a cursed long sword (weapon in hand)"]          # a free off-hand: minor
+    assert survival.prayer_check()["trouble"] == "minor"
+    g.cursed_worn = ["h - a cursed blindfold"]                            # carried, not worn: not trouble here
+    assert survival.prayer_check()["trouble"] == "minor"                  # (still listed by worst_cursed_item)
+
+
+def test_offer_flavour_and_invisible_miss_lines_are_routine():
+    # live shift 11 #37-#40: a converted altar's "The altar glows white." paused offer(); p4 shift 7 #57: an
+    # invisible hero's "The orc mummy attacks a spot beside you." paused fight()
+    import re
+    from tactics import combat, survival
+    for m in ("The altar glows white.", "The altar glows black.", "The gods seem tall."):
+        assert any(re.search(p, m) for p in survival._OFFER_FLAVOUR), m
+    for m in ("The orc mummy attacks a spot beside you.", "The soldier ant snaps wildly and misses!",
+              "The Uruk-hai strikes at thin air!", "The water nymph tries to touch you and misses!",
+              "The troll swings wildly!", "The jackal lunges wildly and misses!"):
+        assert any(re.search(p, m) for p in combat.ROUTINE), m
+    assert not any(re.search(p, "The soldier ant bites!") and "wildly" in p for p in combat.ROUTINE)
+
+
+def test_clear_I_while_blind_searches_when_adjacent(monkeypatch):
+    # detect.c dosearch0(): blind, an explicit search feel_location()s each square round you — a stale 'I' goes
+    from tactics import ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    s = _snap({5: "         .@I"}, (10, 5), [])
+    s.status.conditions = ["Blind"]
+    after = _snap({5: "         .@."}, (10, 5), [])
+    sent = []
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or after)
+    assert nav.clear_I(11, 5) is True and sent == ["s"]
+    far = _snap({5: "       .@..I"}, (8, 5), [])
+    far.status.conditions = ["Blind"]
+    monkeypatch.setattr(ctx, "require_command", lambda who: far)
+    with pytest.raises(nav.NavError, match="Blind"):
+        nav.clear_I(11, 5)

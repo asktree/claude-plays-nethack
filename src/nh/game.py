@@ -2163,6 +2163,7 @@ class Game:
                     self._note_wield(messages, snap.status.turn)
                     self._note_wand_zaps(snap, messages, cur)
                     self._note_trice_wielders(snap, messages)
+                    self._note_trice_taken(snap, messages)
                     self._note_held(cur, snap, messages)
                     self._note_monster_hole(cur, snap, messages)
                     self._note_used_up(cur, data)
@@ -2624,6 +2625,26 @@ class Game:
             if mm and not mm.group("who").startswith(("You", "you")):
                 who = base_name(mm.group("who")) or mm.group("who")
                 self.trice_wielders.setdefault(self.level_key(snap.status), {})[who] = snap.status.turn
+
+    # "J - a cockatrice corpse." (pickup.c: the pickup's inventory line; a wielded one says "(weapon in hand)")
+    _TRICE_TAKEN = re.compile(r"^[a-zA-Z] - (?:an? |(?P<n>\d+) )?(?:(?:blessed|uncursed|cursed|partly eaten) )*"
+                              r"(?:cockatrice|chickatrice) corpses?\.$")
+
+    def _note_trice_taken(self, snap: Snap, messages: list) -> None:
+        """You picked up a cockatrice corpse you killed: drop its kill record on your square, so the "corpse
+        lies at ..." note and the blind-step guard stop naming it (p2 shift 39 #588: the note stayed all
+        shift because other food on that square still showed '%')."""
+        if not snap.status.ok or snap.hero is None:
+            return
+        for m in messages:
+            mm = self._TRICE_TAKEN.match(m)
+            if not mm:
+                continue
+            lst = self.kills.get(self.level_key(snap.status), [])
+            idx = [i for i, (n, c, _t) in enumerate(lst) if n in ("cockatrice", "chickatrice")
+                   and tuple(c) == tuple(snap.hero)]
+            for i in reversed(idx[:int(mm.group("n") or 1)]):
+                del lst[i]
 
     LEFT_BEHIND_TURNS = 3000
 
