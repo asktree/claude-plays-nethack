@@ -336,3 +336,23 @@ ack T14402 (orchestrator): pulled + daemon restarted before shift 16. Luckstone 
 XL12 on DL18; next: the DL18 graveyard (5 wraiths, incubus, succubus, vampire bat?). Shift 15 notes: read_identify()
 spent a scroll on the worn amulet of reflection (type known, only BUC unknown) while 3 unknown rings were in the pack
 (#4664); danger note says "you lack sleep resistance" for a homunculus although sleep res came at T:12347.
+
+## 20:55 UTC (coach) — graveyard XP arc + on main now: c87fb1f, 59d2a30 (pull + restart the daemon)
+- **DL18 graveyard, verified in the source:** on a level with a graveyard (level.flags.graveyard) undead leave a
+  corpse only 1 time in 3 on top of the usual chance (mon.c LEVEL_SPECIFIC_NOCORPSE) — a wraith corpse there is ~1 in
+  6 (p2: 11 wraiths → 0 corpses; p3: 9 → 2). The kills still give XP. Practice lessons (p1, p3): with Stealth kill the
+  sleepers one at a time, GHOULS first (paralysing claw); ghosts show as a BLANK square inside a lit room (slow,
+  harmless); Excalibur's drain resistance makes wraiths/vampires safe XP; fight from a chokepoint — a fleeing monster
+  may read cursed create monster (p1: 13 monsters around you in the Valley). Telepathy misses the mindless ones
+  (zombies, mummies).
+- **NEVER kill a WHITE unicorn** (lawful = yours): mon.c xkilled() takes 5 Luck ("You feel guilty...") even from a
+  hostile one, and your UNCURSED luckstone keeps bad Luck from wearing off — prayer then fails. The harness rated a
+  hostile white unicorn "trivial" and would have auto-fought it; now fight()/travel/explore refuse it (force=True
+  only if it is killing you), zaps and throws won't go through it (a thrown GEM still may: Luck +), and the monster
+  list says "YOUR ALIGNMENT'S UNICORN".
+- New: `zap_when_lined('cockatrice', ['m', 'y'])` kills a never-melee monster from range when it lines up (holds fire
+  if a peaceful/pet is in the line or a sleep/death ray could bounce back at you; never melees it).
+- Unicorns (any colour) no longer pause dig()/explore() unless next to you (they never close in on their own).
+- Blind fights: fight_until_clear(unseen=True) never swings at an 'I' its own search made (a blind search marks
+  your pet/peacefuls as 'I'); it hits only the single other 'I' after "It hits!" — no force=True any more.
+- eat() resumes only a floor meal a harmless status change interrupted (never after an attack or while Stoned).
