@@ -1654,3 +1654,320 @@ def hunt(target, max_turns: int = 30, stop_hp: float = 0.45, ignore=None, near_w
                 return out(f"no way toward the {species or target} at {goal}: the step to {path[0]} failed "
                            f"({s.messages or 'rock or a wall'})")
     return out("max_turns")
+
+
+# zap.c: a RAY (dobuzz: magic missile, fire, cold, sleep, death, lightning) goes on through every monster on its
+# line and bounces off walls; a BEAM (bhit: striking, teleportation, polymorph, cancellation, slow/speed monster,
+# make invisible, undead turning, probing, opening, locking, nothing) stops at the FIRST monster it meets
+_WAND_KIND = re.compile(r"\bwands? (?:of|called) (magic missile|fire|cold|sleep|death|lightning|striking|"
+                        r"teleportation|polymorph|cancellation|make invisible|slow monster|speed monster|"
+                        r"undead turning|probing|opening|locking|nothing|digging|light|secret door detection|"
+                        r"create monster|enlightenment|wishing)\b")
+_RAY_KINDS = ("magic missile", "fire", "cold", "sleep", "death", "lightning")
+# wands zap_when_lined() never zaps at a monster: no effect on it (digging, opening, locking, probing, nothing),
+# no direction at all (light ... wishing), or a HELP to it (speed monster, make invisible: an invisible cockatrice)
+_NOT_AT_MONSTERS = ("digging", "opening", "locking", "probing", "nothing", "light", "secret door detection",
+                    "create monster", "enlightenment", "wishing", "speed monster", "make invisible")
+
+
+def _wand_kind(text: str) -> str | None:
+    m = _WAND_KIND.search(text or "")
+    return m.group(1) if m else None
+
+
+def _ray_stopper(s, x, y, sighted: bool) -> bool:
+    """Does this square stop a ray (zap.c dobuzz(): !ZAP_POS or a closed door)? A wall (a brown '|'/'-' is an
+    open door, a bright white '|' a grave), a closed door (brown '+'), a tree (green '#'); a blank square too
+    unless the line is in your sight (then it is dark floor)."""
+    ch, col = s.screen.at(x, y), s.screen.color_at(x, y)
+    return (ch in "|-" and col not in (3, 15)) or (ch == "+" and col == 3) or (ch == "#" and col == 2) \
+        or (ch == " " and not sighted)
+
+
+def _lined(s, m, within: int, frm=None):
+    """The direction key from you (or from square `frm`) toward monster m when it stands in a straight line
+    from there — row, column or diagonal — within `within` squares, with nothing between that stops a ray (a
+    wall, a closed door, a tree; rock or ground you haven't seen, unless you SEE m from your own square: then
+    the line between is clear). Else None."""
+    h = tuple(frm) if frm is not None else s.hero
+    if h is None:
+        return None
+    dx, dy = m["x"] - h[0], m["y"] - h[1]
+    n = max(abs(dx), abs(dy))
+    if n == 0 or n > within or not (dx == 0 or dy == 0 or abs(dx) == abs(dy)):
+        return None
+    seen = re.search(r"\[seen: ([^\]]*)\]", m.get("desc") or "")
+    sighted = frm is None and (seen is None or "vision" in seen.group(1))    # (not telepathy/warning only)
+    sx, sy = (dx > 0) - (dx < 0), (dy > 0) - (dy < 0)
+    x, y = h
+    for _ in range(n - 1):
+        x, y = x + sx, y + sy
+        if _ray_stopper(s, x, y, sighted):
+            return None
+    return DIR_KEY[(sx, sy)]
+
+
+def _bounce_back(s, key: str) -> tuple | None:
+    """The first square on the line from you in direction `key` that bounces a ray (a wall, a closed door, rock
+    — or a blank you can't see past), if it lies within 6 squares: a ray (range 7-13, 1 more for the bounce, 2
+    per monster hit) can come straight back across your square from there. None when it is farther."""
+    from .mapview import KEY_DIR
+    d = KEY_DIR.get(key)
+    if d is None or s.hero is None:
+        return None
+    x, y = s.hero
+    for _ in range(6):
+        x, y = x + d[0], y + d[1]
+        if not (0 <= x < 80 and 1 <= y <= 21) or _ray_stopper(s, x, y, False):
+            return (x, y)
+    return None
+
+
+def _self_hit_risk(kind: str | None) -> str:
+    """What your own ray of this kind does to YOU when it bounces back ('' when you resist or reflect it, or it
+    only costs HP): sleep beside what you are zapping is death, a death ray kills, lightning blinds you for
+    up to 300 turns even when reflected (zap.c dobuzz(): flashburn() whenever the bolt crosses your square)."""
+    g = ctx.game
+    res = set(getattr(g, "intrinsics", None) or ())
+    refl = bool(getattr(g, "reflecting", False))
+    if kind == "sleep" and "sleep" not in res and not refl:
+        return "it would put YOU to sleep (no sleep resistance or reflection)"
+    if kind == "death" and not getattr(g, "magic_res", False) and not refl:
+        return "it would KILL you (no magic resistance or reflection)"
+    if kind == "lightning":
+        st = ctx.last().status
+        if not (st.ok and "Blind" in st.conditions):
+            return "its flash BLINDS you for up to 300 turns (even when reflected)"
+    return ""
+
+
+def _line_up_steps(s, m, within: int) -> list:
+    """Squares next to you, on known floor with no monster, trap or avoided square, from which monster m is
+    lined up (zap_when_lined's rules) 2+ squares away: one step and it can be zapped."""
+    from .mapview import is_door, is_walkable, neighbors
+    h = s.hero
+    if h is None:
+        return []
+    try:
+        from .nav import bad_squares
+        bad = bad_squares(s)
+    except Exception:  # noqa: BLE001  (a hint only)
+        bad = set()
+    occupied = {(o["x"], o["y"]) for o in s.monsters or []}
+    out = []
+    for c in neighbors(*h):
+        if c in occupied or c in bad or not is_walkable(s, *c, allow_monsters=False):
+            continue
+        if c[0] != h[0] and c[1] != h[1] and (is_door(s, *h) or is_door(s, *c)):
+            continue
+        if max(abs(m["x"] - c[0]), abs(m["y"] - c[1])) >= 2 and _lined(s, m, within, frm=c):
+            out.append(c)
+    return out
+
+
+def zap_when_lined(name: str, wands, within: int = 8, max_turns: int = 20, stop_hp: float = 0.45,
+                   patience: int = 5, fight_others: bool = True, bounce_ok: bool = False) -> dict:
+    """Kill a monster you must never melee (a cockatrice, a floating eye...) with your wands, from where you
+    stand. name = part of its label ('cockatrice'); wands = your wand letters in order of preference ('RlMm').
+    Each turn:
+    - it (any hostile whose label contains `name`) stands in a straight line from you — row, column or
+      diagonal — within `within` squares, no wall/closed door between and NO pet or peaceful anywhere on that
+      line (friendly_in_line(ray=True)): zap the first listed wand that still has charges at it (zap(): a
+      WandEmpty goes on to the next wand; one known empty — "(x:0)", or "Nothing happens" before — is skipped);
+    - else fight() ONE blow at another adjacent hostile (never the target; molds and hidden hiders are left
+      alone; one fight() refuses twice is left alone too) — fight_others=False: never;
+    - else search one turn ('s').
+    It never moves you and never melees the target. A BEAM wand (striking, teleportation, polymorph, slow
+    monster...: known from its name) is used only when the target is the first monster on the line (a beam
+    stops at the first one; a ray passes through them all). A known SLEEP/DEATH/LIGHTNING ray is skipped while a
+    wall is within 6 squares on that line (it can bounce straight back across you) unless you resist/reflect it
+    — bounce_ok=True zaps anyway. Wands that do nothing to a monster or help it (digging, opening, locking,
+    probing, nothing, speed monster, make invisible, the non-directional ones) are left out; an unidentified
+    wand is zapped as given (your call). Rays reach 7-13 squares, beams 6-13: at 7-8 a zap can fall short.
+    Newcomers of the target's kind don't pause (they are the plan: it zaps them too), and no 'approaching'
+    pause for them; other newcomers, messages and HP pause as usual (HP by the fight rules: stop_hp).
+    Returns {"reason", "zaps": [{"wand", "dir", "at", "d", "turn"}], "kills", "turns", "empty"}; reason:
+    "killed: ..." / "gone: ..." (out of view, no kill seen — last seen where) / "no hostile ... in view" /
+    "no usable wand ..." / "no wands left: ... EMPTY" / "adjacent: ..." (next to you and not zappable: a pet
+    behind it) / "blocked: ..." (lined up and standing still, but no zap may go: a pet in the line, a bounce) /
+    "not coming into line: ..." (it stood still `patience` turns out of line: asleep, slow or stuck — with the
+    squares one step away that line you up) / "HP ..." / "STONING ..." / "max_turns: ..." (p2 shift 39: a
+    cockatrice killed at d=3 with 2 cold rays before it ever reached you)."""
+    import contextlib
+    from nh.danger import base_name
+    from nh.monitor import _stationary, killed_names
+    s = ctx.require_command("zap_when_lined()")
+    want = str(name or "").strip().lower()
+    if not want:
+        raise ValueError("zap_when_lined(name, wands): name = part of the monster's label, e.g. 'cockatrice'")
+    letters = list(dict.fromkeys(c for c in (wands if isinstance(wands, (list, tuple)) else str(wands or ""))
+                                 if str(c).strip()))
+    t0 = s.status.turn or 0
+    kills: list = []
+    zaps: list = []
+    empty: list = []
+    names: set = set()                 # base names of the targets seen
+    last_seen = None                   # (desc, x, y, turn) of the nearest target, last time in view
+    still, still_at = 0, None          # turns the targets stood still out of line
+    tries: dict = {}                   # adjacent others: fight() calls that landed no blow
+
+    def out(reason):
+        return {"reason": reason, "zaps": zaps, "kills": kills, "empty": empty,
+                "turns": (ctx.last().status.turn or t0) - t0}
+
+    def is_target(m) -> bool:
+        return want in (m.get("desc") or "").lower()
+
+    if not any(is_target(m) for m in s.hostiles()):
+        return out(f"no hostile {name!r} in view")
+    from .items import inventory
+    inv = {i["letter"]: i for i in inventory()}
+    known_empty = getattr(ctx.game, "empty_wands", None) or set()
+    kinds: dict = {}
+    for w in letters:
+        it = inv.get(w)
+        if it is None or not re.search(r"\bwands?\b", it["text"]):
+            print(f"zap_when_lined: {w!r} is not a wand in your pack" + (f" ({it['text']})" if it else "")
+                  + " — skipped")
+        elif w in known_empty or re.search(r"\(\d+:(?:0|-1)\)", it["text"]):
+            empty.append(w)
+            print(f"zap_when_lined: {w} - {it['text']} is EMPTY — skipped")
+        elif _wand_kind(it["text"]) in _NOT_AT_MONSTERS:
+            print(f"zap_when_lined: {w} - {it['text']} does nothing to a monster (or helps it) — skipped")
+        else:
+            kinds[w] = _wand_kind(it["text"])
+    if not kinds:
+        return out(f"no usable wand among {''.join(letters)!r}" + (f" (EMPTY: {', '.join(empty)})" if empty else ""))
+    if _elbereth_holds(s):
+        print("zap_when_lined: you stand on Elbereth — a zap at a monster that respects it ERASES it (mon.c "
+              "setmangry: 'You feel like a hypocrite', -5 alignment); searching and waiting keep it")
+
+    guard =ctx.monster_filter(lambda m: not is_target(m)) if ctx.monster_filter else contextlib.nullcontext()
+    rules = getattr(ctx, "hp_rules", None)
+    with guard, (rules(stop_hp) if rules is not None else contextlib.nullcontext()):
+        for _ in range(max_turns):
+            s = ctx.last()
+            if s.state.kind != "command" or s.hero is None:
+                return out(f"not at the command prompt ({s.state.kind}: {s.state.prompt!r})")
+            st = s.status
+            if st.ok and "Stone" in st.conditions:
+                return out("STONING — eat a lizard corpse or an acidic corpse, or pray, NOW")
+            if st.ok and st.hp < stop_hp * max(1, st.hpmax):
+                return out(f"HP {st.hp}/{st.hpmax} below {stop_hp:.0%} — get away (Elbereth, retreat, pray at 1/7)")
+            if getattr(s, "engulfed", False):
+                return out("ENGULFED — fight() hits the engulfer from inside")
+            if st.ok and "Hallu" in st.conditions:
+                return out("hallucinating — every label is random: the target can't be told apart")
+            live = [w for w in kinds if w not in empty]
+            if not live:
+                return out(f"no wands left: {', '.join(empty)} EMPTY — recharge them or kill it another way "
+                           "(throw daggers; never melee it)")
+            ts = sorted((m for m in s.hostiles() if is_target(m)),
+                        key=lambda m: m["dist"] if m.get("dist") is not None else 99)
+            if not ts:
+                got = [k for k in kills if k in names]
+                if got:
+                    return out("killed: " + ", ".join(got))
+                if not names:
+                    return out(f"no hostile {name!r} in view")
+                if "it (unseen)" in kills:
+                    return out(f"killed (probably): 'You kill it!' and no {'/'.join(sorted(names))} is in view now")
+                return out(f"gone: the {last_seen[0]} is out of view (last seen at ({last_seen[1]},{last_seen[2]}) "
+                           f"T:{last_seen[3]}), no kill seen — it moved out of sight, teleported or turned invisible")
+            names.update(base_name(m.get("desc") or "") for m in ts)
+            last_seen = (ts[0].get("desc") or ts[0]["ch"], ts[0]["x"], ts[0]["y"], st.turn)
+            if ctx.unwatch_monsters is not None:
+                ctx.unwatch_monsters([m["id"] for m in ts if m.get("id") is not None])
+            # 1. a zap, when one is lined up
+            acted, blocked, lined = False, [], []
+            for m in ts:
+                key = _lined(s, m, within)
+                if key is None:
+                    continue
+                lined.append(m)
+                friends = friendly_in_line(key, ray=True, s=s)
+                if friends:
+                    f = friends[0]
+                    blocked.append(f"the {f.get('desc') or f['ch']} at ({f['x']},{f['y']}) is in the line of fire")
+                    continue
+                first = _first_in_line(key, s=s)
+                wall = _bounce_back(s, key)
+                for w in live:
+                    kind = kinds[w]                 # (None: an unidentified wand — your call, zapped like a ray)
+                    if kind is not None and kind not in _RAY_KINDS \
+                            and (first is None or (first["x"], first["y"]) != (m["x"], m["y"])):
+                        blocked.append(f"{w} (wand of {kind}: a beam) would stop at the "
+                                       f"{(first or {}).get('desc') or 'monster'} in front of it")
+                        continue
+                    risk = _self_hit_risk(kind) if wall and not bounce_ok else ""
+                    if risk:
+                        blocked.append(f"{w} (wand of {kind}): {wall} bounces the ray straight back — {risk}")
+                        continue
+                    try:
+                        s2 = zap(w, key)
+                    except WandEmpty:
+                        empty.append(w)             # ("Nothing happens": the turn is spent — look again)
+                        print(f"zap_when_lined: wand {w} is EMPTY — the next one from now on")
+                        kills += killed_names(ctx.last().messages, include_it=True)
+                        acted = True
+                        break
+                    zaps.append({"wand": w, "dir": key, "at": (m["x"], m["y"]), "d": m.get("dist"), "turn": st.turn})
+                    kills += killed_names(s2.messages, include_it=True)
+                    print(f"zap_when_lined: zapped {w} ({'wand of ' + kind if kind else 'unknown wand'}) '{key}' at "
+                          f"the {m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m.get('dist')}")
+                    acted = True
+                    break
+                if acted:
+                    break
+            if acted:
+                still, still_at = 0, None
+                continue
+            near = [m for m in ts if m.get("dist") == 1]
+            if near:
+                m = near[0]
+                return out(f"adjacent: the {m.get('desc') or m['ch']} at ({m['x']},{m['y']}) is NEXT TO YOU and "
+                           f"can't be zapped ({'; '.join(blocked) or 'no wand can reach it'}) — step away / "
+                           "Elbereth / your call (never melee it)")
+            # 2. another hostile next to you: one checked blow at it (not a mold, a hidden hider, or one whose
+            # passive fight() refuses — a floating eye beside the cockatrice)
+            if fight_others:
+                others = [o for o in s.adjacent_hostiles() if not is_target(o) and not _stationary(o.get("desc") or "")
+                          and "hiding" not in (o.get("desc") or "") and not _passive_refusal(o.get("desc") or "", st)
+                          and tries.get((o.get("id"), o["x"], o["y"]), 0) < 2]
+                if others:
+                    o = sorted(others, key=lambda o: _danger_rank(o.get("desc") or ""))[0]
+                    s2 = fight(o["x"], o["y"], stop_hp=stop_hp, max_blows=1)
+                    kills += killed_names(s2.messages, include_it=True)
+                    if not any(re.match(r"^You (?:hit|miss|kill|destroy|smite)\b", x) for x in s2.messages):
+                        k = (o.get("id"), o["x"], o["y"])
+                        tries[k] = tries.get(k, 0) + 1         # (a refusal/pause: after 2, leave it be)
+                    continue
+            # 3. wait for it to come into line
+            pos = tuple(sorted((m["x"], m["y"]) for m in ts))
+            still = still + 1 if pos == still_at else 0
+            still_at = pos
+            if patience and still >= patience:
+                m = ts[0]
+                if lined:
+                    m = lined[0]
+                    return out(f"blocked: the {m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m.get('dist')} is "
+                               f"lined up but stood still {still} turns and no zap may go: " + "; ".join(blocked)
+                               + " — wait for the line to clear, move, or bounce_ok=True for a bounce you accept")
+                steps = _line_up_steps(s, m, within)
+                return out(f"not coming into line: the {m.get('desc') or m['ch']} at ({m['x']},{m['y']}) "
+                           f"d={m.get('dist')} stood still for {still} turns (asleep, slow or stuck)"
+                           + (f" — step to {' or '.join(str(c) for c in steps[:3])} to line up" if steps else
+                              f" — step onto its row, column or diagonal within {within} yourself"))
+            hider = any("hiding" in (o.get("desc") or "") and o.get("dist") == 1 for o in s.monsters or [])
+            s2 = ctx.do("." if hider else "s", ok=ROUTINE)
+            kills += killed_names(s2.messages, include_it=True)
+    s = ctx.last()
+    ts = sorted((m for m in s.hostiles() if is_target(m)), key=lambda m: m["dist"] if m.get("dist") is not None else 99)
+    if not ts:
+        got = [k for k in kills if k in names]
+        return out("killed: " + ", ".join(got) if got else f"max_turns: no {name!r} in view now")
+    m = ts[0]
+    steps = _line_up_steps(s, m, within) if s.hero is not None else []
+    return out(f"max_turns: the {m.get('desc') or m['ch']} at ({m['x']},{m['y']}) d={m.get('dist')} is still there "
+               f"({len(zaps)} zap(s))" + (f" — step to {' or '.join(str(c) for c in steps[:3])} to line up" if steps
+                                          and not _lined(s, m, within) else ""))

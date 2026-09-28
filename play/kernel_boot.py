@@ -18,6 +18,7 @@ _ctx.monster_filter = globals().get("monster_filter")   # absent in daemons star
 _ctx._set_activity = globals().get("set_activity")
 _ctx.hp_rules = globals().get("hp_rules")
 _ctx.defer_far = globals().get("defer_far")
+_ctx.defer_keepaway = globals().get("defer_keepaway")   # absent in daemons started before it existed
 _ctx._long_task = globals().get("long_task")
 _ctx.watch_monsters = globals().get("watch_monsters")   # absent in daemons started before it existed
 _ctx.quiet_messages = globals().get("quiet_messages")   # (same)
@@ -59,7 +60,7 @@ from tactics.nav import covetous_ring, trap_crossable, trek  # noqa: E402,F401
 from tactics.nav import escape_trap, step_onto_risk  # noqa: E402,F401
 from tactics.items import check_box  # noqa: E402,F401
 from tactics.combat import throw_can_hit  # noqa: E402,F401
-from tactics.combat import WandEmpty  # noqa: E402,F401
+from tactics.combat import WandEmpty, zap_when_lined  # noqa: E402,F401
 from tactics import desmap  # noqa: E402,F401
 from tactics.survival import burn_elbereth, offer, prayer_verdict, telepathy_scan, unihorn  # noqa: E402,F401
 from tactics.nav import PetLost, occupants  # noqa: E402,F401

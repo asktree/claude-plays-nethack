@@ -387,6 +387,18 @@ def covetous(name: str) -> bool:
     return bool(rec) and any(f in COVETOUS_FLAGS for f in rec.get("flags3", []))
 
 
+# mon.c mfndpos() / monmove.c m_move(): a unicorn that sees you never moves onto a square in line with you (NOTONL:
+# your row, column or diagonals — every square next to you among them), and one that can't move teleports away
+# half the time. It never closes in: it fights only when YOU step next to it (or on a no-teleport level, where
+# NOTONL is off and it may be cornered). p4 shift 7: dig('>') paused for a gray unicorn 2 squares away.
+KEEPS_AWAY = ("white unicorn", "gray unicorn", "black unicorn")
+
+
+def keeps_away(desc: str) -> bool:
+    """A species that never closes in on you by itself (the unicorns): no threat until it is next to you."""
+    return base_name(desc or "") in KEEPS_AWAY
+
+
 HERO_GENDER: str | None = None      # "female"/"male" (the daemon sets it from the game's meta.json)
 
 

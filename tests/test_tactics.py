@@ -17,6 +17,7 @@ from nh.screen import Screen  # noqa: E402
 from tactics import combat as _combat  # noqa: E402
 
 _REAL_CHECK_TARGET = _combat._check_target
+_REAL_ZAP = _combat.zap
 
 
 @pytest.fixture(autouse=True)
@@ -2290,6 +2291,70 @@ def test_dig_rewields_before_pausing(monkeypatch):
     assert len(pauses) == 1 and "sense of peace" in pauses[0][0] and pauses[0][1][-1] == "wa"
 
 
+def test_dig_and_explore_leave_a_unicorn_alone_until_it_is_next_to_you(monkeypatch):
+    # p4 shift 7: dig('>') paused for a gray unicorn 2 squares away, and explore() paused again and again for two
+    # wandering ones — a unicorn never steps onto your row/column/diagonals (mon.c mfndpos NOTONL)
+    import contextlib
+    from nh.parse import State
+    from tactics import ctx, explore, items, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "a", "text": "a blessed +6 long sword named Excalibur (weapon in hand)"},
+        {"letter": "M", "text": "a pick-axe"}])
+
+    def snap(ld, kind="command", msgs=(), mons=()):
+        s = _snap({}, (10, 5), [dict(m) for m in mons])
+        s.status.ldesc, s.status.turn, s.status.xl, s.status.hp, s.status.hpmax = ld, 100, 10, 100, 100
+        s.state = State(kind)
+        s.messages = list(msgs)
+        return s
+
+    def dig_with(unicorn):
+        seq = {"a": [snap("Dlvl:11", "object")] * 2, "M": [snap("Dlvl:11", "direction")] * 2,
+               ">": [snap("Dlvl:11", msgs=["You dig a pit in the floor."], mons=[unicorn]),
+                     snap("Dlvl:12", msgs=["You dig a hole through the floor.", "You fall through..."])],
+               "wa": [snap("Dlvl:12", msgs=["a - a blessed +6 long sword named Excalibur (weapon in hand)."])]}
+        cur = {"s": snap("Dlvl:11")}
+        sent, pauses = [], []
+
+        def fake_do(keys, **kw):
+            sent.append(keys)
+            cur["s"] = seq[keys].pop(0)
+            return cur["s"]
+        monkeypatch.setattr(ctx, "do", fake_do)
+        monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+        monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+        monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append(reason))
+        items.dig(">")
+        return sent, pauses
+    uni = {"x": 12, "y": 5, "ch": "u", "desc": "gray unicorn", "dist": 2, "id": 4}
+    sent, pauses = dig_with(uni)
+    assert sent == ["a", "M", ">", "a", "M", ">", "wa"] and pauses == []       # dug on through
+    sent, pauses = dig_with(dict(uni, x=11, dist=1))                             # next to you: it fights
+    assert sent == ["a", "M", ">", "wa"] and len(pauses) == 1 and "gray unicorn at (11,5)" in pauses[0]
+    sent, pauses = dig_with(dict(uni, desc="soldier ant", ch="a"))              # others as before
+    assert sent == ["a", "M", ">", "wa"] and len(pauses) == 1 and "soldier ant at (12,5)" in pauses[0]
+    # explore() runs inside the kernel's defer_keepaway(1) block (unicorns pause only once next to you)
+    blocks, inside = [], []
+
+    @contextlib.contextmanager
+    def fake_keepaway(dist=1):
+        blocks.append(dist)
+        yield
+        blocks.pop()
+    monkeypatch.setattr(ctx, "defer_keepaway", fake_keepaway)
+    s0 = snap("Dlvl:11")
+    monkeypatch.setattr(ctx, "last", lambda: s0)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s0)
+    monkeypatch.setattr(nav, "bad_squares", lambda s=None: set())
+    monkeypatch.setattr(explore, "_explore", lambda max_legs, skip, auto_fight=False:
+                        inside.append(list(blocks)) or {"reason": "explored", "avoided": []})
+    assert explore.explore()["reason"] == "explored" and inside == [[1]] and blocks == []
+    monkeypatch.setattr(ctx, "defer_keepaway", None)                            # (an older daemon: no block)
+    assert explore.explore()["reason"] == "explored" and inside[-1] == []
+
+
 def test_travel_falls_back_to_head_to_without_a_known_path(monkeypatch):
     # p1 #155: NetHack's travel only guesses toward a target across never-seen dark floor
     from nh.parse import State
@@ -4319,6 +4384,157 @@ def test_zap_raises_wand_empty_on_the_first_nothing_happens(monkeypatch):
     with pytest.raises(combat.WandEmpty, match="also this turn: The Wizard of Yendor zaps himself"):
         combat.zap("j", "k")
     assert ("j", True) in quiet
+
+
+_ZWL_ROOM = {4: "        -----------------", 5: "        |...............|", 6: "        |...............|",
+             7: "        |...............|", 8: "        |...............|", 9: "        -----------------"}
+
+
+def _zwl_frame(turn, mons, msgs=(), hero=(10, 5)):
+    s = _snap(_ZWL_ROOM, hero, [dict(m, dist=max(abs(m["x"] - hero[0]), abs(m["y"] - hero[1]))) for m in mons])
+    s.status.turn, s.status.hp, s.status.hpmax, s.status.xl = turn, 60, 60, 10
+    s.messages = list(msgs)
+    return s
+
+
+def _zwl_world(monkeypatch, frames, empty_on=(), inv=None):
+    """zap_when_lined() against a scripted world: each action (zap / fight / a do() key) moves to the next
+    frame; zap() of a letter in empty_on says "Nothing happens" and raises WandEmpty."""
+    from tactics import combat, ctx, items
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    monkeypatch.setattr(ctx, "unwatch_monsters", None)
+    monkeypatch.setattr(items, "inventory", lambda: inv or [
+        {"letter": "d", "text": "a +0 dagger", "class": "Weapons"},
+        {"letter": "R", "text": "an oak wand", "class": "Wands"},
+        {"letter": "S", "text": "a wand of sleep (0:4)", "class": "Wands"},
+        {"letter": "T", "text": "a wand of striking (0:6)", "class": "Wands"},
+        {"letter": "D", "text": "a wand of digging (0:3)", "class": "Wands"},
+        {"letter": "M", "text": "a wand of fire (0:4)", "class": "Wands"}])
+    cur = {"i": 0}
+    calls = []
+
+    def advance():
+        cur["i"] = min(cur["i"] + 1, len(frames) - 1)
+        return frames[cur["i"]]
+
+    def fake_zap(w, d=None, force=False):
+        calls.append(("zap", w, d))
+        s = advance()
+        if w in empty_on:
+            raise combat.WandEmpty(f"zap: wand {w} is EMPTY")
+        return s
+    monkeypatch.setattr(combat, "zap", fake_zap)
+    monkeypatch.setattr(combat, "fight", lambda x, y, **kw: calls.append(("fight", x, y, kw.get("max_blows")))
+                        or advance())
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: calls.append((keys,)) or advance())
+    monkeypatch.setattr(ctx, "last", lambda: frames[cur["i"]])
+    monkeypatch.setattr(ctx, "require_command", lambda who: frames[cur["i"]])
+    return g, calls
+
+
+def test_zap_when_lined_kills_a_cockatrice_without_ever_meleeing_it(monkeypatch, capsys):
+    # p2 shift 39: the player's own loop (look -> in line? -> zap R/l/M/m, falling back on an empty wand -> else
+    # fight the other adjacent hostiles -> else search) killed a cockatrice at d=3 with 2 cold rays
+    from tactics import combat
+    trice = {"ch": "c", "desc": "cockatrice", "id": 3}
+    jackal = {"x": 11, "y": 5, "ch": "d", "desc": "jackal", "id": 4}
+    frames = [_zwl_frame(100, [dict(trice, x=15, y=8)]),                        # (5, 3) away: not in line
+              _zwl_frame(101, [dict(trice, x=14, y=8), jackal]),                # still not; a jackal beside you
+              _zwl_frame(102, [dict(trice, x=13, y=8)], ["You kill the jackal!"]),   # (3, 3): lined up, 'n'
+              _zwl_frame(103, [dict(trice, x=13, y=8)], ["Nothing happens."]),
+              _zwl_frame(104, [dict(trice, x=12, y=7)], ["The bolt of fire hits the cockatrice!"]),
+              _zwl_frame(105, [], ["The bolt of fire hits the cockatrice!", "You kill the cockatrice!"])]
+    g, calls = _zwl_world(monkeypatch, frames, empty_on=("R",))
+    r = combat.zap_when_lined("cockatrice", "dRSDM")
+    # the oak wand turns out empty (a turn spent); the sleep ray is skipped — the wall (14,9) 4 squares down that
+    # diagonal bounces it straight back and you don't resist sleep; digging never hurts a monster
+    assert calls == [("s",), ("fight", 11, 5, 1), ("zap", "R", "n"), ("zap", "M", "n"), ("zap", "M", "n")]
+    assert r["reason"] == "killed: cockatrice" and r["kills"] == ["jackal", "cockatrice"] and r["empty"] == ["R"]
+    assert [z["wand"] for z in r["zaps"]] == ["M", "M"] and r["zaps"][0]["at"] == (13, 8) and r["turns"] == 5
+    out = capsys.readouterr().out
+    assert "'d' is not a wand" in out and "D - a wand of digging (0:3) does nothing" in out
+    # with sleep resistance the sleep ray goes first (after the known-empty oak wand); bounce_ok=True does too
+    for resist, ok in ((True, False), (False, True)):
+        frames2 = [_zwl_frame(102, [dict(trice, x=13, y=8)]), _zwl_frame(103, [], ["You kill the cockatrice!"])]
+        g, calls = _zwl_world(monkeypatch, frames2)
+        g.empty_wands = {"R"}
+        if resist:
+            g.intrinsics = {"cold", "sleep"}
+        r = combat.zap_when_lined("cockatrice", "RSM", bounce_ok=ok)
+        assert calls == [("zap", "S", "n")] and r["reason"] == "killed: cockatrice" and r["empty"] == ["R"]
+
+
+def test_zap_when_lined_drives_the_real_zap_through_an_empty_wand(monkeypatch):
+    from nh.parse import State
+    from tactics import combat, ctx
+    trice = {"ch": "c", "desc": "cockatrice", "id": 3, "x": 13, "y": 8}
+    base = _zwl_frame(100, [trice])
+    g, _calls = _zwl_world(monkeypatch, [base])
+    monkeypatch.setattr(combat, "zap", _REAL_ZAP)
+    obj = _zwl_frame(100, [trice])
+    obj.state = State("object", prompt="What do you want to zap? [MR or ?*]")
+    dirp = _zwl_frame(100, [trice])
+    dirp.state = State("direction", prompt="In what direction?")
+    script = [("z", obj), ("R", _zwl_frame(101, [trice], ["Nothing happens."])), ("z", obj), ("M", dirp),
+              ("n", _zwl_frame(102, [], ["The bolt of fire hits the cockatrice!", "You kill the cockatrice!"]))]
+    cur = {"s": base}
+    sent = []
+
+    def fake_do(keys, **kw):
+        want, frame = script[len(sent)]
+        sent.append(keys)
+        assert keys == want
+        cur["s"] = frame
+        return frame
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: cur["s"])
+    r = combat.zap_when_lined("cockatrice", "RM")
+    assert sent == ["z", "R", "z", "M", "n"] and r["reason"] == "killed: cockatrice"
+    assert r["empty"] == ["R"] and g.empty_wands == {"R"} and [z["wand"] for z in r["zaps"]] == ["M"]
+
+
+def test_zap_when_lined_holds_its_fire_and_says_why(monkeypatch):
+    from tactics import combat
+    trice = {"ch": "c", "desc": "cockatrice", "id": 3}
+    kitten = {"ch": "f", "desc": "tame kitten", "tame": True, "pet": True, "id": 9}
+    # next to you with your pet behind it on the line: no zap, no search beside it — a verdict
+    g, calls = _zwl_world(monkeypatch, [_zwl_frame(100, [dict(trice, x=11, y=5), dict(kitten, x=13, y=5)])])
+    r = combat.zap_when_lined("cockatrice", "M")
+    assert calls == [] and r["reason"].startswith("adjacent: the cockatrice at (11,5) is NEXT TO YOU") \
+        and "tame kitten at (13,5) is in the line of fire" in r["reason"]
+    # a beam (striking) stops at the first monster: with a newt in front the fire wand goes instead
+    newt = {"ch": ":", "desc": "newt", "x": 12, "y": 5, "id": 5}
+    g, calls = _zwl_world(monkeypatch, [_zwl_frame(100, [dict(trice, x=14, y=5), newt]),
+                                        _zwl_frame(101, [newt], ["You kill the cockatrice!"])])
+    assert combat.zap_when_lined("cockatrice", "TM")["reason"] == "killed: cockatrice"
+    assert calls == [("zap", "M", "l")]
+    # lined up, standing still, but only the sleep wand and a wall 4 squares behind: it waits, then says so
+    frames = [_zwl_frame(100 + i, [dict(trice, x=13, y=8)]) for i in range(6)]
+    g, calls = _zwl_world(monkeypatch, frames)
+    r = combat.zap_when_lined("cockatrice", "S", patience=3)
+    assert calls == [("s",)] * 3 and r["reason"].startswith("blocked: the cockatrice at (13,8) d=3 is lined up") \
+        and "put YOU to sleep" in r["reason"]
+    # a floating eye that never moves, out of line: after `patience` turns the square one step away that lines
+    # you up (never next to it)
+    eye = {"ch": "e", "desc": "floating eye", "x": 13, "y": 7, "id": 6}
+    g, calls = _zwl_world(monkeypatch, [_zwl_frame(100 + i, [eye]) for i in range(6)])
+    r = combat.zap_when_lined("floating eye", "M", patience=3)
+    assert calls == [("s",)] * 3 and r["reason"].startswith("not coming into line: the floating eye at (13,7)") \
+        and "step to (11, 5) to line up" in r["reason"]
+    # gone from view without a kill; none in view at all (no inventory look, no game time); no wand at all
+    g, calls = _zwl_world(monkeypatch, [_zwl_frame(100, [dict(trice, x=15, y=8)]), _zwl_frame(101, [])])
+    r = combat.zap_when_lined("cockatrice", "M")
+    assert calls == [("s",)] and r["reason"].startswith("gone: the cockatrice is out of view (last seen at (15,8)")
+    g, calls = _zwl_world(monkeypatch, [_zwl_frame(100, [])])
+    assert combat.zap_when_lined("cockatrice", "M")["reason"] == "no hostile 'cockatrice' in view" and calls == []
+    g, calls = _zwl_world(monkeypatch, [_zwl_frame(100, [dict(trice, x=13, y=8)])],
+                          inv=[{"letter": "M", "text": "a wand of fire (0:0)", "class": "Wands"}])
+    r = combat.zap_when_lined("cockatrice", "M")
+    assert r["reason"] == "no usable wand among 'M' (EMPTY: M)" and calls == []
 
 
 def test_bag_put_leaves_the_invocation_items_out(monkeypatch):

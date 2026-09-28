@@ -160,10 +160,12 @@ def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = Tru
     are always skipped. auto_fight: fight adjacent hostiles that are all
     trivial for you (combat.auto_fightable: newts, rats, jackals...) on the
     spot, and don't pause when such a monster comes into view; anything
-    else still pauses / stops as before. cross_traps=True: when the only
-    frontiers left lie behind known traps, trek() to them across the ones
-    trap_crossable() allows for you (squeaky boards, arrow traps, pits...;
-    or a list of trap names), then explore on.)"""
+    else still pauses / stops as before. A hostile unicorn (it never steps
+    next to you) pauses only once it is next to you, as 'approaching'.
+    cross_traps=True: when the only frontiers left lie behind known traps,
+    trek() to them across the ones trap_crossable() allows for you (squeaky
+    boards, arrow traps, pits...; or a list of trap names), then explore
+    on.)"""
     import contextlib
     from .nav import bad_squares
     ctx.require_command("explore()")
@@ -177,7 +179,9 @@ def explore(max_legs: int = 150, skip: set | None = None, auto_fight: bool = Tru
         guard = ctx.monster_filter(not_auto_fightable)
     else:
         guard = contextlib.nullcontext()
-    with guard:
+    # a unicorn never steps next to you (it flees your lines): it pauses only once it is next to you — a leg
+    # that walks you up to it (p4 shift 7: two wandering gray unicorns paused a DL11 exploration 4+ times)
+    with guard, ctx.keepaway_block(1):
         r = _explore(max_legs, skip, auto_fight)
         tried: set = set()
         for _round in range(4):

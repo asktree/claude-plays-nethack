@@ -1397,7 +1397,8 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
     Sokoban or through undiggable walls (the messages say so). Returns the
     messages. "You stop digging." (something came into view) with nothing
     but trivial monsters around just digs on; otherwise it wields your
-    weapon again first and then pauses (call dig() again to go on)."""
+    weapon again first and then pauses (call dig() again to go on). A
+    hostile unicorn counts only next to you (it never steps next to you)."""
     ctx.require_command("dig()")
     import contextlib
     from .combat import auto_fightable
@@ -1407,6 +1408,11 @@ def dig(direction: str = ">", tool: str | None = None, max_applies: int = 6) -> 
 
 
 def _dig(direction, tool, max_applies, auto_fightable):
+    try:
+        from nh.danger import keeps_away
+    except ImportError:          # (an older core — a daemon started before it existed: unicorns count as before)
+        def keeps_away(desc):
+            return False
     from nh.kernel import DEFAULT_BENIGN
     from .benign import BENIGN
     inv = inventory()
@@ -1451,7 +1457,10 @@ def _dig(direction, tool, max_applies, auto_fightable):
         text = " ".join(s.messages)
         fell = s.status.ok and s.status.ldesc != ldesc0
         news = [m for m in s.messages if not any(p.search(m) for p in routine)]
+        # (a unicorn never steps next to you — danger.keeps_away(): only one already next to you counts; p4 shift 7:
+        # dig('>') paused for a gray unicorn 2 squares away)
         threats = ([m for m in s.hostiles(7) if not auto_fightable(m, s)
+                    and not (keeps_away(m.get("desc") or "") and (m.get("dist") or 0) > 1)
                     and (fell or m.get("id") not in ids0 or m.get("dist") == 1)] if s.state.kind == "command" else [])
         adjacent = s.adjacent_hostiles() if s.state.kind == "command" else []
         if threats or adjacent:

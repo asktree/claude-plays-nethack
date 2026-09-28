@@ -360,7 +360,9 @@ class MonsterTracker:
                         mc.remove(m)
 
         # resolve ambiguous clusters: previous identities go to the nearest
-        # member with the same description; members left over are new
+        # member with the same description; members left over are decided like
+        # the loners below (a known monster back in view, or new)
+        leftovers: list[dict] = []
         for mc, kc in undecided:
             members = [m for m in mc if id(m) in looked]
             for k in sorted(kc, key=lambda k: min((_cheb(m, k) for m in mc), default=99)):
@@ -376,16 +378,20 @@ class MonsterTracker:
                     k = min(kc, key=lambda c: _cheb(m, c))
                     m.update(desc=k.get("desc", ""), statue=k.get("statue", False))
                 elif m["id"] is None:
-                    m["new"] = not m.get("statue")
+                    # (p4 shift 7: two gray unicorns — one came back into view inside the other's cluster, and
+                    # this spare member was "new" at once, 4+ pauses in 65 turns: the out-of-view records of its
+                    # kind were never consulted here)
+                    leftovers.append(m)
 
-        for m in loners:
+        for m in loners + leftovers:
             if m["id"] is not None:
                 continue
             recs = resight.get(id(m), [])
             same = [r for r in recs if _kind(r["desc"]) == _kind(m["desc"]) and r["id"] not in claimed]
             if m["desc"] and not same and not m.get("statue"):
                 # a wanderer back in view far from where it was last seen (the Rogue level's long corridors,
-                # big rooms): the same species, out of view now and seen here lately, is most likely it
+                # big rooms), or next to another of its kind that stayed in view: the same species, out of view
+                # now and seen here lately, is most likely it (with every known one in view, it is new)
                 taken = {k.get("id") for k in mons if k.get("id") is not None}
                 same = [r for i, r in self.recent.items()
                         if i not in claimed and i not in taken and r.get("desc") and not r.get("statue")

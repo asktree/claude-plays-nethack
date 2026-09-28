@@ -367,6 +367,7 @@ class Kernel:
         self._heard: set = set()     # (level, ONCE_PER_LEVEL index) already paused for
         self._cloud_turns: dict = {}  # level -> turn of the last poison-gas-cloud message there
         self.defer_dist: int | None = None   # defer_far(): newcomers farther than this wait until they come near
+        self.keepaway_dist: int | None = None   # defer_keepaway(): unicorns farther than this wait until next to you
         self._deferred: dict = {}    # monster id -> {level, pos, near}: seen far off, pauses once it MOVES within near
         self.activity = ""         # set_activity(): what a long helper is doing (shown with pauses)
         self._reply_sent: bytes | None = None   # the `cont --reply` keys just sent for the script
@@ -471,6 +472,19 @@ class Kernel:
             finally:
                 k.defer_dist = old
 
+        @contextlib.contextmanager
+        def defer_keepaway(dist: int = 1):
+            """Inside this block (dig(), explore()) a hostile that never closes in on you (danger.keeps_away():
+            the unicorns — they never step onto your row, column or diagonals) doesn't pause as new or
+            approaching while it is farther than `dist` squares: it pauses once as 'approaching' when it is
+            within `dist` — also when you walked up to it (it fights only then). Nested blocks keep the smaller."""
+            old = k.keepaway_dist
+            k.keepaway_dist = dist if old is None else min(old, dist)
+            try:
+                yield
+            finally:
+                k.keepaway_dist = old
+
         def set_activity(text: str = "") -> None:
             """What a long helper is doing right now (e.g. 'sokoban step 25/26, 12 pushes done'):
             shown after the reason of any pause until changed or cleared."""
@@ -508,6 +522,7 @@ class Kernel:
 
         self.ns.update(do=do, look=look, pause=pause, note=note, game=self.game, monster_filter=monster_filter,
                        set_activity=set_activity, hp_rules=hp_rules, defer_far=defer_far, long_task=long_task,
+                       defer_keepaway=defer_keepaway,
                        watch_monsters=watch_monsters, quiet_messages=quiet_messages,
                        unwatch_monsters=unwatch_monsters)
         self.ns["obs"] = self.game.last
@@ -839,9 +854,16 @@ class Kernel:
                 level = snap.status.ldesc if snap.status.ok else ""
 
                 blind = snap.status.ok and "Blind" in snap.status.conditions
+                from .danger import keeps_away
+
+                def keepaway(m):
+                    # inside defer_keepaway(): a unicorn never closes in — news only once it is next to you
+                    return self.keepaway_dist is not None and keeps_away(m.get("desc") or "")
 
                 def far(m):
                     d = m.get("dist")
+                    if d is not None and keepaway(m) and d > self.keepaway_dist:
+                        return True
                     # (a sea monster ';' can't leave its water: far off it waits like any other, note or not;
                     # while you are BLIND telepathy shows the whole level: a noted monster far off waits too,
                     # pausing as 'approaching' when it comes near — p1 shift 27: Orcus Town's vampire lords
@@ -861,6 +883,9 @@ class Kernel:
                     if m.get("id") is not None:
                         self._deferred[m["id"]] = {"level": level, "pos": (m["x"], m["y"]), "near": near_at,
                                                    "ch": m.get("ch")}
+                        if keepaway(m):
+                            # (pauses once it is within keepaway_dist, whoever moved — also after the block)
+                            self._deferred[m["id"]].update(near=self.keepaway_dist, keepaway=True)
                 new = [m for m in new if m not in later]
                 # the exec's -a patterns may name monster pauses too (p3 shift 18: -a 'approaching: killer bee')
                 new = [m for m in new if not self._autocontinued(f"new monster: {m.get('desc') or m['ch']}")]
@@ -887,8 +912,16 @@ class Kernel:
                         # an explicit watch_monsters() keeps its own distance
                         lim = v["near"] if self.defer_dist is None or v.get("watch") else min(v["near"],
                                                                                               self.defer_dist)
-                        if m["dist"] > lim or (m["x"], m["y"]) == pos or ((m["x"], m["y"]), m.get("ch")) in was_at \
-                                or ((m["x"], m["y"]), None) in was_at:
+                        # a unicorn (deferred inside defer_keepaway(), or deferred otherwise and met inside it)
+                        # never steps next to you: next to you means you walked up to it — that is when it fights
+                        ka = not v.get("watch") and (v.get("keepaway") or keepaway(m))
+                        if ka and self.keepaway_dist is not None:
+                            lim = min(lim, self.keepaway_dist)
+                        if ka:
+                            if m["dist"] > lim:
+                                continue
+                        elif m["dist"] > lim or (m["x"], m["y"]) == pos \
+                                or ((m["x"], m["y"]), m.get("ch")) in was_at or ((m["x"], m["y"]), None) in was_at:
                             continue         # still far, or it didn't move: only you came closer (a sleeper)
                         if self._autocontinued(f"approaching: {m.get('desc') or m['ch']}"):
                             del self._deferred[m["id"]]

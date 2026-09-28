@@ -587,6 +587,53 @@ def test_far_telepathic_and_deferred_newcomers_pause_when_they_approach():
         assert "approaching: troll" in step(43, [dict(troll, x=45, dist=5)])
 
 
+def test_kernel_defer_keepaway_pauses_for_a_unicorn_only_next_to_you():
+    # p4 shift 7: dig('>') / explore() paused for gray unicorns 2+ squares away. A unicorn never steps onto your
+    # row, column or diagonals (mon.c mfndpos NOTONL): inside defer_keepaway(1) it is news only next to you
+    from nh.danger import keeps_away
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    assert keeps_away("gray unicorn") and keeps_away("black unicorn [seen: telepathy]") and not keeps_away("pony")
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def step(turn, mons):
+        s = snap({}, turn)
+        s.monsters = mons
+        reasons.clear()
+        k._check_events(snap({}, turn - 1), s)
+        return reasons[-1] if reasons else ""
+    uni = {"ch": "u", "x": 43, "y": 8, "desc": "gray unicorn", "new": True, "dist": 3, "id": 5}
+    with k.ns["defer_keepaway"](1):
+        assert step(10, [uni]) == ""                                          # new, 3 squares off
+        assert step(11, [dict(uni, new=False, x=42, y=8, dist=2)]) == ""      # 2 squares: nothing yet
+        assert step(12, [dict(uni, new=False, x=46, y=13, dist=6)]) == ""
+        assert "approaching: gray unicorn" in step(13, [dict(uni, new=False, x=41, y=9, dist=1)])
+        assert step(14, [dict(uni, new=False, x=41, y=9, dist=1)]) == ""      # once
+        # first seen next to you: new at once
+        assert "new monster: gray unicorn" in step(20, [dict(uni, id=6, x=41, y=11, dist=1)])
+        # one you WALK UP to (it didn't move) pauses too: it fights only then
+        assert step(30, [dict(uni, id=7, x=50, y=10, dist=10)]) == ""
+        assert "approaching: gray unicorn" in step(31, [dict(uni, id=7, new=False, x=50, y=10, dist=1)])
+        # other monsters keep the usual rules
+        assert "new monster: soldier ant" in step(40, [{"ch": "a", "x": 43, "y": 8, "desc": "soldier ant",
+                                                         "new": True, "dist": 3, "id": 8}])
+    # after the block a unicorn deferred inside it still waits until it is next to you...
+    assert step(50, [dict(uni, id=9, x=45, y=10, dist=5)]) == "new monster: gray unicorn at (45,10)"
+    with k.ns["defer_keepaway"](1):
+        assert step(60, [dict(uni, id=10, x=45, y=10, dist=5)]) == ""
+    assert step(61, [dict(uni, id=10, new=False, x=43, y=10, dist=3)]) == ""
+    assert "approaching: gray unicorn" in step(62, [dict(uni, id=10, new=False, x=41, y=10, dist=1)])
+    # ...and a telepathy-deferred one (6 squares outside the block) waits for 1 inside it
+    tele = {"ch": "u", "x": 70, "y": 10, "desc": "white unicorn [seen: telepathy]", "new": True, "dist": 30, "id": 11}
+    assert step(70, [tele]) == ""
+    with k.ns["defer_keepaway"](1):
+        assert step(71, [dict(tele, new=False, x=44, dist=4)]) == ""
+        assert "approaching: white unicorn" in step(72, [dict(tele, new=False, x=41, dist=1)])
+    assert k.keepaway_dist is None
+
+
 def _water_beside_hero(s):
     row = s.screen.chars[HERO[1]]
     s.screen.chars[HERO[1]] = row[:HERO[0] + 1] + "}" + row[HERO[0] + 2:]
@@ -643,6 +690,44 @@ def test_wanderer_back_in_view_far_away_is_looked_at_but_not_new():
     g.truth = {(70, 18): "frost giant", (10, 3): "frost giant"}
     m = by_pos(t.update(snap({(70, 18): "H", (10, 3): "H"}, 301, color=15)))
     assert m[(10, 3)]["new"] and not m[(70, 18)]["new"]
+
+
+def test_two_of_a_kind_wandering_in_and_out_of_view_are_not_new_again():
+    # p4 shift 7 (DL11 T:9751-9816): two gray unicorns re-paused "new monster: gray unicorn" 4+ times. One came
+    # back into view within the cluster radius of the other (still in view): the cluster had more members than
+    # before, both were looked at, and the spare one was marked new without consulting the out-of-view records
+    g = FakeGame()
+    t = MonsterTracker(g)
+    u = "gray unicorn"
+    g.truth = {(43, 7): u, (40, 16): u}
+    m = by_pos(t.update(snap({(43, 7): "u", (40, 16): "u"}, 100, color=7)))
+    assert m[(43, 7)]["new"] and m[(40, 16)]["new"]                 # two at once: both are news
+    a, b = m[(43, 7)]["id"], m[(40, 16)]["id"]
+    g.truth = {(41, 15): u}
+    m = by_pos(t.update(snap({(41, 15): "u"}, 101, color=7)))       # A leaves view, B stays
+    assert m[(41, 15)]["id"] == b and not m[(41, 15)]["new"]
+    g.truth = {(42, 14): u, (41, 12): u}                            # A back, 3 squares from B
+    g.looked.clear()
+    m = by_pos(t.update(snap({(42, 14): "u", (41, 12): "u"}, 103, color=7)))
+    assert sorted(g.looked) == [(41, 12), (42, 14)]                  # (looked at: the cluster grew)
+    assert not any(e["new"] for e in m.values()) and {e["id"] for e in m.values()} == {a, b}
+    # on they wander, in and out of view: never new again
+    g.truth = {(45, 13): u}
+    assert not any(e["new"] for e in t.update(snap({(45, 13): "u"}, 106, color=7)))
+    g.truth = {(44, 12): u, (46, 11): u}
+    m = by_pos(t.update(snap({(44, 12): "u", (46, 11): "u"}, 110, color=7)))
+    assert not any(e["new"] for e in m.values()) and {e["id"] for e in m.values()} == {a, b}
+    # a genuinely new THIRD one (both known ones in view) still is new
+    g.truth = {(44, 12): u, (46, 11): u, (45, 9): u}
+    m = by_pos(t.update(snap({(44, 12): "u", (46, 11): "u", (45, 9): "u"}, 111, color=7)))
+    assert m[(45, 9)]["new"] and not m[(44, 12)]["new"] and not m[(46, 11)]["new"]
+    assert m[(45, 9)]["id"] not in (a, b)
+    # ...and once it is known, the three come and go without new pauses
+    g.truth = {(47, 10): u}
+    t.update(snap({(47, 10): "u"}, 113, color=7))
+    g.truth = {(47, 10): u, (46, 12): u, (48, 8): u}
+    m = t.update(snap({(47, 10): "u", (46, 12): "u", (48, 8): "u"}, 115, color=7))
+    assert not any(e["new"] for e in m) and len({e["id"] for e in m}) == 3
 
 
 def test_kernel_encumbrance_and_gas_cloud_rules():

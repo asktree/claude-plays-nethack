@@ -13,6 +13,7 @@ monster_filter = None   # with monster_filter(fn): only newcomers with fn(m) tru
 _set_activity = None    # set_activity(text): shown with any pause while a helper works
 hp_rules = None         # with hp_rules(stop_hp): fight-style HP pauses (kernel)
 defer_far = None        # with defer_far(6): far newcomers pause only when they come near (kernel)
+defer_keepaway = None   # with defer_keepaway(1): unicorns pause only once next to you (kernel)
 _long_task = None       # with long_task(): a later exec-budget pause (kernel)
 watch_monsters = None   # watch_monsters(mons, near=6): 'approaching' pause for monsters already seen (kernel)
 quiet_messages = None   # quiet_messages(msgs): those the kernel wouldn't pause on (exec -a patterns...) (kernel)
@@ -23,6 +24,13 @@ def long_task(steps: int = 1200, seconds: float = 330.0):
     """A block in which the exec's step/time budget pause comes later (no-op outside the kernel)."""
     import contextlib
     return _long_task(steps, seconds) if _long_task is not None else contextlib.nullcontext()
+
+
+def keepaway_block(dist: int = 1):
+    """A block in which monsters that never close in on you (unicorns) pause only once within `dist` of you —
+    as 'approaching', also when you walked up to them (no-op outside the kernel)."""
+    import contextlib
+    return defer_keepaway(dist) if defer_keepaway is not None else contextlib.nullcontext()
 
 
 def activity(text: str = "") -> None:
