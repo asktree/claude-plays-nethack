@@ -7,14 +7,14 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:11316 / DL9 main, standing ON the now-LAWFUL altar (34,16) / XL11 / 108/108 / 21/21 / AC-14, not hungry (lembas T:11172)
+- Turn / Dlvl / XL / HP / Pw / AC: T:12669 / MINES' END DL13 (minend-2, Gnome King's wine cellar) at (53,10) / XL11 / 108/108 / 21/21 / AC-15, not hungry (ate Woodland-elf T:12347, was Satiated)
 - T:11292 WISH DONE: z - blessed +2 GRAY DRAGON SCALE MAIL, WORN (MAGIC RESISTANCE) under the faded pall I (elven cloak). Elven mithril G left on the DL9 altar.
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
 - The circular amulet got formally IDENTIFIED as 'amulet of reflection' (probably reflected the winter wolf's frost T:8314).
 - WORN: h circular amulet = AMULET OF REFLECTION (Sokoban prize, T:8243; BUC unknown, likely uncursed). REFLECTION: yes.
 - Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; EXPERT long sword (T:7145), basic dagger
-- Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047)
+- Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047), SLEEP RES (Woodland-elf T:12347). MR (GDSM), REFLECTION (amulet).
 - Luck notes: full moon at game start (+1 while it lasts). Alignment / god anger: none
 
 ## Prayer log
@@ -203,3 +203,21 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - The DL9 altar is lawful (Tyr): the place for BUC tests and, when the prayer timeout is 0 again (~T:12500+),
   sacrifices for Luck/gifts.
 - No Medusa/Castle yet: they need a levitation/water-crossing plan and XL14; that's for a later planning step.
+
+## SHIFT 12 CHANGES (T:12669)
+- PROTECTION #2 bought T:11689 (4400 to the Minetown priestess): AC-15. Sack Y: $1201 left.
+- MUMAK KILLED (Minetown T:11733). SLEEP RESISTANCE (T:12347).
+- New items: Z WAND OF COLD (iridium, named; charges unknown) — for freezing water (Medusa/Castle moat); p SCROLL OF IDENTIFY (Mines' End);
+  O 6 tallow candles + R 1 candle (= 7 for the Candelabrum) + A partly used candle; m key; l scroll FNORD, n scroll DAIYEN FOOELS (unknown);
+  y yellowish brown gem, Q red gem. Wand U (magic missile) is EMPTY (drop it). X digging used 1 charge (wall was undiggable).
+- FOOD: only 2 slime molds g + lizard P. Food rations all eaten. Eat fresh corpses of kills; buy food when possible. Prayer timeout: last prayer T:11282 + wish.
+- Mines map: Mines 8 up (19,10), anti-magic field (17,17); Mines 9 down (8,17); Mines 10 up (11,13), teleport trap (9,17), rust traps (47,12),(52,11); Mines 11 up (69,3), down (44,7), tele trap (69,7);
+  Mines 12 up (6,4), down (44,9), arrow trap (19,16), squeaky board (27,8); MINES' END = DL13 (minend-2): up (38,8), LEVEL TELEPORTER (33,5) on the top corridor (MR resists it).
+
+## MINES' END LUCKSTONE PLAN (in progress)
+- desmap: luckstone at (72,9) (with gems at (71-72,8-9)) in a sealed pocket of ROCK in the east region. Walls on x<=54 are UNDIGGABLE ("The wall glows then fades").
+- From (64,17) zap a wand of digging NE ('u'): 7 rock squares, reaches (72,9) at exactly the minimum dig range 8 (my calculation from the fixed map). Then walk in, kick_test() the gray stone (luckstone doesn't budge? NO: a loadstone doesn't budge; luckstone slides), pick up.
+- Getting to (64,17): the (54,9) secret door variant did NOT happen (30+ searches), so (57,18)/(58,18) should be floor. The (52,11)/(53,11) walls DID happen,
+  so my corridor (52-53, 5-10) is a dead end. Way: top corridor west (crossing the level teleporter (33,5) with step_onto(33,5, risky=True) — MR resists; or around it),
+  down to the row-12 corridor (40,12) -> east to the column (52-53,12..20) -> south region rows 17-20 -> (57,18) -> east region -> (64,17).
+  desmap.route() keeps preferring the phantom secret door (54,9): travel in short waypoints ((40,12), then (53,14), (53,19), (57,18), (64,17)).

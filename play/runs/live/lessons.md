@@ -41,3 +41,8 @@
 - A hidden quest portal: explore() may walk onto it. Stepping off and back on returns at once; harmless if you don't approach the leader.
 - Altar conversion + holy water: on a freshly converted altar with prayer timeout 0, PRAY FIRST (waters on it), sacrifice only afterwards —
   a co-aligned sacrifice at timeout 0 can give an artifact gift, which resets the timeout to rnz(300) and would block the holy-water prayer.
+- Anti-magic field + magic resistance = small HP damage with "You feel sluggish/very lethargic/unbearably torpid" (trap.c) — NOT loss of speed.
+- climb() on a level with a branch staircase takes the NEAREST '<' when links are unknown: from DL8 it went up into Sokoban. Use climb(n, to='Dungeons').
+- Gelatinous cube: kill at range (daggers + wand of striking). Its passive paralysis is d(lvl+1,4) turns (~17) 2/3 of the time you hit it and it survives.
+- Ochre jelly: -24 HP in one round (passive acid + engulf). Fine at 108 HP, not at 40.
+- Hunger: a mumak (500) lasted ~500 turns. Carry food; the Mines don't sell it.

@@ -236,3 +236,21 @@
 - T:11293-11302 hostile warhorse hit once, fled. Took off cloak + elven mithril, WORE the GDSM (AC -> -13), cloak back on: AC-14, MAGIC RESISTANCE.
   Mithril left on the altar. altar_test(): V extra healing cursed, l opal ring cursed (left on altar), i digging cursed, J cursed; VAS CORP scroll G blessed.
   2 holy waters bagged in sack Y. Shift 11 end T:11316 on the altar, HP 108/108.
+
+## Shift 12 (T:11316-)
+- T:11316-11439 climb() from DL9 took DL8's nearest '<' = SOKOBAN stairs (66,6) up to Soko 7 and 6 (killed a giant mummy on Soko 6); came back down. Lesson: climb(to='Dungeons') on DL8.
+- T:11553 DL4; T:11584 Mines 5 (killed an invisible-in-dark cave spider, hobgoblin), Mines 6 (quasit), T:11649 MINETOWN.
+- T:11689 Minetown temple: donated 4400 to the priestess of Odin -> PROTECTION, AC -14 -> -15. $1297 left (bagged).
+- T:11715 Izchak's lighting store: lamps 13 = OIL (no magic lamp). BOUGHT 7 candles for the Candelabrum (O 6 tallow + R 1). Sack $1201.
+- T:11733 Minetown: killed the MUMAK (2 blows, took ~3 dmg at AC-15) + 3 rothes. Ate the mumak corpse T:11767 (not satiated).
+- T:11791 Mines 8: killed a Grey-elf (no corpse); IRIDIUM WAND Z = COLD (engrave: ice cubes; named). Anti-magic field (MR -> "You feel sluggish", 2 dmg; NOT speed loss).
+- T:11875-12000 Mines 9: killed wood golem, OCHRE JELLY (passive acid + engulf: -24 in one round), hobgoblin. Down stairs (8,17). Squeeze blocked (pack > 600).
+- T:12061 Mines 10 (dark): killed large cat, giant spider, large dog. Scroll FNORD (l) picked up. Teleport trap (9,17) (MR resisted). explore() thrashes in the dark.
+- T:12281 ate the LAST food ration (Hungry already ~500 turns after the mumak). Food left: 2 slime molds, lizard. NEED FOOD.
+- T:12347 Mines 10: killed elf zombie + 2 Woodland-elves; ate one: "You feel wide awake." = SLEEP RESISTANCE. Satiated. Key m picked up (39,17). Rust traps (47,12),(52,11).
+- T:12367 Mines 11: down (44,7), up (69,3), teleport trap (69,7). Scroll DAIYEN FOOELS (n) from Mines 10.
+- T:12404 Mines 12 (not Mines' End per desmap yet): up (6,4). Killed monkey, GELATINOUS CUBE at range (7 daggers + 1 wand of striking zap; its touch froze me 2 turns, no dmg). Wand U (MM) EMPTY. Arrow trap (19,16), squeaky board (27,8).
+- T:12557 MINES' END DL13 = minend-2 (Gnome King's wine cellar). Killed cobra (hid under a SCROLL OF IDENTIFY -> p), glass piercer. Level teleporter (33,5) resisted (MR).
+- T:12600-12669 luckstone at (72,9) is in sealed rock; (54,9) secret-door variant absent (searched 30+), corridor (52-53) walled at row 11, walls undiggable (zap X south: glows and fades).
+  Plan: reach (64,17) via row-12 corridor + south region, zap digging NE.
+- Shift 12 end T:12669 DL13 (53,10), HP 108/108, AC-15, XL11. No prayers.

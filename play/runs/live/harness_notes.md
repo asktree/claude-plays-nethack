@@ -88,3 +88,9 @@
   Tyr and Odin. | You feel the power of Tyr increase. | The altar glows white.") instead of classifying them as an outcome (converted /
   "Unluckily ... decrease" = Luck -1). Harmless; had to `drop` the exec.
 - Everything else (pray(force=True) holy water detection, dip_into, rub + wish-prompt pause, altar_test) worked cleanly.
+
+## Shift 12 (T:11316-12669)
+- climb(5) from DL9 went up DL8's Sokoban stairs (nearest '<', links unknown) — it printed a note but kept climbing into Sokoban (2 levels). Suggest: when a level has 2 '<' and one could be a branch, prefer the one that isn't known/likely to be the branch (overview() says "Stairs up to Sokoban"), or stop instead of guessing.
+- Mines 10 (dark): descend(explore=True) spent 48 explore legs in ~57 turns barely moving ("not found in 48 explore legs"); head_to(70,12) also wandered back west for 21 legs. The only frontier was a gap at (40,17) the planner didn't go to.
+- desmap.route() on minend-2 keeps routing through the unsettled secret door (54,9) after 30+ searches failed to find it; avoid((54,9)) is ignored by the desmap route. Would be good to: treat a searched-for-long secret door as absent (settle its variant group to "did not happen"), and honour avoid() squares.
+- travel() with desmap.walk stopped before the level teleporter (33,5) even though MR makes it harmless (trap_crossable could allow level teleporters with worn MR, like teleport traps).
