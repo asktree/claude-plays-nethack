@@ -14,3 +14,12 @@
   "B 7 daggers"); the game message itself says that, but it looked like a new single item. Cosmetic.
 - shift 3: the monster list briefly labelled my grown pet "tame little dog" after it had grown to "dog" (#1154); a farlook
   fixed it. Harmless.
+
+## Shift 4 (T:3008-3837)
+- #146 / #186 / #778: in the DARK Minetown the hostile mumak reached melee without a pause first (travel()/desmap.walk()
+  finished with it ADJACENT at #146; explore() only paused after "The mumak butts! The mumak bites!" at #778, HP 54->28).
+  It was a known dangerous monster seen earlier on the level; maybe travel/explore legs should shorten or stop when a
+  remembered dangerous hostile (last_seen within N turns) is out of view in the dark nearby.
+- #138: desmap.walk() "no progress" on "You stop. Your dog is in the way!" — a retry worked; could retry itself.
+- #775-ish: explore() walked me out of the general store and into the mumak; fine otherwise.
+- pickup(r'^(?!.*arrow)') worked as an "everything but" pattern — worth documenting.

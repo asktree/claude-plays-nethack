@@ -51,3 +51,31 @@
 - T:2882-2889 DL6 — found G food ration (60,16), another dagger (B now 7). Descended with the dog.
 - T:2895 DL7 — MINETOWN (desmap: minetn-5 Grotto Town). Destroyed a ghoul (dog got frozen briefly). Watchmen peaceful.
   Shift 3 ended at (15,18) near the fountain (12,16), T:3008, HP 43/43, AC-3, XL4.
+
+## Shift 4
+- T:3022-3050 DL7 Minetown — killed a hostile Grey-elf with the dog (HP 43->31); ate its corpse (no sleep res msg).
+  Took I elven mithril-coat (UNKNOWN BUC; dog stayed off its square 8 turns = maybe cursed -> altar test) + H elven dagger.
+- T:3107-3177 — hostile MUMAK roams the east street (not a peaceful). Found J - a lamp at (29,16) (oil or MAGIC).
+  BONES LEVEL: 114514's ghost near a tool pile (49,13). Attacked the ghost (1 dmg touch) and the mumak hit me 28 in one
+  round (HP 41->13). Elbereth at (48,14) saved me; the DOG WAS KILLED by the mumak (T:~3185, "sad feeling").
+- T:3188-3349 rested on Elbereth (48,14) to 34/43. Floating eye adjacent: 4 dagger hits, not dead yet.
+- T:3356 — killed the floating eye with daggers -> XL5 (HP 54). Ate its corpse: rotten (Conf) but "strange mental acuity" = TELEPATHY.
+- T:3424 — the grave at (49,13) is 114514's BONES pile (killed by a mumak while frozen by a floating eye's gaze).
+  Took: L long sword named EXCALIBUR, e unicorn horn, M faded pall, K pyramidal amulet, Q/R rings, wands S T U V W X,
+  Y bag (= sack), Z key, d credit card, N 2 food rations, O 2 lembas, P lizard corpse, i 3 ETAOIN, p 2 THARR,
+  s 2 unlabeled (blank), I golden potion. ALL BUC UNKNOWN (bones: 80% cursed). Left there: dwarvish mithril-coat, my
+  elven mithril-coat, 2 lamps (maybe magic), horns, boots, arrows, bows, tins, candles, gray stone, 2nd golden potion.
+- T:3455-3464 — killed a gold golem at Trahnil's hardware store door (58,15) (HP 54->38), +$180.
+  J lamp sells for 5 = OIL lamp. Y bag sells for 1 = SACK. Unicorn horn offer 50 (real).
+- T:3469-3570 — mumak came to the hardware store; Elbereth in the shop, rested to full; left while it was inside.
+- T:3594-3633 — Possogroenoe's GENERAL STORE (door 68,9). Price-ID (normal half-base payer): g=IDENTIFY (read: Q cursed +1
+  increase accuracy, w cursed -1 gain strength — both sold, +150); S brass wand 200 (tele/create mon/cancel/poly);
+  T,U,V,W,X wands 150; R wire ring 300 (conflict/poly/polycontrol/TC); K amulet 150; h,l,i XOR OTA/ETAOIN 100;
+  m,p THARR 200 (amnesia/create mon/earth/taming); s unlabeled = blank paper; n emerald 50; I golden 150.
+- T:3651 — the mumak surprised me again in the dark NE street (54->28). Elbereth at the door (73,7); engrave-tested wands there:
+  X short = WAND OF DIGGING (left an ENGRAVED Elbereth at (73,7)); T iron, U maple, V platinum: no effect. Rested to 54. Ate ration G T:3783.
+- T:3832 — TEMPLE of Odin (NEUTRAL, priestess) at (31-35,3-5), altar (33,4). Dropped all unknown-BUC items on it:
+  CURSED: Excalibur L, amulet K, faded pall M, 2 food rations N, 3 ETAOIN i, 2 blank s, golden potion I, wire ring R,
+  wands S T U V W, sack Y, key Z, credit card d, magic marker f. UNCURSED: unicorn horn e, digging X, lizard P, lembas O,
+  tripe k, daggers B/H, l ETAOIN, p THARR, h XOR OTA, n emerald, lamp J, bag of tricks, gems. BLESSED: m THARR, t light.
+  Shift 4 ended on the altar, T:3837, HP 54/54, XL5, AC-3.

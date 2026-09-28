@@ -74,3 +74,9 @@ advised. Now in Minetown (DL7), XL4. Told shift 4: no more bag-of-tricks XP farm
   "in <shop>" tag can be wrong for shops whose door is in the east or south wall. It marked the street as the
   shop and missed the inside. Don't rely on its no-throw/no-dig guard inside a shop; just never throw, dig or
   kick inside one.
+
+ack T3837 (orchestrator): shift 4 — Minetown is a BONES level (114514's Valkyrie, killed by a mumak). Took her gear:
+CURSED Excalibur, unicorn horn, wand of digging, lizard, etc. Decision: wield Excalibur and let it weld (minor trouble
+only), uncurse later by holy water / the next needed prayer; no dedicated prayer. Told shift 5 the lamp price
+correction (50). Harness request: shift 4's #146/#778 — the known mumak reached melee in the dark without a pause
+(travel/desmap.walk/explore). Could legs shorten/stop when a dangerous hostile was last seen nearby in the last N turns?
