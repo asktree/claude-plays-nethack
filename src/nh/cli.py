@@ -76,14 +76,15 @@ def _tmux(*args, check=True):
     return subprocess.run([TMUX, "-L", TMUX_SOCKET, *args], capture_output=True, text=True, check=check)
 
 
-def spawn_daemon(name: str, wait: float = 10.0) -> None:
-    d = game_dir(name)
-    sock = d / "daemon.sock"
-    # stop an old daemon if any
+def _stop_daemon(d: Path) -> None:
+    """Stop the daemon whose pid is in <game dir>/daemon.pid, if it runs."""
     pidf = d / "daemon.pid"
     if pidf.exists():
         try:
             old = int(pidf.read_text().strip())
+            cmdline = Path(f"/proc/{old}/cmdline")
+            if cmdline.exists() and b"nh.daemon" not in cmdline.read_bytes():
+                return             # (a stale pid file: that pid belongs to some other process now)
             os.kill(old, 15)
             t0 = time.time()
             while time.time() - t0 < 8:
@@ -94,8 +95,14 @@ def spawn_daemon(name: str, wait: float = 10.0) -> None:
                 time.sleep(0.05)
             else:
                 os.kill(old, 9)
-        except (ProcessLookupError, ValueError, PermissionError):
+        except (ProcessLookupError, ValueError, PermissionError, OSError):
             pass
+
+
+def spawn_daemon(name: str, wait: float = 10.0) -> None:
+    d = game_dir(name)
+    sock = d / "daemon.sock"
+    _stop_daemon(d)            # stop an old daemon if any
     if sock.exists():
         sock.unlink()
     env = dict(os.environ)
@@ -218,6 +225,7 @@ def cmd_start_local(a) -> int:
                                                                  "another playground via --nethack)" if a.wizard else ""))
     if a.fresh:
         _tmux("kill-session", "-t", f"=nh-{name}", check=False)
+        _stop_daemon(d)        # (its pid file goes with the directory: it would run on, orphaned — p5/p6)
         import shutil
         shutil.rmtree(d, ignore_errors=True)
         # also drop the local NetHack save/lock files for this player name (wizard-mode games all
