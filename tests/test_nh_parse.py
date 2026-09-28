@@ -1915,3 +1915,18 @@ def test_covetous_monster_left_on_a_level_is_announced_on_return():
     cur3, snap3 = sn("Dlvl:38", 30300, (19, 8)), sn("Dlvl:39", 30301, (40, 12))
     g._note_departure(cur3, snap3, b">", "Dlvl:38")
     assert "Dlvl:38" not in g.left_behind
+
+
+def test_monsters_line_groups_a_crowd_of_one_kind():
+    # live shift 9: 55 leprechauns, each with the same note, cost ~3k tokens per obs
+    from nh.render import monsters_line
+    note = "steals gold and teleports"
+    mons = [{"ch": "l", "desc": "leprechaun", "x": 20 + i, "y": 5, "dist": 3 + i, "note": note, "pet": False,
+             "color": "", "new": i == 0} for i in range(6)]
+    mons.append({"ch": "l", "desc": "leprechaun", "x": 11, "y": 5, "dist": 1, "note": note, "pet": False,
+                 "color": "", "new": False})
+    mons.append({"ch": "d", "desc": "jackal", "x": 12, "y": 7, "dist": 2, "note": "", "pet": False, "color": ""})
+    out = monsters_line(None, mons=mons)
+    assert out.count(note) == 2                        # the group once + the adjacent one
+    assert "leprechaun x6 at (20,5) d=3" in out and "(1 NEW)" in out
+    assert "leprechaun at (11,5) d=1  <-- ADJACENT" in out and "jackal at (12,7)" in out

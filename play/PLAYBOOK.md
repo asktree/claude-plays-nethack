@@ -143,6 +143,11 @@ Castle without MR and returned ~10,000 turns later fully equipped. It prayed onl
   other outcomes ~1/30 each: water moccasins, a water nymph (steals), **a water demon** (dangerous at XL5;
   sometimes grants a wish if the level is shallow). Full HP, escape route (upstairs) planned. Fountains dry
   up — spread dips over several fountains/levels; Astra needed 6, 12 and 27 dips.
+- **Fountain dips uncurse ANY cursed item** 4 times in 30 ("The water glows for a moment." = now uncursed;
+  "A feeling of loss comes over you." = that roll hit an item that wasn't cursed), 1 in 30 curses it
+  (fountain.c dipfountain). The live game uncursed a welded Excalibur and a cursed magic lamp this way,
+  saving the holy water for BLESSING the lamp (dip it into holy water: uncursed -> blessed = 80% wish per
+  djinni). Stash valuables and the amulet a few squares away first (water nymph, water demon).
 - Sokoban's entrance is the up staircase on the level **just below the Oracle** (Oracle: D5–9). The Mines
   branch staircase is on D2–4.
 

@@ -184,6 +184,26 @@ def test_pay_flow(monkeypatch):
     assert sent == ["p", "n"] and msgs == ["You bought a food ration for 60 gold pieces."]
 
 
+def test_pay_whom_picks_the_keeper_of_your_shop(monkeypatch):
+    # p4 shift 6 #1641: "Pay whom?" inside Bojolali's shop (Izchak in range too) raised instead of paying
+    from nh.parse import State
+    from tactics import ctx, nav, town
+    here = _snap({}, (10, 5), [{"x": 11, "y": 5, "ch": "@", "desc": "peaceful Bojolali"},
+                              {"x": 20, "y": 5, "ch": "@", "desc": "peaceful Izchak"}])
+    here.shop = "Bojolali's general store"
+    whom = _snap({}, (10, 5), [])
+    whom.state = State("getpos", prompt="Pay whom?")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["You bought a food ration for 60 gold pieces."]
+    script = {"p": whom, ".": done}
+    sent, cursor = [], []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or script[keys])
+    monkeypatch.setattr(ctx, "require_command", lambda who: here)
+    monkeypatch.setattr(nav, "cursor_to", lambda x, y: cursor.append((x, y)))
+    msgs = town.pay()
+    assert cursor == [(11, 5)] and sent == ["p", "."] and msgs[-1].startswith("You bought")
+
+
 def test_routine_flavour_messages():
     import re
     from tactics.combat import ROUTINE
@@ -670,6 +690,27 @@ def test_desmap_candidates_respect_the_dungeon_depths():
     assert not any(n.startswith(("medusa", "castle")) for n in names("The Dungeons of Doom / Level 12"))
     assert any(n.startswith("medusa") for n in names("The Dungeons of Doom / Level 22"))
     assert desmap._depth_ok("bigrm-3", "Gehennom / Level 40")          # other branches: no depth rule
+
+
+def test_desmap_mines_levels_respect_the_mines_depths(monkeypatch):
+    # p4 shift 6 #233/#1229: minend-1 matched Mines level 7 (DL11; the Mines start at DL5 there) and travel()
+    # walked its map over floor that wasn't there
+    from types import SimpleNamespace
+    from tactics import ctx, desmap
+    from nh.tracker import _desmap_depth_ok
+    g = _G()
+    g.memory = SimpleNamespace(state={"overview": "The Gnomish Mines: levels 5 to 13\n Level 8: <- some notes\n"})
+    monkeypatch.setattr(ctx, "game", g)
+    names = lambda key: {m["level"] for m in desmap._candidates(key)}
+    assert not any(n.startswith("minend") for n in names("The Gnomish Mines / Level 11"))
+    assert any(n.startswith("minend") for n in names("The Gnomish Mines / Level 13"))
+    assert any(n.startswith("minetn") for n in names("The Gnomish Mines / Level 8"))
+    assert not any(n.startswith("minetn") for n in names("The Gnomish Mines / Level 9"))
+    g.memory.state["overview"] = ""                                    # unknown top: DL3-5 + the level index
+    assert any(n.startswith("minend") for n in names("The Gnomish Mines / Level 11"))
+    assert not any(n.startswith("minend") for n in names("The Gnomish Mines / Level 8"))
+    assert not _desmap_depth_ok("minend-1", "The Gnomish Mines / Level 11", 5)
+    assert _desmap_depth_ok("minend-1", "The Gnomish Mines / Level 12", 5)
 
 
 def test_lurk_zone_skips_squares_beside_you_and_a_thief_that_teleported(monkeypatch):
@@ -1912,6 +1953,24 @@ def test_fight_until_clear_hold_ignores_the_ignored_and_hidden_hiders(monkeypatc
     monkeypatch.setattr(combat, "fight", lambda **kw: cur["s"])
     r = combat.fight_until_clear(radius=4, hold=5, ignore=("vampire bat",))
     assert r["reason"] == "held" and sent == ["."] * 5      # never 's' next to the hidden lurker
+
+
+def test_fight_until_clear_pause_new_modes(monkeypatch):
+    # live shift 9 #2653: 8 newcomer pauses in ~10 turns in the Big Room
+    import contextlib
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    got = []
+    monkeypatch.setattr(ctx, "monster_filter", lambda f: got.append(f) or contextlib.nullcontext())
+    s = _snap({5: "        ....."}, (10, 5), [])
+    s.status.turn, s.status.hp, s.status.hpmax, s.status.xl = 100, 50, 50, 10
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    unlooked, lich = {"ch": "L", "desc": ""}, {"ch": "L", "desc": "master lich"}
+    for mode, want in (("dangerous", (True, True)), ("rated", (False, True)), ("never", (False, False))):
+        got.clear()
+        assert combat.fight_until_clear(pause_new=mode)["reason"].startswith("clear")
+        assert (got[0](unlooked), got[0](lich)) == want, mode
 
 
 def test_fight_until_clear_passes_near_water_to_fight(monkeypatch):
@@ -3823,6 +3882,32 @@ def test_trek_crosses_an_unknown_type_trap_when_allowed(monkeypatch):
     cur["s"].status = Status(ok=True, hp=100, hpmax=100)
     nav.trek(14, 5, cross_traps=[(12, 5)])           # or the square itself
     assert (12, 5) in calls and cur["s"].hero == (14, 5)
+
+
+def test_trek_walks_up_to_a_distant_monster_glyph(monkeypatch):
+    # p4 shift 6 #905: a stale soldier glyph on a dark square blocked trek() six times (no game time used)
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(nav, "special_room_zone", lambda s: {})
+    rows = {5: "        ##########@####"}
+    cur = {"s": _snap(rows, (8, 5), [])}
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: cur["s"])
+    calls = []
+
+    def move(x, y, **kw):
+        calls.append((x, y))
+        r = {5: "        " + "#" * 15}                      # up close: the glyph is gone (it was stale)
+        s = _snap(r, (x, y), [])
+        s.status = cur["s"].status
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(nav, "travel", move)
+    monkeypatch.setattr(nav, "step_onto", move)
+    nav.trek(21, 5)
+    assert calls[0] == (17, 5) and cur["s"].hero == (21, 5)
 
 
 def test_go_up_uses_the_fixed_maps_stairs_when_none_is_seen(monkeypatch):

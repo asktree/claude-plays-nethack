@@ -60,10 +60,18 @@ MON_TRAP_RE = re.compile(
     r"^A trigger appears in a pile of soil|pulls free\.\.\.|eats a bear trap|munches on some spikes")
 
 
-def _desmap_depth_ok(level: str, key: str) -> bool:
-    """A saved special-level placement that the Dungeons of Doom's structure rules out (dungeon.def: the Big Room
-    only on DL10-12, Medusa and the Castle at the bottom) is dropped on load — older harnesses placed bigrm-1 on
-    ordinary DL7 and on the Oracle level (p4 shift 3; tactics/desmap.py _DEPTHS filters new placements)."""
+def _desmap_depth_ok(level: str, key: str, mines_top: int | None = None) -> bool:
+    """A saved special-level placement that the dungeon's structure rules out (dungeon.def: the Big Room only on
+    DL10-12, Medusa and the Castle at the bottom; Minetown on the Mines' level 3-4, Mines' End on its level 8-9) is
+    dropped on load — older harnesses placed bigrm-1 on ordinary DL7 and on the Oracle level (p4 shift 3) and
+    minend-1 on Mines level 7 (p4 shift 6; tactics/desmap.py _depth_ok filters new placements)."""
+    mm = re.match(r"The Gnomish Mines / Level (\d+)$", key or "")
+    if mm:
+        n = int(mm.group(1))
+        for pre, lo, hi in (("minetn", 3, 4), ("minend", 8, 9)):
+            if (level or "").startswith(pre):
+                return lo <= n - mines_top + 1 <= hi if mines_top is not None else 2 + lo <= n <= 4 + hi
+        return True
     m = re.match(r"The Dungeons of Doom / Level (\d+)$", key or "")
     if not m:
         return True
@@ -101,6 +109,8 @@ class Tracker:
             game.level_name_ldesc = self.state["current_ldesc"]
         feat_ch = {"up stairs": "<", "down stairs": ">", "fountain": "{", "altar": "_", "throne": "\\",
                    "magic portal": "^", "vibrating square": "~"}
+        mt = re.search(r"The Gnomish Mines: levels? (\d+)", self.state.get("overview") or "")
+        mines_top = int(mt.group(1)) if mt else None
         for key, lv in self.state["levels"].items():
             for fname, fcells in lv.get("features", {}).items():
                 if fname in feat_ch:
@@ -138,7 +148,7 @@ class Tracker:
                     "kind": r[0], "prev": tuple(r[1]) if r[1] else None, "turn": r[2]} for c, r in lv["rooms"].items()}
             if lv.get("mimics") and isinstance(getattr(game, "mimics", None), dict):
                 game.mimics[key] = {tuple(int(v) for v in c.split(",")): k for c, k in lv["mimics"].items()}
-            if lv.get("desmap") and _desmap_depth_ok(lv["desmap"].get("level", ""), key):
+            if lv.get("desmap") and _desmap_depth_ok(lv["desmap"].get("level", ""), key, mines_top):
                 if getattr(game, "desmap_ids", None) is None:
                     game.desmap_ids = {}
                 game.desmap_ids.setdefault(key, dict(lv["desmap"]))

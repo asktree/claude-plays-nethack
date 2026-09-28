@@ -2609,8 +2609,10 @@ class Game:
     # wields a cockatrice corpse!", "... swings her cockatrice corpse", "... hits you with the cockatrice corpse."
     # Each hit starts STONING you (p2 shift 38 #560-#577: twice in 5 turns, both lizards used). The corpse rots
     # away within ~250 turns of the cockatrice's death, in its hands too (timeout.c rot_corpse)
-    _TRICE_WIELD = re.compile(r"^(?:The |An? )?(?P<who>.+?) (?:wields (?:an? |the |\d+ )?(?:partly eaten )?|swings "
-                              r"(?:his|her|its) |hits you with (?:the|an?) )(?:cockatrice|chickatrice) corpses?\b")
+    # (a monster only picks one up wearing gloves — to wield it: weapon.c select_hwep())
+    _TRICE_WIELD = re.compile(r"^(?:The |An? )?(?P<who>.+?) (?:(?:wields|picks up) (?:an? |the |\d+ )?(?:partly "
+                              r"eaten )?|swings (?:his|her|its) |hits you with (?:the|an?) )(?:cockatrice|chickatrice) "
+                              r"corpses?\b")
     TRICE_WIELD_TURNS = 300
 
     def _note_trice_wielders(self, snap: Snap, messages: list) -> None:

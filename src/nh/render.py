@@ -62,7 +62,26 @@ def monsters_line(snap: Snap, radius: int | None = None, mons: list[dict] | None
         parts.append(f"  I x{len(unseen)} remembered unseen monsters (old markers; maybe gone) at "
                      + ", ".join(f"({m['x']},{m['y']})" for m in unseen[:10])
                      + (f" +{len(unseen) - 10} more" if len(unseen) > 10 else ""))
+    # a crowd of one kind (a leprechaun hall, a zoo, a hive) on one line each: every entry repeats the same note
+    # (the live game's 55 leprechauns cost ~3k tokens per obs). Adjacent ones stay listed one by one.
+    groups: dict = {}
     for m in mons:
+        if m["dist"] != 1 and m.get("desc"):
+            groups.setdefault((m["ch"], m["desc"], m.get("note") or ""), []).append(m)
+    grouped = {id(m): k for k, lst in groups.items() if len(lst) >= 3 for m in lst}
+    shown: set = set()
+    for m in mons:
+        k = grouped.get(id(m))
+        if k is not None:
+            if k not in shown:
+                shown.add(k)
+                lst = sorted(groups[k], key=lambda mm: mm["dist"] if mm["dist"] is not None else 99)
+                new = sum(1 for mm in lst if mm.get("new"))
+                parts.append(f"  {k[0]} {k[1]} x{len(lst)} at "
+                             + ", ".join(f"({mm['x']},{mm['y']}) d={mm['dist']}" for mm in lst[:8])
+                             + (f" +{len(lst) - 8} more" if len(lst) > 8 else "")
+                             + (f"  ({new} NEW)" if new else "") + (f"\n      !! {k[2]}" if k[2] else ""))
+            continue
         note_txt = m.get("note") or ""
         if m.get("desc"):
             who = m["desc"]

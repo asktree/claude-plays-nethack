@@ -1209,11 +1209,15 @@ def pickup(pattern: str | None = None, force: bool = False) -> list:
     object that doesn't match is left alone. NetHack's "You have much
     trouble / extreme difficulty lifting X. Continue?" (the lift would make
     you Stressed or worse) is answered no — the item stays and is named;
-    force=True takes it ("a little trouble" = Burdened is taken). Returns the
+    force=True takes it ("a little trouble" = Burdened is taken), and also
+    passes the gray-stone (loadstone) guard — never the cockatrice-corpse one
+    while you are blind or a cockatrice corpse lies here. Returns the
     messages."""
     s0 = ctx.require_command("pickup()")
     blind = s0 is not None and s0.status.ok and "Blind" in s0.status.conditions
     look = here()
+    # (p4 shift 6 #707: force=True didn't reach the loadstone guard, whose refusal names force=True)
+    guard_force = force and not blind and not re.search(r"c(?:o|hi)ckatrice corpse", look or "")
     if ("You see no objects here" in look or not look) and not blind:
         print(f"pickup({pattern!r}): there are no objects here" + (f" ({look})" if look else ""))
         return []
@@ -1242,7 +1246,7 @@ def pickup(pattern: str | None = None, force: bool = False) -> list:
         return []
     skipped: list = []
     enc0 = ctx.last().status.encumbrance or ""
-    s = ctx.do(",", quiet=True, expect=_TAKE)
+    s = ctx.do(",", quiet=True, expect=_TAKE, force=guard_force)
     msgs = list(s.messages)
     if s.state.kind == "menu":
         chosen, seen = 0, []
@@ -1264,7 +1268,7 @@ def pickup(pattern: str | None = None, force: bool = False) -> list:
             print(f"pickup({pattern!r}): nothing matching here — the floor has: " + "; ".join(seen))
             return msgs
         try:
-            s = ctx.do("<CR>", quiet=True, expect=_TAKE)
+            s = ctx.do("<CR>", quiet=True, expect=_TAKE, force=guard_force)
         except PermissionError:
             ctx.do("<Esc>", quiet=True)          # a guard refused (loadstone? cockatrice?): don't leave the menu open
             raise

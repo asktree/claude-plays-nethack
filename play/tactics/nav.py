@@ -800,6 +800,7 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
             print(f"trek: stepping onto the {names.get(goal) or 'trap of unknown type'} at {goal}")
             s = step_onto(x, y, risky=True)       # (trap_crossable() or your cross_traps list allowed it)
         return s
+    approaches = 0
     for _ in range(max_legs):
         s = ctx.last()
         if s.state.kind != "command" or s.hero is None or s.hero == goal:
@@ -812,7 +813,20 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
             return finish(travel(x, y))
         path = bfs_path(s, s.hero, goal, avoid=frozenset(bad - allow), allow_traps=True, allow_pets=True)
         if path is None:
-            raise NavError(_trek_blocked(s, goal, bad, allow, names))
+            stop = _walk_up_to_glyph(s, goal, bad - allow) if approaches < 3 else None
+            if stop is None:
+                raise NavError(_trek_blocked(s, goal, bad, allow, names))
+            # a monster glyph 3+ squares off on the only way — maybe a stale one on a dark square (p4 shift 6
+            # #905: trek refused 6 times for a soldier that had long left): walk up to it and look again
+            approaches += 1
+            print(f"trek: a monster glyph blocks the only way at {stop[1]} — walking up to {stop[0]} to see it")
+            try:
+                s = travel(*stop[0])
+            except NavError:
+                raise NavError(_trek_blocked(s, goal, bad, allow, names)) from None
+            if s.hero != stop[0]:
+                return s                  # stopped short (the monster came, a message): the caller looks
+            continue
         idx = next((i for i, c in enumerate(path) if c in allow), None)
         if idx is None:
             return finish(travel(x, y))
@@ -824,6 +838,22 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
         if s.hero != path[idx - 1]:
             return s                  # stopped short (a monster, a message): the caller looks
     return ctx.last()
+
+
+def _walk_up_to_glyph(s, goal, avoid) -> tuple | None:
+    """((x, y) to walk to, (x, y) of the glyph) when the only way to `goal` (monsters allowed) is blocked by a
+    monster glyph at least 3 steps away — the square just before it on that way; else None."""
+    from .mapview import MONSTER_CHARS
+    via = bfs_path(s, s.hero, goal, avoid=frozenset(avoid), allow_traps=True, allow_pets=True, allow_monsters=True)
+    if not via:
+        return None
+    i = next((i for i, c in enumerate(via) if c != goal and s.screen.at(*c) in MONSTER_CHARS
+              and s.screen.at(*c) != "I"), None)
+    if i is None or i < 2:
+        return None
+    if bfs_path(s, s.hero, via[i - 1], avoid=frozenset(avoid), allow_pets=True) is None:
+        return None
+    return via[i - 1], via[i]
 
 
 def _trek_blocked(s, goal, bad, allow, names) -> str:

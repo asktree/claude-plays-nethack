@@ -65,7 +65,7 @@ def pay(x: int | None = None, y: int | None = None) -> list:
     whom?" with a cursor: pass the shopkeeper's square (x, y). Returns the
     messages."""
     from .nav import cursor_to
-    ctx.require_command("pay()")
+    s0 = ctx.require_command("pay()")
     s = ctx.do("p", quiet=True)
     msgs = list(s.messages)
     for _ in range(6):
@@ -73,6 +73,14 @@ def pay(x: int | None = None, y: int | None = None) -> list:
         if k == "command":
             break
         if k == "getpos":
+            if x is None:
+                # inside a shop the harness knows: its keeper (p4 shift 6 #1641: "Pay whom?" in Bojolali's shop)
+                owner = (getattr(s0, "shop", "") or "").split("'")[0].strip() if "'" in (getattr(s0, "shop", "")
+                                                                                         or "") else ""
+                keep = [m for m in (s0.monsters or []) if owner and m["ch"] == "@"
+                        and re.search(rf"\b{re.escape(owner)}\b", m.get("desc") or "")]
+                if len(keep) == 1:
+                    x, y = keep[0]["x"], keep[0]["y"]
             if x is None:
                 ctx.do("<Esc>", quiet=True)
                 raise RuntimeError("pay(): 'Pay whom?' — several shopkeepers in range: call pay(x, y) with the "

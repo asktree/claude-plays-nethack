@@ -632,7 +632,7 @@ def fight_trivial(s=None):
 
 def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60, patience: int = 6,
                       ignore=(), allow_passive: bool = False, hold: int = 0, unseen: bool = False,
-                      near_water: bool = False) -> dict:
+                      near_water: bool = False, pause_new: str = "dangerous") -> dict:
     """Hold your square and fight a crowd (a zoo from its doorway, a pack in a
     corridor): melee whatever hostile comes adjacent (fight(): passive checks,
     worst-case HP rule), wait a turn while hostiles within `radius` aren't
@@ -654,18 +654,29 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     (invisible attackers; never where a peaceful may be).
     Next to water with a sea monster (or an unseen 'I') in it, it returns
     "DROWNING RISK: ..." at once — step away from the water first
-    (near_water=True fights on there)."""
+    (near_water=True fights on there).
+    pause_new: which newcomers pause — "dangerous" (default: rated
+    dangerous, or not looked at yet), "rated" (only looked-at ones rated
+    dangerous: a crowd whose far members the harness hasn't looked at yet —
+    the live game's Big Room paused 8 times in 10 turns), "never" (a crowd
+    you chose to fight; fight() still refuses passive/NEVER-melee targets and
+    the HP rules still pause)."""
     import contextlib
     from nh.danger import base_name, threat_level
     from nh.monitor import killed_names
 
+    if pause_new not in ("dangerous", "rated", "never"):
+        raise ValueError(f"fight_until_clear(pause_new={pause_new!r}): 'dangerous', 'rated' or 'never'")
+
     def dangerous(m):
         d = m.get("desc") or ""
-        if d and base_name(d) in ignore:
+        if pause_new == "never" or (d and base_name(d) in ignore):
             return False
+        if not d:
+            return pause_new == "dangerous"
         st = ctx.last().status
-        return not d or threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
-                                     getattr(ctx.game, "intrinsics", ())) == "dangerous"
+        return threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
+                            getattr(ctx.game, "intrinsics", ())) == "dangerous"
 
     ctx.require_command("fight_until_clear()")
     warn_bounce("fight_until_clear()")

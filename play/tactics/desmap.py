@@ -150,7 +150,29 @@ MIN_CELLS = 20      # smaller maps (Juiblex's 8x5 stair pockets of 'x') match an
 _DEPTHS = (("bigrm", 10, 12), ("medusa", 20, 60), ("castle", 24, 60))
 
 
+# dungeon.def: the Gnomish Mines hang off DL2-4 (its first level is DL3-5) and have 8-9 levels; Minetown is its
+# level 3-4 ("minetn" @ (3, 2)), Mines' End its last ("minend" @ (-1, 0)). p4 shift 6 #233/#1229: minend-1 matched
+# Mines level 7 (42 good / 10 bad) and travel() walked its map over floor that wasn't there
+_MINES = (("minetn", 3, 4), ("minend", 8, 9))
+
+
+def _mines_top() -> int | None:
+    """Dlvl of the Mines' first level from ^O ("The Gnomish Mines: levels 3 to 13"), if known."""
+    mem = getattr(getattr(ctx, "game", None), "memory", None)
+    ov = _overview_sections(((getattr(mem, "state", None) or {}).get("overview") or "") if mem is not None else "")
+    return (ov.get("The Gnomish Mines") or {}).get("a")
+
+
 def _depth_ok(level: str, key: str) -> bool:
+    mm = re.match(r"The Gnomish Mines / Level (\d+)$", key or "")
+    if mm:
+        n, top = int(mm.group(1)), _mines_top()
+        for pre, lo, hi in _MINES:
+            if level.startswith(pre):
+                if top is not None:
+                    return lo <= n - top + 1 <= hi
+                return 2 + lo <= n <= 4 + hi          # (the first Mines level is DL3-5)
+        return True
     m = re.match(r"The Dungeons of Doom / Level (\d+)$", key or "")
     if not m:
         return True

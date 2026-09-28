@@ -61,8 +61,14 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You feel here ", r"^You feel no objects here\.", r"^Things that you feel here:",
     r"^Suddenly, .+ disappears out of sight\.$",   # teleport.c: a monster took a level teleporter/trap door away
     # (not when a monster picks up a wand — it may zap you with it — or something you need to win)
+    # (nor a cockatrice corpse: a gloved monster wields it and every hit stones you — p2 shift 38 #560)
     r"^(The |Your )?[\w' -]+ (picks up|drops|eats|is eating|finishes eating) (?!.*\b(?:wand|Amulet of Yendor|"
-    r"Orb of Fate|Bell of Opening|Candelabrum|Book of the Dead|silver bell|candelabrum|papyrus spellbook)\b)",
+    r"Orb of Fate|Bell of Opening|Candelabrum|Book of the Dead|silver bell|candelabrum|papyrus spellbook|"
+    r"(?:cockatrice|chickatrice) corpse)\b)",
+    # worn.c m_dowear(): a monster changing armor (p4 shift 6: every soldier-fight call needed -a patterns);
+    # shk.c: a shopkeeper repairing damage out of sight; monmove.c: a monster opening a door out of sight
+    r"^(?:The |An? )?[\w' -]+ (?:removes .+ and )?puts on .+\.$",
+    r"^The dungeon acoustics noticeably change\.$", r"^You hear a door (?:unlock and )?open\.$",
     r"^You swap places with ",
     # monster-vs-monster melee (mhitm.c), usually your pet's fights; a death, stoning or
     # swallowing still pauses
