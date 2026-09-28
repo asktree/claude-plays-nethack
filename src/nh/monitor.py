@@ -438,6 +438,12 @@ class MonsterTracker:
                                  + (" (its ray destroys your POTIONS (cold) / scrolls and potions (fire) even when "
                                     "you resist it: bag them)" if kind in ("cold", "fire") else "")
                                  + (" — " + m["note"] if m["note"] else ""))
+                tw = (getattr(snap, "trice_wielders", None) or {}).get(base_name(d))
+                if tw is not None and not _friendly(d):
+                    m["note"] = (f"!! WIELDS A COCKATRICE CORPSE (T:{tw}) — every hit STONES you (eat a lizard or "
+                                 "acidic corpse / pray at once): never let it get next to you — zap it away "
+                                 "(teleport), kill it at range, or leave"
+                                 + (" — " + m["note"] if m["note"] else ""))
                 refl = ((getattr(self.game, "reflectors", None) or {}).get(lk) or {})
                 if m["id"] in refl:
                     # (combat.zap(): your ray came straight back with no hit/miss message for it)
@@ -475,7 +481,8 @@ class MonsterTracker:
                                         "turn": turn, "blind": "Blind" in st.conditions}
         new_visible = {m["id"] for m in mons}
         killed = killed_names(getattr(snap, "messages", None))
-        resolved = self._forget_killed(killed, self.visible_ids - new_visible, snap.hero, turn)
+        resolved = self._forget_killed(killed, self.visible_ids - new_visible, snap.hero, turn,
+                                       target=getattr(snap, "melee_kill", None))
         for _ in range(sum(1 for x in getattr(snap, "messages", None) or [] if _IT_KILL.search(x))):
             self._forget_it_kill(new_visible, snap.hero, turn)
         try:
@@ -546,26 +553,35 @@ class MonsterTracker:
                     else:
                         del self.recent[k["id"]]
 
-    def _forget_killed(self, names: list[str], vanished: set, hero, turn: int | None = None) -> list:
+    def _forget_killed(self, names: list[str], vanished: set, hero, turn: int | None = None,
+                       target=None) -> list:
         """A killed monster must not be 're-seen' later: drop its record
         (prefer one that vanished this step, nearest the hero), so the next
         monster of that species counts as new. The kill (name, square, turn)
-        goes to the game's memory: it dates the corpse. Returns [(name,
-        (x, y))] of the records dropped."""
+        goes to the game's memory: it dates the corpse. `target` = (name,
+        (x, y)) from Snap.melee_kill: your blow killed that one on the square
+        you hit, so its kill is filed there — records of two of a kind can swap
+        (p3 shift 20 #257: two fire giants). Returns [(name, (x, y))] of the
+        records dropped."""
         from .danger import base_name
         record = getattr(self.game, "record_kill", None)
         out = []
         for name in names:
             cands = [(i, r) for i, r in self.recent.items() if base_name(r.get("desc", "")) == name
                      and i not in self.visible_ids - vanished]
+            at = None
+            if target is not None and target[0] == name:
+                at, target = tuple(target[1]), None        # (one blow, one kill)
+                if record is not None:
+                    record(name, at, turn)
             if not cands:
                 continue
-            hx, hy = hero if hero else (0, 0)
+            hx, hy = at or hero or (0, 0)
             cands.sort(key=lambda ir: (ir[0] not in vanished, max(abs(ir[1]["x"] - hx), abs(ir[1]["y"] - hy)),
                                        -ir[1].get("turn", 0)))
             r = self.recent.pop(cands[0][0])
             out.append((name, (r["x"], r["y"])))
-            if record is not None and cands[0][0] in vanished:
+            if record is not None and at is None and cands[0][0] in vanished:
                 record(name, (r["x"], r["y"]), turn)
         return out
 

@@ -72,6 +72,9 @@ class Snap:
     wand_kind: str | None = None   # ... and what that wand does ("sleep", "death", "striking"...), if known
     held_trap: str = ""        # "bear trap" while it holds you (hack.c trapmove: pull diagonally — escape_trap())
     wand_users: dict = field(default_factory=dict)  # {monster name: {"kind", "wand", "turn"}} zappers here
+    trice_wielders: dict = field(default_factory=dict)  # {monster name: turn} seen wielding a cockatrice corpse here
+    trice_note: str = ""       # a fresh cockatrice corpse you killed lies on this level (a gloved monster can wield it)
+    left_note: str = ""        # on arriving: covetous monsters you left on this level are still here (_note_departure)
     solid_mem: set = field(default_factory=set)   # squares found to be solid rock (an object shown embedded in it)
     niche_note: str = ""       # set on the step that read a trapped closet's engraving ('ad aerarium')
     pet_note: str = ""         # for a while after the stairs: your pet didn't come along (Game.pet_left_note)
@@ -81,6 +84,7 @@ class Snap:
     room_note: str = ""        # set on the step that entered a special room (zoo, anthole, beehive...)
     room_mem: dict = field(default_factory=dict)    # {(x, y) entry: {"kind", "prev", "turn"}} special rooms here
     mimic_mem: dict = field(default_factory=dict)   # {(x, y): 'giant mimic'} mimics unmasked on this level
+    melee_kill: tuple | None = None   # (name, (x, y)): the monster your blow killed this step, on the square hit
     engr_repeat: bool = False  # this step read the same engraving text as last time on this square
 
     def __repr__(self) -> str:
@@ -498,6 +502,9 @@ class Game:
                                                   # (gold/gems embedded in the Mines' rock look walkable)
         self.reflecting: bool | None = None       # inventory(): wearing a known reflection item (None = unknown)
         self.wand_users: dict[str, dict] = {}    # level -> {monster name: {"kind", "wand", "turn"}} (_note_wand_zaps)
+        self.trice_wielders: dict[str, dict] = {}   # level -> {monster name: turn} (_note_trice_wielders)
+        # level -> {covetous monster name: {"x", "y", "seen", "left", "ldesc"}} left behind there (_note_departure)
+        self.left_behind: dict[str, dict] = {}
         self.held_trap = ""                       # "bear trap" while it holds you (_note_held)
         self.kicked_stones: dict[str, set] = {}   # level -> squares where a gray stone kick_test() slid landed
         self.unknown_buc: list[str] = []          # inventory(): items whose B/U/C isn't known ("w (a ring ...)")
@@ -531,7 +538,8 @@ class Game:
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
-                  self.niches, self.mimics, self.desmap_ids, self.special_rooms, self.wand_users):
+                  self.niches, self.mimics, self.desmap_ids, self.special_rooms, self.wand_users,
+                  self.trice_wielders, self.left_behind):
             if old in d:
                 d.setdefault(new, {}).update(d.pop(old))
         for links in self.stair_links.values():       # destinations recorded under the provisional key
@@ -565,6 +573,7 @@ class Game:
     _HERE_CH = {"staircase up": "<", "staircase down": ">", "ladder up": "<", "ladder down": ">",
                 "fountain": "{", "altar": "_", "opulent throne": "\\"}
 
+    _MELEE_KILL = re.compile(r"^You (?:kill|destroy) (?:the |an? |poor )?(.+?)!$")
     _HERE_OBJS = re.compile(r"(?:^|\n)(?:You (?:see|feel) here |Things that (?:are|you feel) here:)")
     _NO_OBJS = re.compile(r"^You (?:see|feel) no objects here")
     COCKATRICE_CORPSE = re.compile(r"\b(?:cockatrice|chickatrice) corpses?\b")
@@ -727,6 +736,11 @@ class Game:
         lst = self.kills.setdefault(self.level_key(), [])
         lst.append((name, tuple(cell), int(turn)))
         del lst[:-40]
+        lb = self.left_behind.get(self.level_key())
+        if lb and lb.pop(name, None) is not None:
+            if not lb:
+                self.left_behind.pop(self.level_key(), None)
+            self._save_left_behind()
 
     def corpse_age(self, name: str, cell, turn: int | None):
         """Turns since the oldest recorded kill of `name` on `cell` of this level
@@ -2136,8 +2150,19 @@ class Game:
                         # or the corpse guard can't tell it's fresh (corpse_age() matches any corpse there)
                         dx, dy = self._MOVE[mv]
                         self.record_kill("it", (cur.hero[0] + dx, cur.hero[1] + dy), snap.status.turn)
+                    if mv in self._MOVE and cur.hero is not None and snap.hero == cur.hero and snap.status.ok:
+                        # a melee kill: the corpse lies on the square you hit. The monster tracker files kills by
+                        # its records, which can swap between two of a kind (p3 shift 20 #257: the fire giant
+                        # killed at (46,13) was filed at the other giant's (45,12); the eat guard then called
+                        # the fresh corpse "age unknown — DEADLY")
+                        from .danger import base_name
+                        named = [mm.group(1) for mm in (self._MELEE_KILL.match(m) for m in messages) if mm]
+                        if len(named) == 1 and named[0] not in ("it", "them"):
+                            dx, dy = self._MOVE[mv]
+                            snap.melee_kill = (base_name(named[0]), (cur.hero[0] + dx, cur.hero[1] + dy))
                     self._note_wield(messages, snap.status.turn)
                     self._note_wand_zaps(snap, messages, cur)
+                    self._note_trice_wielders(snap, messages)
                     self._note_held(cur, snap, messages)
                     self._note_monster_hole(cur, snap, messages)
                     self._note_used_up(cur, data)
@@ -2146,6 +2171,8 @@ class Game:
                     self._note_forgetting(snap, messages)
                     self._note_quest(messages)
                     self._note_arrival(cur, snap, data, messages, old_key, moved)
+                    if moved:
+                        self._note_departure(cur, snap, data, old_key)
                     self._note_pet_stays(cur, snap, messages, moved)
                     if moved:
                         self._note_fall(cur, messages, old_key, data, prev_pos=prev_pos)
@@ -2560,12 +2587,107 @@ class Game:
         # #550: hunt() planned one between two boulders)
         snap.sokoban = bool(key and str(key).startswith("Sokoban"))
         snap.wand_users = dict(self.wand_users.get(key, {})) if key is not None else {}
+        tw = self.trice_wielders.get(key, {}) if key is not None else {}
+        now = snap.status.turn if snap.status.ok else None
+        snap.trice_wielders = {n: t for n, t in tw.items() if now is None or now - t <= self.TRICE_WIELD_TURNS}
+        # a cockatrice you killed here in the last ~260 turns whose square still shows a '%' (mkobj.c: the corpse
+        # rots away ~250 turns after death): a gloved monster can pick it up and hit you with it (p2 shift 38 #560)
+        fresh = sorted({tuple(c) for n, c, t in self.kills.get(key, []) if n in ("cockatrice", "chickatrice")
+                        and now is not None and 0 <= now - t <= 260 and snap.screen.at(*c) == "%"
+                        and tuple(c) != snap.hero}) if key is not None else []
+        snap.trice_note = (f"cockatrice corpse{'s' if len(fresh) > 1 else ''} at {', '.join(map(str, fresh[:3]))} "
+                           "(your kill): a gloved monster can pick it up and hit you with it — every hit stones you. "
+                           "Take it (gloves on: pickup) or keep monsters away from it" if fresh else "")
         snap.held_trap = getattr(self, "held_trap", "") or ""
         snap.room_mem = dict(self.special_rooms.get(key, {})) if key is not None else {}
 
     # not a staircase trip: a hole you dug ('>' answered the dig direction), a trap door, a level teleport,
     # a fall, or the Amulet's mysterious force (1 in 4 climbs in Gehennom: you land somewhere on a DEEPER level)
     _NOT_STAIRS = re.compile(r"\bfall|\bhole\b|trap door|\bdig\b|dug|teleport|You float down|mysterious force", re.I)
+
+    # weapon.c/mhitu.c: a (gloved) monster that picked up a cockatrice corpse wields it — "The priestess of Moloch
+    # wields a cockatrice corpse!", "... swings her cockatrice corpse", "... hits you with the cockatrice corpse."
+    # Each hit starts STONING you (p2 shift 38 #560-#577: twice in 5 turns, both lizards used). The corpse rots
+    # away within ~250 turns of the cockatrice's death, in its hands too (timeout.c rot_corpse)
+    _TRICE_WIELD = re.compile(r"^(?:The |An? )?(?P<who>.+?) (?:wields (?:an? |the |\d+ )?(?:partly eaten )?|swings "
+                              r"(?:his|her|its) |hits you with (?:the|an?) )(?:cockatrice|chickatrice) corpses?\b")
+    TRICE_WIELD_TURNS = 300
+
+    def _note_trice_wielders(self, snap: Snap, messages: list) -> None:
+        if not snap.status.ok:
+            return
+        from .danger import base_name
+        for m in messages:
+            mm = self._TRICE_WIELD.match(m)
+            if mm and not mm.group("who").startswith(("You", "you")):
+                who = base_name(mm.group("who")) or mm.group("who")
+                self.trice_wielders.setdefault(self.level_key(snap.status), {})[who] = snap.status.turn
+
+    LEFT_BEHIND_TURNS = 3000
+
+    def _note_departure(self, cur: Snap, snap: Snap, data: bytes, old_key) -> None:
+        """Covetous monsters (the Wizard, liches, Vlad, quest nemeses, demon princes) seen on the level you just left
+        stay there — a wounded one heals on the up stairs (wizard.c tactics() STRAT_HEAL) — unless it was next to you
+        (dog.c levl_follower(): the Wizard always follows then). Filed per level; arriving on a level that holds one
+        sets snap.left_note, which pauses (p1 shift 40 #414/#634: twice the Wizard stood by the arrival stairs; the
+        second time he stole the Bell)."""
+        from .danger import base_name, covetous
+        if not old_key or not snap.status.ok or not cur.status.ok:
+            return
+        now, then = snap.status.turn, cur.status.turn or 0
+        recs = list((getattr(self.tracker, "recent", None) or {}).values()) if self.tracker is not None else []
+        recs += [dict(m, turn=then) for m in (cur.monsters or []) if m.get("desc")]
+        seen: dict = {}
+        for r in recs:
+            d = r.get("desc") or ""
+            if not d or d.startswith(("tame ", "peaceful ")) or r.get("statue"):
+                continue
+            name = base_name(d) or d
+            t = r.get("turn") or 0
+            if covetous(name) and then - t <= 300 and (name not in seen or t >= seen[name]["seen"]):
+                seen[name] = {"x": r["x"], "y": r["y"], "seen": t, "left": now, "ldesc": cur.status.ldesc}
+        store = self.left_behind.setdefault(old_key, {})
+        for name, e in seen.items():
+            if cur.hero is not None and e["seen"] >= then - 1 \
+                    and max(abs(e["x"] - cur.hero[0]), abs(e["y"] - cur.hero[1])) <= 1:
+                store.pop(name, None)            # next to you as you left: it came along
+            else:
+                store[name] = e
+        if not store:
+            self.left_behind.pop(old_key, None)
+        if seen:
+            self._save_left_behind()
+        # arriving: the stairs' known destination, else any level filed under this status line (Dlvl:N)
+        dest = (self.stair_links.get(old_key, {}).get(cur.hero) if cur.hero is not None else None)
+        waiting = {}
+        for key, ents in self.left_behind.items():
+            if key == old_key:
+                continue
+            for name, e in ents.items():
+                if (key == dest or e.get("ldesc") == snap.status.ldesc) and now is not None \
+                        and now - (e.get("left") or 0) <= self.LEFT_BEHIND_TURNS:
+                    waiting[name] = e
+        pre = getattr(self, "left_prewarned", None) or {}
+        if waiting and dest is not None and pre.get("dest") == dest and now is not None \
+                and 0 <= now - (pre.get("turn") or 0) <= 5:
+            waiting = {}                         # (go_up()/go_down() paused about it before the stairs)
+        if waiting:
+            snap.left_note = ("WAITING HERE: " + "; ".join(
+                f"the {n} you left on this level at T:{e['left']} (last seen at ({e['x']},{e['y']}), T:{e['seen']})"
+                for n, e in waiting.items())
+                + " — covetous monsters stay where they were (a wounded one heals on the up stairs) and come straight "
+                  "at you: full HP, blindfold for telepathy, fight from 6-8 squares off its stairs (covetous_ring()); "
+                  "leaving at once is an option")
+
+    def _save_left_behind(self) -> None:
+        mem = getattr(self, "memory", None)
+        st = getattr(mem, "state", None)
+        if isinstance(st, dict):
+            st["left_behind"] = {k: dict(v) for k, v in self.left_behind.items() if v}
+            try:
+                mem.save()
+            except Exception:  # noqa: BLE001
+                pass
 
     def _note_arrival(self, cur: Snap, snap: Snap, data: bytes, messages: list, old_key, moved: bool) -> None:
         """After '<'/'>' took you to another level: the staircase you arrived on is under you (the '@' hides

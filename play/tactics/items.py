@@ -417,26 +417,71 @@ _GLOW = [
     (r"glows? with a black aura", "now CURSED (it was uncursed)"),
     (r"glows? brown", "now UNCURSED (it was blessed)"),
     (r"^Interesting\.\.\.", "nothing happened (not water, or water that can't change it)"),
-    (r"gets? wet|dilute", "got wet/diluted (plain water)"),
-    (r"explode", "the potions EXPLODED"),
+    (r"explode", "the potions EXPLODED (both lost)"),
+    # potion.c dodip(), a potion into a DIFFERENT potion: mixtype() or a random result (p3 shift 20 #903: speed
+    # into fruit juice said "The mixture looks magenta." = booze, reported as "got wet/diluted (plain water)")
+    (r"mixture (?:glows brightly and )?evaporates", "MIXED: the mixture EVAPORATED (both potions lost)"),
+    (r"mixture bubbles", "MIXED into WATER (uncursed)"),
+    (r"mixture looks ", "MIXED into a NEW potion (diluted, uncursed; its colour is in the messages)"),
+    (r"potion (?:that you dipped into )?(?:turns [\w ]+|clears)\.$", "the POTION CHANGED (unicorn horn / amethyst "
+                                                                     "alchemy)"),
+    (r"gets? wet|^Your .+ dilutes?\b", "got wet/diluted (plain water)"),
 ]
+# potion.c mixtype(), for two identified potions (unordered); anything else mixes at random: 1/8 water,
+# 1/4 sickness, 1/8 a random potion, 1/2 evaporates — or always water when the dipped potion is diluted
+_HEAL = ("healing", "extra healing", "full healing")
+_MIXTYPE = {frozenset(("healing", "speed")): "extra healing"}
+for _g in ("gain level", "gain energy"):
+    _MIXTYPE.update({frozenset(("healing", _g)): "extra healing", frozenset(("extra healing", _g)): "full healing",
+                     frozenset(("full healing", _g)): "gain ability",
+                     frozenset(("confusion", _g)): "booze (2 in 3) or enlightenment",
+                     frozenset(("fruit juice", _g)): "see invisible", frozenset(("booze", _g)): "hallucination"})
+for _h in _HEAL:          # (the healing potions fall through to the unicorn-horn cases)
+    _MIXTYPE.update({frozenset((_h, "sickness")): "fruit juice", frozenset((_h, "hallucination")): "water",
+                     frozenset((_h, "blindness")): "water", frozenset((_h, "confusion")): "water"})
+_MIXTYPE.update({frozenset(("fruit juice", "sickness")): "sickness", frozenset(("fruit juice", "speed")): "booze",
+                 frozenset(("fruit juice", "enlightenment")): "booze",
+                 frozenset(("enlightenment", "levitation")): "gain level (2 in 3; else a random result)",
+                 frozenset(("enlightenment", "booze")): "confusion"})
 
 
-def dip_into(letter: str, potion: str, name: str | None = None) -> dict:
+def _potion_kind(text: str | None) -> str | None:
+    """'a blessed potion of speed' -> 'speed' (None for an unidentified or named-only potion)."""
+    m = re.search(r"\bpotions? of ([a-z ]+?)(?: (?:named|called)\b.*)?(?: \(.*\))?$", text or "")
+    return m.group(1).strip() if m else None
+
+
+def dip_into(letter: str, potion: str, name: str | None = None, force: bool = False) -> dict:
     """Dip inventory item `letter` into the potion `potion` with #dip (a
     fountain/pool here is declined). Holy water: a cursed item "glows amber"
     (now uncursed), an uncursed one "glows with a light blue aura" (now
     blessed); unholy water: "black aura" (cursed), a blessed item "glows
-    brown" (uncursed). The potion is used up; the "Call a clear potion:"
-    prompt that may follow is answered with `name` (or skipped with Esc —
-    clear potions are always water). Returns {"outcome", "messages",
-    "before", "after"} (the item's inventory text) and prints the outcome."""
+    brown" (uncursed). A potion into a different potion MIXES them (1 in 10
+    explodes — always when the dipped one is cursed or acid: refused unless
+    force=True); with both identified the mixtype() result is predicted
+    (speed + fruit juice = booze...). The potion is used up; the "Call a
+    clear potion:" prompt that may follow is answered with `name` (or skipped
+    with Esc — clear potions are always water). Returns {"outcome",
+    "messages", "before", "after", "expected"} (the item's inventory text)
+    and prints the outcome."""
     ctx.require_command("dip_into()")
     inv = inventory()
     before = next((it["text"] for it in inv if it["letter"] == letter), None)
     pot = next((it["text"] for it in inv if it["letter"] == potion), None)
     if before is None or pot is None:
         raise RuntimeError(f"dip_into: no item {letter!r} or no potion {potion!r} in the inventory")
+    expected = None
+    if re.search(r"\bpotions?\b", before) and not re.search(r"\bclear potion|potions? of water", pot):
+        k1, k2 = _potion_kind(before), _potion_kind(pot)
+        if (re.search(r"\bcursed\b", before) and not re.search(r"\buncursed\b", before) or k1 == "acid") \
+                and not force:
+            raise RuntimeError(f"dip_into: {letter} - {before} is {'ACID' if k1 == 'acid' else 'CURSED'}: dipped "
+                               "into another potion it ALWAYS explodes (potion.c dodip: both lost, 1-9 + N damage). "
+                               "force=True to do it anyway")
+        if k1 and k2 and k1 != k2:
+            expected = _MIXTYPE.get(frozenset((k1, k2)), "a RANDOM result (no recipe: 1/2 evaporates, 1/4 "
+                                                          "sickness, 1/8 water, 1/8 a random potion)")
+            print(f"dip_into: {k1} + {k2} -> expected {expected} (1 in 10 the mix explodes instead)")
     s = ctx.do("#dip<CR>", quiet=True)
     if s.state.kind != "object":
         if s.state.kind != "command":
@@ -457,14 +502,15 @@ def dip_into(letter: str, potion: str, name: str | None = None) -> dict:
     if s.state.kind == "getlin" and (s.state.prompt or "").startswith("Call "):
         s = ctx.do(f"{name}<CR>" if name else "<Esc>", quiet=True)
         msgs += s.messages
-    joined = " | ".join(msgs)
-    outcome = "; ".join(o for pat, o in _GLOW if re.search(pat, joined)) or \
+    outcome = "; ".join(o for pat, o in _GLOW if any(re.search(pat, m) for m in msgs)) or \
         ("no visible effect" if not msgs else "see messages")
+    if expected and outcome.startswith("MIXED into a NEW"):
+        outcome += f" — by the recipe: {expected}"
     after = None
     if s.state.kind == "command":
         after = next((it["text"] for it in inventory() if it["letter"] == letter), None)
     print(f"dip_into({letter!r}, {potion!r}): {outcome}" + (f"; now {after!r}" if after else ""))
-    return {"outcome": outcome, "messages": msgs, "before": before, "after": after}
+    return {"outcome": outcome, "messages": msgs, "before": before, "after": after, "expected": expected}
 
 
 _RUB = [
@@ -1013,15 +1059,17 @@ def _zero_nutrition(item: str) -> bool:
     return bool(rec) and rec.get("nutrition") == 0
 
 
-def eat(letter: str | None = None, pattern: str | None = None) -> list:
+def eat(letter: str | None = None, pattern: str | None = None, force: bool = False) -> list:
     """Eat inventory item `letter`, or (letter=None) the food on the floor
     here. NetHack first offers each floor corpse ("There is a jackal corpse
     here; eat it?"): with a letter those are declined; with `pattern` (a
     regex, e.g. eat(pattern='wraith corpse')) only a matching one is eaten
     (the others are declined). The harness guards still apply (deadly/old
     corpses, tins, Satiated) — except that a corpse with 0 nutrition (a
-    wraith's) can't choke you, so it is eaten while Satiated too. Returns
-    the messages — [] when nothing (matching) was on the floor to eat."""
+    wraith's) can't choke you, so it is eaten while Satiated too. force=True
+    passes the guards (the Satiated one: an emergency lizard — while Stoned
+    that one lets you eat anyway). Returns the messages — [] when nothing
+    (matching) was on the floor to eat."""
     ctx.require_command("eat()")
     rx = re.compile(pattern, re.I) if pattern else None
     zero_ok = False
@@ -1029,7 +1077,7 @@ def eat(letter: str | None = None, pattern: str | None = None) -> list:
         floor = here()
         hits = [t for t in re.split(r"\n|\s*\|\s*|(?<=\.)\s+", floor) if rx.search(t)]
         zero_ok = bool(hits) and all(_zero_nutrition(t) for t in hits)
-    s = ctx.do("e", quiet=True, force=zero_ok)
+    s = ctx.do("e", quiet=True, force=zero_ok or force)
     msgs = list(s.messages)
     current = ""
     for _ in range(12):
@@ -1051,7 +1099,7 @@ def eat(letter: str | None = None, pattern: str | None = None) -> list:
                                                       "food on the floor") + " here (pass an inventory letter "
                       "to eat from your pack)")
                 return []
-            s = ctx.do(letter, quiet=True)
+            s = ctx.do(letter, quiet=True, force=force)
         elif k in ("yn", "getlin") and "Continue eating" in p:
             if _zero_nutrition(current):
                 s = ctx.do("y", quiet=True, force=True)   # 0 nutrition: nothing to choke on (a wraith: its level)

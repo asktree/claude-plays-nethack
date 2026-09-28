@@ -1852,3 +1852,66 @@ def test_curse_suspects_drop_items_no_longer_carried():
     g._note_theft(["You put a papyrus spellbook into the bag of holding."], 101)
     g._note_theft(["The water nymph stole a ring."], 102)
     assert g.unknown_buc == []
+
+
+def test_melee_kill_names_the_square_hit():
+    # p3 shift 20 #257: the kill of one of two fire giants was filed on the other one's square; the step
+    # itself knows the square the blow went to
+    from nh.game import Game, Snap, Timing
+    from nh.parse import classify, parse_status
+    g = Game(term=None, timing=Timing.local())
+    base = {5: "          @H", 22: STATUS1, 23: "Dlvl:1 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    scr = mk(base, cursor=(10, 5))
+    g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
+
+    def fake_send(data):
+        rows = dict(base)
+        rows[0] = "You kill the fire giant!"
+        rows[5] = "          @%"
+        s2 = mk(rows, cursor=(10, 5))
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send
+    s = g.step("Fl")
+    assert s.melee_kill == ("fire giant", (11, 5))
+    s = g.step("Fl")                          # (the same text again: still that square)
+    assert s.melee_kill == ("fire giant", (11, 5))
+
+    def fake_send2(data):
+        rows = dict(base)
+        rows[0] = "You kill it!"
+        s2 = mk(rows, cursor=(10, 5))
+        return Snap(screen=s2, state=classify(s2), status=parse_status(s2))
+    g.send_bytes = fake_send2
+    assert g.step("Fl").melee_kill is None    # (unseen: the 'it' record handles it)
+
+
+def test_covetous_monster_left_on_a_level_is_announced_on_return():
+    # p1 shift 40 #414/#634: the Wizard shed on a level waited by the arrival stairs; no warning, and he stole the Bell
+    from types import SimpleNamespace
+    from nh.game import Game, Snap, Timing
+    from nh.parse import State, Status
+    g = Game(term=None, timing=Timing.local())
+    g.tracker = SimpleNamespace(recent={7: {"desc": "invisible Wizard of Yendor", "x": 25, "y": 10, "turn": 30120}})
+
+    def sn(ldesc, turn, hero):
+        scr = mk({hero[1]: " " * hero[0] + "@", 22: STATUS1,
+                  23: f"{ldesc} $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:{turn}"}, cursor=hero)
+        return Snap(screen=scr, state=State("command"), status=Status(ok=True, ldesc=ldesc, turn=turn))
+    cur, snap = sn("Dlvl:38", 30121, (19, 8)), sn("Dlvl:39", 30122, (40, 12))
+    assert cur.hero == (19, 8)
+    g._note_departure(cur, snap, b">", "Dlvl:38")
+    assert g.left_behind["Dlvl:38"]["Wizard of Yendor"]["x"] == 25 and not snap.left_note
+    # back up: the arrival pauses with it
+    g.tracker.recent = {}
+    cur2, snap2 = sn("Dlvl:39", 30200, (40, 12)), sn("Dlvl:38", 30201, (19, 8))
+    g._note_departure(cur2, snap2, b"<", "Dlvl:39")
+    assert "WAITING HERE: the Wizard of Yendor you left on this level at T:30122" in snap2.left_note
+    # killing him there forgets it
+    g.last = snap2
+    g.record_kill("Wizard of Yendor", (20, 8), 30210)
+    assert "Dlvl:38" not in g.left_behind
+    # next to you as you leave: he follows (not left behind)
+    g.tracker.recent = {9: {"desc": "Wizard of Yendor", "x": 20, "y": 8, "turn": 30300}}
+    cur3, snap3 = sn("Dlvl:38", 30300, (19, 8)), sn("Dlvl:39", 30301, (40, 12))
+    g._note_departure(cur3, snap3, b">", "Dlvl:38")
+    assert "Dlvl:38" not in g.left_behind

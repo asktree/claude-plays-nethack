@@ -147,6 +147,7 @@ DEFAULT_BENIGN = [re.compile(p) for p in (
     # (new monsters, "monsters are aware of your presence") that pauses by itself
     r"^(?!You )(?:The |An? )?[\w' -]+ casts a spell!$",
     r"^You feel yourself slowing down a bit\.$",     # a temporary speed-up ended; intrinsic speed remains
+    r"^You feel vaguely nervous\.$",   # wizard.c intervene() cases 0-1: flavour only (the other cases pause)
     # a light source burning down (timeout.c burn_object()); "has gone out" still pauses
     r"^Your .+ flickers(?: considerably)?\.$", r"^Your .+ seems? about to go out\.$",
     r"^Your .+ flames? flickers? low!$",
@@ -708,6 +709,8 @@ class Kernel:
                                   ". Suspects (B/U/C unknown at the last inventory()): " + ", ".join(sus[:14])
                                   + (f" (+{len(sus) - 14} more)" if len(sus) > 14 else "") if sus else
                                   ". Run inventory(): only the items without a B/U/C shown can have been hit"))
+        if getattr(snap, "left_note", ""):
+            reasons.insert(0, snap.left_note)
         if any(m.startswith("Your medallion ") or m.startswith("The medallion crumbles") for m in snap.messages):
             # end.c done(): you died and the amulet of life saving brought you back at full HP (Con -1)
             reasons.insert(0, "LIFE SAVED — you DIED and your amulet of life saving is used up (full HP now, Con -1): "
@@ -781,8 +784,12 @@ class Kernel:
             if snap.monsters:
                 new = [m for m in snap.monsters if m.get("new") and not m.get("statue")
                        and not m.get("tame") and not m.get("peaceful")]
-                burst = [m for m in new if m.get("dist") is not None and m["dist"] <= 2]
-                if len(burst) >= 3:
+                burst = [m for m in new if m.get("dist") is not None and m["dist"] <= 2 and m["ch"] != "~"]
+                # (not when this step changed what you perceive: p1 shift 40 #248 — putting on a blindfold made
+                # the invisible Wizard and a long worm's tail 'appear' through telepathy)
+                sight = before is not None and before.status.ok and snap.status.ok \
+                    and ("Blind" in snap.status.conditions) != ("Blind" in before.status.conditions)
+                if len(burst) >= 3 and not sight:
                     # wizard.c nasty() / a demon gate / create monster: several monsters appear around you at once
                     # with no message (p2 shift 36 #389: a storm giant, umber hulk, silver dragon and Aleax)
                     how = next((m for m in snap.messages if re.search(

@@ -144,6 +144,10 @@ class Tracker:
                 game.desmap_ids.setdefault(key, dict(lv["desmap"]))
             if lv.get("flags") and hasattr(game, "level_flags"):
                 game.level_flags.setdefault(key, set()).update(lv["flags"])
+        if isinstance(self.state.get("left_behind"), dict) and isinstance(getattr(game, "left_behind", None), dict):
+            # covetous monsters left on other levels (game._note_departure)
+            for key, ents in self.state["left_behind"].items():
+                game.left_behind.setdefault(key, {}).update(ents or {})
             if lv.get("stairs_to") and hasattr(game, "stair_links"):
                 game.stair_links[key] = {tuple(int(v) for v in c.split(",")): dest
                                          for c, dest in lv["stairs_to"].items()}

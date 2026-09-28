@@ -104,6 +104,8 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
         lines.append(f"!! {snap.wield_note}")
     if getattr(snap, "theft_note", ""):
         lines.append(f"!! {snap.theft_note}")
+    if getattr(snap, "left_note", ""):
+        lines.append(f"!! {snap.left_note}")
     if getattr(snap, "charm_note", ""):
         lines.append(f"!! {snap.charm_note}")
     if getattr(snap, "pet_note", "") and snap.state.kind == "command":
@@ -117,6 +119,9 @@ def render(snap: Snap, mode: str = "crop", radius: int = 6, mons: list[dict] | N
     burn_warn = getattr(snap, "burn_note", "")
     if burn_warn and snap.state.kind == "command":
         lines.append(f"!! {burn_warn}")
+    trice_warn = getattr(snap, "trice_note", "")
+    if trice_warn and snap.state.kind == "command":
+        lines.append(f"!! {trice_warn}")
     k = snap.state.kind
     if k != "command":
         if snap.state.prompt:

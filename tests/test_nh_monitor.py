@@ -1455,3 +1455,44 @@ def test_summoned_burst_is_named():
                                                       ("D", 0, 1, "silver dragon"), ("A", 0, -1, "Aleax")])]
     k._check_events(b, a)
     assert reasons and reasons[-1].startswith("SUMMONED: 4 monsters appeared right around you")
+    # p1 shift 40 #248: a blindfold just went on — telepathy shows what was there all along
+    reasons.clear()
+    b.status.conditions, a.status.conditions = [], ["Blind"]
+    k._check_events(b, a)
+    assert not any(r.startswith("SUMMONED") for r in reasons)
+
+
+def test_melee_kill_of_one_twin_is_filed_on_the_square_hit():
+    # p3 shift 20 #257: two fire giants; the one at (46,13) dies, the other steps next to where it stood
+    # and inherits its record — the vanished record is the survivor's old square (45,12)
+    g = FakeGame()
+    kills = []
+    g.record_kill = lambda name, cell, turn: kills.append((name, cell, turn))
+    t = MonsterTracker(g)
+    g.truth = {(45, 12): "fire giant", (46, 13): "fire giant"}
+    t.update(snap({(45, 12): "H", (46, 13): "H"}, 100))
+    g.truth = {(47, 13): "fire giant"}
+    s = snap({(47, 13): "H"}, 101)
+    s.messages = ["You kill the fire giant!"]
+    s.melee_kill = ("fire giant", (46, 13))
+    t.update(s)
+    assert kills == [("fire giant", (46, 13), 101)]
+
+
+def test_cockatrice_corpse_wielder_gets_a_lethal_note():
+    # p2 shift 38 #560-#577: a priestess of Moloch picked up the cockatrice corpse and stoned the hero twice
+    from nh.game import Game, Timing
+    g0 = Game(term=None, timing=Timing.local())
+    for msg in ("The priestess of Moloch wields a cockatrice corpse!", "The priestess of Moloch swings her "
+                "cockatrice corpse.", "The priestess of Moloch hits you with the cockatrice corpse."):
+        mm = g0._TRICE_WIELD.match(msg)
+        assert mm and mm.group("who") == "priestess of Moloch"
+    assert not g0._TRICE_WIELD.match("The priestess of Moloch wields a mace!")
+    g = FakeGame()
+    t = MonsterTracker(g)
+    g.truth = {(41, 10): "priestess of Moloch"}
+    s = snap({(41, 10): "@"}, 100)
+    from nh.danger import base_name
+    s.trice_wielders = {base_name("priestess of Moloch"): 99}      # (as game._note_trice_wielders files it)
+    m = t.update(s)[0]
+    assert m["note"].startswith("!! WIELDS A COCKATRICE CORPSE (T:99)")

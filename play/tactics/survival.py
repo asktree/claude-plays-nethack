@@ -501,12 +501,39 @@ _OFFER_OUTCOMES = [
     (r"feeling of reconciliation", "the prayer timeout is now 0"),
     (r"hopeful feeling", "the prayer timeout went down (not yet 0) — or your god's anger lessened"),
     (r"partially absolved", "your alignment improved (it was negative)"),
+    (r"seems (?:slightly )?mollified", "your god's ANGER lessened"),
+    (r"feeling of inadequacy", "your god is still ANGRY (that sacrifice wasn't enough)"),
     (r"insult to|infamous offense|repay loyalty|You feel guilty", "BAD: an offense (-alignment/-Luck)"),
+    (r"power of .+ increase", "a CROSS-ALIGNED altar: it is now your god's (Luck +1; a temple priest there "
+                              "turns hostile)"),
+    (r"power of .+ decrease", "BAD: a CROSS-ALIGNED altar resisted (Luck -1)"),
+    (r"sense a conflict", "a CROSS-ALIGNED altar"),
     (r"^Nothing happens", "nothing: the corpse was too old (more than 50 turns) or worthless"),
-    (r"is consumed in a (?:flash of light|burst of flame)", "accepted, no visible effect (Luck already high?)"),
 ]
+# pray.c dosacrifice() on a co-aligned altar with your god not angry: a nonzero prayer timeout ALWAYS prints
+# "hopeful feeling" / "reconciliation" (every corpse takes >= 12 off it), so a sacrifice that only says it
+# was consumed means the timeout was already 0 — and Luck didn't move (at its maximum, or a weak corpse)
+_SILENT_OFFER = re.compile(r"is consumed in a (?:flash of light|burst of flame)|^Your sacrifice disappears")
+_SILENT_OUTCOME = ("the prayer timeout is 0 (proven: a sacrifice that prints nothing but 'consumed' only happens "
+                   "at timeout 0 — recorded for prayer_check())")
 _OWN_RACE = ("dwarf", "dwarf lord", "dwarf king", "dwarf mummy", "dwarf zombie")    # M2_DWARF: our race
 _UNICORN_ALIGN = {"white unicorn": "lawful", "gray unicorn": "neutral", "black unicorn": "chaotic"}
+
+
+def _note_prayer_evidence(turn, kind: str) -> None:
+    """Add {"turn", "kind"} to the harness memory's prayer_evidence (tracker.py fills it from messages;
+    this is for what only a helper can tell, e.g. a silent sacrifice)."""
+    mem = getattr(getattr(ctx, "game", None), "memory", None)
+    st = getattr(mem, "state", None)
+    if not isinstance(st, dict) or turn is None:
+        return
+    ev = st.setdefault("prayer_evidence", [])
+    if not ev or ev[-1] != {"turn": turn, "kind": kind}:
+        ev.append({"turn": turn, "kind": kind})
+        try:
+            mem.save()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def offer(pattern: str | None = None, max_age: int = 50, letter: str | None = None) -> dict:
@@ -563,12 +590,19 @@ def offer(pattern: str | None = None, max_age: int = 50, letter: str | None = No
             s = ctx.do("n", quiet=True)
         else:
             offered = name
-            s = ctx.do("y", ok=[p for p, _ in _OFFER_OUTCOMES])
+            s = ctx.do("y", ok=[p for p, _ in _OFFER_OUTCOMES] + [_SILENT_OFFER.pattern])
         msgs += s.messages
     if s.state.kind != "command":
         ctx.do("<Esc>", quiet=True)
     joined = " | ".join(msgs)
-    outcome = next((o for pat, o in _OFFER_OUTCOMES if re.search(pat, joined)), "")
+    outcome = next((o for pat, o in _OFFER_OUTCOMES if any(re.search(pat, m) for m in msgs)), "")
+    if offered and not outcome and any(_SILENT_OFFER.search(m) for m in msgs):
+        st = ctx.last().status
+        if "Hallu" in " ".join(st.conditions or []):
+            outcome = "accepted (hallucinating: the messages can't be trusted)"
+        else:
+            outcome = _SILENT_OUTCOME
+            _note_prayer_evidence(st.turn, "zero")
     if not offered:
         outcome = "nothing offered" + (f" ({msgs[-1]})" if msgs else "")
     print(f"offer(): {offered or '-'}: {outcome}")

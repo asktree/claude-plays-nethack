@@ -586,6 +586,24 @@ def test_bad_squares_keep_a_margin_round_a_hiding_trapper(monkeypatch):
     assert (33, 12) not in nav.bad_squares(s)
 
 
+def test_travel_passes_a_hidden_hider_when_it_is_the_only_way(monkeypatch):
+    # p2 shift 38 #491: the margin of a hidden lurker above covered the only corridor, and travel() refused
+    from tactics import ctx, nav
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(nav, "special_room_zone", lambda s: {})
+    lurker = {"x": 36, "y": 11, "ch": "t", "desc": "lurker above, hiding on the ceiling", "dist": 5}
+    rows = {11: " " * 34 + "|.t", 12: " " * 30 + "#######"}      # the corridor passes under the lurker
+    s = _snap(rows, (30, 12), [lurker])
+    s.status.turn = 100
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    walked = []
+    monkeypatch.setattr(nav, "walk_path", lambda path, **kw: walked.append(list(path)) or s)
+    nav._travel(36, 12, 40, None, 3, None, False)
+    assert walked and walked[0][-1] == (36, 12) and (36, 11) not in walked[0]    # (never onto the lurker)
+
+
 def test_pickup_declines_a_lift_that_would_stress_you(monkeypatch):
     # p3 shift 18 #933: pickup('corpse') left "You have extreme difficulty lifting a warhorse corpse.  Continue?"
     # open and paused as "unexpected yn"
@@ -777,6 +795,43 @@ def test_offer_skips_own_race_and_records_outcome(monkeypatch):
     r = survival.offer()
     assert sent == ["#offer<CR>", "n", "y"] and r["offered"] == "jackal"
     assert "prayer timeout is 0" in r["outcome"]
+
+
+def test_silent_sacrifice_proves_timeout_zero(monkeypatch):
+    # p3 shift 20 #43-#60: a co-aligned sacrifice that only says "consumed" happens only at timeout 0 (pray.c:
+    # a nonzero timeout always prints hopeful/reconciliation) — prayer_check() must learn it
+    from nh.parse import State
+    from tactics import ctx, survival
+
+    class Mem:
+        def __init__(self):
+            self.state, self.saved = {}, 0
+
+        def save(self):
+            self.saved += 1
+    g = _G()
+    g.memory = Mem()
+    monkeypatch.setattr(ctx, "game", g)
+    base = _snap({}, (10, 5), [])
+    base.under = "_"
+    base.status.turn = 19085
+    q = _snap({}, (10, 5), [])
+    q.state = State("yn", prompt="There is a xorn corpse here; sacrifice it? [ynq] (q)")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["Your sacrifice is consumed in a flash of light!"]
+    seq = iter([q, done])
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: next(seq))
+    monkeypatch.setattr(ctx, "last", lambda: base)
+    r = survival.offer()
+    assert "timeout is 0" in r["outcome"]
+    assert g.memory.state["prayer_evidence"] == [{"turn": 19085, "kind": "zero"}] and g.memory.saved == 1
+    # a cross-aligned altar says so (and is not evidence)
+    g.memory = Mem()
+    done.messages = ["Your sacrifice is consumed in a flash of light!", "You sense a conflict between Tyr and Loki.",
+                     "Unluckily, you feel the power of Tyr decrease."]
+    seq = iter([q, done])
+    r = survival.offer()
+    assert "CROSS-ALIGNED" in r["outcome"] and "BAD" in r["outcome"] and not g.memory.state
 
 
 def test_travel_keeps_away_from_exploders(monkeypatch):
@@ -1827,6 +1882,36 @@ def test_fight_until_clear_holds_the_square(monkeypatch):
     assert r["reason"] == "held" and sent == ["s"] * 5
     sent.clear()
     assert combat.fight_until_clear()["reason"].startswith("clear") and sent == []
+
+
+def test_fight_until_clear_hold_ignores_the_ignored_and_hidden_hiders(monkeypatch):
+    # p2 shift 38 #526/#532/#623: holds ended "not coming" for ignored sessile hiders; a hidden lurker next to
+    # you must not be searched out
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    turn = {"t": 100}
+    lurker = {"x": 11, "y": 5, "ch": "t", "desc": "lurker above, hiding on the ceiling", "dist": 1}
+    bat = {"x": 13, "y": 5, "ch": "B", "desc": "vampire bat", "dist": 3}
+
+    def snap_now():
+        s = _snap({5: "        ....."}, (10, 5), [dict(lurker), dict(bat)])
+        s.status.turn, s.status.hp, s.status.hpmax = turn["t"], 50, 50
+        return s
+    cur = {"s": snap_now()}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        turn["t"] += 1
+        cur["s"] = snap_now()
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(combat, "fight", lambda **kw: cur["s"])
+    r = combat.fight_until_clear(radius=4, hold=5, ignore=("vampire bat",))
+    assert r["reason"] == "held" and sent == ["."] * 5      # never 's' next to the hidden lurker
 
 
 def test_fight_until_clear_passes_near_water_to_fight(monkeypatch):
@@ -3707,6 +3792,39 @@ def test_trek_crosses_a_trap_its_colour_names(monkeypatch):
     assert (12, 5) in calls and cur["s"].hero == (14, 5)
 
 
+def test_trek_crosses_an_unknown_type_trap_when_allowed(monkeypatch):
+    # p1 shift 40 #216: gold lay on a rust trap: no name entry, so no cross_traps value could allow it
+    import pytest
+    from tactics import ctx, nav
+    g = _G()
+    g.traps = {"L": {(12, 5)}}
+    monkeypatch.setattr(ctx, "game", g)
+    rows = {4: "        --------", 5: "        |...$..|", 6: "        --------"}
+    cur = {"s": _snap(rows, (10, 5), [])}
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: cur["s"])
+    assert nav._trap_names(cur["s"]) == {}
+    calls = []
+
+    def move(x, y, **kw):
+        calls.append((x, y))
+        s = _snap(rows, (x, y), [])
+        s.status = cur["s"].status
+        cur["s"] = s
+        return s
+    monkeypatch.setattr(nav, "travel", move)
+    monkeypatch.setattr(nav, "step_onto", move)
+    with pytest.raises(nav.NavError, match=r"cross_traps=\['unknown'\]"):
+        nav.trek(14, 5, cross_traps=["rust trap"])
+    nav.trek(14, 5, cross_traps=["rust trap", "unknown"])
+    assert (12, 5) in calls and cur["s"].hero == (14, 5)
+    cur["s"], calls[:] = _snap(rows, (10, 5), []), []
+    cur["s"].status = Status(ok=True, hp=100, hpmax=100)
+    nav.trek(14, 5, cross_traps=[(12, 5)])           # or the square itself
+    assert (12, 5) in calls and cur["s"].hero == (14, 5)
+
+
 def test_go_up_uses_the_fixed_maps_stairs_when_none_is_seen(monkeypatch):
     # p3 shift 14 #2609: go_up() on the identified Mines' End raised "no '<' known"
     import pytest
@@ -5015,3 +5133,38 @@ def test_trek_no_way_names_the_doors(monkeypatch):
     s = _snap({5: "   ....", 8: "   ....|"}, (4, 5), [])
     msg = nav._trek_blocked(s, (60, 20), set(), set(), {})
     assert "no known way" in msg and "(8, 8) LOCKED" in msg and "unlock()" in msg
+
+
+def test_dip_into_reports_potion_mixtures(monkeypatch):
+    # p3 shift 20 #903: speed into fruit juice ("The mixture looks magenta." + "Y - a diluted magenta potion.")
+    # was reported as "got wet/diluted (plain water)"
+    import pytest
+    from nh.parse import State
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    base = _snap({}, (10, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: base)
+    inv = [{"letter": "Y", "text": "an uncursed potion of speed"},
+           {"letter": "Q", "text": "an uncursed potion of fruit juice"}]
+    monkeypatch.setattr(items, "inventory", lambda: inv)
+    what = _snap({}, (10, 5), [])
+    what.state = State("object", prompt="What do you want to dip? [QY or ?*]")
+    into = _snap({}, (10, 5), [])
+    into.state = State("object", prompt="What do you want to dip the potion of speed into? [Q or ?*]")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["The potion of speed mixes with the potion of fruit juice...", "The mixture looks magenta.",
+                     "Y - a diluted magenta potion."]
+    seq = iter([what, into, done])
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: next(seq))
+    r = items.dip_into("Y", "Q")
+    assert r["expected"] == "booze"
+    assert r["outcome"].startswith("MIXED into a NEW potion") and "booze" in r["outcome"] and "wet" not in r["outcome"]
+    # a cursed potion always explodes: refused up front
+    inv[0]["text"] = "a cursed potion of speed"
+    with pytest.raises(RuntimeError, match="ALWAYS explodes"):
+        items.dip_into("Y", "Q")
+    # plain water dilution is still reported as such
+    inv[0]["text"], inv[1]["text"] = "an uncursed potion of speed", "an uncursed clear potion"
+    done.messages = ["Your potion of speed dilutes."]
+    seq = iter([what, into, done])
+    assert items.dip_into("Y", "Q")["outcome"] == "got wet/diluted (plain water)"

@@ -135,8 +135,10 @@ def bad_squares(s=None) -> set:
 
 def hider_margin(s=None) -> set:
     """The squares next to a HIDING trapper / lurker above known from telepathy or a scan (in view now or seen
-    lately): harmless only while hidden, and your search or Excalibur's autosearch un-hides it next to you — it
-    engulfs at once (p2 shift 35 #57/#61: desmap.walk passed beside one in the wizard2 zoo)."""
+    lately): harmless only while hidden (mon.c movemon() skips its turns), but an explicit search ('s') or the
+    WARNING intrinsic (detect.c warnreveal(), each turn) un-hides it next to you — it engulfs at once (p2 shift 35
+    #57/#61: desmap.walk passed beside one in the wizard2 zoo). Excalibur's autosearch doesn't find monsters
+    (dosearch0 aflag). travel() prefers routes outside the margin and crosses it only when it is the only way."""
     from nh.danger import base_name
     s = s or ctx.last()
     recs = list(s.monsters or [])
@@ -767,22 +769,35 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
     """travel() to (x, y) that may CROSS known traps when no way around
     them is known: travel to the square before each one, then step onto it
     (step_onto). cross_traps=True: the types trap_crossable() allows for you
-    now; or a list of trap names ('dart trap', 'rust trap'...) to allow. A
-    route around the traps is always preferred. Returns the final Snap;
-    NavError when even crossing the allowed traps finds no way."""
+    now; or a list of trap names ('dart trap', 'rust trap'...) to allow,
+    'unknown' for known traps whose type the harness never learned (an object
+    hides the '^'), and/or squares (x, y) to allow whatever they are. A route
+    around the traps is always preferred. Returns the final Snap; NavError
+    when even crossing the allowed traps finds no way."""
     goal = (x, y)
     s = ctx.require_command("trek()")
+    extra = () if cross_traps is True else tuple(cross_traps or ())
+    sq_ok = {tuple(c) for c in extra if isinstance(c, (tuple, list))}
+    names_ok = {str(c).lower().strip() for c in extra if isinstance(c, str)}
+    # (p1 shift 40 #216: gold covered a rust trap, so no name could allow it — '' / 'unknown' / 'trap' now do)
+    unknown_ok = bool(names_ok & {"", "unknown", "trap", "unknown trap"})
 
     def ok(c, names, st):
+        if c in sq_ok:
+            return True
         d = names.get(c)
-        return d is not None and (trap_crossable(d, st) if cross_traps is True else d in tuple(cross_traps or ()))
+        if d is None:
+            if not (unknown_ok and st.ok):
+                return False
+            return c in set(ctx.game.traps.get(ctx.game.level_key(st), ()))
+        return trap_crossable(d, st) if cross_traps is True else d.lower() in names_ok
 
     def finish(s):
         # (a crossable trap as the goal itself — a frontier behind nothing but it: step onto it at the end)
         names = _trap_names(s)
         if s.hero is not None and s.hero != goal and max(abs(s.hero[0] - x), abs(s.hero[1] - y)) == 1 \
                 and ok(goal, names, s.status):
-            print(f"trek: stepping onto the {names[goal]} at {goal}")
+            print(f"trek: stepping onto the {names.get(goal) or 'trap of unknown type'} at {goal}")
             s = step_onto(x, y, risky=True)       # (trap_crossable() or your cross_traps list allowed it)
         return s
     for _ in range(max_legs):
@@ -802,7 +817,7 @@ def trek(x: int, y: int, cross_traps=True, max_legs: int = 30):
         if idx is None:
             return finish(travel(x, y))
         if idx == 0:
-            print(f"trek: stepping onto the {names[path[0]]} at {path[0]}")
+            print(f"trek: stepping onto the {names.get(path[0]) or 'trap of unknown type'} at {path[0]}")
             s = step_onto(*path[0], risky=True)
             continue
         s = travel(*path[idx - 1])
@@ -845,11 +860,11 @@ def _trek_blocked(s, goal, bad, allow, names) -> str:
                 if c in fd:
                     return fd[c]
                 return ("a square you asked to avoid" if c in av else
-                        "a known trap of unknown type (an object or a monster hides its '^': look at it with ';', "
-                        "or #terrain)")
+                        "a known trap of unknown type (an object or a monster hides its '^': cross_traps=['unknown'] "
+                        f"or cross_traps=[{c}] allows it)")
             return (f"trek{goal}: the only way crosses " + ", ".join(f"{c} {what(c)}" for c in tr[:4])
-                    + " — not allowed for you now (trap_crossable() says why; cross_traps=['<name>'] to cross "
-                      "it anyway, or find another way)")
+                    + " — not allowed for you now (trap_crossable() says why; cross_traps=['<name>'] or the "
+                      "square (x, y) to cross it anyway, or find another way)")
     blocking = sorted(c for c in bad if c in names)
     # a closed/locked door counts as a wall for the planner (p1 shift 39 #449: the Valley's door A, locked by the
     # player, was the real blocker and the message only listed traps)
@@ -1553,6 +1568,20 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
                     print(f"travel: the only known way crosses the squeaky board(s) {on} — harmless (it squeaks "
                           "and wakes monsters nearby): walking over")
                     return _walk_over(over, boards)
+                margin = hider_margin(cur) - {cur.hero}
+                if detour is None and margin:
+                    # a HIDDEN trapper/lurker above never acts until something finds it: an explicit search, or
+                    # the Warning intrinsic next to it (detect.c warnreveal; Excalibur's autosearch doesn't —
+                    # dosearch0 aflag). Prefer the margin, but don't refuse the only corridor (p2 shift 38 #491)
+                    over = bfs_path(cur, cur.hero, (x, y), avoid=frozenset(bad - margin), allow_monsters=False,
+                                    allow_pets=True)
+                    if over is not None:
+                        eel_guard(over)
+                        near = sorted({c for c in over if c in margin})
+                        print(f"travel: the only known way passes next to a HIDDEN trapper/lurker above ({near[:4]}): "
+                              "walking on without stopping — never search ('s') there; with WARNING it un-hides next "
+                              "to you ('Your warning senses...') and engulfs: fight() from inside")
+                        return walk_path(over)
                 if detour is None:
                     manual = set(ctx.game.avoid.get(ctx.game.level_key(cur.status), set()))
                     zone = set(special_room_zone(cur))
@@ -2352,6 +2381,7 @@ def _use_stairs(ch: str, tries: int = 4, wait_pet: int = 0, to: str | None = Non
                              "turn": s.status.turn if s.status.ok else None, "desc": left["desc"], "at": left["at"]}
         print(f"stairs: your pet ({left['desc']}) is not next to you — taking the {ch} without it (it stays on "
               "this level)")
+    _left_behind_pause("go_down()" if ch == ">" else "go_up()", s)
     ld0 = s.status.ldesc if s.status.ok else None
     d0 = s.status.dlvl if s.status.ok else None
     s = ctx.do(ch, expect=("level",), ok=_STAIRS_OK)   # the level change is the point: no pause for it
@@ -2504,6 +2534,32 @@ def castle_below(s=None) -> str:
             "moat (giant eels, sharks): ~50 soldiers, dragons, liches, xorns; the drawbridge opens to the "
             "passtune or breaks to force bolt/striking. Go with magic resistance and reflection, full HP, "
             "escapes ready")
+
+
+_LEFT_WARNED: set = set()
+
+
+def _left_behind_pause(who: str, s=None) -> None:
+    """Before taking stairs whose other end is known: covetous monsters you left on that level wait there
+    (game._note_departure) — pause once per departure turn (p1 shift 40 #414/#634: the Wizard was next to the
+    arrival stairs both times). cont goes on."""
+    s = s or ctx.last()
+    lb = getattr(ctx.game, "left_behind", None) or {}
+    if not lb or s.hero is None or not s.status.ok:
+        return
+    dest = (getattr(ctx.game, "stair_links", None) or {}).get(ctx.game.level_key(s.status), {}).get(s.hero)
+    ents = lb.get(dest) or {}
+    now = s.status.turn or 0
+    waiting = {n: e for n, e in ents.items() if now - (e.get("left") or 0) <= 3000}
+    if not waiting or (dest, now) in _LEFT_WARNED:
+        return
+    _LEFT_WARNED.add((dest, now))
+    ctx.game.left_prewarned = {"dest": dest, "turn": now}     # (the arrival then doesn't pause again)
+    ctx.pause(f"{who}: the level these stairs lead to ({dest}) holds " + "; ".join(
+        f"the {n} you left there at T:{e.get('left')} (last seen at ({e.get('x')},{e.get('y')}))"
+        for n, e in waiting.items())
+        + " — covetous: it waits (a wounded one on the up stairs) and comes at you on arrival. Arrive at full HP, "
+          "blindfold on for telepathy, ready to fight or leave. cont goes on.")
 
 
 def castle_pause(who: str, s=None) -> None:

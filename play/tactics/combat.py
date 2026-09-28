@@ -21,6 +21,9 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r"^A field of force surrounds you!$", r"^Your position suddenly seems very uncertain!$",
            r"^A mysterious force prevents you from teleporting!$", r"^You can hear again\.$",
            r"^Nothing seems to happen\.$",
+           # (p1 shift 40 #676/#679 in a hold loop) an intervention's flavour line; a spell of aggravation
+           # (every monster on the level wakes and comes: what a hold is for)
+           r"^You feel (?:vaguely nervous|that monsters are aware of your presence)\.$",
            r"^The .* (turns to flee|is killed|dies)", r"^You hear some noises", r"^Welcome to experience level",
            # the target stepped away before the blow (hack.c domove, F into an empty square); a monster
            # healing itself or reading itself away (muse.c) — fight() sees what's left and decides
@@ -31,7 +34,8 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            # hit side effects that the HP check already covers
            r"^You get zapped!$", r"^You are (?:stung|bitten|kicked|butted)",
            # weapon-wielding monsters announce each swing (mhitu.c); leg attacks (xan)
-           r"^The .+ (?:swings|thrusts) (?:his|her|its) ", r" pricks your (?:left |right )?leg!$",
+           r"^The .+ (?:swings|thrusts) (?:his|her|its) (?!(?:cockatrice|chickatrice) corpse)",
+           r" pricks your (?:left |right )?leg!$",
            # ranged/weapon flavour (the damage, if any, is caught by the HP checks); thefts still pause
            # (never "wields a cockatrice corpse": a gloved monster hitting you with one stones you)
            r"^The .+ wields (?:an? |the |\d+ )(?!.*\b(?:cockatrice|chickatrice) corpse)",
@@ -52,7 +56,14 @@ ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misse
            r" casts a spell(?: at [\w' -]+)?!$", r"^Your skin itches", r"^You are hit by a shower of missiles",
            r"^The missiles bounce off", r"^You stiffen briefly", r"^A bolt of lightning strikes down at you",
            r"^It bounces off your ", r"^A pillar of fire strikes all around you", r"^You are uninjured\.",
-           r"^A sudden geyser slams into you", r"^Your body is covered with deadly wounds", r" looks better\.$",
+           r"^A sudden geyser slams into you", r"^Your body is covered with (?:deadly|painful) wounds",
+           r" looks better\.$",
+           # a priest's spells (mcastu.c CLC_OPEN_WOUNDS / CLC_BLIND_YOU — the Blind status still pauses), a monster
+           # reading/zapping aggravation at you (muse.c you_aggravate), a monster's cursed weapon welding (weapon.c)
+           # — p2 shift 38 #229-#287 needed ~40 -a patterns for the Sanctum's priests
+           r"^(?:Severe )?[Ww]ounds appear on your body!$", r"^Scales cover your [\w ]+!$",
+           r"^For some reason, .+ presence is known to you\.$", r"^You feel aggravated at .+\.$",
+           r" welds? (?:itself|themselves) to .+ hands?!$",
            r"^Your armor is covered with water", r"^You feel a malignant aura surround you\.$",
            # a temple priest hit in its temple: its god's lightning (the Blind status still pauses)
            r' roars in anger: +"Thou shalt suffer!"', r"^The bolt of lightning (?:hits you|whizzes by you)",
@@ -522,6 +533,11 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                           "7 in 8)") + ". Zap/throw at it, Elbereth, or leave; fight(..., force=True) to melee "
                           "anyway.")
                 return ctx.last()
+        if "WIELDS A COCKATRICE CORPSE" in (m.get("note") or "") and not force:
+            ctx.pause(f"fight: not meleeing the {desc}: it WIELDS A COCKATRICE CORPSE — each of its hits starts "
+                      "stoning you, and a melee keeps you next to it. Zap it away (teleport), kill it at range, or "
+                      "leave; fight(..., force=True) to melee anyway (a lizard corpse ready)")
+            return ctx.last()
         stops = [dt for dt, _txt in pas if dt in STOP_PASSIVES]
         if "AD_STON" in stops and _wielding():
             stops.remove("AD_STON")     # uhitm.c: only a bare-handed (no weapon, no gloves) hit petrifies you
@@ -691,7 +707,9 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                            + " in the water next to you — step to a square with no water next to it and hold "
                              "there")
             from nh.monitor import _stationary
-            mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")]
+            # (a HIDDEN trapper/lurker above next to you acts only once found: a blow would un-hide it — leave it)
+            mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")
+                          and "hiding" not in (m.get("desc") or "")]
             if mobile_adj:
                 s = fight(stop_hp=stop_hp, allow_passive=allow_passive, near_water=near_water)
                 kills += killed_names(s.messages, include_it=True)
@@ -712,9 +730,15 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                                                         r"^Wait!  There's (?:something|\w+) there"])
                     kills += killed_names(s.messages, include_it=True)
                     continue
-            near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")]
+            # (p2 shift 38 #526/#532/#623: the ignored species and HIDDEN trappers/lurkers above — they never come —
+            # ended holds as "not coming")
+            near = [m for m in s.hostiles(radius) if not _stationary(m.get("desc") or "")
+                    and base_name(m.get("desc") or "") not in ignore and "hiding" not in (m.get("desc") or "")]
             if not near and hold and (s.status.turn or t0) - t0 < hold:
-                s = ctx.do("s", ok=ROUTINE)          # keep the square: wait for the next one to come
+                # keep the square: wait for the next one to come — searching, unless a HIDDEN hider is next to you
+                # (an explicit search un-hides it: detect.c mfind0 — and it engulfs)
+                hider = any("hiding" in (m.get("desc") or "") and m.get("dist") == 1 for m in s.monsters or [])
+                s = ctx.do("." if hider else "s", ok=ROUTINE)
                 kills += killed_names(s.messages, include_it=True)
                 continue
             if not near:
