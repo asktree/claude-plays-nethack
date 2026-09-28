@@ -32,3 +32,11 @@
   corridors; the '<' (64,6) is in an outer room). '>' (66,15).
 - T:1660 DL5 — killed a guardian naga hatchling (ate it: SAFE, no poison res this time). Gas spore at distance 2:
   lined up and killed it with a thrown dagger from 2 squares — the blast missed me.
+- T:1796 DL5 Minetown — sold both spellbooks in Wonotobo's general store for 150 each ($331). The sold books then covered
+  the only free floor squares: no more sell_offer price-ID there.
+- T:1832-1845 — temple of ODIN (neutral priestess, "forbidding feeling"). altar_test() on the neutral altar: EVERYTHING
+  uncursed (orcish dagger, food, tripe, 4 scrolls, 3 potions, red gem).
+- T:1860-1880 — floating eye in the street: 2 dagger hits, then all 3 daggers lay under it (a missile stops at the
+  first monster). Bought a TOWEL (w, 75zm) at Ymla's hardware store (blindfold plan), but the eye drifted off the pile;
+  picked the daggers up and killed it from range with 2 more throws. NO corpse (no telepathy).
+- END OF SHIFT 1: T:1883, Minetown DL5 (47,13), HP 40/40, XL3, AC0, $256, not hungry, no prayer used, pet left on DL3.
