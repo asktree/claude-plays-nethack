@@ -7,7 +7,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:8968 / DL9 main at (17,15) (west room) / XL9 / 92/92 / 15/15 / AC-8
+- Turn / Dlvl / XL / HP / Pw / AC: T:10388 / DL11 main at (49,17), next to the DOWN stairs (50,17) / XL10 / 99/101 / 18/18 / AC-8, Satiated
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
 - The circular amulet got formally IDENTIFIED as 'amulet of reflection' (probably reflected the winter wolf's frost T:8314).
@@ -23,7 +23,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 (prayer_check at T:3837: 93% the timeout is <=200. Never pray ON the neutral Minetown altar — cross-aligned.)
 
 ## Equipment worn/wielded (letter: item)
-- L: CURSED Excalibur WIELDED + WELDED since T:3838 (enchantment unknown). Spare long sword a DROPPED DL6 (25,16). b: uncursed +0 dagger; c: uncursed +3 small shield (worn)
+- L: Excalibur WIELDED, UNCURSED since T:9466 (fountain dip), rustproof, enchantment unknown. Spare long sword a DROPPED DL6 (25,16). b: uncursed +0 dagger; c: uncursed +3 small shield (worn)
 - G +0 ELVEN MITHRIL-COAT (worn; proven not cursed by taking it off T:5356), r +0 leather gloves, o +0 dwarvish iron helm, E +0 iron shoes (worn)
 - I faded pall (elven cloak?) from a Green-elf, BUC unknown, NOT worn (a cursed cloak would block the GDSM swap)
 
@@ -124,6 +124,22 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   Trahnil's (magic lamp base price is 50, oil 10: a sell offer of ~25 (or ~18 lowballed) = MAGIC, 5 or 3 = oil). Maybe swap scale mail for the dwarvish mithril-coat after a BUC check.
 - Then back up the Mines to the main dungeon; Sokoban (up stairs on the level below the Oracle).
 - Next prayer: prayer_check() (93% at T:3837 for major trouble).
+
+## SHIFT 9 CHANGES (T:9472)
+- EXCALIBUR NOW UNCURSED (DL10 fountain dip T:9466). LAMP x NOW UNCURSED (fountain dip T:9470): needs ONE holy water -> blessed -> rub('x') -> wish GDSM.
+  Do NOT rub while uncursed (only 20% wish). 3 uncursed waters n still in hand.
+- Riding boots V: not levitation/fumbling/jumping/speed (tried T:8972) -> elven, kicking or water walking; carried, iron shoes worn.
+- H uncursed BLINDFOLD (DL9). M blue gem (DL10). J tripe ration. Sack Y ~$2990 (leprechaun hall DL10).
+- DL10: up (48,17), down (33,8), fountain (33,7) (still wet), leprechaun hall NE cleared; DL9: Vergt's weapon shop NW (door 7,9), mimic inside.
+
+- END OF SHIFT 9 (T:10388): XL10 (T:9619). Sack Y ~ $5900 (protection costs 400*XL = 4000 at XL10: +1 AC at any temple priest).
+  V = POTION OF EXTRA HEALING (1, emergency). THARR = CREATE MONSTER (m blessed, p x2). J = scroll ETAOIN (base 100). v 4 violet gems, M blue gem.
+  Dropped for weight on DL11: riding boots (hall 48,5), milky/murky/object-det? potions, cursed k/l scrolls. 4 daggers B + b. Weight is at the Burdened edge:
+  pick up nothing heavy.
+- DL11: up (18,15), DOWN (50,17); leprechaun hall (45-57,4-8) mostly cleared (some escaped with gold); potion of SPEED at (28,7); trap (56,7).
+- DL12 = BIG ROOM: up stairs (42,16) mid-south, DOWN stairs (49,5) north edge. Crowded (see journal T:10186). Floating eye (~50,19) — never melee.
+  Yellow light + flaming sphere roam: kill at range (daggers/MM wand y,U) or avoid. Plan: descend at full HP, fight from the up stairs only
+  while HP > 60%, bounce up to DL11 to rest (Elbereth at (49,17) works), repeat; then cross to (49,5).
 
 ## ORCHESTRATOR DECISIONS T:8968
 - Riding boots V (uncursed): OK to try on in a safe spot (not near water/stairs/holes); keep if speed/water walking/

@@ -61,3 +61,12 @@
   winter wolf was already killed was a harmless false alarm (#272).
 - Minor: the pickup of '$' zoo gold at the Soko door opened a 'little trouble lifting ... Continue?' prompt from a plain step (#43) — fine.
 - exec budget pause "47 steps / 113s" inside a go_down loop (#1110) — fine, just cont.
+
+## Shift 9 (T:8968-)
+- No harness bugs so far. Obs output for a 55-leprechaun hall lists every monster with a note: ~3k tokens per call (a compact
+  "N x leprechaun (same note)" grouping would help). The sweep loop + `@` autopickup off worked well.
+- #1022/#985 dip() into a fountain for a cursed LAMP works ('The water glows for a moment.' -> uncursed) — worth a PLAYBOOK line:
+  fountain dips uncurse ANY item 4/30, not only Excalibur.
+- #2698: rest_on_elbereth() stopped correctly for an unseen attacker ("It hits!"); telepathy_scan() then showed an invisible stalker. Fine.
+- #2653: fight_until_clear() in the Big Room paused on each new monster (8 pauses in ~10 turns); expected, but a crowd mode ("pause only for
+  danger-noted newcomers") inside fight_until_clear would save calls.

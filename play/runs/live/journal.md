@@ -181,3 +181,22 @@
 - T:8916 DL9 (new): killed a fog cloud (not a vampire). NEUTRAL altar (34,16), down stairs (36,4), fountain (16,16): stashed valuables,
   2 Excalibur dips -> dried, still cursed. Picked stash back up.
 - Shift 8 ended T:8968 DL9 (17,15), HP 92/92, XL9, AC-8. Gains: amulet of reflection (worn), protection (AC-4->-7), elven cloak (-8), 3 waters. No prayers.
+
+## Shift 9 (T:8968-)
+- T:8972-9018 DL9 tried on riding boots V: no message, no fumbling in ~46 turns, #jump fails -> elven/kicking/water walking (named). Back to iron shoes (AC-8).
+- T:9032 DL9: Vergt's antique WEAPONS shop NW room (door 7,9), mimic inside (10,5). Skipped.
+- T:9139 black light exploded -> Hallu (horn cured). Got uncursed BLINDFOLD H (altar-tested). Killed glass piercer, 2 large dogs, quivering blob, hobgoblin, giant bat, jackals. Hidden passage (57,12) -> NE room. DL9 explored.
+- T:9263 DL10 (new): up (48,17), DOWN (33,8), FOUNTAIN (33,7). Chest (43,13) forced with Excalibur: tripe ration. LEPRECHAUN HALL NE (68-70,4-6): bagged my $79 first, killed all 6 asleep -> $1271 (sack ~$2990).
+- T:9409-9442 DL10: killer bees (poison res, trivial), FLAMING SPHERE exploded on me (-16, a dagger hit didn't kill it), warhorse killed.
+- T:9464-9470 DL10 fountain (33,7): stashed everything incl. the amulet on (34,7). EXCALIBUR UNCURSED on dip 3 ("The water glows for a moment."). Then the MAGIC LAMP x UNCURSED on dip 3 too! Now only ONE holy water needed (bless lamp -> rub -> wish).
+- T:9474 DL11 (new): up (18,15). Killed wood nymph (had 'object detection?' potion). Ate food ration T:9562.
+- T:9606-9785 DL11 HUGE LEPRECHAUN HALL (45-57,4-8, ~55 leprechauns): autopickup OFF ('@'), gold bagged each step; killed ~25+ (rest teleported off). XL10 T:9619.
+  A leprechaun read THARR -> THARR = CREATE MONSTER (named). Killed pyrolisk, giant ant, STONE GIANT (ate corpse T:9847: no St gain), WRAITH (2 MM zaps + 1 blow; no corpse).
+- T:9866-9919 swept the hall: ~$2300 more gold -> sack Y ~ $5900. Got 4 violet gems v, scroll ETAOIN J, POTION OF EXTRA HEALING V. Dropped (weight): riding boots, milky/murky/object-det potions, cursed earth k + cursed create monster l (hall floor). Trap at (56,7).
+- T:9964-10167 DL11: killed orc-captain, small mimic (posed as boulder (23,15)), 3 wolves, killer bees, a SOLDIER (spear; took+ate its K-ration). Hidden passage (46,10). Potion of SPEED left at (28,7) (weight). DL11 DOWN stairs (50,17). No altar, no quest message.
+- T:10186 DL12 = BIG ROOM (wide variant, lit): arrived on up stairs (42,16); DOWN stairs (49,5) far NE across the room. Crowd: zruty, xan, panther,
+  warhorse, elf mummy, imp, leprechauns, shrieker, wraith, flaming sphere, yellow light, floating eye (50,19), gray ooze, Uruk-hai pack (far W), gremlin,
+  peaceful white unicorn. Fought on the up stairs: killed xan, zruty (?), hurt warhorse/panther; HP 101->53 in ~10 turns -> went UP (T:10199).
+- T:10199-10387 DL11 by the down stairs (49,17): imp followed then fled down. Rested on Elbereth. An INVISIBLE STALKER hit me: blindfold on
+  (telepathy showed it), killed it (corpse not eaten: Satiated). Killed jackal. Autopickup back ON.
+- Shift 9 ended T:10388 DL11 (49,17) next to the down stairs, HP 99/101, XL10, AC-8, Satiated.

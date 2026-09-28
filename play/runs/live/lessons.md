@@ -29,3 +29,9 @@
   5 fountains gave no uncurse and 2 water demons (+ a summoned vrock) — at XL9/AC-4 Excalibur killed each in 1-3 blows; a stash of valuables
   on the floor first costs 3 harness calls and removes the nymph risk.
 - Any temple priest (cross-aligned too) sells protection: 400*XL gold gave AC-3 at once. Carry the zoo gold to the nearest temple.
+- Fountain #dip uncurses ANY cursed item 4 times in 30 ("The water glows for a moment."), not just Excalibur: the cursed magic lamp got
+  uncursed in 3 dips on DL10 (stash valuables and the amulet first: nymph/water demon risk). Saves holy water.
+- A lit Big Room from its up stairs: 3-4 melee attackers took ~10 HP a turn at AC-8 (101 -> 53 in ~10 turns). Bounce up the stairs at ~55%:
+  only adjacent monsters follow, and one usually does (the imp did, then fled back down).
+- Invisible attacker ("It hits!") on an Elbereth square: put the blindfold on (telepathy) — it was an invisible stalker; killed in 3 blows.
+- Leprechaun hall: toggle autopickup OFF ('@') before hunting so steps onto gold don't feed thieves; bag any loose gold every kill.
