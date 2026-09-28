@@ -377,3 +377,34 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
   map lacks squares the harness remembers) and drop/reconcile per-level seen-map memory newer than the restored
   turn; at least compute frontiers from the current screen. Worked around with a hand-made corridor follower
   (#45-#55); remembered features ('>' (2,5)) were right, since the level itself existed before the checkpoint.
+- #27 T:9834 engrave_test('d') on a glass wand: verdict "cancellation or teleportation ... [ruled out, already
+  identified: make invisible]" — but TELEPORTATION was identified too (iridium; F "wand of teleportation (0:0)" in the
+  pack, in discoveries). Expected verdict: "cancellation" (and a hint: never into the bag of holding). I named the
+  type by hand with call_type('d', 'cancellation'); read_identify later confirmed it.
+- #163 onward, whole shift: "!! harness code on disk is newer than this daemon's core (src/nh: only a daemon restart
+  loads it — tell the orchestrator)". `bin/nh reload` (#163) loaded the tactics; the core notice stayed. Orchestrator:
+  restart the p4 daemon between shifts.
+- #1326 T:10316 DL18: descend(1, explore=True) raised "no '>' known ... explore() found none: not found in 48 explore
+  legs" after only ~18 turns of the last call — the 48-leg budget counts legs from earlier calls on the level, and the
+  east half of the map was still unexplored (a plain explore() kept finding new ground). Expected: say "leg budget
+  exhausted, level NOT fully explored (N frontiers left)" or reset the budget per call.
+- #1389 T:10332 DL18: explore() led straight into a leprechaun hall's doorway (23,14) while ~30 sleeping leprechauns
+  were in view (ESP) in a dense block 1-2 squares beyond it; no crowd pause fired first (maybe because leprechauns
+  rate trivial, or my -a 'new monster: leprechaun'/'approaching: leprechaun' patterns swallowed it). Harmless with $0
+  loose; with loose gold it would have been a theft. Idea: a dense block of sleepers in view = likely special room:
+  keep explore() legs 2+ squares away from it unless the player opts in.
+- (minor) hunt() returned "no route" for monsters sensed by ESP just past the known map (sleeping nymph #163, wraith
+  #951) — correct, but head_to()-ing the target square across unexplored ground (as the docs describe for "a far
+  target just past the known map") would have saved 2-3 calls each. For the wraith behind rock, dig('j') + hunt() worked.
+- (idea) fight_until_clear() reports sleepers as "not coming for 6 turns (trapped, slow or sessile?)": when a monster
+  hasn't moved at all since first seen, say "probably ASLEEP" (the throne court, the jaguar, the incubus behind a door).
+- Good: travel() to the remembered wand square (#16) and go_down()'s remembered '>' after the restore; loot_all(check_
+  traps=3) with auto-unlock (#29, #56); read_identify with my priority regexes (#62); fight()/hunt() on the sleeping
+  throne court; the COCKATRICE HISS pause (#1163) with the stoning rule spelled out; the TRAPPED CLOSET pause (#442).
+### Top 3 (shift 8, ranked)
+1. After a `recover` restore the per-level seen-map/frontier memory keeps the undone exploration: head_to() and
+   screen_frontiers() report "no frontier" on a mostly blank map (#37, #43). Detect T going backward and reconcile.
+2. engrave_test() doesn't eliminate an already-identified wand type (teleportation) from its verdict (#27) — the
+   difference matters: "cancellation" must never enter the bag of holding.
+3. descend(n, explore=True) gives up on its cumulative 48-leg budget with half the level unexplored and says "found
+   none" (#1326).

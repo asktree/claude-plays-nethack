@@ -273,3 +273,28 @@
 - T:9985 DL15: explore() revealed the MAGIC PORTAL at (52,15). FLESH GOLEM killed in 2 blows (no damage).
   Chest on the fountain (36,8): locked, no trap, EMPTY. $14 at (52,14) bagged; "Vlad was here" closet (52,12) behind
   (52,13) = one-time trap door (avoided). Trident (52,16) left.
+- T:10014-10026 DL15: INCUBUS (sensed by ESP) — held the corridor W of the locked door (60,15) (unlocked with the key);
+  it came to the door square and died in ~3 blows; one seduce attack missed ("pretends to be friendly"), -1 HP.
+- T:10037-10064 DL15: jaguar (not coming) killed later in the NE room (grave (66,4) left alone: lawful -1 to dig).
+- T:10070-10098 DL15: THRONE ROOM (74-76,11-15), door (73,14): a SLEEPING court sensed by ESP through rock (ogre king,
+  2 plains centaurs, 2 bugbears, 2 hobgoblins, kobold lord, goblin, orc-captain). Stealth + one sleeper at a time:
+  11 kills, 0 damage. A centaur quaffed a YELLOW potion -> "looks completely healed" = YELLOW = FULL HEALING.
+  DL15 '>' = (74,13) INSIDE the throne room, under the throne chest. Chest (locked, no trap): $503, scroll of
+  identify (h), fizzy potion, a 2nd GLASS wand (= cancellation, s), blue/white/yellow gems. Ogre king left a cloudy
+  potion (taken). All bagged except the cancellation wands d, s (never in the bag). Spellbook (75,15) left.
+- T:10109-10112 DL15 (on the '>'): read 3 identify (the chest's h was blessed: 4 items): black = blessed ENLIGHTENMENT,
+  cloudy = uncursed HEALING, fizzy = CURSED GAIN LEVEL (rises through the ceiling: an emergency way UP; uncurse it with
+  holy water for +1 XL), ruby = uncursed CONFUSION; cancellation d (0:3), s (0:7). All potions + 2 identify re-bagged.
+- T:10114 DL16: '<' (72,17); leather armor + credit card left; descend(explore=True) found the '>' in ~28 turns.
+- T:10142 DL17 = THE ROGUE LEVEL ("older, more primitive world"): '<' (45,11) (arrow trap (44,9), pit (45,9) beside it);
+  peaceful gnome king. WRAITH sensed at (24,9) behind rock: dug (29,8) with the pick-axe, hunt() killed it — NO corpse.
+  Snake + YETI killed (0 dmg). Took A = ASHPD SODALG (light). '>' found by explore, T:10213 -> DL18 '<' (5,15).
+- T:10245-10265 DL18: '<' (5,15). 4 CHICKATRICES from the room (2-10,5-8): killed 1 by hunt(), then held (8,10) below
+  its door (8,9) (walls both sides: one at a time) and killed the rest from the doorway. One touch + HISS (1/10 stoning
+  roll failed): no Stone. Lizards J x2 + S untouched. Satiated wore off.
+- T:10298 DL18: a peaceful dwarf quaffed GAIN LEVEL ("chugging sound", became a dwarf lord). Second LEPRECHAUN HALL
+  (19-28,15-17): explore() stepped into its doorway (23,14) at T:10332 ("You enter a leprechaun hall!"); stepped back.
+  descend(1, explore=True) raised "not found in 48 explore legs" with the east half still unexplored.
+- END OF SHIFT 8: T:10333, DL18 (23,13) corridor N of the hall doorway, HP 109/109, XL10, AC -15, not hungry, $0 loose
+  ($2337 bagged), prayer safe (last prayer T:3562). Kills this shift: flesh golem, incubus, jaguar, 11-monster throne
+  court (ogre king, orc-captain...), wraith (no corpse), snake, yeti, 4 chickatrices — all for 1 HP of damage.

@@ -145,3 +145,22 @@
 - **Leprechaun halls**: keep $0 loose (bag it), and they are harmless sleepers you can farm for gold with Stealth.
 - **Digging down with monsters around**: dig() (pick-axe) stops for any non-trivial hostile in view; a wand of
   digging zapped down ('>') is one turn and needs no pit phase.
+
+## Shift 8
+- **After a `recover` restore, the harness still remembers the undone future of the level** (features, special rooms,
+  and its seen-map): head_to()/screen_frontiers() found "no frontier" on a mostly blank map. Remembered STAIRS were
+  right (the level existed before the checkpoint) — walk there by hand (follow corridors) instead of head_to().
+- **Quest portal level**: the Norn's message came on arriving at DL15 = Oracle (DL9) + 6. explore() with Excalibur's
+  auto-search then revealed the MAGIC PORTAL (it showed up in features as `magic portal`) without any deliberate search.
+- **Throne room court = XP farm with Stealth**: the court is generated asleep; ESP shows it through rock. Enter, kill
+  one sleeper at a time from squares next to it (most die in 1-2 Excalibur blows; others don't wake). 11 kills, 0 damage.
+  The throne-room CHEST (here on the '>') held $503, a blessed identify, a gain level potion and a wand of cancellation.
+- **A monster quaffing a potion identifies it for you**: "looks completely healed" = full healing (yellow here).
+- **An unknown-BUC identify from a chest may be blessed**: read it FIRST, with the most interesting items out of the bag.
+- **Engrave-test by elimination**: "The engraving on the floor vanishes!" = cancellation / teleportation / make
+  invisible; with the other two already identified it is CANCELLATION — keep it out of the bag of holding.
+- **Chickatrices**: speed 4, one Excalibur blow each; fight them one at a time from a doorway square (walls both
+  sides). A touch hit hisses 1 time in 3, and a hiss starts stoning only 1 in 10 — keep lizard corpses ready.
+- **descend(1, explore=True) has a leg budget (48)**: on a big level it gives up with unexplored space left; then
+  call explore() directly.
+- **Monsters behind rock**: ESP shows a wraith 2 squares away with rock between; dig() one square toward it and hunt().

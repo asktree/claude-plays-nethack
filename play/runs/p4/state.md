@@ -2,8 +2,9 @@
 
 ## Character
 - Name/role: P4, lawful female dwarven Valkyrie, god: Tyr. Seed 404 (local practice game).
-- Turn / Dlvl / XL / HP / Pw / AC: T:9927 / DUNGEONS DL13 at (5,12) (corridor just N of the LEPRECHAUN HALL's door
-  (5,13); DL13 '>' (2,5)) / XL10 / 109/109 / 17/17 / AC -15 / $0 loose ($1599 in bag k).
+- Turn / Dlvl / XL / HP / Pw / AC: T:10333 / DUNGEONS DL18 at (23,13) (corridor just N of a LEPRECHAUN HALL's doorway
+  (23,14); ~30 sleepers) / XL10 / 109/109 / 17/17 / AC -15 / $0 loose ($2337 in bag k).
+- (Shift 8 began from a `recover` restore to T:9820: the T:9820-9927 events of shift 7 on DL13 were undone.)
 - Attributes: St 18/05, Dx 11, Co 19, In 7, Wi 9, Ch 8. Skills: long sword EXPERT, dagger Basic.
 - Intrinsics: cold res (Valk), stealth, infravision, SPEED, TELEPATHY (floating eye), MAGIC RESISTANCE (worn GDSM X),
   POISON RESISTANCE, SLEEP RESISTANCE (Grey-elf corpse T:9654, "You feel wide awake."), DIVINE PROTECTION.
@@ -12,9 +13,9 @@
 - LUCKSTONE K (uncursed) carried: +3 Luck while carried, and Luck no longer times out (good or bad) — never do
   Luck-losing things now (no gem-throwing at cross-aligned unicorns: random Luck gets locked in).
 - Enlightenment T:8565: PIOUSLY aligned, "You can safely pray".
-- Hunger: SATIATED. Ate stalker (T:9370) + 2 Grey-elves (T:9467, T:9654). Nutrition at T:9654 between ~1430 and
-  ~1740 -> Hungry not before ~T:10900. Food left: f C-ration, w tripe (dwarf: vomit risk), p 2 tins wolf meat,
-  lizard corpses J x2 + S (keep for stoning). Eat fresh safe corpses when not Satiated.
+- Hunger: NOT HUNGRY (Satiated wore off ~T:10240). Nutrition estimate: Hungry around ~T:10900. Food left: f C-ration,
+  w tripe (dwarf: vomit risk), p 2 tins wolf meat, lizard corpses J x2 + S (keep for stoning). FOOD IS THIN: eat
+  fresh safe corpses (corpse()) whenever not Satiated; buy/collect rations.
 
 ## Prayer log
 | turn | reason | result |
@@ -30,11 +31,15 @@
 - A NYMPH CAN CHARM ARMOR OFF. After any nymph contact: check `inventory()` for "(being worn)".
 
 ## Key inventory (letters) — the whole main pack was IDENTIFIED T:9571 (blessed identify rolled "all")
-- k = uncursed BAG OF HOLDING: $1599; scrolls: 4 uncursed IDENTIFY (save 2 for amulets/rings), uncursed REMOVE CURSE
-  (reserve), ANDOVA BEGARIN (uncursed, base 100), KO BATE (base 100), EIRIS SAZUN IDISI, LEP GEX VEN ZEA, blank, 3 earth;
-  potions: uncursed orange = SPEED, cursed potion of SPEED, uncursed RUBY, blessed object detection, BLACK (unknown);
-  rings: CURSED granite, jade, topaz (never wear), uncursed searching; blessed oil lamp, can of grease (grease the
-  HELMET vs mind flayers), magic marker, gems; C = uncursed SACK holding a 2nd WAND OF DIGGING.
+- k = uncursed BAG OF HOLDING: $2337; scrolls: 2 uncursed IDENTIFY, uncursed REMOVE CURSE (reserve), ANDOVA BEGARIN
+  (uncursed, base 100), KO BATE (base 100), EIRIS SAZUN IDISI, LEP GEX VEN ZEA, blank, 3 earth;
+  potions: uncursed SPEED, cursed SPEED, blessed OBJECT DETECTION, blessed ENLIGHTENMENT, uncursed HEALING, CURSED GAIN
+  LEVEL (quaffed cursed = rise through the ceiling to the level above: an emergency exit; holy-water it for +1 XL),
+  uncursed CONFUSION; rings: CURSED granite, jade, topaz (never wear), uncursed searching; blessed oil lamp, can of
+  grease (grease the HELMET vs mind flayers), magic marker, gems (3 blue, 3 white, 2 yellow, 1 orange, glass);
+  C = uncursed SACK holding a 2nd WAND OF DIGGING.
+- d, s = WANDS OF CANCELLATION (0:3), (0:7) in the MAIN PACK — never into the bag of holding (it explodes).
+- A = scroll of light (ASHPD SODALG) in the main pack.
 - Wands (charges known): U DIGGING (0:5), m COLD (0:6), x POLYMORPH (0:5), P STRIKING (0:3), T SLOW MONSTER (0:4),
   q SLEEP (0:1), r light (0:13), t enlightenment (0:13), F TELEPORTATION (0:0) = EMPTY (wrest 1/121 only).
 - K = LUCKSTONE. D = 2 AMETHYSTS. B, E = worthless glass.
@@ -48,7 +53,11 @@
 - scrolls: MAPIRO MAHAMA DIROMAT = identify; GARVEN DEH = earth; DUAM XNAHT = SCARE MONSTER; STRC PRST SKRZ KRK =
   ENCHANT WEAPON; PRATYAVAYAH = REMOVE CURSE; NR 9 = PUNISHMENT; ASHPD SODALG = light (price); TEMOV = base 200
   (amnesia/create monster/taming); YUM YUM, KO BATE, ANDOVA BEGARIN = base 100; ETAOIN SHRDLU base 200 ("create monster?").
-- potions: EMERALD = ACID; DARK = blindness; EFFERVESCENT = extra healing; BUBBLY = object detection; ORANGE = SPEED.
+- potions: EMERALD = ACID; DARK = blindness; EFFERVESCENT = extra healing; BUBBLY = object detection; ORANGE = SPEED;
+  YELLOW = FULL HEALING (a centaur quaffed one T:10090: "looks completely healed"); BLACK = ENLIGHTENMENT; CLOUDY = HEALING;
+  FIZZY = GAIN LEVEL; RUBY = CONFUSION (identified T:10112).
+- wands: GLASS = CANCELLATION (engrave: "engraving vanishes", iridium is teleport) — d and s carried, charges unknown
+  -> d (0:3), s (0:7) identified T:10112. NEVER put them in the bag of holding. Use: cancel Medusa's gaze, nymphs, etc.
 
 ## Dungeon map
 | Dlvl | branch | features |
@@ -61,7 +70,12 @@
 | 10 | Dungeons | up (17,13); SOKOBAN up (63,18). KILTAMAGH'S SECOND-HAND BOOKSTORE (scrolls) (2-6,8-13), door (7,10), reached through the '<' room's west door (14,14). '>' NOT FOUND (hidden: dead ends (57,2) (59,9) (64,7)); I dug a hole at (40,17). |
 | 11 | Dungeons | partly explored; 2 hostile GRAY UNICORNS, a horse, a leprechaun. Stairs unknown (zapped a hole at (56,10)). |
 | 12 | Dungeons | '>' (8,7) in the NW room (4-13,5-9). '<' unknown. |
-| 13 | Dungeons | '<' (19,6), '>' (2,5); LEPRECHAUN HALL (2-7,14-19), door (5,13), ~30 SLEEPING leprechauns; a WAND on the floor (14,18) in the SE room (fountain (16,19)); fountain (4,7). |
+| 13 | Dungeons | '<' (19,6), '>' (2,5); LEPRECHAUN HALL (2-7,14-19), door (5,13), ~30 SLEEPING leprechauns; wand (14,18) TAKEN (cancellation d); fountains (16,19), (4,7). |
+| 14 | Dungeons | '<' (18,18); '>' found by explore (gold on it). |
+| 15 | Dungeons | QUEST PORTAL LEVEL. '<' (17,14); MAGIC PORTAL (52,15); THRONE ROOM (74-76,11-15) door (73,14): court killed, '>' (74,13) under the looted chest, throne (75,12) (never sit); wood nymph asleep in the NW room (3-11,4-5); fountain (36,8); grave (66,4). |
+| 16 | Dungeons | '<' (72,17). '>' found by explore (~28 turns). |
+| 17 | Dungeons | ROGUE LEVEL. '<' (45,11) (arrow trap (44,9), pit (45,9)); peaceful gnome king. |
+| 18 | Dungeons | '<' (5,15). LEPRECHAUN HALL (19-28,15-17) doorway (23,14), ~30 sleepers; cleared chickatrice room (2-10,5-8) door (8,9); peaceful dwarf lord. '>' NOT FOUND yet (east half unexplored). |
 | Sok 1-4 | Sokoban | ALL SOLVED; prize taken. |
 | Mines 1-3 (DL5-7) | Mines | DL7: '<' (13,6), '>' (69,9). |
 | 8 | MINETOWN (minetn-6) | '<' (15,13), '>' (60,18); temple of Tyr (co-aligned altar (55,17)); deli out of rations; Izchak ~(30,13). |
@@ -78,9 +92,13 @@
 - At AC -15 a monster's RAY still hits ~40%: soldiers/wand users remain dangerous without reflection (sleep is now resisted).
 
 ## Objective and plan
-- NEXT: DL13 leprechaun hall: farm it from the doorway (5,13) with $0 loose (Stealth keeps sleepers asleep; with no
-  gold to steal a leprechaun only scratches 1d2). Each carries gold -> temple protection (+1 AC per 4000 at XL10).
-  Pick up their gold INTO THE BAG right away. forget_room() is needed for the harness to let you in.
-- Fetch the wand at (14,18) (SE room). Then DL13 '>' (2,5) -> DL14 -> DL15/16: the quest portal message.
-- Wants: REFLECTION (top), fire resistance, food rations. Quest needs XL14 + piously aligned (have the piety).
+- NEXT: DL18: find the '>' (explore the east half; descend(1, explore=True) gave up after its 48-leg budget —
+  call explore() directly). Optional: farm the DL18 leprechaun hall from its doorway (23,14) with $0 loose for XP +
+  gold (forget_room() first; bag gold at once).
+- Then DL19-20 toward MEDUSA (DL21-24). BEFORE Medusa: a BLINDFOLD/TOWEL (none carried!) or reflection; crossing
+  water: wand of cold m (0:6) freezes a path, or levitation. A wand of CANCELLATION zapped at Medusa (asleep) makes
+  her gaze harmless — still go blind to approach.
+- XL: need XL14 (80000 exp) for the quest (portal DL15 (52,15)). Wraith corpses (+1 XL each) are the fastest help.
+- Food: thin (C-ration, 2 tins, tripe): eat fresh safe corpses when not Satiated.
+- Wants: REFLECTION (top), fire resistance, blindfold/towel, food rations, holy water (uncurse the gain level potion).
 - Long-term: reflection, then the Castle wand of wishing (PLAYBOOK A1).
