@@ -6282,3 +6282,46 @@ def test_fight_never_swings_at_an_I_that_said_pardon_me(monkeypatch):
     assert sent == [] and pauses and "is a PEACEFUL monster (peaceful Asidonhopo (unseen)" in pauses[0]
     r = combat.fight_until_clear(unseen=True, max_turns=1)
     assert not any(k.startswith("F") for k in sent), (sent, r)
+
+
+def test_read_identify_prefers_unknown_types_and_keeps_the_class_across_pages(monkeypatch):
+    # live shift 15 #4664: the default priority took the WORN amulet of reflection (type known, only B/U/C missing)
+    # while 3 unknown rings were in the pack — the rings sat on page 2 under no header of their own ("Rings" was
+    # the last line of page 1), so '^Rings' never matched them and the amulet came first
+    from nh.parse import Menu, MenuItem, State
+    from tactics import ctx, items
+
+    def menu(page, pages, its):
+        s = _snap({}, (10, 5), [])
+        t = "What would you like to identify first?"
+        s.state = State("menu", prompt=t, menu=Menu(title=t, items=its, page=page, pages=pages))
+        return s
+    objp = _snap({}, (10, 5), [])
+    objp.state = State("object", prompt="What do you want to read? [N or ?*]")
+    p1 = menu(1, 2, [MenuItem("", "Amulets", header=True),
+                     MenuItem("h", "an amulet of reflection (being worn)"),
+                     MenuItem("", "Rings", header=True)])
+    p2 = menu(2, 2, [MenuItem("V", "an emerald ring"), MenuItem("W", "a moonstone ring")])
+    done = _snap({}, (10, 5), [])
+    done.messages = ["V - a ring of conflict."]
+    seq = []
+    cur = {"s": objp}
+
+    def fake_do(keys, **kw):
+        seq.append(keys)
+        cur["s"] = {"r": objp, "N": p1, ">": p2, "<": p1, "V": p2, "h": p1, "<CR>": done}[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda who: objp)
+    items.read_identify("N")
+    assert seq == ["r", "N", ">", "V", "<CR>"], seq
+    # the class header carries onto page 2
+    cur["s"] = p1
+    ents = items._menu_entries(p1)
+    assert [e[2] for e in ents] == ["Amulets: an amulet of reflection (being worn)", "Rings: an emerald ring",
+                                    "Rings: a moonstone ring"]
+    # known_last=False: plain priority order again (here: amulets first)
+    seq.clear()
+    items.read_identify("N", priority=(r"^Amulets", r"."), known_last=False)
+    assert "h" in seq and "V" not in seq

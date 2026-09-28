@@ -645,11 +645,11 @@ def _menu_entries(s):
     """All selectable entries of the open menu, every page: [(page, letter,
     'Class header: item text')]; leaves the menu on its last page."""
     out = []
+    cls = ""                   # (a class's items run on onto the next page under no header of their own)
     for _page in range(10):
         m = s.state.menu
         if m is None:
             break
-        cls = ""
         for it in m.items:
             if it.header:
                 cls = it.text
@@ -662,13 +662,20 @@ def _menu_entries(s):
     return out
 
 
-def read_identify(letter: str, priority=ID_PRIORITY) -> list:
+_TYPE_KNOWN = re.compile(r"\b(?:ring|amulet|wand|potion|scroll|spellbook) of (?!.*\bcalled\b)", re.I)
+
+
+def read_identify(letter: str, priority=ID_PRIORITY, known_last: bool = True) -> list:
     """Read the scroll of identify `letter` and answer its menus: each round
     picks the ONE item ranked first by `priority` (regexes tried in order on
     'Class: item text' — default rings, amulets, wands, potions, scrolls,
     spellbooks, armor, tools, anything), so a scroll that identifies several
     items takes them in your order (NetHack would otherwise take them in
-    inventory order). Returns the messages (the identified items' lines)."""
+    inventory order). An item whose TYPE you already know ("an amulet of
+    reflection": only its B/U/C or charges are missing) comes after every item
+    of unknown type (live shift 15: a scroll went to the worn amulet of
+    reflection with 3 unknown rings in the pack); known_last=False turns that
+    off. Returns the messages (the identified items' lines)."""
     ctx.require_command("read_identify()")
     s = ctx.do("r", quiet=True)
     if s.state.kind != "object":
@@ -683,7 +690,8 @@ def read_identify(letter: str, priority=ID_PRIORITY) -> list:
         if s.state.kind != "menu" or "identify" not in title:
             break
         entries = _menu_entries(s)
-        pick = next((e for rx in rxs for e in entries if rx.search(e[2])), None)
+        unknown = [e for e in entries if not (known_last and _TYPE_KNOWN.search(e[2].split(": ", 1)[-1]))]
+        pick = next((e for group in (unknown, entries) for rx in rxs for e in group if rx.search(e[2])), None)
         if pick is None:
             # (Esc here throws the scroll's remaining identifications away: invent.c menu_identify)
             dflt = [re.compile(p, re.I) for p in ID_PRIORITY]

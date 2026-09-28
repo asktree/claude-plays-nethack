@@ -2037,3 +2037,12 @@ def test_tracker_restores_every_levels_stair_links(tmp_path):
              cursor=(10, 5))
     g.last = Snap(screen=scr, state=classify(scr), status=parse_status(scr))
     assert "escape: ^T (teleport at will): ready — 30 Pw a jump" in tr.summary()
+
+
+def test_lack_resistance_notes_follow_your_resistances():
+    # live shift 15: the homunculus note said "you lack sleep resistance" although a Woodland-elf corpse gave it
+    from nh.danger import note_for
+    assert "you lack sleep resistance" in note_for("homunculus")
+    n = note_for("homunculus", resists=("sleep",))
+    assert "lack" not in n and "you resist sleep" in n
+    assert "you resist sleep" in note_for("orange dragon", resists=("sleep", "poison"))

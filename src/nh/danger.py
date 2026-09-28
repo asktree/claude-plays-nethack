@@ -430,6 +430,9 @@ def note_for(desc: str, hero_xl: int | None = None, resists=()) -> str:
              "comes off; an ordinary demon fight")
     if n and name in POISON_NOTES and "poison" in resists:
         n = "poisonous (you resist the poison)"
+    lack = re.search(r" \(you lack (\w+) resistance\)", n or "")
+    if lack and lack.group(1) in resists:       # (live shift 15: a homunculus note after sleep res came at T:12347)
+        n = n[:lack.start()] + f" (you resist {lack.group(1)}: harmless to you)" + n[lack.end():]
     if name in ("aligned priest", "high priest") and desc.startswith("peaceful "):
         n = PEACEFUL_PRIEST_NOTE
     elif name in PLAYER_MONSTERS and not desc.startswith("peaceful "):
