@@ -100,3 +100,8 @@
   BUC was missing) instead of one of the 3 unidentified rings (V emerald, W moonstone, O wooden) that were in the main pack. Expected: rings
   first ("each round picks ONE item by class priority (rings, amulets, ...)"); an item whose TYPE is already known should rank below any
   item whose type is unknown. Scroll wasted.
+
+## Shift 16 (T:14402-)
+- #205 T:14515: eat(pattern='wraith corpse') while Satiated returned [] ("Satiated — not eating") although PLAYER.md says a 0-nutrition corpse like a
+  wraith's is eaten even while Satiated. (There was no wraith corpse there anyway, so no harm this time — but it would have lost a level-gain.)
+- hunt((x,y)) toward a telepathy-sensed wraith across unexplored ground returned at once after "It's solid stone." (0 turns); head_to() then worked.

@@ -300,3 +300,16 @@
 - T:14370 DL17: killed another invisible stalker + 4 soldier ants at the down stairs; ATE the stalker (400; stun cured by horn; temporarily invisible).
 - T:14393 DL18: up stairs (9,19). Telepathy: GRAVEYARD NE (5 wraiths, 5 ghosts, incubus, succubus, vampire bat), a doppelganger (exhumer->priestess)
   near (28,6). Killed the lone wraith next to the stairs (6,18): NO corpse. Shift 15 ends T:14402 on the DL18 up stairs, HP 115/115, XL12, AC-15.
+
+## Shift 16 (T:14402-)
+- T:14429 DL18: killed the DOPPELGANGER (as a samurai 'joshu') at (32,10). T:14437 killed a plains centaur (threw acid at me), ATE it -> Satiated.
+- DL18 map: room with DOWN stairs (55,3), fountain (57,6), east door (61,3) (was BOOBY-TRAPPED: KABOOM, stunned, -15 HP; door gone). Graveyard room (71-76,5-8), doorway (70,8).
+- T:14496-14591 graveyard fight from (60,3) and the graveyard doorway: INCUBUS killed with 2 wand-of-cold zaps (O, from the sack) before it touched me; succubus,
+  ALL 5 WRAITHS (NOT ONE CORPSE), vampire bat -> VAMPIRE (1 blow), giant/ettin/human/dwarf/elf zombies, 3 ghosts killed. No damage worth noting. Still XL12.
+- T:14591 graveyard loot: large box (73,5) -> a tin (a) + red gem (g); chest (72,8) and box (76,6) empty. piety() T:14609: PIOUSLY lawful (quest-ready alignment).
+- T:14628-14848 DL18 exploring: killed large cat, hill orcs, gray ooze, ogre lord (welded crossbow), leprechaun, owlbear, barrow wight, small mimic (door 27,7),
+  MOUNTAIN NYMPH (1 cold zap while asleep at (18,18); ray bounced, reflected). MIND FLAYER (fountain room 28-30,7-9): 2 cold zaps then 2 Excalibur blows;
+  no tentacle hit got through. Ate its corpse (no Int gain). WAND OF COLD O NOW EMPTY (0 charges) — keep for a charging scroll.
+- T:14884 killed a BALUCHITHERIUM (115 -> 90). T:14919 xan: wounded legs (Burdened) healed by T:14952. T:14957 winter wolf cub (frost breath reflected/missed).
+- T:14959 rust trap (63,18) hit my arm (Excalibur rustproof). T:15017 DL18 explored except behind boulders (60,9),(54,12).
+- Shift 16 ends T:15019 on the DL18 up stairs (9,19), HP 115/115, XL12, AC-15, Satiated. Goal XL14 NOT reached: the 5 wraiths left no corpses.

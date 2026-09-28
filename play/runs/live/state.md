@@ -7,7 +7,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:14402 / DL18 MAIN DUNGEON, ON THE UP STAIRS (9,19) / XL12 / 115/115 / 22/22 / AC-15, not hungry (ate a stalker T:14390: temporarily INVISIBLE)
+- Turn / Dlvl / XL / HP / Pw / AC: T:15019 / DL18 MAIN DUNGEON, ON THE UP STAIRS (9,19) / XL12 / 115/115 / 22/22 / AC-15, Satiated. St18 Dx15 Co18 In8 Wi11 Ch8. PIOUSLY lawful (piety() T:14609).
 - T:11292 WISH DONE: z - blessed +2 GRAY DRAGON SCALE MAIL, WORN (MAGIC RESISTANCE) under the faded pall I (elven cloak). Elven mithril G left on the DL9 altar.
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
@@ -29,7 +29,22 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   q dark green, i emerald. 3 daggers B + b. FOOD: 1 food ration F + fortune cookie G only. Burdened edge: pick up nothing heavy.
 - Prayer timeout PROVEN 0 at T:13505 (DL9 sacrifice) -> ~900 turns later it is still 0: prayer is safe for major trouble.
 
-## PLAN (T:14402)
+## SHIFT 16 CHANGES (T:15019) — DL18 cleared (graveyard done)
+- GRAVEYARD (71-76,5-8; doorway (70,8)) CLEARED: incubus (2 cold zaps before it touched me), succubus, ALL 5 WRAITHS — NOT ONE LEFT A CORPSE — vampire bat/vampire,
+  zombies, barrow wight, 3 ghosts (Jon's ghost left, harmless). XL still 12. Boxes looted: tin a (unknown kind), red gem g.
+- Also killed on DL18: doppelganger, plains centaur (eaten), MIND FLAYER (eaten, no Int gain; Int still 8), baluchitherium, owlbear, ogre lord, mountain nymph,
+  xan (wounded legs healed), winter wolf cub, small mimic, orcs, gray ooze, large cat.
+- WANDS now in main pack: O wand of COLD — EMPTY (0 charges, keep for charging), W wand of striking (uncursed), X digging.
+- DL18 map: up (9,19), DOWN (55,3) in the room (54-60,3-6) with fountain (57,6); its east door (61,3) was booby-trapped (gone now). Rust trap (63,18).
+  Unexplored: behind boulders (60,9) and (54,12). Unknown potions lie at (61,3) and the nymph's drop at (18,18).
+- piety(): PIOUSLY lawful (quest alignment OK). Only XL is missing (XL14 needs 80000+ exp from XL13; kills at DL18 give ~200-300 each: wraiths /
+  potions of gain level are the realistic routes).
+
+## PLAN (T:15019)
+- The graveyard is DONE (0 wraith corpses out of 5). Waiting for the orchestrator's next arc (XL14 route: more wraiths/graveyards, gain level; or quest planning).
+  Standing on the DL18 up stairs (9,19), full HP.
+
+## PLAN (T:14402, done)
 - Graveyard wraiths on DL18 = the fastest route to XL14 (each wraith corpse +1 XL; eat at once). Approach at full HP; fight from a corridor/doorway;
   kill the incubus before anything else; say n to any "Shall I remove your ...?" prompt. Keep HP > 60%; the up stairs (9,19) are the retreat.
 

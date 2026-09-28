@@ -46,3 +46,7 @@
 - Gelatinous cube: kill at range (daggers + wand of striking). Its passive paralysis is d(lvl+1,4) turns (~17) 2/3 of the time you hit it and it survives.
 - Ochre jelly: -24 HP in one round (passive acid + engulf). Fine at 108 HP, not at 40.
 - Hunger: a mumak (500) lasted ~500 turns. Carry food; the Mines don't sell it.
+- Opening a door can KABOOM (booby-trapped): -15 HP, stun, and it wakes monsters ~15 squares around. Near a sleeping special room this pulls everything to you —
+  worked out fine at a chokepoint (the square inside the room next to the doorway: one attacker at a time).
+- Wraith corpses are far from guaranteed: 0 of 5 dropped one (DL18 graveyard). Don't count on a graveyard for levels.
+- zap_when_lined() with the blindfold on (telepathy) is the clean way to kill incubi / mind flayers at range; the cold wand ran dry after ~5 zaps this shift — count charges.
