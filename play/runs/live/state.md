@@ -259,3 +259,12 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - Then explore/fight DL13-18 for XP (quest portal DL13 (70,10)). Depth limit DL18 — stop and report on any sign of
   Medusa's level (water everywhere, the harness's PROBABLY MEDUSA warning).
 - At XL14: check piety() (stethoscope on yourself); the quest leader needs "piously" (20+). Don't approach her before.
+
+## ORCHESTRATOR DECISIONS T:14402 (DL18 graveyard)
+- APPROVED: the DL18 graveyard for XP (wraith corpses = +1 XL each; EAT them at once — they rot/vanish fast).
+  Order: incubus first, at range (daggers/wand of striking/cold) or on an Elbereth square (demons respect it); if a
+  "Shall I remove your ...?" prompt comes, answer n (the harness asks you). If armor ends up removed, put the GDSM +
+  cloak back on before anything else. Vampire bat may be a vampire (level drain): fight it at full HP. Ghosts are
+  slow and harmless — don't waste turns; hunt(ignore=('ghost',)).
+- Level drain from wraiths/vampires costs XL — acceptable; retreat to (9,19) up stairs below 60% HP.
+- After XL14: piety() check, then plan the quest (fire resistance ring U for Surtur's lava level).

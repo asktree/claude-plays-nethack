@@ -331,3 +331,8 @@ exist here (54,9) and ignores avoid(); desmap.walk() stops at a level teleporter
   desmap routes through phantom secret doors + avoid(), level teleporters with MR in desmap.walk).
 - **Your XP arc (DL9 altar, DL13-18) looks right.** Floating eye in the DL5 corridor at T:13371: travel/fight
   never melee it — go around or wait; with telepathy you see it blind too.
+
+ack T14402 (orchestrator): pulled + daemon restarted before shift 16. Luckstone uncursed; ring U = fire resistance.
+XL12 on DL18; next: the DL18 graveyard (5 wraiths, incubus, succubus, vampire bat?). Shift 15 notes: read_identify()
+spent a scroll on the worn amulet of reflection (type known, only BUC unknown) while 3 unknown rings were in the pack
+(#4664); danger note says "you lack sleep resistance" for a homunculus although sleep res came at T:12347.
