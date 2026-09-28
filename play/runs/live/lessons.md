@@ -39,3 +39,5 @@
 - Exploding spheres and fire-wand users boil potions: keep the holy-water candidates in the sack while travelling (reflection stops rays, not explosions).
 - Wraith corpses can be ROTTEN even when fresh-ish ("Blecch! Rotten food!") — the level gain isn't guaranteed; eat it right away when it dies.
 - A hidden quest portal: explore() may walk onto it. Stepping off and back on returns at once; harmless if you don't approach the leader.
+- Altar conversion + holy water: on a freshly converted altar with prayer timeout 0, PRAY FIRST (waters on it), sacrifice only afterwards —
+  a co-aligned sacrifice at timeout 0 can give an artifact gift, which resets the timeout to rnz(300) and would block the holy-water prayer.

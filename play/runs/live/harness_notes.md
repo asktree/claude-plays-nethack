@@ -82,3 +82,9 @@
   inventory() <Esc>, and `-a 'THIEF BACK'` did not suppress it. Two execs wasted; I had to throw with raw `do t / B / l`. The pause should fire
   once per return (not on every snapshot while it stays in view) and honour -a.
 - #1685: travel() to the thrown-dagger square picked the daggers up by itself (fine), then pickup('dagger|ring') found only the ring — fine.
+
+## Shift 11 (T:11258-11316)
+- #37-#40: offer() on a CROSS-aligned altar paused (exec PAUSED "message") on the successful conversion lines ("You sense a conflict between
+  Tyr and Odin. | You feel the power of Tyr increase. | The altar glows white.") instead of classifying them as an outcome (converted /
+  "Unluckily ... decrease" = Luck -1). Harmless; had to `drop` the exec.
+- Everything else (pray(force=True) holy water detection, dip_into, rub + wish-prompt pause, altar_test) worked cleanly.
