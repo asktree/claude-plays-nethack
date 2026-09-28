@@ -780,3 +780,20 @@ No "harness code on disk is newer" line this shift.
 1. hunt()/path_to() don't treat warning digits as targets/passable monsters (#12, #192): against invisible covetous Wizards the digit is all you have.
 2. CURSED ITEMS suspects list includes dropped items (#192, #200) — the Bell on the floor was listed.
 3. desmap.walk() gives up in a pit after one "still in a pit" (#606); trek()'s NavError hides a locked door (#449); stale Medusa note on DL24 (#379).
+
+## Shift 40 (T:30017 -> ; step numbers from #0 of this daemon)
+1. #216-#218 (T:30123, DL38): trek(19, 8, cross_traps=['anti-magic field', '', 'rust trap']) still refused "(14, 18) a known trap of unknown type ... cross_traps=['<name>'] to cross it anyway": a trap whose type the harness never learned (gold lies on it) has NO entry in the names dict (names.get(c) is None), so no cross_traps value can allow it, although the error text tells you to pass a name. Expected: accept '' / 'unknown' / 'trap' for an unknown-type trap, or look it up (#terrain / farlook) before refusing. Cost: a wasted wand zap (p was empty) + a tunnel.
+2. #142 (T:30065): the CURSED ITEMS pause listed 14 suspects (all unknown-BUC items) — correct per the rules; inventory() afterwards showed the one known-BUC hit (V cloak now "cursed"). Suggestion: after a curse pause, diff inventory() automatically and print "now cursed: V" for known-BUC items.
+3. #248 (T:30135): the SUMMONED pause counted "invisible Wizard of Yendor" + long-worm tails as "3 monsters appeared right around you at once" — they were only newly SEEN because I had just put the blindfold on (telepathy). Putting on a blindfold should not trigger SUMMONED.
+4. #271 (T:30137): DIR_KEY isn't exported into the kernel namespace (NameError in my own step loop) — harmless, but a public dir map (or step_to(x, y) for one adjacent square) would help scripts.
+5. #276: my loop matched desc == 'green dragon' and missed because fight()'s look renamed it 'green dragon [seen: telepathy]' mid-loop; a stable `m['name']` field (species only) would avoid this.
+6. Worked well: dig('>')/scan_dig chain (1 call per level), step_onto() into known holes (DL27 hole = a shaft), zap('p','>') escape, WandEmpty on p (#218), wiz_pos() via telepathy labels, fight(x, y, max_blows=1) on the invisible Wizard, unihorn(until='stun') (#370: one apply), bag_contents() listing (showed the three unmerged teleport stacks = the BUC trick), fight() from inside an engulfer (#413).
+7. #414 (T:30204): going UP onto DL38 put me next to the Wizard, who had regenerated while migrating (MIGR_EXACT_XY restores him at his old square); no warning that a shed Wizard waits on the level you are entering. Suggestion: remember where each Wizard was shed (level + square + turn) and warn in go_up()/go_down()/dig() before entering that level ("a Wizard you left here at T:... waits at (x,y)"). Same at #634 (DL17: the other Wizard from T:29669).
+8. #676/#679 (T:30328): fight_until_clear(hold=...) paused on "You feel vaguely nervous." and "You feel that monsters are aware of your presence." — intervention/aggravate flavour; could be routine inside hold loops (it still matters for prayer/intervention timing: log it, don't pause).
+9. #643: the THEFT pause and `!! STOLEN` line worked well (named the Bell, the turn, the plan).
+10. #445: level teleport by a cursed scroll paused with "level: Dlvl:39 -> Dlvl:6" — clear. It would help if the obs said which scroll stack was the cursed one (the harness saw the read letter and the level change).
+
+### Shift 40 — ranked summary
+1. trek() can't be allowed across an unknown-type trap although its error says to name it (#216-#218): cost a wasted zap + a tunnel.
+2. No warning when entering a level where a Wizard was shed and waits at his old square (#414, #634): both times he was adjacent on arrival; the second time he stole the Bell.
+3. SUMMONED pause fired for monsters that only became VISIBLE through the blindfold's telepathy (#248); intervention flavour lines pause hold loops (#676, #679).
