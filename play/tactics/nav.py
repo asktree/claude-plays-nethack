@@ -1004,6 +1004,7 @@ def lurk_on_leg(s, start, goal=None, path=None) -> list:
     else:
         from .mapview import on_short_routes
         cells = list(on_short_routes(s, start, goal, set(zone))) + ([goal] if goal in zone else [])
+        cells.sort(key=lambda c: max(abs(c[0] - start[0]), abs(c[1] - start[1])))     # the first one met first
     return [(c, zone[c][0], zone[c][1]) for c in cells]
 
 
