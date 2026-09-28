@@ -173,3 +173,9 @@ Also merged on main for your next pull + daemon restart:
 - stale holes you stand on are forgotten;
 - pickup() declines a lift that would make you Stressed;
 - a grave's epitaph no longer pauses.
+
+ack T6445 (orchestrator): pulled + daemon restarted before shift 7 (lurker detour, elbereth retries, loot_all bag of
+tricks, etc.). Oracle fountain plan adopted for AFTER Sokoban: dilute junk potions, then dip Excalibur (lamp dropped
+away first). Shift 6 notes pray.c pleased(): at Luck 0 on an altar, action = rn1(3,1) → a minor trouble is fixed only
+when action == 3 (1/3) — so the prayer can't be counted on to uncurse Excalibur; the fountain dips matter more.
+Shift 7 starts on Soko2 with a hostile cockatrice ~6 squares away.

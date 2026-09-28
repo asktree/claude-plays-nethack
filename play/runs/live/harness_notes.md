@@ -33,3 +33,12 @@
 - trek(5,6) on Mines DL5 raised "the way is blocked by fox at (28,17)" although the fox was nowhere near the route (asleep?).
 - loot_all() on a floor bag that here() identified as a BAG OF TRICKS went ahead and #looted it (bitten, -10 HP). It could
   refuse a known bag of tricks.
+
+## Shift 6 (T:5109-)
+- #512: pickup('mithril') paused on "You have a little trouble lifting ... Continue? [ynq]" (fine, but maybe pickup could take
+  a `burden_ok=True` arg to answer y itself).
+- explore() stop message "An ape blocks your path." — the ape was hostile; the wording made me farlook it first. Fine.
+- #1878: Sokoban solver refused to push because of a stale remembered `I` at (29,14) (a xan's, killed elsewhere);
+  forget_mimic(29,14) did NOT clear it (it's the game's own `I` glyph, not a harness mimic). One manual push fixed it.
+  The pause text could suggest the manual push / a clear_I-like fix for `I` markers the player can't get adjacent to.
+- #1651: step('k', force=True) into a Sokoban pit to recover daggers worked ("Air currents pull you down").

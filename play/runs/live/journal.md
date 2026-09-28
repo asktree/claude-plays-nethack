@@ -105,3 +105,32 @@
 - T:5047 DL6 — killed an iron piercer -> XL7, "You feel quick!" (Fast). Killed a yellow light with daggers + a first strike
   (no explosion). Looted a floor "bag" that here() already named a bag of tricks: bitten (-10). Killed a blue jelly, an acid blob.
 - Shift 5 ended T:5109 DL6 (25,16), HP 63/72, XL7, AC-2. No prayers this shift.
+
+## Shift 6
+- T:5110 DL6 — picked up scroll z ZELGO MER (25,16). Dropped spare long sword a, tin whistle, cursed credit card, cursed key at (25,16).
+- T:5151-5170 DL6 — fountain dips for water: (58,14) dried up after 1 dip; (75,13) dried up after 3. Now 2 clear potions
+  (WATER): n uncursed, u (BUC unknown, ex object detection?). Both DL6 fountains gone. Gold +13.
+- T:5206 DL7 main (up stairs (69,9)). Black unicorn hit me (-9) and fled. Scrolls: D = IDENTIFY (read it: S = cursed WAND OF TELEPORTATION (0:4)!), F VAS CORP BET MANI.
+- T:5266-5332 DL7 — killed orc mummy, ape, vampire bat, wolf. Room with centaur STATUES around (40-45,7-16): probably the ORACLE level (DL7). Red mold at (44,10) (don't touch).
+  Down stairs (10,11).
+- T:5339-5346 DL7 — 2 Green-elves near the up stairs: one threw a CLOUDY potion = ACID (named), one quaffed GOLDEN = invisibility,
+  one quaffed purple-red (completely healed = full healing?). Killed both (HP 72->43). Took their ELVEN MITHRIL-COAT G:
+  wore it, took it off again (NOT cursed), wear it now: AC-4. Dropped the rusty scale mail at (64,9). Took faded pall I (BUC unknown, not worn).
+- T:5400-5505 DL7 — killed 2 more wolves, gecko, paper golem (3 blank scrolls M). 'You hear convulsive ravings' = ORACLE LEVEL is DL7 => Sokoban = up stairs of DL8.
+- T:5588-5633 DL7 — Delphi (Oracle room centre (37-41,11-13), 4 fountains (38,12),(39,11),(39,13),(40,12)). Killed the black unicorn (took 72->41 HP: butts+kicks 12/round!). Ate its corpse (Hungry fixed). Its unicorn horn left at (34,12).
+- T:5739 DL7 — killed a red naga hatchling + horse. T:5768 DL8: arrived up stairs (22,19); killed a horse.
+- T:5806 DL8 — Ballingeary's second-hand BOOKSTORE far NW (door (7,4)), pays normal half. Cha multiplier 4/3.
+  Prices: ETAOIN 178/133 & XOR OTA 178/133 & DUAM XNAHT 133 & PRATYAVAYAH 133 = base 100; THARR 267 = 200; VENZAR BORGAVVE 67 = base 50 = LIGHT;
+  thick spellbook 400 (base 300); novel. No remove curse (would be 107/142). Sell-ID: z ZELGO MER and F VAS CORP both base 100.
+  Bought scroll of identify (27), read: R = cursed RING OF CONFLICT, K = cursed AMULET VERSUS POISON.
+- T:5921-5964 DL8 — killed a Green-elf (took elven dagger Z), 3 hill orcs in the dark corridor near (31,14); swirly potion a (unknown) from an orc. Down stairs (53,6).
+- T:6050-6067 DL8 — killed 2 giant ants; $51 more (put $220 into sack Y). Took the Sokoban stairs (66,6) -> SOKOBAN level 1 (Dlvl 7 in Sokoban branch), arrived (35,7).
+- T:6067-6303 SOKOBAN 1 (soko4-2 / wiki 1a) SOLVED with sokoban.solve(). Took coral ring d (unknown), aluminum wand s (unknown),
+  2 XIXAXA scrolls k,q = EARTH (Sokoban lvl 1 kit; named). Killed a leprechaun -> XL8 (HP 83). Dwarf zombie trapped in the
+  (33,8) pit: killed with thrown daggers, got the daggers back from the pit before the last fill.
+- T:6313 Soko1 — wererat (@ form turned rat) killed by one thrown dagger before it could bite. Food: food ration y, carrot w, 2 slime molds v.
+- T:6330 Soko1 — engrave-test: aluminum wand s = STRIKING (named). T:6342 up to SOKOBAN 2 (soko3-1 / wiki 2b), 20 steps.
+- T:6383 Soko2 — xan stung my leg (wounded legs, Burdened a while); killed it. A stale `I` at (29,14) blocked the solver (forget_mimic
+  didn't clear it); pushed the boulder once by hand, solver resumed. Solved steps 1-9 of 20.
+- T:6439 Soko2 — COCKATRICE appeared at (28,14), went out of view behind boulders (last (30,14)). Lizard P ready for stoning.
+- Shift 6 ended T:6445 Soko2 (Dlvl 6 Sokoban) at (36,16), HP 83/83, XL8, AC-4, sokoban step 9/20 done (next: boulder K). No prayers.
