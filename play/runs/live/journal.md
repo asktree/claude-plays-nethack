@@ -254,3 +254,12 @@
 - T:12600-12669 luckstone at (72,9) is in sealed rock; (54,9) secret-door variant absent (searched 30+), corridor (52-53) walled at row 11, walls undiggable (zap X south: glows and fades).
   Plan: reach (64,17) via row-12 corridor + south region, zap digging NE.
 - Shift 12 end T:12669 DL13 (53,10), HP 108/108, AC-15, XL11. No prayers.
+
+## Shift 13 (T:12669-)
+- T:12687 crossed the level teleporter (33,5) again (MR resisted). T:12704 a WRAITH read a scroll ETAOIN SHRDLU and vanished = ETAOIN is TELEPORTATION (J cursed, 4 in sack).
+- T:12752 shocking sphere: bagged all wands+rings first (elec explosions destroy them), dagger + one Excalibur blow killed it (no explosion).
+- LUCKSTONE: Mines' End is a MAZE level -> a zap of digging digs only ONE rock square per zap (dig.c maze_dig branch). Dropped the sack (squeeze needs
+  inventory <= 600), zapped 7 times NE from (64,17) (wand a EMPTY after 5; X 1 more), walked the diagonal tunnel to the pocket (71-72,8-9).
+  T:12780 Z - GRAY STONE picked up at (72,9) = the level file's luckstone (single gray stone there, no Burdened -> not a loadstone). Named "luckstone (Mines End)".
+  Gems picked up: 3+1 green (d), red (T x3), violet (Y,i), 2 white (t), orange (s). (71,8) is a spiked pit.
+- T:12819 killed the wraith (1 blow) at (42,16), ATE it: XL12 (HP 115). Sky blue potion D (unknown) from its square.
