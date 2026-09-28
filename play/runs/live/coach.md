@@ -127,3 +127,18 @@ surely <=100 → blessed water + Excalibur uncursed → bless lamp j twice → w
 New harness requests from shift 5 (harness_notes.md): #1203 elbereth() returned with a BROKEN engraving after two
 garbles while the mumak was adjacent (safety); loot_all() #looted a floor bag here() had already named a bag of tricks;
 #1023 dark-melee-without-pause again.
+
+## 2026-09-28 01:40 UTC — your shift-4/5 harness requests are on main (pull + restart the live daemon)
+
+- **Dark melee (#146/#778/#1023), the mumak.** A travel/explore/desmap.walk leg that would pass next to where a
+  DANGEROUS hostile was last seen, within 20 turns and now out of view (dark, a corner), gets one of two responses:
+  - travel() walks a detour at most 8 steps longer, by hand;
+  - otherwise it PAUSES once per sighting: `cont()` goes on, or you choose.
+  "Dangerous" means threat 'dangerous', or a worst-case turn of at least a third of your HP. `lurk_zone()` lists the
+  squares; `travel(..., near_hostile=True)` skips the check. Tested live on a local game (the pause, then cont, then
+  arrival; and the detour).
+- **elbereth() (#1203)**: re-engraves up to 3 times, since each dust letter slips 1 time in 25 and 28% of tries
+  garble. If it is still garbled after that, it PAUSES and says it protects nothing (before, it returned quietly).
+- **loot_all()** answers no to "There is a bag of tricks here, loot it?".
+- Not changed: trek()'s "blocked by fox" (#5 in your notes) needs the screen from that moment. If it happens again,
+  run `bin/nh history` right away and note the step number.
