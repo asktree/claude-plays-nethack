@@ -39,6 +39,15 @@ def _wielded(text: str) -> bool:
     return bool(WIELDED_RE.search(text))
 
 
+def _welded(inv) -> dict | None:
+    """Your wielded weapon when it is known CURSED: welded to your hand (wield.c will_weld()), so NetHack
+    refuses to wield anything else — #rub (a lamp) and applying a pick-axe included (apply.c wield_tool:
+    "Since your weapon is welded to your hand, you cannot ...")."""
+    from nh.game import is_weapon_text
+    return next((i for i in inv if _wielded(i["text"]) and re.search(r"\bcursed\b", i["text"])
+                 and (str(i.get("class") or "").startswith("Weapons") or is_weapon_text(i["text"]))), None)
+
+
 def inventory():
     """Return the hero's inventory as a list of {letter, text, class, buc}."""
     ctx.require_command("inventory()")
@@ -443,6 +452,11 @@ def rub(letter: str, max_rubs: int = 1, rewield: bool = True) -> dict:
     lamp = next((it["text"] for it in inv if it["letter"] == letter), None)
     if lamp is None:
         raise RuntimeError(f"rub(): no item {letter!r} in the inventory")
+    welded = _welded(inv)
+    if welded is not None and welded["letter"] != letter:
+        raise RuntimeError(f"rub(): your weapon {welded['letter']} - {welded['text']} is CURSED, so it is welded to "
+                           "your hand, and #rub has to WIELD the lamp: NetHack refuses. Uncurse the weapon first "
+                           "(holy water: dip it; a scroll of remove curse; a prayer that fixes it), then rub.")
     weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != letter), None)
     msgs: list = []
     outcome, n = "", 0
@@ -1201,6 +1215,11 @@ def _dig(direction, tool, max_applies, auto_fightable):
             raise RuntimeError("dig(): no pick-axe or mattock in the inventory")
         tool = t["letter"]
     weapon = next((i["letter"] for i in inv if _wielded(i["text"]) and i["letter"] != tool), None)
+    welded = _welded(inv)
+    if welded is not None and welded["letter"] != tool:
+        raise RuntimeError(f"dig(): your weapon {welded['letter']} - {welded['text']} is CURSED, so it is welded to "
+                           "your hand, and applying a pick-axe has to wield it: NetHack refuses. Dig with a wand "
+                           "of digging instead (zap it: '>' down, or a direction), or uncurse the weapon first.")
     ldesc0 = ctx.last().status.ldesc
     ids0 = {m.get("id") for m in ctx.last().hostiles(7) if m.get("id") is not None}   # already known when you began
     routine = [re.compile(p) for p in _DIG_OK + [r"^You stop digging\.$"] + list(BENIGN)] + list(DEFAULT_BENIGN)

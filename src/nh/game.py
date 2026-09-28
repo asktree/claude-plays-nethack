@@ -873,8 +873,12 @@ class Game:
         if letter is None or letter != self.wielded_letter:
             self.wield_since = turn
         self.wielded, self.wielded_class, self.wielded_letter, self.wield_tool = text, cls, letter, tool
-        if self.main_weapon is None and letter and text and not tool and (
-                (cls or "").startswith("Weapons") or (cls is None and is_weapon_text(text))):
+        weapon = letter and text and not tool and (
+            (cls or "").startswith("Weapons") or (cls is None and is_weapon_text(text)))
+        if weapon and (self.main_weapon is None or re.search(r"\bcursed\b", text)):
+            # (a CURSED weapon in hand is welded there — wield.c will_weld(): it is your weapon until it is
+            # uncursed, so no "wield your usual weapon again" advice NetHack would refuse; the live game's
+            # bones Excalibur, T:3838)
             self.main_weapon = {"letter": letter, "text": _item_core(text)}
 
     def _promote_weapon(self, turn) -> None:
@@ -910,7 +914,9 @@ class Game:
                 continue     # another inventory line ('w' with pushweapon: "a - ... (alternate weapon; not wielded).")
             if re.search(r"^You are (?:now |already )?empty.handed", m):
                 self.set_wielded("", None, None, False, turn)
-            elif re.search(r"wield|slips from your|welded|disarm|wrested|snatches|You are now empty", m):
+            elif re.search(r"wield|slips from your|\bwelds? (?:itself|themselves)\b|welded|disarm|wrested|snatches|"
+                           r"You are now empty", m):
+                # ("The long sword named Excalibur welds itself to your hand!" comes instead of the inventory line)
                 self.wielded, self.wielded_class = None, None     # re-check the weapon next time it matters
                 self.wielded_letter, self.wield_tool = None, False
             if re.search(r"\b(?:gloves|gauntlets)\b", m):

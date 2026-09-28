@@ -1620,6 +1620,19 @@ def test_usual_weapon_note_and_promotion():
     assert "EMPTY-HANDED" in g.wield_note()
 
 
+def test_welded_cursed_weapon_is_the_usual_weapon():
+    # the live game T:3838: "The long sword named Excalibur welds itself to your hand!" (no inventory line comes):
+    # the old weapon is no longer in hand; once inventory() shows the cursed weapon in hand, it IS the usual
+    # weapon (welded) — no "wa to wield it again" that NetHack would refuse
+    g = _guard_game()
+    g._note_wield(["a - an uncursed +1 long sword (weapon in hand)."], 3000)
+    assert g.main_weapon["letter"] == "a"
+    g._note_wield(["The long sword named Excalibur welds itself to your hand!"], 3838)
+    assert g.wielded is None and g.wielded_letter is None           # unknown until the next inventory()
+    g.set_wielded("a cursed long sword named Excalibur (weapon in hand)", "Weapons", "L", False, 3840)
+    assert g.main_weapon == {"letter": "L", "text": "a cursed long sword named Excalibur"} and g.wield_note() == ""
+
+
 def test_guard_confused_steps_next_to_lava_or_water():
     import pytest
     g = _guard_game()

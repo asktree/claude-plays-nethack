@@ -1802,6 +1802,30 @@ def test_prayer_check_counts_wishes_and_demigod(monkeypatch):
     assert p_demi < survival.prayer_check()["p_safe"]
 
 
+def test_rub_and_dig_refuse_under_a_welded_weapon(monkeypatch):
+    # the live game wields a CURSED Excalibur (welded): #rub and applying a pick-axe must wield the tool, which
+    # NetHack refuses (apply.c wield_tool) — say so up front instead of a puzzling pause
+    import pytest
+    from tactics import ctx, items
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "require_command", lambda who: None)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "L", "text": "a cursed long sword named Excalibur (weapon in hand)", "class": "Weapons"},
+        {"letter": "J", "text": "a lamp", "class": "Tools"}, {"letter": "M", "text": "a pick-axe", "class": "Tools"}])
+    sent = []
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys))
+    with pytest.raises(RuntimeError, match="welded to your hand.*Uncurse"):
+        items.rub("J")
+    with pytest.raises(RuntimeError, match="welded to your hand.*wand of digging"):
+        items.dig(">")
+    assert sent == []
+    # an uncursed weapon in hand: no refusal (rub goes on to #rub)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "L", "text": "an uncursed long sword named Excalibur (weapon in hand)", "class": "Weapons"},
+        {"letter": "J", "text": "a lamp", "class": "Tools"}])
+    assert items._welded(items.inventory()) is None
+
+
 def test_dig_rewields_before_pausing(monkeypatch):
     # p2 #136: dig('>') fell into a temple and paused on its message with the pick-axe still in hand
     from nh.parse import State
