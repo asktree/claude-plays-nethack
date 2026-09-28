@@ -231,3 +231,11 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   so my corridor (52-53, 5-10) is a dead end. Way: top corridor west (crossing the level teleporter (33,5) with step_onto(33,5, risky=True) — MR resists; or around it),
   down to the row-12 corridor (40,12) -> east to the column (52-53,12..20) -> south region rows 17-20 -> (57,18) -> east region -> (64,17).
   desmap.route() keeps preferring the phantom secret door (54,9): travel in short waypoints ((40,12), then (53,14), (53,19), (57,18), (64,17)).
+
+## ORCHESTRATOR DECISIONS T:13317
+- Arc: XP to XL14 for the quest. Route: down the main dungeon to the DL9 lawful altar (34,16), BUC-test the luckstone Z
+  and new items there (a cursed luckstone locks in BAD luck: if cursed, uncurse it with one holy water). Sacrifice
+  fresh kills there when convenient (Luck; gifts only at prayer timeout 0).
+- Then explore/fight DL13-18 for XP (quest portal DL13 (70,10)). Depth limit DL18 — stop and report on any sign of
+  Medusa's level (water everywhere, the harness's PROBABLY MEDUSA warning).
+- At XL14: check piety() (stethoscope on yourself); the quest leader needs "piously" (20+). Don't approach her before.
