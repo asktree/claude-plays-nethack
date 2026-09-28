@@ -583,3 +583,6 @@
 - T:24325 the Wizard's "black glow" CURSE ITEMS (known-BUC items all fine). Rested in the morgue doorway (48,14) to 179 (a warg killed).
 - T:24353 an ENERGY VORTEX at (39,8): 2 blows, but passive shock + engulf cost 47 HP. Rested in the corridor (40,8) to 179/179.
 - SHIFT 39 END T:24376 **D51 at (40,8)** next to S4 (37,9) (closed), HP 179/179, XL17 (Exp 723461), AC -7. Carrying J (cockatrice corpse). Next: S4 -> west hall -> fire ring -> zap g for the temple door -> towel on, wield J, step on the door, one hit on the high priestess (stoning), take the Amulet.
+
+## Shift 40 (RECOVERED game: back to T:24181, Sanctum up stairs, blind)
+- Container restart: the game was restored by NetHack's `recover` from the level-change checkpoint of T:24181 (arrival on D51, blind). All of shift 39 after T:24181 is undone: no cockatrice corpse, the priestess of Moloch (35,10), a priest of Moloch (50,17) and the east crowd are alive again; wand j empty, I works, R >= 2 charges. New plan needed for the high priestess (no stoning weapon): probe her from outside the door, fight from the temple door with the towel on, step back out below ~100 HP (she can't leave the temple), rest out of her sight (> 7 squares: no undirected casts), repeat.

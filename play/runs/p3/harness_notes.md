@@ -285,3 +285,11 @@ Top 3 (shift 21, ranked):
 1. prayer_check() ignores hopeful-sacrifice cuts (item 1): its 31% vs the real ~88% could make a player skip a life-saving prayer, or (the other way) sacrifice-proofing is invisible to it.
 2. The daemon core was older than the code on disk all shift, and tactics changed under me 3 times (item 2).
 3. fight_until_clear(hold=N) gives up early on a monster that "isn't coming" (item 4), and pickup() doesn't return the letters it picked up (item 3).
+
+## Shift 23
+
+(Shift 22 was lost to a container restart; the game was recovered to T:20114. Step numbers restart with this daemon.)
+
+1. #123-#126 (MEDIUM) `tunnel(8, 14)` from (5,14) while BLIND (blindfold on): "You swing your pick-axe through thin air." twice, and it never stepped into (6,14). The square was open floor; blind, it isn't drawn, so tunnel() took it for rock and applied the pick-axe again, pausing on each "thin air". Expected: after "thin air", treat that square as open and step on (or mark it walkable), then keep tunnelling from there.
+2. #6 (MEDIUM) `prayer_check()` listed trouble 'minor' with reason 'Blind' while the only blindness was my worn BLINDFOLD. pray.c in_trouble() counts TROUBLE_BLIND only for timed blindness (`Blinded > 1`), never for a blindfold (`Blindfolded`). A blindfold-only 'Blind' should not count as trouble. That matters for the certain pat-on-the-head (crowning) logic and for the minor-trouble odds it reports (59% here).
+3. The obs keeps saying "harness code on disk is newer than this daemon's core"; `bin/nh reload` at #43 loaded the tactics.

@@ -663,3 +663,9 @@ T:30538 DL18 `<` -> DL17 `>` (71,16): the Wizard (full HP) was there at once and
 T:30553-30588 DL18 — blindfold off; rested 89 -> 150 (a xorn died to the hold).
 T:30588-30618 DUG DOWN DL18 -> 19 -> 20 -> 21 (T:30609 INTERVENTION = curse items: nothing with known BUC hit) -> 22 (the old summons' room, empty now) -> 23 (Medusa's; raven killed) -> my hole (5,16) -> DL24 (no shaft).
 **T:30661 SHIFT 41 ENDS on DL24's `>` (52,11), HP 177/177, XL16, AC -10, THE BELL CARRIED. Wizard #2 dead; Wizard #1 (with the ORB) waits on DL38 at its `>` (19,8). Prayer used T:30553. Next: the Castle -> Valley -> dig chain -> DL37/38 (meet Wizard #1) -> DL44 stash.**
+
+## Shift 42 (resumed after a container restart: `recover` put the game back at T:30622 on DL24 (64,8); T:30622-30661 of shift 41 were undone)
+T:30622-30661 DL24 — killed the plains centaur again, `>` (52,11) -> DL25 Castle `<` (2,20).
+T:30662 DL25 — the SW pocket's only exit crosses the RUST TRAP (4,20) ((3,20) was a harness phantom: `^l` "I can't see a trap there"). Picked up c = a HORN from the rust trap square: applied (improvise) = "You produce a frightful, grave sound." = TOOLED HORN (or an empty frost/fire horn).
+T:30670 — THE GATEWAY ICE (13,12) HAS MELTED (water again). Crossed by LEVITATION: removed ring f, put on Y, 2 steps east, Y off, f on again (4 turns). Throne room: peaceful fire giant + black naga, a vampire bat. Trap door (48,12) -> DL26 Valley (71,15) T:30695.
+T:30695-30722 DL26 — killed 2 Woodland-elves, an invisible quasit (it zapped make invisible; wand left at (57,11)), dart trap (62,3) crossed; MAGIC TRAP (54,5) fired: flash (blind, horn cured in 4 applies) + roar + a SOLDIER (killed). Telepathy while blind: JABBERWOCK (45,12), owlbear, 3 wolves, giant beetle, Dirk's ghost, raven, Woodland-elf in/near the middle graveyard; bugbear (44,4); Olog-hai (59,17) SE; quantum mechanic + elf nearby.

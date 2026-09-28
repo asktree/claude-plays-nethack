@@ -258,3 +258,18 @@
   stepped back out to (5,12). A wand lies at (14,18) (SE room).
 - END OF SHIFT 7: T:9927, DL13 (5,12), HP 109/109, XL10, AC -15, Satiated, $0 loose ($1599 bagged), Excalibur +5,
   SLEEP RESISTANT now, prayer safe (last prayer T:3562).
+
+## Shift 8
+- CONTAINER RESTART: game recovered from the DL13 arrival checkpoint -> T:9820 on the DL13 '<' (19,6), HP 98/109,
+  $38 loose (bagged at once T:9821). Undone: the snake/giant ant/xan kills, the '>' discovery and the hall visit
+  (the harness still remembers '>' (2,5), the fountains and the leprechaun hall as features/special room).
+- T:9832 DL13: took the wand at (14,18): GLASS wand, engrave-test "The engraving on the floor vanishes!" = cancellation
+  or teleportation; iridium is teleportation -> glass = CANCELLATION (named; NEVER into the bag of holding). 1 charge
+  spent on the test. Walked to '>' (2,5) by hand (harness frontier memory stale after the restore).
+- T:9855 DL14: '<' (18,18); elven leather helm + 10 ya left there. explore() found hidden passage/door, $109 on the '>'.
+- T:9886 DL15: "You receive a faint telepathic message from the Norn ... Shrine of Destiny" = QUEST PORTAL LEVEL is DL15
+  (= Oracle DL9 + 6). DL15 '<' (17,14). Bagged the $109.
+- T:9890 DL15: sleeping WOOD NYMPH sensed at (10,4) (NW room 3-11,4-5); no route then, left asleep (Stealth).
+- T:9985 DL15: explore() revealed the MAGIC PORTAL at (52,15). FLESH GOLEM killed in 2 blows (no damage).
+  Chest on the fountain (36,8): locked, no trap, EMPTY. $14 at (52,14) bagged; "Vlad was here" closet (52,12) behind
+  (52,13) = one-time trap door (avoided). Trident (52,16) left.

@@ -367,3 +367,13 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
   play); `bin/nh reload` between execs worked each time.
 - Good: read_identify() with my regex priorities; the shop floor walk + here() gave every price in one exec; pay()
   and bag_take/bag_put with '$' were smooth; fight_until_clear(ignore=('gray unicorn',)) held the corridor well.
+
+## Shift 8 (T:9820-)
+- #37 T:9835 (after the container restart + NetHack `recover` to T:9820): go_down() -> travel(2,5) -> head_to(2,5)
+  raised "no reachable frontier left (tried 0)" and `screen_frontiers()` returned [] (#43) although the screen showed
+  an unexplored doorway (21,18) and a closed door (13,4) with blank ground behind them. The harness's per-level memory
+  still holds the UNDONE exploration of DL13 (T:9821-9927: '>' (2,5), fountains, leprechaun hall), so it believes
+  those squares were seen. Expected: detect a restore (turn counter went BACKWARD, T:9927 -> T:9820, or the game's
+  map lacks squares the harness remembers) and drop/reconcile per-level seen-map memory newer than the restored
+  turn; at least compute frontiers from the current screen. Worked around with a hand-made corridor follower
+  (#45-#55); remembered features ('>' (2,5)) were right, since the level itself existed before the checkpoint.

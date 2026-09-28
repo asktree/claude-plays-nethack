@@ -27,3 +27,4 @@ play/secrets/
 .cache/
 knowledge/wiki/
 .claude/settings.local.json
+.claude/worktrees/

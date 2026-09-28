@@ -813,3 +813,8 @@ No "harness code on disk is newer" line this shift.
 1. prayer_check()/pray() misclassify a cursed worn blindfold (MAJOR in pray.c) as minor (#424).
 2. fight_until_clear(unseen=True) raises PermissionError on an adjacent attacking 'I' while blind (#128, #182) — a hold loop dies exactly when an unseen monster attacks.
 3. dig('>') can leave the pick-axe wielded after falling (#551, #562); go_up() missed the pre-stairs covetous pause when the stair link was unknown (#371).
+
+## Shift 42 (T:30622 -> ; resumed after a container restart + `recover`; step numbers from #0 of this daemon)
+1. #37 (T:30661, DL25 Castle): travel(47,12) refused: "every known route crosses an avoided square ... (3, 20), (4, 20)" — (3,20) is the PHANTOM trap from shift 22 (#1434: a rothe set off the rust trap (4,20) and the trap was filed at the hero's square). The game itself knows no trap there (`^l`: "I can't see a trap there."), which fixed the harness memory at once. Expected: the per-level #terrain re-read on arrival should drop remembered traps the game doesn't show (the memory survived the container restart).
+2. #52 (T:30670): trek(47,12) ended with "head_to(47, 12): no reachable frontier left" — the real blocker was the Castle gateway (13,12) that had MELTED back to water (I stood next to it). Expected: the NavError names the water square(s) on the only route ("(13,12) water: freeze it / levitate"), like travel()'s own "only route crosses" message.
+3. "!! harness code on disk is newer than this daemon's core" on every obs from #54 (after `bin/nh reload` it still names src/nh core: needs a daemon restart by the orchestrator).

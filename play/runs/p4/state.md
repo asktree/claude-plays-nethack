@@ -67,7 +67,9 @@
 | 8 | MINETOWN (minetn-6) | '<' (15,13), '>' (60,18); temple of Tyr (co-aligned altar (55,17)); deli out of rations; Izchak ~(30,13). |
 | 9-12 | Mines | DL9 '<' (52,11) '>' (55,17); DL10 '<' (51,10) '>' (25,13) MIND FLAYER + quantum mechanic roam; DL11 '<' (17,15) '>' (21,7); DL12 '<' (5,17) '>' (21,12). |
 | 13 | MINES' END (Catacombs) | DONE (luckstone). '<' (44,12). |
-- QUEST PORTAL: dungeon.def puts it at Oracle + 6..7 = DL15 or DL16 (no message on DL10-13). BIG ROOM: none (DL10-12 are ordinary).
+- QUEST PORTAL = DL15 MAGIC PORTAL at (52,15) (found by explore/auto-search T:~9980), in the small room (50-52,14-17):
+  doors (49,15) W, (52,13) N [-> 'Vlad was here' closet (52,12) = one-time TRAP DOOR], doorway (53,16) E. DL15 '<' (17,14).
+  Norn's message on arrival T:9886. BIG ROOM: none (DL10-12 ordinary).
 
 ## Threats / known dangers
 - Nymphs (armor theft). Leprechauns steal only LOOSE gold: keep $0 loose (bag_put('k','$') after any pickup).
