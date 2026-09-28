@@ -2,7 +2,7 @@
 
 ## Character
 - Name/role: P3, lawful female dwarven Valkyrie, god: Tyr (local practice game, seed 303)
-- Turn / Dlvl / XL / HP / Pw / AC: T:19064 / Dlvl 16 ON THE LAWFUL ALTAR (58,18) (end of shift 19) / XL13 (Exp 56098; XL14 at 80000) / 142/142 / 22/22 / AC -9
+- Turn / Dlvl / XL / HP / Pw / AC: T:19092 / Dlvl 16 ON THE LAWFUL ALTAR (58,18) (shift 20) / XL13 (Exp 56439; XL14 at 80000) / 142/142 / 22/22 / AC -10 (divine protection from the T:19068 prayer)
 - LUCK: 13 (max) since T:18531 (two NAMED gems to the white unicorn, +2 each). Before: about +10 (luckstone M UNCURSED (keeps good luck from timing out) + T:18465 zruty sacrificed on the D16 lawful altar (+1 or +2) + T:18488 identified AMETHYST thrown to the co-aligned WHITE UNICORN ("gratefully accepts" = +5) + T:18500 a real black gem to it (+1)). Luck max is 13 (u.uluck 10 + 3 from the stone).
 - Attributes (^X T:17900): St 18/10 (then -4 poison hits from bee corpses, +1 royal jelly: now ~18/0x) Dx 15 Co 19 In 9 Wi 12 Ch 10
 - Intrinsics (source, turn): cold res (Valk), stealth (Valk), infravision (dwarf), SPEED (Valk XL7) + VERY FAST from speed boots, TELEPATHY (floating eye, T:11594; blindfold h), PERMANENT INVISIBILITY + SEE INVISIBLE (stalker, T:12233), **POISON RESISTANCE (T:18254, killer bee corpse on D20: "You feel healthy.")**. NOT fire/shock/sleep resistant. Excalibur: +2 to searching.
@@ -14,6 +14,8 @@
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
+| T:19085 | (sacrifice, no prayer) | bag-of-tricks SNAKE (T:19077) "hopeful feeling"; then a XORN (T:19085) consumed with NO message = prayer timeout PROVEN 0 again (pray.c: a nonzero timeout always prints hopeful/reconciliation; Luck already max). Stays 0 until I pray or get a sacrifice gift: NO MORE SACRIFICES (1 in 10 is a gift = reset). Crowning attempt #3 possible if the coach approves. |
+| T:19065-19068 | none: CROWNING ATTEMPT #2 on the D16 lawful altar (Luck 13, piously, timeout proven 0, horn "Nothing happens.", Not hungry, HP full) | SUCCESS, pat on the head = rn2(9) rolled 5 (intrinsic): "You feel that Tyr is well-pleased." / The voice of Tyr rings out: "Thou hast pleased me with thy progress," / "and thus I grant thee the gift of my protection!" / "Use it wisely in my name!" = DIVINE PROTECTION +1: AC -9 -> -10. NOT CROWNED. Timeout reset to rnz(350) (no +1000: not crowned). No emergency prayer until prayer_check() says so (~T:19700+). |
 | T:19059 | (sacrifice, no prayer) | "reconciliation": timeout back to 0 |
 | T:18551 | none (crowning attempt on the D16 lawful altar, Luck 13, piously, no trouble) | SUCCESS "Tyr is well-pleased", but the pat-on-head roll gave nothing (no crown). Timeout reset to rnz(350): no emergency prayer until ~T:19550 (prayer_check()). Next crowning try needs timeout 0 again (~1000+ turns; sacrifices shorten it). |
 
@@ -30,10 +32,10 @@
 - C BAG OF TRICKS (identified T:18282 by #loot: it bit). Charges unknown (1-20 when made; 5 used T:18450-18467). Apply = a random monster next to you: SACRIFICE FODDER at the D16 lawful altar (58,18) (Luck) and XP. Never into the bag of holding.
 - q 2 CANDLES (from the D20 hive) -> 8 candles in all (the Candelabrum needs 7).
 - Gems: Q and L went to the unicorn (T:18515/18531, named: +2 each). e = "gem called real yellow" (citrine/chrysoberyl) kept as a Luck reserve (+2 to a co-aligned unicorn); H 2 blue gems (unknown). w 2 worthless black glass (junk).
-- y potion of blindness (junk). (Z confuse monster and both earth scrolls were used on D25.)
+- y potion of blindness (junk). D BLESSED BUBBLY potion (from a bag-of-tricks orc-captain T:19070; its item tables suggest acid/paralysis/polymorph, a random death drop could be anything): don't drink, price-ID it. The 2 EMERALD potions are BASE 100 (Kyzyl offered 50 at T:17119 = base/2, no lowball) = RESTORE ABILITY or HALLUCINATION, NOT booze. (Z confuse monster and both earth scrolls were used on D25.)
 - Wands: W TELEPORTATION (0:0, EMPTY since T:18692: wrest 1 in 121); p + B LIGHTNING (uncursed); n DIGGING (0-2 left); V probing (0:3); R secret door detection; i tin (slow monster?); E make invisible (0:8).
 - s RING OF LEVITATION, M LUCKSTONE, u 4 LIZARD CORPSES, f UNICORN HORN, h blindfold (telepathy), v skeleton key, F can of grease, t 2 + U 1 elven daggers.
-- Gold: $521 in the bag (5200 went to protection T:17999; the D20 vault gave $4371).
+- Gold: $721 in the bag (T:19092) (5200 went to protection T:17999; the D20 vault gave $4371).
 
 ## Identified appearances
 - scrolls: VE FORBRYDERNE = GOLD DETECTION, VELOX NEB = DESTROY ARMOR, NR 9 = CONFUSE MONSTER (read-tests T:17649-17651); PRIRUTSENIE = CHARGING (read cursed T:14660, wasted; another x found T:15654, in the bag); a NEW 300-price label = GENOCIDE or PUNISHMENT; VENZAR BORGAVVE = SCARE MONSTER (Soko4 prize closet); ELBIB YLOH = identify; ZLORFIK = light; KO BATE = enchant weapon; GNIK SISI VLE = remove curse; KERNOD WEL = enchant armor; ETAOIN SHRDLU = stinking cloud; MAPIRO MAHAMA DIROMAT = teleportation; ANDOVA BEGARIN = magic mapping; DAIYEN FOOELS = create monster; ZELGO MER = amnesia; KIRJE = earth
