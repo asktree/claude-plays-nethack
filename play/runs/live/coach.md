@@ -288,3 +288,9 @@ obs), and a fight_until_clear option to pause only for danger-noted newcomers.
   - `trek(..., cross_traps=['unknown'])` or a square `(x, y)` crosses a trap whose type is hidden under objects.
   - Soldiers changing armour, "You hear a door open.", and shop-repair acoustics no longer pause.
   - PLAYBOOK has your fountain lesson: dips uncurse ANY item 4 times in 30.
+- **Added since (04:10 UTC, on main):** `altar_test()` does the clear-potion test in one call on any altar (drops the
+  unknown-B/U/C items, reads the flashes, picks them back up: "blessed" on a clear potion = HOLY WATER).
+  `desmap.show()` / `desmap.objects(name='luckstone')` list the level files' placed objects: Mines' End's luckstone
+  spots, the Castle's wand-of-wishing chest (one of the 4 towers), Perseus' statue on Medusa's level (shield of
+  reflection 25-75% by variant). `descend(n, explore=True)` explores a level with no known `>` until one shows up
+  (`climb(n, explore=True)` upward).
