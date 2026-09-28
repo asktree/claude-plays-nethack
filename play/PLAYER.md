@@ -95,7 +95,7 @@ don't pause again (they are in the monster list). Noises that are news once per 
 `THEFT — ...` and the obs keeps a `!! STOLEN at T:n ...` line until you pick the item up again (300 turns at most). An amulet of life saving that brings you back ("You die... But wait... Your medallion begins to glow!") pauses as `LIFE SAVED` — not GAME OVER: the game goes on at full HP; put on a spare at once.
 Other named pause reasons: `HELD — ...` (an eel/kraken wrapped you: its next hit drowns you — Elbereth NOW),
 `YOUR MOVE ATTACKED something` (a plain step hit an unseen monster — look before the next), `TELEPORTED`
-(a quantum mechanic; or `TELEPORTED without a word`: a step, search or rest left you 2+ squares away — teleportitis or an unseen teleport trap; a travel() leg that ends farther than it could go raises NavError saying so, and tunnel() stops), `MYSTERIOUS FORCE` (climbing with the Amulet failed; `go_up()` then raises NavError so a
+(a quantum mechanic; or `TELEPORTED without a word`: a step, search or rest left you 2+ squares away — teleportitis or an unseen teleport trap; a travel() leg that ends farther away than the turns it took allow — about 3 squares a turn at most; NetHack's own travel may run a whole corridor past the leg's waypoint, which is fine — raises NavError saying so, and tunnel() stops), `MYSTERIOUS FORCE` (climbing with the Amulet failed; `go_up()` then raises NavError so a
 script loop stops), `DROWNING ATTEMPT` ("... brushes against your leg": a sea monster, maybe hidden under the water,
 tried to wrap you — step away from the water; `fight()` and `fight_until_clear()` also stop while you stand next to
 water with an eel/kraken or an unseen `I` in it: `force=True` / `near_water=True` fight on), `CURSED ITEMS` (a curse
@@ -347,8 +347,9 @@ applying or kicking while standing on it smudges it too (and attacking a monster
 alignment: "You feel like a hypocrite"); dust also decays at random. `elbereth()` reads it back and
 re-engraves once if a letter slipped; `engraving_here()` flags a BROKEN one. While Blind, dust can't be
 felt: an engraving made blind is unverified. Engrave *before* HP gets critical.
-Your melee blow wipes a DUST Elbereth before the hypocrisy check (uhitm.c u_wipe_engr), so hitting from
-dust usually just breaks it, with no alignment loss. A **burned** Elbereth survives the wipe, so hitting a
+Your melee blow wipes a DUST Elbereth before the hypocrisy check (uhitm.c u_wipe_engr: 3 letters a blow, 2 a
+kick or throw), so hitting from dust just breaks it, with no alignment loss — after such a blow the harness
+forgets the engraving (the guard no longer blocks the next fight); engrave again to be safe again. A **burned** Elbereth survives the wipe, so hitting a
 monster that respects it is hypocrisy (-5 alignment) and deletes the engraving.
 `burn_elbereth()` burns a permanent one with a wand of fire. It tries your fire wands in turn and
 remembers the empty ones ("too worn out to engrave"). It refuses while Blind, Confused, Stunned or

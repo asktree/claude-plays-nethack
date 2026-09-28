@@ -4849,3 +4849,13 @@ def test_telepathy_scan_describes_what_the_batch_missed_and_labels_the_rest(monk
     assert "NOT LOOKED AT" in survival._unseen_label(rec) and "lich" in survival._unseen_label(rec)
     summ = survival._unseen_summary([rec, dict(rec, x=10)])
     assert "2 monster(s) could NOT be looked at" in summ and "2x L brown (lich)" in summ and "danger note" in summ
+
+
+def test_travel_leg_teleport_check_allows_a_long_real_walk():
+    # live shift 7 #536/#1025: NetHack's travel ran a whole corridor (20 squares, many turns) past the 8-square leg
+    # cap to a closed door — not a teleport; p1 shift 37 #135: a teleport trap moved the hero 30 squares in 2 turns
+    from tactics import nav
+    assert not nav._teleported_leg((31, 12), (51, 16), 8, 6822, 6841)
+    assert nav._teleported_leg((10, 5), (40, 15), 8, 1000, 1002)
+    assert not nav._teleported_leg((10, 5), (18, 5), 8, 1000, 1001)        # within the cap
+    assert nav._teleported_leg((10, 5), (40, 15), 8, None, None)           # no turn counter: the cap decides

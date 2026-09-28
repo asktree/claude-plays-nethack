@@ -468,6 +468,7 @@ class Game:
         self.here_seen: dict[str, dict] = {}      # level key -> {(x, y): last "You see here"/pile text}
         self.kills: dict[str, list] = {}          # level key -> [(name, (x, y), turn)]: corpse ages
         self.engr_seen: dict[str, dict] = {}      # level key -> {(x, y): engraving text last read there}
+        self.engr_burned: dict[str, set] = {}     # level key -> squares whose engraving was read as BURNED
         self.niches: dict[str, dict] = {}         # level key -> {(x, y) of a trapped closet: 'teleport'/'trapdoor'}
         self.special_rooms: dict[str, dict] = {}  # level key -> {(x, y) where you entered: {"kind", "prev", "turn"}}
         self.mimics: dict[str, dict] = {}         # level key -> {(x, y): 'giant mimic'}: mimics seen unmasked,
@@ -525,7 +526,7 @@ class Game:
         if old == new:
             return
         for d in (self.traps, self.avoid, self.visited, self.locked_doors, self.level_flags, self.floor_seen,
-                  self.solid, self.water_seen, self.kicked_stones):
+                  self.solid, self.water_seen, self.kicked_stones, self.engr_burned):
             if old in d:
                 d.setdefault(new, set()).update(d.pop(old))
         for d in (self.terrain_seen, self.here_seen, self.engr_seen, self.stair_links, self.feature_desc,
@@ -588,6 +589,7 @@ class Game:
         engr = self.engr_seen.setdefault(key, {})
         read = False
         dust = any(m.startswith("Something is written here in the dust.") for m in messages)
+        burned = any(re.match(r"^Some text has been (?:burned|melted) into the ", m) for m in messages)
         for m in messages:
             mm = self._ENGR_READ.search(m)
             if mm:
@@ -595,13 +597,35 @@ class Game:
                     snap.engr_repeat = True       # nothing new: the kernel doesn't pause on it again
                 engr[snap.hero] = mm.group(1)
                 read = True
+                if burned:
+                    self.engr_burned.setdefault(key, set()).add(snap.hero)
+                else:
+                    self.engr_burned.get(key, set()).discard(snap.hero)
                 if dust:
                     self._note_niche(snap, key, mm.group(1))
             elif self._ENGR_GONE.search(m):
                 engr.pop(snap.hero, None)
+                self.engr_burned.get(key, set()).discard(snap.hero)
         if not read and prev_hero is not None and prev_hero != snap.hero \
                 and "Blind" not in snap.status.conditions:
             # arriving on a square shows its engraving; none shown = none left (smudged away)
+            engr.pop(snap.hero, None)
+
+    # engrave.c u_wipe_engr(): every melee blow (uhitm.c attack(): 3 letters), kick or throw (2) from your square
+    # rubs letters out of a DUST engraving there — after one blow "Elbereth" is gone; a burned one stays
+    _WIPE_MSG = re.compile(r"^You (?:hit|miss|smite|kill|destroy|kick|begin bashing|throw|shoot)\b|^WHAMM|"
+                           r"^You (?:kill|destroy) it\b")
+
+    def _note_engraving_wiped(self, cur: Snap, snap: Snap, messages: list[str]) -> None:
+        """Forget the (dust) engraving under you after an attack from your square: the guard kept refusing
+        the next fight after a forced blow had already smudged the Elbereth (live shift 7 #2320)."""
+        if snap.hero is None or cur is None or cur.hero != snap.hero or not snap.status.ok:
+            return
+        key = self.level_key(snap.status)
+        engr = self.engr_seen.get(key, {})
+        if snap.hero not in engr or snap.hero in self.engr_burned.get(key, ()):
+            return
+        if any(self._WIPE_MSG.search(m) for m in messages):
             engr.pop(snap.hero, None)
 
     # hack.c check_special_room(): said ONCE per room (it becomes an ordinary room right after), so the
@@ -2048,6 +2072,7 @@ class Game:
                     self._note_traps(snap, messages, moved_level=moved)
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
+                    self._note_engraving_wiped(cur, snap, messages)
                     self._note_special_room(snap, messages, prev_hero=cur.hero if cur is not None else None)
                     self._note_shop(snap, messages, prev_hero=cur.hero if cur is not None and not moved else None)
                     self._validate_shops(snap)

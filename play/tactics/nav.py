@@ -1683,6 +1683,7 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             if s.hero == h0:
                 raise NavError(f"travel to {(x, y)}: no progress walking around {hz[:3]} (avoided squares)")
             continue
+        t0 = s.status.turn if s.status.ok else None
         s = ctx.do("_", quiet=True)
         if s.state.kind != "getpos":
             return s
@@ -1692,12 +1693,12 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
             return s
         h1 = s.hero
         if cap and h0 is not None and h1 is not None and s.status.ok and (not lvl0 or s.status.ldesc == lvl0) \
-                and max(abs(h1[0] - h0[0]), abs(h1[1] - h0[1])) > cap + 2:
-            # a leg of at most `cap` squares can't end farther away: teleported during it (teleportitis, a
-            # teleport trap — p1 shift 37 #135: go_down() ran on from the new spot, "NetHack's travel guessed")
-            raise NavError(f"travel to {(x, y)}: TELEPORTED during the leg ({h0} -> {h1}; the leg aimed at "
-                           f"{(tx, ty)}, at most {cap} squares) — teleportitis or a teleport trap: look around, "
-                           "then travel again")
+                and _teleported_leg(h0, h1, cap, t0, s.status.turn):
+            # teleported during the leg (teleportitis, a teleport trap — p1 shift 37 #135: go_down() ran on from
+            # the new spot, "NetHack's travel guessed")
+            raise NavError(f"travel to {(x, y)}: TELEPORTED during the leg ({h0} -> {h1} in "
+                           f"{(s.status.turn or 0) - (t0 or 0)} turns; the leg aimed at {(tx, ty)}) — teleportitis "
+                           "or a teleport trap: look around, then travel again")
         stop = next((m for m in s.messages if _TRAP_STOP.search(m)), None)
         if stop and h1 != (x, y) and h1 is not None:
             # hack.c lookaround() (mention_walls): NetHack's travel stops in front of a known trap on ITS route
@@ -2509,6 +2510,19 @@ def castle_pause(who: str, s=None) -> None:
     if warn:
         _CASTLE_WARNED.add(key)
         ctx.pause(f"{who}: {warn}. (Once per level: cont goes on.)")
+
+
+def _teleported_leg(h0, h1, cap: int, t0, t1) -> bool:
+    """A travel leg that ends farther away than it could have walked. NetHack's `_` travel runs on past the
+    harness's leg cap toward a target it can't see a way to ("You stop in front of the door." at the end of a
+    whole corridor: the live game's go_up() #536/#1025 flagged that as a teleport), so the cap alone proves
+    nothing: a real walk covers at most ~2 squares a turn (very fast; 3 counts a fast steed too)."""
+    d = max(abs(h1[0] - h0[0]), abs(h1[1] - h0[1]))
+    if d <= cap + 2:
+        return False
+    if t0 is None or t1 is None:
+        return True
+    return d > 3 * max(1, t1 - t0) + 2
 
 
 def go_down(wait_pet: int = 6, to: str | None = None, with_pet=None, pass_hostile: bool = False):

@@ -759,6 +759,18 @@ def test_guard_elbereth_attack_and_peaceful_step():
     assert g.on_elbereth(s)
     g._remember_here(s, [], prev_hero=(10, 6))
     assert not g.on_elbereth(s)
+    # live shift 7 #2320: a (forced) blow from a DUST Elbereth rubs 3 letters out (u_wipe_engr) — the next fight
+    # must not be refused for an engraving that is already broken; a BURNED one stays
+    g._remember_here(s, ["Something is written here in the dust.", 'You read: "Elbereth".'])
+    g._note_engraving_wiped(s, s, ["You hit the jackal!", "The jackal bites!"])
+    assert not g.on_elbereth(s)
+    g._guard(s, b"Fl", force=False)
+    g._remember_here(s, ["Some text has been burned into the floor here.", 'You read: "Elbereth".'])
+    g._note_engraving_wiped(s, s, ["You hit the jackal!"])
+    assert g.on_elbereth(s)
+    g._remember_here(s, ["Something is written here in the dust.", 'You read: "Elbereth".'])
+    g._note_engraving_wiped(s, s, ["The jackal bites!"])            # no attack of yours: still there
+    assert g.on_elbereth(s)
 
 
 def test_door_at_corridor_end_is_a_door():
