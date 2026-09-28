@@ -29,3 +29,15 @@
 - T:1909-1943 Mines 1 — down stairs (46,14). "You hear distant howling" (were-creature? unconfirmed). A bag at
   (67,19): #loot bit me => BAG OF TRICKS (A). Scroll STRC PRST SKRZ KRK (B). Magic trap at (59,14).
   End of shift 1: T:1943, HP 42/44, XL4, AC5, $86, at (45,10) Mines 1, no hostiles in view.
+
+## Shift 2
+- T:1994-2001 Mines 1 — explored the rest; blue gem (C). A spiked pit (58,13) holds a gnome's weapon (left).
+- T:2027 Mines 2 (DL6) — monkey stole the blue gem, killed it and got it back. Killed a baby crocodile and a fox
+  holding the up stairs. Scroll EIRIS SAZUN IDISI (D). Down stairs (42,11), squeaky board (46,17).
+- T:2223-2224 Mines 2 — a YELLOW LIGHT reached me during explore() ("A yellow light blocks your path." -> explore
+  waited a turn) and exploded: Blind ~98 turns. Waited it out on the up stairs; killed a biting unseen thing
+  (grid bug?) with a forced F. Ate the lichen corpse (T:2300).
+- T:2338 Mines 2 — killed a kobold shaman: XL5 (HP 56). Yellow gem (E).
+- T:2394-2441 — back up: orc zombie (Mines 1), homunculus on DL4 (slept me 1 turn; HP 47/56).
+- T:2487 DL4 — Hungry; ate the food ration (o). Falling rock trap found at (43,16) under a food pile.
+- T:2494-2495 DL4 fountain (42,15): dip 1 rusted the sword, dip 2 = EXCALIBUR (blessed rustproof +1). Fountain gone.
