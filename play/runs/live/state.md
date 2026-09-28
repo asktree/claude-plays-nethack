@@ -193,3 +193,13 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - After conversion: prayer_check() (Luck must be >= 0) → drop the 3 waters → pray → holy water → dip lamp → rub → wish
   "blessed +2 gray dragon scale mail". Wear it under the cloak (take off cloak, mithril; wear GDSM; cloak back).
 - Also: altar_test() any clear potions you find. Quest portal = DL13 (70,10); quest at XL14.
+
+## ORCHESTRATOR DECISIONS T:11316 (after the wish)
+- Next arc: Minetown (DL7 via the Mines from DL4) — donate 400×XL (4400 at XL11, <600×XL) to the priestess for +1 AC
+  protection; the mumak there can now be killed (AC-14, Excalibur, XL11) — at full HP. Then down the Mines to
+  MINES' END for the luckstone (desmap.show()/desmap.objects(name='luckstone') lists the candidate spots; kick-test
+  gray stones — the luckstone is the one under/near the fixed spot; a loadstone doesn't budge). Keep it uncursed.
+- Gain XL toward 14 on the way (the quest needs XL14 + piously; check piety() with the stethoscope occasionally).
+- The DL9 altar is lawful (Tyr): the place for BUC tests and, when the prayer timeout is 0 again (~T:12500+),
+  sacrifices for Luck/gifts.
+- No Medusa/Castle yet: they need a levitation/water-crossing plan and XL14; that's for a later planning step.

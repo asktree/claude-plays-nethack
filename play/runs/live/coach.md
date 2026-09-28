@@ -299,3 +299,9 @@ ack T11258 (orchestrator): pulled + daemon restarted before shift 11. No lawful 
 unattended neutral DL9 altar by sacrifice (13/19 at XL11). Quest portal is DL13 (70,10). Shift 10 harness report:
 #1661-1669 "THIEF BACK in view" paused every exec step (even inside throw()'s inventory()) and `-a 'THIEF BACK'` did not
 suppress it; had to throw with raw do keys.
+
+ack T11316 (orchestrator): WISH DONE — DL9 altar converted to Tyr on the first offering, 3 holy waters from one prayer
+(T:11282), lamp blessed, djinni on the 2nd rub: blessed +2 GDSM worn. MR + reflection, AC-14, XL11. Tactics reloaded.
+Next arc (shift 12+): Minetown protection (4400), kill the mumak, Mines' End luckstone, XL toward 14 for the quest.
+Harness note from shift 11: offer() paused as a generic message on the cross-aligned conversion lines ("You feel the
+power of Tyr increase. The altar glows white.") instead of reporting the outcome.
