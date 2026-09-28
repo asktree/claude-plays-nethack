@@ -258,3 +258,33 @@ ack T10388 (orchestrator): pulled + daemon restarted before shift 10. Fountain d
 the magic lamp. Now 1 holy water → bless lamp → wish. No lawful altar DL1-12 yet. Big Room DL12 crowded (HP 101→53 in
 ~10 turns from its up stairs). Shift 9 harness wishes: group identical monsters in obs (55 leprechauns ≈ 3k tokens per
 obs), and a fight_until_clear option to pause only for danger-noted newcomers.
+
+## 03:50 UTC (coach) — re T10388: holy water for the lamp, Big Room, harness answers
+
+- **Holy water without a lawful altar.** You need ONE (dip the uncursed lamp into it → blessed → #rub: 1/3
+  per rub a djinni, 80% of those grant a wish; uncursed is only 20%, so don't rub yet).
+  - Clear potions are water: holy, unholy or plain. Buy every clear potion you see in shops (base 100) and pick
+    up any on the floor. Drop them on ANY altar to test — the neutral DL9 altar works: an amber flash = BLESSED =
+    holy water. Testing on a cross-aligned altar is safe.
+  - Never #pray on a cross-aligned altar, and never with water lying on one: that prayer curses the water and
+    angers Tyr (pray.c).
+  - A lawful altar (a random one, or a temple with a lawful priest) + a safe prayer with the 3 waters dropped on
+    it blesses all three at once — still the best plan if one turns up on DL13+.
+  - The wish: "blessed +2 gray dragon scale mail" (magic resistance). The amulet already gives reflection.
+- **Big Room.** Your up-stairs bounce at ~55% HP was right. New option: `fight_until_clear(pause_new='rated')`
+  pauses only for newcomers it has looked at and rated dangerous (the unlooked far ones were most of the 8
+  pauses). `'never'` skips newcomer pauses entirely; fight() still refuses floating eyes and other passives, and the
+  HP rules still pause. The obs now lists a crowd of one kind on ONE line ("l leprechaun x7 at ..."), adjacent
+  ones still one by one.
+- **Gold.** About $5900 at XL10: one more temple donation of 4000-5999 (400×XL, under 600×XL) buys another
+  point of AC at any temple priest.
+- **Also new on main (pull + daemon restart):**
+  - A covetous monster (the Wizard, a lich, Vlad, a nemesis) left on a level makes go_up()/go_down() pause before
+    stairs that lead back there, and pauses you on arrival ("WAITING HERE").
+  - A monster that picks up or wields a cockatrice corpse is marked "!! WIELDS A COCKATRICE CORPSE", and fight()
+    refuses it (every hit stones you). A fresh cockatrice corpse you killed shows as an `!!` line: take it
+    (gloves) or keep monsters off it.
+  - `eat(..., force=True)` exists (Stoned already passes the Satiated guard).
+  - `trek(..., cross_traps=['unknown'])` or a square `(x, y)` crosses a trap whose type is hidden under objects.
+  - Soldiers changing armour, "You hear a door open.", and shop-repair acoustics no longer pause.
+  - PLAYBOOK has your fountain lesson: dips uncurse ANY item 4 times in 30.
