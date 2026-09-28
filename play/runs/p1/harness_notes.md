@@ -797,3 +797,19 @@ No "harness code on disk is newer" line this shift.
 1. trek() can't be allowed across an unknown-type trap although its error says to name it (#216-#218): cost a wasted zap + a tunnel.
 2. No warning when entering a level where a Wizard was shed and waits at his old square (#414, #634): both times he was adjacent on arrival; the second time he stole the Bell.
 3. SUMMONED pause fired for monsters that only became VISIBLE through the blindfold's telepathy (#248); intervention flavour lines pause hold loops (#676, #679).
+
+## Shift 41 (T:30329 -> 30661; step numbers from #0 of this daemon)
+1. #424-#426 (T:30550): prayer_check() reported only MINOR trouble while I wore a CURSED blindfold — pray.c in_trouble() returns TROUBLE_CURSED_BLINDFOLD = 1 (MAJOR: `if (Blindfolded && ublindf->cursed)`), so pray() refused and needed force=True (it worked: "Your blindfold softly glows amber"). Expected: prayer_check() lists "cursed blindfold (MAJOR)" (and pray() allows it without force).
+2. #126-#128 and #182 (T:30379, T:30393): fight_until_clear(unseen=True) crashed with PermissionError from game.py _guard ("refusing to attack the remembered unseen monster 'I' ... while blind") instead of swinging at an adjacent 'I' that had just ATTACKED me ("It touches you!" put it there — a green slime; later "You feel an unseen monster!" — a pudding). Expected: unseen=True (or the guard) accepts an 'I' created by an attack message this turn / a felt monster, or at least pauses instead of raising. My workaround: a wrapper catching the PermissionError and calling fight(x, y, force=True).
+3. #16/#17 (T:30333): step() refused a stale-looking 'I' in a doorway; `m`-direction answered "You move right into it." = a real unseen mindless monster (the green slime that slimed me 45 turns later). Suggestion: after "You move right into it." keep the 'I' and flag it "hostile, mindless (not on telepathy)" in the obs.
+4. #371 (T:30538): go_up() from DL18 did NOT pause before the stairs although DL17 held the Wizard I had left there (I had dug down to DL18, so the DL18 `<` -> DL17 link was unknown); only the arrival pause "WAITING HERE: ..." fired (accurate; he was adjacent with 4 summons a turn later). Expected: for `<`/`>` in a linear dungeon branch, assume the level above/below when the link is unknown.
+5. #551, #562 (T:30612, T:30618): dig('>') fell through twice and left the PICK-AXE wielded (obs "!! you WIELD an uncursed pick-axe"); the second time the exec ended normally with no pause and no re-wield. Expected (docs): Excalibur wielded again after the fall, before any pause.
+6. #67 (T:30350): a teleportitis jump during zap('U','j') moved me (24,14) -> (25,9) with no TELEPORTED pause (the other jumps this shift paused correctly).
+7. "!! harness code on disk is newer than this daemon's core" all shift (after `bin/nh reload` at #8).
+8. ^T (teleport at will) cost 30 Pw (35 -> 5) — the harness could show the teleportitis cost/readiness (I planned with 19).
+9. Worked well: the WAITING HERE covetous pause (#371); game.kills gave the Wizard's death square (36,5) so I could pick up the Bell while blind; here() blind memory of "You feel here an uncursed silver bell"; zap() WandEmpty on U and h (turn spent, clear message); bag_take() with a regex; fight(x, y, max_blows=1) loops on the invisible Wizard; the SUMMONED pause (#118) naming all three summons; TELEPORTED-without-a-word pauses (#42, #243, #336, #344).
+
+### Shift 41 — ranked summary
+1. prayer_check()/pray() misclassify a cursed worn blindfold (MAJOR in pray.c) as minor (#424).
+2. fight_until_clear(unseen=True) raises PermissionError on an adjacent attacking 'I' while blind (#128, #182) — a hold loop dies exactly when an unseen monster attacks.
+3. dig('>') can leave the pick-axe wielded after falling (#551, #562); go_up() missed the pre-stairs covetous pause when the stair link was unknown (#371).
