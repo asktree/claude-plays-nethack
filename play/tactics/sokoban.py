@@ -243,7 +243,9 @@ def push(bx: int, by: int, dirs: str):
                       "(a mimic, or something unseen) — pushing the boulder against it strands it or the monster "
                       "behind the boulder (no diagonal squeezing in Sokoban). Kill it first (fight()/hunt(), or "
                       "throw weapons / zap an attack wand from a square in line with it), then solve() again. "
-                      "If it's gone (killed out of sight), forget_mimic(x, y)")
+                      "If it's gone (killed out of sight), forget_mimic(x, y); a remembered unseen-monster "
+                      "marker 'I' that nothing stands on any more: clear_I(x, y) (a search from next to it), or push "
+                      "by hand (a push against a real monster costs no turn: 'You hear a monster behind the boulder')")
             return ctx.last(), b
         if s.hero is None:
             ctx.pause(f"push: not at the command prompt ({s.state.kind}: {s.state.prompt!r})")

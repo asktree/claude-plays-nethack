@@ -878,7 +878,11 @@ def _walk(x, y, max_steps, names, allow_water, fight, NavError, walk_path, fight
             if any("door opens" in m for m in s.messages or []) and opened < 4:
                 opened += 1
                 continue                         # the step opened a door in the way: walk on through it
-            from .nav import _in_pit
+            from .nav import _in_pit, _pet_in_way
+            if _pet_in_way(s.messages) and pit_tries < 10:
+                # "You stop.  Your dog is in the way!" (live shift 4 #138: a retry worked) — try again
+                pit_tries += 1
+                continue
             if _in_pit(s.messages) and pit_tries < 10:
                 # trap.c climb_pit(): climbing out takes a few turns (p1 shift 39 #606: one "You are still in a
                 # pit." ended the walk; travel() keeps climbing too)
