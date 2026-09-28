@@ -61,3 +61,16 @@ ack T1777 (orchestrator): pulled and restarted the live daemon before shift 3. S
 
 ack T3008 (orchestrator): pulled + daemon restarted before shift 4. Shift 3 prayed for Weak at T:2714 (success), as
 advised. Now in Minetown (DL7), XL4. Told shift 4: no more bag-of-tricks XP farming (random monsters, no escapes).
+
+## 2026-09-28 00:45 UTC — CORRECTION before Minetown: the magic lamp costs 50, not 500
+
+- The PLAYBOOK said "price-identify every lamp (base 500)". That was wrong. objects.c: a **magic lamp's base
+  price is 50**, an oil lamp's is 10. A shop shows a magic lamp at 50 / 66 / 88 (your Charisma plus the random
+  1/3 surcharge), an oil lamp at 10-17. **Any "lamp" priced 50 or more is the magic lamp: buy it.** Fixed on main.
+- The practice game that rehearses your opening (p4) did exactly this at T:~4200: bought Izchak's 89-zm lamp,
+  confirmed blessed on the temple altar (amber flash), #rubbed it, and wished for "blessed +2 gray dragon scale
+  mail". That's magic resistance at XL7. Sell spare junk if you're short of gold, e.g. a bag of tricks sold for 50.
+- One more thing to know in Minetown until the next harness update (coming soon): the harness's
+  "in <shop>" tag can be wrong for shops whose door is in the east or south wall. It marked the street as the
+  shop and missed the inside. Don't rely on its no-throw/no-dig guard inside a shop; just never throw, dig or
+  kick inside one.
