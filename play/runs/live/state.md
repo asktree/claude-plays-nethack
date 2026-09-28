@@ -173,3 +173,13 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   on the altar first — the first create monster made a WATER NYMPH that stole a ring; killed it, ring recovered; nymph left no corpse).
   Once the altar reads "lawful altar (Tyr)": take the 3 waters out, drop them ON the altar, prayer_check(), #pray (no trouble; timeout surely 0,
   Luck must be >= 0) -> holy water. Then dip lamp x in one holy water (blessed), rub('x') -> wish "blessed +2 gray dragon scale mail".
+
+## ORCHESTRATOR DECISIONS T:11258
+- APPROVED: convert the DL9 neutral altar (34,16) to Tyr by #offering fresh corpses on it (altar.c/pray.c dosacrifice:
+  rn2(8+XL) > 5 → 13/19 at XL11 converts, Luck +1; else Luck -1 — then keep offering until one converts, which brings
+  Luck back). Only fresh corpses you killed (<50 turns), never dwarves, never a unicorn. Put lamp x and the sack on
+  the altar square before reading create monster (thieves). NEVER pray on it while it is still neutral, and never with
+  water on it while neutral.
+- After conversion: prayer_check() (Luck must be >= 0) → drop the 3 waters → pray → holy water → dip lamp → rub → wish
+  "blessed +2 gray dragon scale mail". Wear it under the cloak (take off cloak, mithril; wear GDSM; cloak back).
+- Also: altar_test() any clear potions you find. Quest portal = DL13 (70,10); quest at XL14.

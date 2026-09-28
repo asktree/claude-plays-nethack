@@ -294,3 +294,8 @@ obs), and a fight_until_clear option to pause only for danger-noted newcomers.
   spots, the Castle's wand-of-wishing chest (one of the 4 towers), Perseus' statue on Medusa's level (shield of
   reflection 25-75% by variant). `descend(n, explore=True)` explores a level with no known `>` until one shows up
   (`climb(n, explore=True)` upward).
+
+ack T11258 (orchestrator): pulled + daemon restarted before shift 11. No lawful altar DL1-14 → approved converting the
+unattended neutral DL9 altar by sacrifice (13/19 at XL11). Quest portal is DL13 (70,10). Shift 10 harness report:
+#1661-1669 "THIEF BACK in view" paused every exec step (even inside throw()'s inventory()) and `-a 'THIEF BACK'` did not
+suppress it; had to throw with raw do keys.
