@@ -115,3 +115,24 @@ wrong-side-of-the-door bug looks fixed; throw() refusing through peacefuls; the 
    walks straight back while you stand IN LINE with him (shk.c shk_move: satdoor -> random step; next move back if
    onlineu). From (36,16)/(35,15)... it took 9 turns at (35,15) before he stepped to (36,17) (off-line) and stayed.
    travel()'s peaceful-waiting could pick a waiting square that leaves the shk an off-line square.
+
+9. (info) With auto_fight=False, `travel()`/`explore()`/`trek()` kept working for the rest of the shift; every newcomer
+   still paused with "monster_filter error: ImportError(...)" (#405, #545, #607) — safe, just extra calls. throw() worked.
+   I killed a giant bat, dwarf zombie, 2 giant rats, bats and the mimic with a hand-written `mfight()` loop of `F<dir>`.
+
+10. (minor) A step that bumps a displayed, sessile hostile (green mold #545, acid blob #720) printed "X blocks your path."
+    and did not attack — good (no acid) — but travel/explore should never try to step into a known passive-acid square.
+
+Worked well: sell_offer()/price_id() (8 offers, lowballing detection), pay(), altar_test(), call_type(), trek() over the
+anti-magic field, go_up()/go_down() with PetLost when the cat lagged (it came along both times after a short wait),
+explore()'s dead-end/stairs-under-objects hints, pickup() patterns, throw() at an adjacent acid blob.
+
+### Shift 2 — top issues (ranked)
+1. **Helpers newer than the running core -> ImportError (`coaligned_unicorn`) in fight(), auto_fightable(), travel()'s
+   monster filter** (#342, #405, #414). The reload the obs asks for makes things worse when the core is older. Fix:
+   reload must refuse/warn on a core mismatch, or reload the core modules too. Restart p5's daemon before shift 3.
+2. **travel() steps diagonally into/out of known shop doors** (#205 out of, #318 into) — still open from shift 1 (#7).
+3. **travel() with no known path sends NetHack's `_` anyway**: it "guessed" me back into a shop next to a disguised
+   mimic (#341). Go straight to head_to() when path_to() is None; keep mimic squares out of every leg.
+4. **A pause inside sell_offer() (Hungry) loses the offer text; `history` drops the "X offers N gold" line** (#290).
+5. (minor) Discoveries menu text dumped into `history` (T:1998).

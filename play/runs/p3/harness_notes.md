@@ -303,3 +303,15 @@ Top 3 (shift 23, ranked):
 1. History after a recover shows undone events as if they happened (item 4): it could make a player believe a door is open or a monster dead.
 2. `tunnel()` while Blind swings at thin air and never steps into the open square (item 1, #123-#126).
 3. `prayer_check()` counts a worn blindfold as 'Blind' minor trouble (item 2): wrong for crowning decisions and the minor-trouble odds.
+
+## Shift 24
+
+1. #9 onward, every obs (LOW, but confusing): "!! harness code on disk is newer than this daemon's core (src/nh: only a daemon restart loads it — tell the orchestrator)". The orchestrator said the daemon was restarted on the latest core before this shift. Either a src/nh file changed after that restart, or the freshness check compares the wrong timestamps. `bin/nh reload` at #10 loaded the tactics; the core line stayed all shift.
+2. #14, #21 (LOW) `step('h', 11, force=True)` along the Castle trap-door corridor while LEVITATING paused on each "You escape a trap door." / "A trap door opens up under you! You don't fall in." I passed `-a` patterns to go on. Expected: while levitating (or when force=True was given for a known trap), these harmless trap messages are routine.
+3. #235-#886 (LOW, noisy) the wrest loop `zap('j', force=True)` printed "zap: wand j is EMPTY ('Nothing happens': 0 charges) — recharge it ... unless force=True" on EVERY zap: 325 identical lines (56 KB of output). Expected: with force=True the "empty" line once, or a counter.
+4. Good: the WISH PROMPT pause and `cont --reply '<wish><CR>'` worked 7 times without a hitch (including the wrest's prompt inside a 400-zap loop); `loot_all(check_traps=0)` unlocked the chest with the key by itself; `dip_into()` said "now BLESSED"; `call_type()`; `bag_take()/bag_put()`; the charging prompt paused with the letter list and `cont --reply j` answered it; `telepathy_scan()` gave a precise picture (soldiers locked in the barracks, the NE tower pair, the hidden trapper).
+
+Top 3 (shift 24, ranked):
+1. The "core is newer" warning on every obs right after a fresh daemon restart (item 1): if it's real, a core fix isn't live; if it's false, it trains players to ignore it.
+2. Harmless levitating trap-door messages pause step() even with force=True (item 2).
+3. zap(force=True) floods the output with the same EMPTY line per zap (item 3).

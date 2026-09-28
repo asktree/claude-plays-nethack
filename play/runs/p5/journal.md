@@ -64,3 +64,10 @@
 - T:2198 Mines 1 (DL3): crossed the anti-magic field with trek(); the housecat killed a green mold. Pile (27,11) next to
   the mold: F black, G red, H violet, I white gems (helm left). Two giant rats killed. HOUSECAT BACK WITH ME.
 - T:2295 DL2 at the Mines '>' (39,5), HP 46/51, cat adjacent.
+- T:2317 main DL3 (arrived at (4,15) with the cat). T:2329 read-test on the stairs with the splint mail OFF and potions +
+  scroll n dropped: i ASHPD SODALG = TELEPORTATION (teleported to (9,12)); m YUM YUM = DESTROY ARMOR — it took the orcish
+  helm, NOT the splint mail (the precaution worked). Mail back on (it is NOT cursed): AC1.
+- T:2358 hidden door (15,9); T:2362 acid blob killed with a thrown dagger. T:2393 ate a ration (fine).
+- T:2469 hidden door (45,3) found (rooms join in x order: the next room east connects through the east wall). Shop on
+  the level (heard). East room (58-69,3-5) explored, $81. No '>' yet.
+- END OF SHIFT 2: T:2558, main DL3 (61,5), HP 51/51, XL4, AC1, $81, not hungry, cat with me, no prayer used yet.

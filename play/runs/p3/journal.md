@@ -404,3 +404,6 @@ T:20535-20539 DL25 NW tower — dropped the spare elven mithril O and the +4 sma
   5. "2 blessed scrolls of genocide" -> L - 2 scrolls labeled PRATYAVAYAH (#called genocide).
   6. "blessed magic marker" -> N - a magic marker.
   Wand j now (1:0): recharged once, never charge it again (explodes); only a 1/121 wrest is left. 6 wishes = +300-900 prayer timeout.
+T:20539-20540 DL25 NW tower — quaffed both potions of gain level: XL13 -> 14 -> 15 (HP 163/163, Exp 226808). Read one scroll of genocide (blessed): class L -> "Wiped out all liches / demiliches / master liches / arch-liches."
+T:20540-20733 — WRESTED the wand: 326 zaps of the (1:0) wand on the scare-monster square (193 turns, undisturbed): "You wrest one last charge from the worn-out wand." Wish 7: "blessed ring of free action" -> O - a pearl ring (worn, left hand; #called free action). "The wand of wishing turns to dust."
+T:20734 — bagged the 2nd genocide scroll, the marker, 2 holy waters. HP 163/163, AC -12, XL15. MR + reflection + free action + life saving. Prayer unreliable (7 wishes).

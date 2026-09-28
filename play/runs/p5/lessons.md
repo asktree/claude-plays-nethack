@@ -20,3 +20,19 @@
   survive a 2nd pickup are proven NOT scare monster (free information).
 - Rotten food: the one known-uncursed ration was fine, a floor ration of the same age was "Blecch! Rotten" (1 in 7 for
   any non-corpse food older than 30 turns). Eat on Elbereth with nothing hostile in view.
+
+## Shift 2
+- **Price every "lamp" in Izchak's shop**: with the oil lamp already identified (a Valkyrie's starting lamp), an
+  unidentified "lamp" IS a magic lamp — the price (base 50 -> 75/100 at Ch 7) just confirms it. Bought one for 75.
+- **Uncursed water costs 8 zm at Ch 7** (shk.c: uncursed water is priced 0 -> 5 -> x1.5): a cheap "clear potion" in a
+  deli is plain water — the raw material for holy water (co-aligned altar + a successful prayer blesses water there).
+- **Read-test 100zm scrolls with the body armor OFF**: destroy armor takes cloak > body armor > shirt > helm > ... — with
+  the mail off it ate the 1-AC helm instead of the 5-AC splint mail. Drop potions/other scrolls first (fire).
+- **Never search ('s') to "wait" next to a disguised mimic** — it unmasks it. Wait with '.'.
+- **Shopkeeper parked on his post**: he only steps aside at random and walks straight back while you stand in line with
+  him (shk.c). Stand where one of his steps lands OFF your lines (e.g. (35,15) with him at (35,16): he went to (36,17)).
+- **Minetown room variants have hidden exits**: Alley Town's exit here was the SE street corner doorway (56,19); the
+  harness had "no known path" because that corner was never seen. Note town exits in state.md.
+- **Hidden doors follow mklev join() order**: rooms are joined in order of their left edge; a dead-end map with unexplored
+  space to the east -> search the east wall of the easternmost known room (found (45,3) in 7 turns there after 30
+  fruitless turns in the other corner).

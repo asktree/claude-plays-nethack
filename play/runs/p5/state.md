@@ -2,8 +2,8 @@
 
 ## Character
 - Name/role: P5, lawful female dwarven Valkyrie, god: Tyr. Seed 405 (local practice game).
-- Turn / Dlvl / XL / HP / Pw / AC: T:2344 / MAIN DUNGEON DL3, on the up stairs (4,15) / XL4 / 51/51 / 7/7 / AC1 / $62.
-  Not hungry (ate a ration T:2004 — it was ROTTEN: only 1/4 nutrition, no effect). Housecat with me.
+- Turn / Dlvl / XL / HP / Pw / AC: T:2558 / MAIN DUNGEON DL3, (61,5) in the east room / XL4 / 51/51 / 7/7 / AC1 / $81.
+  Not hungry (ate a full ration T:2393). Housecat with me. FOOD: 1 food ration (f) + 1 tripe (h) — eat fresh safe corpses.
 - Attributes: St 18/01, Dx 13, Co 20, In 7, Wi 9, Ch 7 (shop prices x1.5, +1/3 random surcharge). Skills: long sword Basic.
 - Intrinsics: cold res (Valk), stealth (Valk), infravision (dwarf). Speed comes at XL7. NO poison res, NO telepathy.
 - Luck notes: 0 (nothing done to change it). Alignment: no penalties known.
@@ -47,7 +47,7 @@
 |---|---|---|
 | 1 | Dungeons | up (30,19); '>' (75,18). Pit (31,17). Trap-victim piles (2,5), (48,6) (a trap under each; items cursed). |
 | 2 | Dungeons | up (35,12); '>' (39,5) = MINES branch; '>' (54,18) = main DL3 (unvisited). Trap victim (39,16). Locked door (19,9). |
-| 3 (main) | Dungeons | arrival up stairs (4,15) in a lit room (2-15,14-17), doorway (9,13) N. Unexplored (T:2317). |
+| 3 (main) | Dungeons | up (4,15) in the SW room (2-15,14-17), doorway (9,13). Middle room (9-22,5-8): hidden door (15,9) found, doorway (23,5). NE room (35-44,3-5): door (34,4), HIDDEN door (45,3) found. East room (58-69,3-5): doors (57,5), (57,3). NO '>' YET: the SE quarter (x 46-79, y 7-20) is unexplored — search the corridor dead ends (55,15) and (47,10) (explore() lists them); (66,13) corridor end searched 10x. A SHOP is on this level ("someone cursing shoplifters"). |
 | 3 | Mines 1 | up (8,20); '>' (43,12); MAGIC TRAP (44,12) right E of '>'; anti-magic field (36,12) in a 1-wide pass; RUST TRAP (17,9); trap victim (19,18). HOUSECAT left here ~(35,12). |
 | 4 | Mines 2 | up (22,2); '>' (56,16). |
 | 5 | MINETOWN (room variant: minetn-2/3/4, alleys -> probably "Alley Town") | up (64,6) (outer room NE), '>' (66,15). Temple of ODIN (NEUTRAL, cross-aligned: never pray/offer) altar (36,8), priestess peaceful. Wonotobo's general store (35-37,15-17) door (34,16): sling, can of grease, 2 potions, armor; MIMIC at (36,17). Yad's tool shop (29-31,7-10) door (31,11): glass orb (crystal ball), key, lock pick; MIMIC at (30,8). Ymla's hardware store (42-44,15-17) door (43,14): oil lamp 15, 2 whistles, 2 mirrors. Fountain (26,11) (never dip in town). ALLEY TOWN (map origin (24,4)). Baliga's DELI (51-53,13-14) door (50,14): 1 food ration 68, tin 8. IZCHAK'S lighting (50-52,7-9) door (52,10): tallow candles 15 each (need 7 for the Invocation), wax 30. The (35,15) square in Wonotobo's now holds my sold scroll (no free square left for sell_offer). Werejackal killed T:1971. |
