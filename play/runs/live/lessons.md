@@ -21,3 +21,7 @@
 - Gray ooze bites rust body armor: kill oozes at range (daggers) before they reach you; never melee with Excalibur (passive rust).
 - A fresh cross-aligned unicorn corpse is a 27% poison-resistance roll (got it T:4898); co-aligned unicorns: never kill.
 - Water nymph kit: 50% mirror, 50% potion of OBJECT DETECTION — the potion she drops is probably that.
+- Sokoban zoo from outside its door: a monster with a WAND (the Mordor orc's magic missile) fires down the door's row through the
+  queue — stand diagonal/out of that row once a zapper shows up. A mumak in the doorway at HP 58 took me to 22 in two turns:
+  start zoo fights at FULL HP and back off at ~60%, not 55%.
+- Potion appearances get identified when monsters quaff them in view (swirly = extra healing): check discoveries before a crisis.

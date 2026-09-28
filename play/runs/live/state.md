@@ -7,8 +7,8 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:6445 / SOKOBAN level 2 (Dlvl 6) / XL8 / 83/83 / 14/14 / AC-4 (elven mithril-coat since T:5355)
-- Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; SKILLED long sword (T:4118), basic dagger
+- Turn / Dlvl / XL / HP / Pw / AC: T:8141 / SOKOBAN TOP level 4 (Dlvl 4 in Sokoban) / XL9 / 71/92 / 15/15 / AC-4
+- Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; EXPERT long sword (T:7145), basic dagger
 - Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047)
 - Luck notes: full moon at game start (+1 while it lasts). Alignment / god anger: none
 
@@ -24,6 +24,11 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - I faded pall (elven cloak?) from a Green-elf, BUC unknown, NOT worn (a cursed cloak would block the GDSM swap)
 
 ## Key inventory — BUC from the Minetown altar drop at T:3836 [seen in inventory T:3837]
+- SHIFT 7 CHANGES (T:8141): in sack Y now: $2700ish, cursed amulet vs poison, conflict ring, 4 cursed wands (iron/maple/2 platinum),
+  scrolls ETAOIN/XOR OTA/ZELGO MER/VAS CORP/3 blank, red gem. New in pack: rings d coral, D emerald, F moonstone, N wooden (all unknown,
+  don't wear untested); wands y MAGIC MISSILE, U MAGIC MISSILE, K cancel-or-invis (NOT in a BoH), T iron (same type as the cursed iron:
+  'no effect' engrave group); V riding boots (BUC unknown); W scroll READ ME; z potion 'object detection?'; potion a (extra healing) USED.
+  Food: Q 2 food rations (+ partly eaten), O lembas, g/v slime molds, w carrot, P lizard. Oil lamp J dropped Soko top (50,17).
 - j: CURSED MAGIC LAMP (Trahnil offered 25 = base 50; type named MAGIC). NEVER #rub while cursed (80% hostile djinni).
   Needs holy water x2 (or remove curse + 1 holy water) to bless, then rub for a wish.
 - i: cursed horn, base 50 (frost/fire horn or horn of plenty) — test by applying at a monster (fire might bounce).
@@ -44,6 +49,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - Gems (all uncursed): z blue, j violet, u white, F yellow, v 2 + x yellowish brown.
 
 ## Identified appearances (appearance -> identity)
+- SWIRLY potion = EXTRA HEALING (quaffed mine T:8024). spiked wand = MAGIC MISSILE (y, engrave). silver wand K = cancellation OR make invisible (named; NEVER into a bag of holding). U = WAND OF MAGIC MISSILE (from a zoo orc).
 - GHOTI = identify. VENZAR BORGAVVE = light (bookstore price 67 = base 50). cloudy potion = ACID (named). golden potion = invisibility (elf quaffed). purple-red = full healing? (elf 'looks completely healed'). ETAOIN, XOR OTA, DUAM XNAHT, PRATYAVAYAH, ZELGO MER, VAS CORP BET MANI = base 100; THARR = 200. unlabeled = blank paper. short wand = digging. crystal wand = light.
 - clay ring = increase accuracy; diamond ring = gain strength (both sold).
 - jungle boots: base 30 (fumbling or levitation). buckled boots: base 8 (elven or kicking).
@@ -51,7 +57,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 ## Dungeon map
 | Dlvl | branch | features |
 |---|---|---|
-| Soko | Sokoban | level 1 (Dlvl 7, soko4-2) SOLVED; level 2 (Dlvl 6, soko3-1) in progress; up from DL8 (66,6) |
+| Soko | Sokoban | ALL 4 LEVELS SOLVED. Top (Dlvl 4, soko1-1): zoo room (44-48,14-20), prize closets (42,15),(42,17),(42,19) behind doors (43,y); east door (49,17) kicked broken; oil lamp dropped (50,17); '>' (27,5). Soko3 (Dlvl5): 2 cursed food rations dropped (37,7). up from DL8 (66,6) |
 | 8 | Dungeons | up (22,19), down (53,6), SOKOBAN up stairs (66,6); Ballingeary's BOOKSTORE NW (door 7,4; pays half; no remove curse in stock); hill orcs |
 | 7 | Dungeons | ORACLE (Delphi) centre (37-41,11-13) with 4 fountains; up (69,9), down (10,11); red mold (44,10); rusty scale mail left (64,9); unicorn horn (34,12) |
 | 6 | Dungeons | up (47,14), down (33,9); both fountains DRIED UP; bag of tricks left at (57,13); unicorn horn + lizard at (28,8); rest partly explored |
@@ -72,6 +78,15 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
   It follows you (speed 9 vs your 12); it came into shops. 114514's ghost: slow, harmless, blocks corridors.
 
 ## Objective and plan
+- T:8141 (end of shift 7): standing on a dust Elbereth at (50,15) in the corridor east of the Soko-top ZOO, HP 71/92. Killed so far:
+  mumak, 4 Grey-elves, plains centaur, flesh/wood/leather golems, giant zombie, shocking sphere, 2 dust vortices, 2 brown... (1 pudding),
+  gray ooze, Mordor orcs (incl. the wand-of-MM one), hill orcs, giant ants, raven, acid blob. STILL LEFT (seen earlier): WEREWOLF (d form,
+  lycanthropy bite -> pray), GHOUL (paralysis), gold golem, 1 brown pudding (47,16 — iron hits split it, harmless bite except rot),
+  GIANT MIMIC at (46,18), rabid rat, maybe more; peaceful sasquatch wanders the corridor (don't attack).
+  NEXT: rest to full on Elbereth, then clear the rest from (50,17)/(50,16) (stay OUT of row 17's line when something has a wand),
+  then walk in and check the three closets (42,15/17/19) for the prize (bag of holding or amulet of reflection; scroll pile at (42,17)).
+  Loot: the zoo has lots of gold (bag it: $2700 total in sack Y now -> protection at 400*XL from a co-aligned priest later).
+- AFTER Sokoban: back down to DL7 Oracle fountains (dilute junk potions into water, dip Excalibur for 13%/dip uncurse; drop lamp j first).
 - T:6445: in SOKOBAN 2 (soko3-1, wiki 2b) at (36,16), solver at step 9/20 — call sokoban.solve() to resume. A hostile COCKATRICE
   is loose on this level (last seen (30,14)): kill it with thrown daggers B when lined up or melee with Excalibur (gloves on);
   if 'Stone' appears eat lizard P at once. Soko1 solved. New items: coral ring d (unknown, don't wear), wand s = STRIKING,

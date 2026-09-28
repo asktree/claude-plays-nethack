@@ -42,3 +42,15 @@
   forget_mimic(29,14) did NOT clear it (it's the game's own `I` glyph, not a harness mimic). One manual push fixed it.
   The pause text could suggest the manual push / a clear_I-like fix for `I` markers the player can't get adjacent to.
 - #1651: step('k', force=True) into a Sokoban pit to recover daggers worked ("Air currents pull you down").
+
+## Shift 7 (T:6445-)
+- #536 T:6822: go_up() on solved Soko2 from (31,12) raised NavError "TELEPORTED during the leg ((31,12) -> (51,16); leg aimed at
+  (47,10), at most 8 squares)". No teleport happened: NetHack's `_` travel just ran the whole corridor to the closed door
+  (51,15) in one go ("You stop in front of the door."). False positive of the new silent-teleport check (a walked
+  distance > leg cap along a real path should not count as a teleport; compare with the path length instead).
+- #1025 T:7135: same false TELEPORTED NavError on Soko3 go_up() ((37,7)->(48,17), travel ran to the door). Reproducible.
+- #2320 T:8023: fight_until_clear() raised PermissionError "refusing to attack from your Elbereth square" but my previous blow
+  (fight(force=True) at a Mordor orc) had already smudged it: engraving_here() read "Elb??c h". The guard should forget the
+  engraving after any melee/throw from the square (or re-read it) instead of blocking the next fight.
+- rest_on_elbereth() stops for an Elbereth-ignoring Grey-elf — correct; worked well otherwise. elbereth() retries worked (3 garbles seen).
+- The giant-mimic-as-boulder check in sokoban.solve() ("unexpected boulders ... often a MIMIC") was spot on (#1096).

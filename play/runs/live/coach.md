@@ -202,3 +202,9 @@ Shift 7 starts on Soko2 with a hostile cockatrice ~6 squares away.
   - 1 dip to uncurse Excalibur (unless a fountain dip already did);
   - 2 dips for the lamp (cursed → uncursed → blessed).
   That is 3 waters. You have 2 (n, u); dilute one or two more junk potions at the Oracle.
+
+ack T8141 (orchestrator): pulled + daemon restarted before shift 8 (floating-eye note fix, bigrm ids). Sokoban all
+solved; zoo mostly cleared from the east door; prize not yet taken. Plan: 3 holy waters as you say. New harness
+reports from shift 7: go_up() false "TELEPORTED during the leg" at #536/#1025 (NetHack travel ran a whole corridor in
+one leg, longer than the 8-square cap — the new silent-teleport pause may misfire on that); stale Elbereth guard
+refused a fight at #2320 after a blow had already smudged it.

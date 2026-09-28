@@ -134,3 +134,30 @@
   didn't clear it); pushed the boulder once by hand, solver resumed. Solved steps 1-9 of 20.
 - T:6439 Soko2 — COCKATRICE appeared at (28,14), went out of view behind boulders (last (30,14)). Lizard P ready for stoning.
 - Shift 6 ended T:6445 Soko2 (Dlvl 6 Sokoban) at (36,16), HP 83/83, XL8, AC-4, sokoban step 9/20 done (next: boulder K). No prayers.
+
+## Shift 7
+- T:6451 Soko2 — the COCKATRICE came adjacent during solve() step 11; killed it in one Excalibur blow (gloves on). Corpse at (34,15) (don't touch).
+- T:6549-6675 Soko2 — killed a giant beetle (-16), ate food ration (Hungry), killed a floating eye with 4 thrown daggers (no corpse).
+- T:6785 Soko2 SOLVED (20/20). Took emerald ring D (unknown), 2 food rations Q (Soko food). Kicked the locked stair-room door open.
+- T:6823-6849 Soko2 stair room — killed giant ant, wood nymph (dropped potion "object detection?" -> z), shrieker, baby long worm,
+  leprechaun ($96). Spiked wand y engrave-tested = MAGIC MISSILE (named). Pack was FULL (52): bagged junk scrolls/cursed wands/
+  amulet/conflict ring/red gem/gold into sack Y.
+- T:6861-7095 Soko3 (soko2-2 / wiki 3a) SOLVED in one solve() run, no incidents.
+- T:7112 Soko3 — took moonstone ring F, silver wand K (engrave: CANCELLATION or MAKE INVISIBLE — named; NEVER put in a bag of holding), 1 food ration; dropped 2 cursed food rations at (37,7) (Burdened).
+- T:7136-7145 Soko3 stair room — kicked locked door, killed 4 garter snakes + giant beetle from the doorway. T:7145 LONG SWORD -> EXPERT.
+- T:7152 arrived SOKOBAN TOP (Level 4). (On Soko3 an unseen 'It misses!' x2 while fighting a baby purple worm near the up stairs — invisible something on Soko3.)
+- T:7176-7180 Soko4 — unexpected boulder (28,19) was a GIANT MIMIC (search found it); killed it in melee (83->64).
+- T:7196 Soko4 — an unseen black light exploded next to me: Hallu, cured with unicorn horn e.
+- T:7357-7441 Soko4 — killed ice vortex (engulfed, cold res), large dog. Took wooden ring N (34,11). Solver at step 17/26.
+- T:7515 ate food ration. T:7544 Soko4 — killed a hostile WARHORSE from the gap (34,10) (83->60).
+- T:7639 Soko4 — killed gecko, dust vortex (engulfed -> Blind; unicorn horn cured). While blind, telepathy showed the ZOO (room 44-48,14-20):
+  4 Grey-elves, WEREWOLF (d), MUMAK (45,19), plains centaur, giant mimic, 4+ Mordor orcs, 3 hill orcs, 3-4 giant ants, rabid rat,
+  raven, peaceful sasquatch. Plan: finish the solve, rest to full, fight from the OPEN east door (49,17) (no diagonal attacks into a
+  door), escape north up the x=50 corridor. Prayer available (last T:2717) for lycanthropy/low HP.
+- T:7928-7930 Soko4 — killed an unseen monster (giant bat) behind the last boulder with 2 magic-missile zaps (y); SOKOBAN 4 SOLVED (26/26). Wand at (37,9).
+- T:7972-8005 Soko4 ZOO fight from (50,17) outside the kicked-open east door (49,17): killed giant ants, 2 dust vortices (blinded; horn), wood golem, shocking sphere (exploded, -20), leather golem, flesh golem, giant zombie, raven, 2 Grey-elves, plains centaur, acid blob -> XL9. SWIRLY potion = healing/extra healing (elf quaffed, 'looks much better').
+- T:8010-8012 Soko4 zoo — MUMAK reached the door: 3 Excalibur hits killed it but HP 58->22 (butt + a Mordor orc's WAND OF MAGIC MISSILE zapped down row 17 twice). Stepped to (50,16) out of the row, Elbereth OK; resting. Lesson: the doorway row is a firing lane for wand-zapping monsters.
+- T:8024-8034 quaffed potion a = EXTRA HEALING (25->51). Killed a brown pudding (1 hit) and the last Grey-elf at the corridor (50,15-16).
+- T:8083-8141 — killed the wand-of-MM Mordor orc + another (took WAND OF MAGIC MISSILE U, riding boots V (unknown BUC), scroll READ ME W,
+  $2086 -> bagged). Dropped oil lamp J (50,17) (Burdened). Killed a gray ooze with thrown daggers. Resting on Elbereth at (50,15).
+- Shift 7 ended T:8141 Soko top, HP 71/92, XL9, AC-4, on Elbereth (50,15). Zoo partly cleared (see state.md). No prayers this shift.
