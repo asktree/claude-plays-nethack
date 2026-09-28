@@ -2102,6 +2102,36 @@ class Game:
         r"^A trap door in .+? opens(?: and .+ falls on your|, but nothing falls out)|"
         r"You (step onto|float over|fly over|feel) an? polymorph trap|^You (float|fly) over an? )")
 
+    _TRAP_NAMES = [
+        (re.compile(r"^There is an? (.*?\b(?:trap|pit|web|board|mine)\b.*?) here\."), None),
+        (re.compile(r"An arrow shoots out at you"), "arrow trap"),
+        (re.compile(r"A little dart shoots out at you"), "dart trap"),
+        (re.compile(r"bear trap closes on your"), "bear trap"),
+        (re.compile(r"your magical energy drain away"), "anti-magic field"),
+        (re.compile(r"on a set of sharp iron spikes"), "spiked pit"),
+        (re.compile(r"^You (?:fall|step|tumble|jump|land) into an? pit"), "pit"),
+        (re.compile(r"A board beneath you|loose board below you|crease in the linoleum"), "squeaky board"),
+        (re.compile(r"spider web!"), "web"),
+        (re.compile(r"A cloud of gas puts you to sleep|You are enveloped in a cloud of gas"), "sleeping gas trap"),
+        (re.compile(r"A gush of water hits (?:you|your)\b"), "rust trap"),
+        (re.compile(r"^A tower of flame (?:erupts|bursts) from (?!.*\bunder\b)"), "fire trap"),
+        (re.compile(r"momentarily lethargic|momentarily blinded by a flash of light"), "magic trap"),
+        (re.compile(r"You trigger a rolling boulder trap"), "rolling boulder trap"),
+        (re.compile(r"triggered an? land mine"), "land mine"),
+        (re.compile(r"^A trap door in .+? opens"), "falling rock trap"),
+        (re.compile(r"an? polymorph trap"), "polymorph trap"),
+    ]
+
+    def _trap_name_from(self, messages: list[str]) -> str:
+        """The trap type a trap message names ("There is a dart trap here.", "A little dart shoots out at you!"),
+        or ''."""
+        for m in messages:
+            for rx, name in self._TRAP_NAMES:
+                mm = rx.search(m)
+                if mm:
+                    return name or mm.group(1)
+        return ""
+
     def _note_traps(self, snap: Snap, messages: list[str], moved_level: bool = False) -> None:
         """Remember trap squares per level: every displayed '^', and the hero's
         square when a trap message fires there (objects can hide a trap)."""
@@ -2133,6 +2163,24 @@ class Game:
                 x = row.find("^", x + 1)
         if not moved_level and snap.hero is not None and any(self._TRAP_MSG.search(m) for m in messages):
             known.add(snap.hero)
+            # and its type (p1 shift 37 #722: trek() called a dart trap "a known trap of unknown type" although
+            # "There is a dart trap here." had been said on it twice)
+            name = self._trap_name_from(messages)
+            if name:
+                self.feature_desc.setdefault(lv, {})[snap.hero] = name
+        elif not moved_level and snap.hero in known and snap.status.ok \
+                and not {"Lev", "Fly"} & set(snap.status.conditions) \
+                and re.search(r"\b(?:hole|trap door)\b", (self.feature_desc.get(lv) or {}).get(snap.hero, "")):
+            # standing on a remembered hole/trap door without falling: there is none (p1 shift 37 #633: a stale
+            # DL23 hole at (6,16) blocked steps; step_onto() walked onto plain floor)
+            known.discard(snap.hero)
+            self.feature_desc[lv].pop(snap.hero, None)
+            mem = getattr(self, "memory", None)
+            if mem is not None and hasattr(mem, "drop_traps"):
+                try:
+                    mem.drop_traps(lv, [snap.hero])
+                except Exception as e:  # noqa: BLE001
+                    self.log_event({"ev": "drop_traps_error", "err": repr(e)})
         # mklev.c/trap.c never put a trap on stairs, a ladder, an altar, a fountain or a throne (p1 shift 36: the
         # Castle's up stairs sat in the trap memory and trek() refused them)
         known.difference_update(c for c, v in self.terrain_seen.get(lv, {}).items() if v in "<>{_\\")

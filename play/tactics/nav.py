@@ -1684,6 +1684,13 @@ def _travel(x, y, max_legs, max_dist, wait_peaceful, leg, auto_fight, pet_budget
         if s.state.kind != "command":
             return s
         h1 = s.hero
+        if cap and h0 is not None and h1 is not None and s.status.ok and (not lvl0 or s.status.ldesc == lvl0) \
+                and max(abs(h1[0] - h0[0]), abs(h1[1] - h0[1])) > cap + 2:
+            # a leg of at most `cap` squares can't end farther away: teleported during it (teleportitis, a
+            # teleport trap — p1 shift 37 #135: go_down() ran on from the new spot, "NetHack's travel guessed")
+            raise NavError(f"travel to {(x, y)}: TELEPORTED during the leg ({h0} -> {h1}; the leg aimed at "
+                           f"{(tx, ty)}, at most {cap} squares) — teleportitis or a teleport trap: look around, "
+                           "then travel again")
         stop = next((m for m in s.messages if _TRAP_STOP.search(m)), None)
         if stop and h1 != (x, y) and h1 is not None:
             # hack.c lookaround() (mention_walls): NetHack's travel stops in front of a known trap on ITS route

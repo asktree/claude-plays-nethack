@@ -612,6 +612,35 @@ def test_pickup_declines_a_lift_that_would_stress_you(monkeypatch):
     assert sent == [",", "y"]
 
 
+def test_fight_until_clear_unseen_swings_at_a_warning_digit_and_fight_noise(monkeypatch):
+    # p1 shift 37 #470-#488: the invisible Wizard showed as a '4' next to you; fight_until_clear(unseen=True)
+    # didn't swing at it, and routine invisible-fight lines paused every blow
+    import re
+    from tactics import combat, ctx, nav
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    monkeypatch.setattr(ctx, "unwatch_monsters", None)
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    monkeypatch.setattr(nav, "drowners_adjacent", lambda s: [])
+    s = _snap({5: "         .@4"}, (10, 5), [])
+    s.status.turn, s.status.hp, s.status.hpmax = 100, 50, 50
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return s
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    combat.fight_until_clear(unseen=True, max_turns=2)
+    assert sent[:2] == ["Fl", "Fl"]
+    for m in ("Suddenly you cannot see the Wizard of Yendor.", "A field of force surrounds you!",
+              "The Wizard of Yendor zaps himself with a hexagonal wand!", "You can hear again.",
+              "Nothing seems to happen.", "A mysterious force prevents you from teleporting!"):
+        assert any(re.search(p, m) for p in combat.ROUTINE), m
+
+
 def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
     import pytest
     from tactics import ctx, nav
@@ -3911,6 +3940,22 @@ def test_zap_raises_wand_empty_on_the_first_nothing_happens(monkeypatch):
     cur["s"] = base
     with pytest.raises(combat.WandEmpty):
         combat.zap("m", "j")                   # known empty: refused before any key
+    # p1 shift 37 #468: other messages in the same turn must not pause before the verdict (quiet step)
+    quiet = []
+    empty2 = _snap({5: "          @....."}, (10, 5), [])
+    empty2.messages = ["Nothing happens.", "The Wizard of Yendor zaps himself with a hexagonal wand!",
+                       "Suddenly you cannot see the Wizard of Yendor."]
+    frames["j"] = empty2
+
+    def fake_do2(keys, **kw):
+        quiet.append((keys, kw.get("quiet")))
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do2)
+    cur["s"] = base
+    with pytest.raises(combat.WandEmpty, match="also this turn: The Wizard of Yendor zaps himself"):
+        combat.zap("j", "k")
+    assert ("j", True) in quiet
 
 
 def test_bag_put_leaves_the_invocation_items_out(monkeypatch):

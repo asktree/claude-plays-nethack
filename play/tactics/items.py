@@ -1326,6 +1326,7 @@ def tunnel(x: int, y: int, max_steps: int = 80, tool: str | None = None) -> dict
     reason = "max_steps"
     ok = _DIG_OK + [r"^You stop digging\.$", r"^You swap places with ", r"^The door opens\.$",
                     r"^This (?:wall|drawbridge) is too hard to dig into\.$"]
+    prev = s.hero
     try:
         for _ in range(max_steps):
             s = ctx.last()
@@ -1335,6 +1336,12 @@ def tunnel(x: int, y: int, max_steps: int = 80, tool: str | None = None) -> dict
             if s.status.ok and s.status.ldesc != ldesc0:
                 reason = f"level changed: {ldesc0} -> {s.status.ldesc}"
                 break
+            if prev is not None and max(abs(s.hero[0] - prev[0]), abs(s.hero[1] - prev[1])) > 1:
+                # one step or one dig can't move you 2+ squares: teleported (p1 shift 37 #263: moved from ~(74,12)
+                # to (11,12) mid-tunnel — it would have dug ~50 squares from the wrong place)
+                reason = f"TELEPORTED from {prev} to {s.hero} (teleportitis? a teleport trap?) — stopped"
+                break
+            prev = s.hero
             if s.hero == goal:
                 reason = "arrived"
                 break

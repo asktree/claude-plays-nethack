@@ -253,6 +253,12 @@ _ENGR_LINES = re.compile(r"^Something is (?:written here in the (?:dust|frost)|e
                          r"^You see a message scrawled in blood here\.$|^You (?:read|feel the words): \"")
 
 
+def _moves_at_most_one(keys: bytes) -> bool:
+    """A command that moves you at most one square: a single step, F/m + direction, search or rest
+    (with a count too)."""
+    return bool(re.fullmatch(rb"[hjklyubn.s]|[Fm][hjklyubn]|n?\d{1,4}[s.]", keys or b""))
+
+
 class Abandon(BaseException):
     """Raised inside a parked worker to unwind it."""
 
@@ -582,6 +588,17 @@ class Kernel:
             # a ghost/shade drawn as a blank, a hider) — the movement helpers never attack on purpose
             reasons.insert(0, "YOUR MOVE ATTACKED something you didn't see there (invisible? a hider? a ghost?) "
                               "— look before the next step (it may be peaceful)")
+        if _moves_at_most_one(keys) and before is not None and before.hero is not None and snap.hero is not None \
+                and before.state.kind == "command" and before.status.ok and snap.status.ok \
+                and before.status.ldesc == snap.status.ldesc \
+                and max(abs(snap.hero[0] - before.hero[0]), abs(snap.hero[1] - before.hero[1])) > 1 \
+                and not getattr(snap, "engulfed", False) \
+                and not any("position suddenly seems very uncertain" in m for m in snap.messages):
+            # a step, a search or a rest that left you 2+ squares away: teleported WITHOUT A WORD — teleportitis
+            # (eating a tengu/leprechaun/the Wizard) or an unseen teleport trap (p1 shift 37 #135/#263: go_down()
+            # and tunnel() carried on from the new spot)
+            reasons.insert(0, f"TELEPORTED without a word: {before.hero} -> {snap.hero} (teleportitis? a teleport "
+                              "trap?) — any plan made before this is stale: look around first")
         if before is not None and before.hero is not None and snap.hero is not None and before.hero != snap.hero \
                 and not keys.startswith(b","):
             # a step that auto-picked up something CURSED (pickup_thrown takes back what you threw, cursed or

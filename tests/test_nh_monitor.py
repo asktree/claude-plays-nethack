@@ -1381,3 +1381,25 @@ def test_you_find_a_monster_relabels_the_one_beside_you():
     s3 = snap({(41, 11): ";"}, 102, color=1)
     s3.messages = ["You find a hidden passage."]
     assert by_pos(t.update(s3))[(41, 11)]["desc"] == "piranha"
+
+
+def test_silent_teleport_pauses():
+    # p1 shift 37 #135/#263: teleportitis moved the hero without a word; go_down()/tunnel() went on from the new spot
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    k = Kernel(Game(term=None, timing=Timing.local()))
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def check(keys, frm, to):
+        reasons.clear()
+        b, a = snap({}, 40), snap({}, 41)
+        b.screen.cursor, a.screen.cursor = frm, to
+        k._last_keys = keys
+        k._check_events(b, a)
+        return reasons[-1] if reasons else ""
+    assert "TELEPORTED without a word" in check(b"s", (10, 5), (60, 15))
+    assert "TELEPORTED without a word" in check(b"l", (10, 5), (60, 15))
+    assert "TELEPORTED" in check(b"20s", (10, 5), (60, 15))
+    assert check(b"l", (10, 5), (11, 5)) == ""                    # a plain step
+    assert check(b"_", (10, 5), (60, 15)) == ""                   # travel moves far on purpose

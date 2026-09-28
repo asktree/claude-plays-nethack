@@ -1734,6 +1734,31 @@ def test_stale_trap_memory_on_plain_floor_is_forgotten(tmp_path):
     assert lv["feature_desc"] == {"11,5": "trap door"}
 
 
+def test_trap_type_is_learned_from_its_messages():
+    # p1 shift 37 #722: "There is a dart trap here." was said twice, yet trek() called (62,3) "a known trap of
+    # unknown type"
+    g = _guard_game()
+    s = _cmd_snap([])
+    key = g.level_key(s.status)
+    g._note_traps(s, ["There is a dart trap here."])
+    assert (10, 5) in g.traps[key] and g.feature_desc[key][(10, 5)] == "dart trap"
+    s2 = _cmd_snap([], hero=(12, 5))
+    g._note_traps(s2, ["A little dart shoots out at you!", "You are hit by a little dart."])
+    assert g.feature_desc[key][(12, 5)] == "dart trap"
+    s3 = _cmd_snap([], hero=(14, 5))
+    g._note_traps(s3, ["A board beneath you squeaks a D flat loudly."])
+    assert g.feature_desc[key][(14, 5)] == "squeaky board"
+    # p1 shift 37 #633: standing on a remembered hole without falling = no hole there
+    g.traps[key].add((16, 5))
+    g.feature_desc[key][(16, 5)] = "hole"
+    g._note_traps(_cmd_snap([], hero=(16, 5)), [])
+    assert (16, 5) not in g.traps[key] and (16, 5) not in g.feature_desc[key]
+    g.traps[key].add((18, 5))
+    g.feature_desc[key][(18, 5)] = "hole"
+    g._note_traps(_cmd_snap([], hero=(18, 5), conditions=["Lev"]), [])     # levitating over it: still there
+    assert (18, 5) in g.traps[key]
+
+
 def test_stairs_never_in_the_trap_memory():
     # p1 shift 36 #1229: the Castle's up stairs (2,20) sat in DL25's trap memory; trek() refused it
     g = _guard_game()

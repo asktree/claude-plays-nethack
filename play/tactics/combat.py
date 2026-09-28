@@ -13,6 +13,14 @@ from . import ctx
 from .mapview import DIR_KEY
 
 ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misses|stings|butts|kicks|claws|touches)[!.]$",
+           # an invisible fight's flavour (p1 shift 37 #470-#488, the Wizard and his clone): a monster going
+           # invisible or zapping itself, MR shrugging off destroy armor, a quantum mechanic's teleport blocked
+           # on a no-teleport level (a real teleport still pauses as TELEPORTED), hearing again, a unicorn horn
+           # with nothing to fix
+           r"^Suddenly you cannot see ", r" zaps (?:himself|herself|itself) with (?:an? |the )",
+           r"^A field of force surrounds you!$", r"^Your position suddenly seems very uncertain!$",
+           r"^A mysterious force prevents you from teleporting!$", r"^You can hear again\.$",
+           r"^Nothing seems to happen\.$",
            r"^The .* (turns to flee|is killed|dies)", r"^You hear some noises", r"^Welcome to experience level",
            # the target stepped away before the blow (hack.c domove, F into an empty square); a monster
            # healing itself or reading itself away (muse.c) — fight() sees what's left and decides
@@ -615,7 +623,7 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
     hold=N: keep the square for N turns even while nothing is within the
     radius (search 's' each turn; whatever comes next to you is fought) —
     holding a chokepoint for a garrison that trickles in; reason "held".
-    unseen=True: also swing (F) at an adjacent remembered unseen monster 'I'
+    unseen=True: also swing (F) at an adjacent remembered unseen monster 'I' or warning digit 1-5
     (invisible attackers; never where a peaceful may be).
     Next to water with a sea monster (or an unseen 'I') in it, it returns
     "DROWNING RISK: ..." at once — step away from the water first
@@ -682,6 +690,11 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 continue
             if unseen:
                 ivs = [m for m in s.monsters or [] if m.get("unseen") and m.get("dist") == 1]
+                if not ivs and s.hero is not None:
+                    # a WARNING digit next to you (display.c display_warning(): only ever a hostile you can't
+                    # see — p1 shift 37: the invisible Wizard showed as a '4')
+                    ivs = [{"x": s.hero[0] + dx, "y": s.hero[1] + dy} for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                           if (dx or dy) and s.screen.at(s.hero[0] + dx, s.hero[1] + dy) in "12345"]
                 key = _key_toward(s.hero, ivs[0]) if ivs else None
                 if key:
                     s = ctx.do("F" + key, ok=ROUTINE + [r"^You (?:harmlessly )?attack thin air",
@@ -1097,7 +1110,11 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
             ctx.do("<Esc>", quiet=True)
         ctx.pause(f"zap: expected an item prompt, got {s.state.kind}: {s.state.prompt!r}")
         return ctx.last()
-    s = ctx.do(wand, ok=[r"^Nothing happens\.?$"])
+    # quiet: the empty-wand verdict must come before any pause on what else happened this turn (p1 shift 37
+    # #468: "Nothing happens. | The Wizard of Yendor zaps himself with a hexagonal wand! | ..." paused as a
+    # message, and the script's `except WandEmpty:` melee fallback never ran with the Wizard adjacent)
+    s = ctx.do(wand, quiet=True)
+    others = [m for m in s.messages if not m.startswith("Nothing happens")]
     if s.state.kind == "command" and any(m.startswith("Nothing happens") for m in s.messages):
         # zap.c dozap(): !zappable() — a wand with 0 charges (or cancelled) does nothing, asks no direction and
         # spends no charge
@@ -1108,7 +1125,14 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
               "zap() now refuses it unless force=True (wresting a last charge: 1 in 121 per zap)")
         if not force:
             # (p1 shift 34 #206: returning normally skipped the script's `except WandEmpty:` fallback this turn)
-            raise WandEmpty(f"zap: wand {wand} is EMPTY — \"Nothing happens\" (0 charges; the turn is spent)")
+            raise WandEmpty(f"zap: wand {wand} is EMPTY — \"Nothing happens\" (0 charges; the turn is spent)"
+                            + (f"; also this turn: {' | '.join(others[:4])}" if others else ""))
+    elif s.state.kind == "command" and others:
+        news = [m for m in others if m not in (ctx.quiet_messages(others) if ctx.quiet_messages else [])]
+        if news and direction is None:
+            print(f"zap: {' | '.join(news[:4])}")        # (a NODIR wand's effect: said below)
+        elif news:
+            ctx.pause(f"zap: {' | '.join(news[:4])}")
     if s.state.kind == "direction":
         if direction is None:
             ctx.do("<Esc>", quiet=True)
