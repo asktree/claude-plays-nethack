@@ -115,9 +115,13 @@ class Daemon:
         tact = self._code_mtime("play/tactics") > self._tactics_loaded + 1
         if not (core or tact):
             return ""
-        return ("!! harness code on disk is newer than this daemon's"
-                + (" core (src/nh: only a daemon restart loads it — tell the orchestrator)" if core else "")
-                + (" helpers (play/tactics: `bin/nh reload` between execs loads them)" if tact else ""))
+        if core:
+            return ("!! harness code on disk is newer than this daemon's core (src/nh"
+                    + (" and play/tactics" if tact else "")
+                    + ": only a daemon restart loads it — tell the orchestrator"
+                    + ("; `bin/nh reload` refuses until then: new helpers may need the new core" if tact else "")
+                    + ")")
+        return "!! harness code on disk is newer than this daemon's helpers (play/tactics: `bin/nh reload` between execs loads them)"
 
     def render(self, snap, mode="crop") -> str:
         if snap is not None and snap.state.kind == "command" and self.memory.need_overview \
@@ -186,6 +190,14 @@ class Daemon:
             lines = [f"T:{t} {m}" for (t, m) in self.game.history[-n:]]
             return {"ok": True, "text": "\n".join(lines) or "(no messages yet)"}
         if op == "reload":
+            if self._code_mtime("src/nh") > self._core_loaded + 1 and not req.get("force"):
+                # p4 shift 9: helpers written against a newer core imported a name the running core lacks, and
+                # every fight() raised ImportError. Old helpers on the old core stay consistent.
+                return {"ok": False, "text": "NOT reloaded: the core (src/nh) on disk is newer than this daemon's, "
+                        "and the new helpers may need it. The old helpers stay loaded and still match the running "
+                        "core. Only a daemon restart loads both (the orchestrator's job, between shifts: "
+                        "`bin/nh --game NAME daemon` leaves the game itself untouched); `bin/nh reload --force` "
+                        "loads the helpers anyway."}
             names = [m for m in list(sys.modules) if m.split(".")[0] in ("tactics", "views", "nhlib")]
             reloaded = []
             for m in sorted(names):

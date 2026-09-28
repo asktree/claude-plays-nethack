@@ -235,6 +235,7 @@ class MonsterTracker:
             self.reset()                 # labels from before/while hallucinating: look at everything again
         self._relook_all = False
         self._apply_growth(getattr(snap, "messages", None))
+        self._apply_hostility(getattr(snap, "messages", None))
         if any(re.search(r" releases you\.$|^You (?:get|are) released|^You pull free", x)
                for x in getattr(snap, "messages", None) or []):
             for k in self.known:       # the "holding you" part of a label is stale now
@@ -592,6 +593,36 @@ class MonsterTracker:
                         r["desc"] = k["desc"]
                     else:
                         del self.recent[k["id"]]
+
+    # a 'peaceful' label gone stale: mon.c setmangry() "The watchman gets angry!"; priest.c intemple() in the
+    # Sanctum ("Infidel, you have entered Moloch's Sanctum!" / "Be gone!": the high priest turns hostile); a
+    # monster labeled peaceful attacking/throwing at you
+    _ANGRY = re.compile(r"^(?:The |Your )?(?P<n>[\w' -]+?) gets angry!$")
+    _HOSTILE_ACT = re.compile(r"^(?:The )?(?P<n>[\w' -]+?) (?:hits|bites|stings|butts|kicks|touches|throws|shoots|"
+                              r"zaps|casts|swings|thrusts|breathes|spits)\b")
+    _INFIDEL = re.compile(r"Infidel, you have entered Moloch's Sanctum|^\"Be gone!\"")
+
+    def _apply_hostility(self, messages) -> None:
+        """Drop the label of a 'peaceful' monster that turned hostile, so the next update looks at it again (p2
+        shift 40 #767: fight(x, y) did nothing 29 times against a still-'peaceful' high priestess of Moloch)."""
+        from .danger import base_name
+        names, infidel = set(), False
+        for msg in messages or []:
+            infidel = infidel or bool(self._INFIDEL.search(msg))
+            for rx in (self._ANGRY, self._HOSTILE_ACT):
+                mm = rx.match(msg)
+                if mm:
+                    names.add((base_name(mm.group("n")) or "").lower())
+        if not names and not infidel:
+            return
+        for k in self.known:
+            d = k.get("desc", "")
+            if not d.startswith("peaceful "):
+                continue
+            bn = (base_name(d) or "").lower()
+            if bn in names or (infidel and "priest" in bn):
+                k["desc"] = ""
+                self.recent.pop(k.get("id"), None)
 
     _INVIS_ON = re.compile(r"(?:All of a sudden|Far out, man!  You),? you can(?:'t see| see right through) yourself|"
                            r"^Suddenly you cannot see yourself|^Body\? What body\?")

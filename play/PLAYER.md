@@ -108,8 +108,10 @@ tried to wrap you — step away from the water; `fight()` and `fight_until_clear
 water with an eel/kraken or an unseen `I` in it: `force=True` / `near_water=True` fight on), `CURSED ITEMS` (a curse
 spell: it lists the SUSPECTS — the items whose B/U/C the last `inventory()` didn't show; only those can have been
 hit), `NOT YOUR WEAPON` (a "bashing" blow). An obs line `!! harness code on disk is
-newer ...` means the daemon runs older helpers: `bin/nh reload` between execs loads new tactics; core changes need
-the orchestrator to restart the daemon. Ghosts and shades are drawn as `8`
+newer ...` means the daemon runs older code: when only helpers (play/tactics) changed, `bin/nh reload` between execs
+loads them; when the core (src/nh) changed too, reload REFUSES — new helpers may need the new core (p4 shift 9: every
+fight raised ImportError) — and the old helpers keep working: only a daemon restart loads both (the orchestrator's
+job, between shifts). Ghosts and shades are drawn as `8`
 (our rc: NetHack draws them as a blank). A monster picking up a wand or an invocation item pauses too.
 The obs shows `!! you WIELD a blessed lamp — not a weapon`
 (or `EMPTY-HANDED`, or `you WIELD a pick-axe (a digging tool)`) when the harness knows you hold no weapon — e.g.

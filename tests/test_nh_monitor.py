@@ -1747,3 +1747,53 @@ def test_thief_back_the_turn_after_the_theft_pauses():
     reasons.clear()
     k._check_events(snap({}, 100), b)
     assert any(r.startswith("THIEF BACK") for r in reasons)
+
+
+def test_a_peaceful_label_is_dropped_when_it_turns_hostile():
+    fg = FakeGame()
+    fg.truth = {(42, 10): "peaceful high priestess of Moloch"}
+    t = MonsterTracker(fg)
+    t.update(snap({(42, 10): "@"}, 10))
+    fg.truth = {(42, 10): "high priestess of Moloch"}
+    fg.looked.clear()
+    s = snap({(42, 10): "@"}, 11)
+    s.messages = ["A nearby voice intones:", "\"Infidel, you have entered Moloch's Sanctum!\"", "\"Be gone!\""]
+    m = t.update(s)[0]
+    assert (42, 10) in fg.looked and m["desc"] == "high priestess of Moloch" and not m.get("peaceful")
+
+
+def test_summoned_advice_knows_no_teleport_levels():
+    # p2 shift 40 #812: in the Sanctum the SUMMONED pause said "get out (teleport ...)"; a teleport beam at the worst
+    # ones, then a corridor, is what worked
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+    b, a = snap({}, 200), snap({}, 201)
+    a.monsters = [{"ch": c, "x": 40 + dx, "y": 10 + dy, "desc": d, "new": True, "dist": 1, "id": 900 + i}
+                  for i, (c, dx, dy, d) in enumerate([("H", 1, 0, "storm giant"), ("U", -1, 0, "umber hulk"),
+                                                      ("D", 0, 1, "silver dragon")])]
+    g.desmap_ids[g.level_key(a.status)] = {"level": "sanctum"}
+    k._check_events(b, a)
+    assert any("NO-TELEPORT level" in r for r in reasons)
+
+
+def test_reload_refuses_new_helpers_on_an_older_core():
+    # p4 shift 9: the obs said "harness code on disk is newer", the player ran `bin/nh reload`, and the new helpers
+    # imported a name (danger.coaligned_unicorn) the running core didn't have: every fight() raised ImportError
+    import types
+    from nh.daemon import Daemon
+    fake = types.SimpleNamespace(_core_loaded=100.0, _tactics_loaded=100.0,
+                                 _code_mtime=lambda sub: 500.0 if sub == "src/nh" else 400.0)
+    out = Daemon.handle(fake, {"op": "reload"})
+    assert not out["ok"] and "NOT reloaded" in out["text"] and "restart" in out["text"]
+    assert fake._tactics_loaded == 100.0            # nothing was swapped in
+    note = Daemon._stale_code_note(fake)
+    assert "core (src/nh and play/tactics" in note and "reload` refuses" in note
+    # helpers only: reload is the way, and the note says so
+    fake2 = types.SimpleNamespace(_core_loaded=100.0, _tactics_loaded=100.0,
+                                  _code_mtime=lambda sub: 50.0 if sub == "src/nh" else 400.0)
+    assert "`bin/nh reload` between execs loads them" in Daemon._stale_code_note(fake2)
+

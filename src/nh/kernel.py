@@ -841,8 +841,12 @@ class Kernel:
                                       + ", ".join(m.get("desc") or m["ch"] for m in burst[:5])
                                       + (f") — {how!r}" if how else
                                          ") — the Wizard's summon nasties, a gate or a create monster")
-                                      + ": get out (teleport, levelport, stairs; Elbereth doesn't stop @ or "
-                                        "minotaurs) or fight from a corridor")
+                                      + (": a NO-TELEPORT level — zap a wand of teleportation AT the worst ones "
+                                         "(the beam goes on past each monster: line them up), then fight from a "
+                                         "1-wide corridor (Elbereth doesn't stop @ or minotaurs); a level teleport "
+                                         "still works" if self.game.no_teleport_here(snap.status) else
+                                         ": get out (teleport, levelport, stairs; Elbereth doesn't stop @ or "
+                                         "minotaurs) or fight from a corridor"))
                 if new and self.new_monster_filter is not None:
                     try:
                         new = [m for m in new if self.new_monster_filter(m)]

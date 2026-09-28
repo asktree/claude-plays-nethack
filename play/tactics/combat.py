@@ -17,6 +17,13 @@ try:
 except ImportError:        # (a daemon whose core predates it: `bin/nh reload` only loads new tactics)
     INVISIBLE_MISS = (r"^(?:The |An? )?.+? (?:(?:swings|snaps|kicks|lunges) wildly(?: and misses)?!|attacks a spot "
                       r"beside you\.|strikes at (?:thin air|empty water)!)$")
+try:
+    from nh.danger import coaligned_unicorn
+except ImportError:        # (same: p4 shift 9 — an unguarded import here broke every fight after a reload)
+    def coaligned_unicorn(desc, align):
+        from nh.danger import base_name
+        own = {"Lawful": "white unicorn", "Neutral": "gray unicorn", "Chaotic": "black unicorn"}.get(align)
+        return bool(own) and bool(desc) and base_name(desc) == own
 
 ROUTINE = [r"^You (hit|miss|kill|destroy) ", r"^You smite ", r"(bites|hits|misses|stings|butts|kicks|claws|touches)[!.]$",
            # an invisible fight's flavour (p1 shift 37 #470-#488, the Wizard and his clone): a monster going
@@ -471,6 +478,26 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                                   "out of view or hid): look around (a covetous one teleports to heal and comes "
                                   "back)")
                 return s
+        if not targets and x is not None and "relook" not in seen_notes:
+            peace = [m for m in s.monsters or [] if (m["x"], m["y"]) == (x, y) and not m.get("statue")
+                     and (m.get("peaceful") or m.get("tame") or m.get("pet"))]
+            if peace:
+                # a label from an earlier look may be stale (p2 shift 40 #767: "Infidel ... Be gone!" turned the
+                # high priestess hostile; fight() returned silently 29 times) — look again (no game time)
+                seen_notes.add("relook")
+                s2, fresh = _check_target(peace[0])
+                if fresh is not None and not (fresh.get("peaceful") or fresh.get("tame") or fresh.get("pet")):
+                    print(f"fight: the {fresh.get('desc') or '?'} at ({x},{y}) is HOSTILE now (its label was stale)")
+                    s = s2
+                    continue
+                if fresh is not None and attack_peaceful and not (fresh.get("tame") or fresh.get("pet")):
+                    targets = [fresh]
+                else:
+                    who = (fresh or peace[0]).get("desc") or "monster"
+                    ctx.pause(f"fight: not attacking the {who} at ({x},{y}): looked again just now — still "
+                              + ("your PET" if (fresh or peace[0]).get("tame") else "PEACEFUL")
+                              + ". fight(..., attack_peaceful=True) if you mean it")
+                    return ctx.last()
         if not targets:
             if "Blind" in st.conditions and any(m.get("unseen") and m.get("dist") == 1 for m in s.monsters or []):
                 if getattr(ctx.game, "blindfolded", None):
@@ -541,7 +568,6 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
                           "7 in 8)") + ". Zap/throw at it, Elbereth, or leave; fight(..., force=True) to melee "
                           "anyway.")
                 return ctx.last()
-        from nh.danger import coaligned_unicorn
         if coaligned_unicorn(desc, st.align if st.ok else "") and not force:
             ctx.pause(f"fight: not attacking the {desc}: it is the unicorn of YOUR alignment — killing it costs 5 Luck "
                       "('You feel guilty...', mon.c xkilled(); your luckstone would keep the bad luck, and prayer "
@@ -618,7 +644,6 @@ def auto_fightable(m, s=None) -> bool:
     if "shape-shifted VAMPIRE" in (m.get("note") or ""):
         return False
     st = (s or ctx.last()).status
-    from nh.danger import coaligned_unicorn
     if coaligned_unicorn(d, st.align if st.ok else ""):
         return False                    # -5 Luck (mon.c xkilled)
     if threat_level(d, st.xl if st.ok else None, st.hp if st.ok else None,
@@ -757,7 +782,6 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                              "there")
             from nh.monitor import _stationary
             # (a HIDDEN trapper/lurker above next to you acts only once found: a blow would un-hide it — leave it)
-            from nh.danger import coaligned_unicorn
             align = s.status.align if s.status.ok else ""
             mobile_adj = [m for m in s.adjacent_hostiles() if not _stationary(m.get("desc") or "")
                           and "hiding" not in (m.get("desc") or "")
@@ -901,7 +925,6 @@ def friendly_in_line(direction: str, ray: bool = False, s=None, maxlen: int = 13
     mind them yourself). The unicorn of your alignment counts as a friend
     too (killing it costs 5 Luck) — except for a thrown gem (gems=True: it
     catches gems, and a gem it likes raises your Luck)."""
-    from nh.danger import coaligned_unicorn
     from .mapview import KEY_DIR
     s = s or ctx.last()
     align = s.status.align if s.status.ok else ""

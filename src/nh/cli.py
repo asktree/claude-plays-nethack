@@ -19,7 +19,7 @@ Playing (current game unless --game NAME):
   nh screen                raw 80x24 terminal (via daemon)
   nh peek                  raw terminal straight from tmux (works while daemon busy)
   nh history [N]           last N messages
-  nh reload                reload tactics/views modules in the kernel
+  nh reload [--force]      reload tactics/views modules in the kernel (refused while src/nh on disk is newer)
 """
 
 from __future__ import annotations
@@ -467,7 +467,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("peek")
     p = sub.add_parser("history")
     p.add_argument("n", nargs="?", type=int, default=30)
-    sub.add_parser("reload")
+    p = sub.add_parser("reload")
+    p.add_argument("--force", action="store_true",
+                    help="reload the helpers even though the core on disk is newer than the daemon's")
     sub.add_parser("info", help="harness memory: current branch/level, prayer log, per-level features, overview")
 
     a = ap.parse_args(argv)
@@ -523,7 +525,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "history":
         return _print(request(name, {"op": "history", "n": a.n}))
     if a.cmd == "reload":
-        return _print(request(name, {"op": "reload"}))
+        return _print(request(name, {"op": "reload", "force": a.force}))
     if a.cmd == "info":
         return _print(request(name, {"op": "info"}))
     ap.error(f"unknown command {a.cmd}")

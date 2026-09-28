@@ -652,6 +652,23 @@ class Game:
                      (re.compile(r"^You enter an anthole!"), "anthole"),
                      (re.compile(r"^You enter a military barracks!"), "barracks"))
 
+    # dat/*.des FLAGS: noteleport — you can't teleport within these levels (a level teleport still works)
+    NOTELEPORT_LEVELS = frozenset({"valley", "juiblex", "orcus", "asmodeus", "baalz", "sanctum", "medusa-1",
+                                   "medusa-2", "medusa-3", "medusa-4", "castle", "knox", "tower1", "tower2",
+                                   "tower3", "wizard1", "wizard2", "wizard3", "earth", "air", "fire", "water",
+                                   "astral"})
+
+    def no_teleport_here(self, status) -> bool:
+        """Is the current level one where you can't teleport (Sokoban, the Castle, Medusa, Gehennom's special
+        levels, the towers, the Planes)? From the identified special-level map or the level's name."""
+        if not status or not status.ok:
+            return False
+        key = self.level_key(status)
+        ident = (getattr(self, "desmap_ids", None) or {}).get(key) or {}
+        lvl = str(ident.get("level") or "")
+        return (lvl in self.NOTELEPORT_LEVELS or lvl.startswith("soko")) and not ident.get("ambiguous") \
+            or str(key).startswith("Sokoban")
+
     def _note_special_room(self, snap: Snap, messages: list[str], prev_hero=None) -> None:
         kind = next((k for p, k in self.SPECIAL_ROOMS for m in messages if p.search(m)), None)
         if kind is None or snap.hero is None or not snap.status.ok:

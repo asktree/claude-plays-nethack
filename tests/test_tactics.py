@@ -6015,3 +6015,51 @@ def test_major_cursed_needs_a_real_welded_weapon(monkeypatch):
     g.welded_weapon = "a - a cursed long sword (weapon in hand)"
     assert len(survival._major_cursed(["a - a cursed long sword (weapon in hand)",
                                        "c - a cursed +3 small shield (being worn)"])) == 2
+
+
+def test_fight_at_a_stale_peaceful_label_looks_again_instead_of_returning_silently(monkeypatch):
+    # p2 shift 40 #767: after "Infidel ... Be gone!" the high priestess kept her peaceful label and fight(23, 11)
+    # returned at once, 29 times, with no blow and no message
+    from tactics import combat, ctx
+    pri = {"x": 11, "y": 5, "ch": "@", "desc": "peaceful high priestess of Moloch", "peaceful": True, "dist": 1,
+           "id": 3}
+    s = _snap({5: "         .@@...."}, (10, 5), [pri])
+    s.status.hp, s.status.hpmax, s.status.turn = 170, 179, 500
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    monkeypatch.setattr(ctx, "require_command", lambda who: s)
+    paused, sent = [], []
+    monkeypatch.setattr(ctx, "pause", lambda msg: paused.append(msg))
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s)
+    # still peaceful after the look: a pause says so (not a silent return)
+    monkeypatch.setattr(combat, "_check_target", lambda m: (s, dict(pri)))
+    combat.fight(11, 5, max_blows=1)
+    assert paused and "still PEACEFUL" in paused[0] and not sent
+    # the look says hostile now: it fights
+    paused.clear()
+    hostile = dict(pri, desc="high priestess of Moloch", peaceful=False)
+    s2 = _snap({5: "         .@@...."}, (10, 5), [hostile])
+    s2.status.hp, s2.status.hpmax, s2.status.turn = 170, 179, 500
+    monkeypatch.setattr(combat, "_check_target", lambda m: (s2, dict(hostile)))
+    monkeypatch.setattr(ctx, "last", lambda: s2)
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: sent.append(keys) or s2)
+    combat.fight(11, 5, max_blows=2)
+    assert any(k == "Fl" for k in sent)
+
+
+def test_combat_helpers_load_on_a_core_without_coaligned_unicorn():
+    # p4 shift 9: an old daemon reloaded new tactics, whose `from nh.danger import coaligned_unicorn` (a name its
+    # core didn't have yet) made every fight() raise ImportError. The helpers now fall back to their own copy.
+    import importlib
+    import nh.danger
+    saved = nh.danger.coaligned_unicorn
+    del nh.danger.coaligned_unicorn
+    try:
+        mod = importlib.reload(_combat)
+        assert mod.coaligned_unicorn("peaceful white unicorn", "Lawful")
+        assert not mod.coaligned_unicorn("white unicorn", "Chaotic")
+        assert not mod.coaligned_unicorn("gray unicorn", "")
+    finally:
+        nh.danger.coaligned_unicorn = saved
+        importlib.reload(_combat)
+    assert _combat.coaligned_unicorn is saved
