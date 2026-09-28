@@ -1708,7 +1708,11 @@ def _loot_all_once(take_gray_stones: bool = False) -> list:
         k, p = s.state.kind, (s.state.prompt or "")
         if k == "command":
             break
-        if k == "yn" and "loot it?" in p:
+        if k == "yn" and "loot it?" in p and "bag of tricks" in p:
+            # (live shift 5: #loot of a floor bag of tricks bites — pickup.c: it isn't a container; -10 HP)
+            s = ctx.do("n", quiet=True)
+            msgs.append("(left the bag of tricks alone: #loot makes it bite you; apply it only to make a monster)")
+        elif k == "yn" and "loot it?" in p:
             s = ctx.do("y", quiet=True)
         elif k == "menu" and "Do what" in p:
             opt = [it for it in s.state.menu.selectable() if "take something out" in it.text]

@@ -62,10 +62,13 @@ def _engrave_elbereth():
     return s
 
 
-def elbereth(retries: int = 1):
+def elbereth(retries: int = 3):
     """Engrave Elbereth in the dust where you stand, read it back and
-    re-engrave (up to `retries` times) if a letter slipped. Returns the
-    final snap and prints OK / GARBLED / UNVERIFIED.
+    re-engrave (up to `retries` times) if a letter slipped — engrave.c turns
+    each dust letter into a random one 1 time in 25, so 28% of tries come out
+    garbled (two in a row 8%: the live game, shift 5 #1203). Returns the final
+    snap and prints OK / UNVERIFIED; still GARBLED after every try PAUSES (it
+    protects nothing).
 
     NetHack 3.6.7 rules (monmove.c onscary, hack.c, engrave.c):
     - It must read exactly "Elbereth" (any case) and protects only while you
@@ -103,6 +106,8 @@ def elbereth(retries: int = 1):
             print("elbereth(): OK (reads \"Elbereth\")")
             return ctx.last()
         print(f"elbereth(): GARBLED ({txt!r})" + (" — engraving again" if attempt < retries else ""))
+    ctx.pause(f"elbereth(): still GARBLED after {retries + 1} tries ({txt!r}) — it does NOT scare anything. "
+              "elbereth() again, or get away")
     return ctx.last()
 
 

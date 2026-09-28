@@ -532,6 +532,44 @@ def test_lurk_zone_warns_once_about_a_dangerous_hostile_out_of_view(monkeypatch)
     assert (39, 5) in nav.lurk_zone(s)
 
 
+def test_elbereth_retries_three_times_then_pauses(monkeypatch):
+    # live shift 5 #1203: two garbles in a row ("El~ereth", "E}bereth") and elbereth() returned with a BROKEN
+    # engraving, the mumak adjacent
+    from tactics import ctx, survival
+    s = _snap({5: "   .@."}, (4, 5), [])
+    monkeypatch.setattr(ctx, "last", lambda: s)
+    tries, pauses = [], []
+    monkeypatch.setattr(survival, "_engrave_elbereth", lambda: tries.append(1) or s)
+    reads = iter(['You read: "El~ereth".', 'You read: "E}bereth".', 'You read: "Elbereth".'])
+    monkeypatch.setattr(survival, "engraving_here", lambda: next(reads))
+    monkeypatch.setattr(ctx, "pause", lambda reason: pauses.append(reason))
+    survival.elbereth()
+    assert len(tries) == 3 and pauses == []
+    tries.clear()
+    monkeypatch.setattr(survival, "engraving_here", lambda: 'You read: "Elbe?eth".')
+    survival.elbereth()
+    assert len(tries) == 4 and len(pauses) == 1 and "still GARBLED after 4 tries" in pauses[0]
+
+
+def test_loot_all_leaves_a_known_bag_of_tricks_alone(monkeypatch):
+    # live shift 5: loot_all() #looted a floor bag here() had named a bag of tricks (bitten, -10 HP)
+    from nh.parse import State
+    from tactics import ctx, items
+    s0 = _snap({5: "   .@."}, (4, 5), [])
+    s0.status.encumbrance = ""
+    prompt = _snap({5: "   .@."}, (4, 5), [])
+    prompt.state = State("yn", prompt="There is a bag of tricks here, loot it? [ynq] (q)")
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        return prompt if keys == "#loot<CR>" else s0
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: s0)
+    msgs = items._loot_all_once()
+    assert sent == ["#loot<CR>", "n"] and any("bag of tricks alone" in m for m in msgs)
+
+
 def test_travel_two_squares_away_never_moves_into_the_middle_monster(monkeypatch):
     import pytest
     from tactics import ctx, nav
