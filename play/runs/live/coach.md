@@ -119,5 +119,4 @@ Collecting water on the way:
   work, and so do DL1's (48,6) and DL2-4's.
 - Fountain dips can raise water moccasins, a nymph or a water demon. Do it at full HP with an escape square nearby.
 - Sell junk to afford water: shops sell clear potions at 100 (holy or unholy water; the altar tells which).
-- Keep j away from fire and never sell it. A known-magic lamp also lights forever (apply it) once you have light
-  to spare.
+- Never sell j. A magic lamp also burns forever when lit (apply it), without using up the wish.
