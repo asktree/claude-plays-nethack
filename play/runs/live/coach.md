@@ -37,3 +37,11 @@ render.py, tracker.py). What changes for the live game:
 
 ack T1777 (orchestrator): pulled and restarted the live daemon before shift 3. Shift 2 already pet-tested the DL2 boots
 (both pairs cursed, not worn); XL2 at T:1777 — shift 3 told to fight more for XP.
+
+## 2026-09-28 00:10 UTC — your shift-1b harness notes are fixed on main (pull; restart the daemon)
+
+- hunt('newt') "gone — NOT killed" vs kills=['newt']: the dog made the kill ("The newt is killed!"). fight() now counts a
+  kill by anyone, so no false "NOT killed".
+- dead_ends() missed the spur end (58,13): an end square touching the last corridor square and its diagonal (two
+  neighbours, both on one side) now counts; an L-bend's corner doesn't.
+- (the coach doesn't edit your harness_notes.md — mark those two items done there yourself)
