@@ -5758,6 +5758,10 @@ def test_eat_returns_empty_when_satiated_and_resumes_an_interrupted_meal(monkeyp
     monkeypatch.setattr(items, "here", lambda: "You see here a partly eaten silver dragon corpse.")
     assert items.eat(pattern="silver dragon corpse") == [] and sent == []
     assert "Satiated" in capsys.readouterr().out
+    # live shift 16 #205: no such corpse here at all — say that, not "Satiated"
+    assert items.eat(pattern="wraith corpse") == [] and sent == []
+    out = capsys.readouterr().out
+    assert "no floor food matching 'wraith corpse'" in out and "Satiated" not in out
     # interrupted by a status change, nothing hostile in view: the meal goes on
     base = snap()
     frames = iter([snap("yn", "There is a Grey-elf corpse here; eat it? [ynq] (n)"),

@@ -1185,7 +1185,11 @@ def eat(letter: str | None = None, pattern: str | None = None, force: bool = Fal
             # a one-bite food now, and force would skip the Satiated guard: choking at 2000 nutrition)
             floor = here()
             hits = [t for t in re.split(r"\n|\s*\|\s*|(?<=\.)\s+", floor) if rx.search(t)]
-            zero_ok = bool(hits) and all(_zero_nutrition(t) for t in hits)
+            if not hits:
+                # (live shift 16 #205: "Satiated — not eating" read as if a wraith corpse were refused; there was none)
+                print(f"eat(): nothing eaten — no floor food matching {pattern!r} here")
+                return []
+            zero_ok = all(_zero_nutrition(t) for t in hits)
         if not (zero_ok or force or "Stone" in (st.conditions or ())):
             # (p2 shift 39 #81: resuming a partly eaten corpse raised the harness's Satiated guard mid-loop)
             print("eat(): Satiated — not eating (past 2000 nutrition you choke); a partly eaten meal waits "
