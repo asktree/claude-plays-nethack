@@ -185,21 +185,25 @@ def _p_timeout_ok(limit: int, hs: dict, now: int, xl: int, n: int = 20000) -> fl
     starts at 300 (u_init.c) or at rnz(350) after the last prayer (pray.c pleased(); + rnz(1000) each for
     being a demigod — the Wizard killed or the invocation done — and for being crowned), drops by 1 a
     turn but never below 0 (allmain.c), gains 50-149 per wish (zap.c makewish), and a sacrifice showed
-    it at 0 ("four-leaf clover") or reset it with a gift (rnz(300 + 50 * gifts))."""
+    it at 0 ("four-leaf clover") or reset it with a gift (rnz(300 + 50 * gifts)). A "hopeful feeling"
+    sacrifice (pray.c dosacrifice) cut it by value*300/24 (500 for chaotics) and proves it was MORE than
+    that: histories that contradict it are dropped (p3 shift 21: three such cuts, 324 turns, were ignored —
+    "31%" where ~88% was right)."""
     prayers = hs.get("prayers", [])
     t0 = (prayers[-1].get("turn") or 0) if prayers else 0
     kick = sum(1 for k in ("demigod", "crowned") if (hs.get(k) or {}).get("turn") is not None
                and hs[k]["turn"] <= t0) if prayers else 0
-    evs = [(w.get("turn") or 0, "wish") for w in hs.get("wishes", [])]
-    evs += [(e.get("turn") or 0, e.get("kind")) for e in hs.get("prayer_evidence", [])
-            if e.get("kind") in ("zero", "reset")]
+    evs = [(w.get("turn") or 0, "wish", 0) for w in hs.get("wishes", [])]
+    evs += [(e.get("turn") or 0, e.get("kind"), int(e.get("amount") or 0)) for e in hs.get("prayer_evidence", [])
+            if e.get("kind") in ("zero", "reset") or (e.get("kind") == "reduced" and e.get("amount"))]
     evs = sorted(e for e in evs if e[0] >= t0)
     rng = _random.Random(12345)
-    ok = 0
+    ok = kept = 0
     for _ in range(n):
         tmo = _rnz(350, xl, rng) + sum(_rnz(1000, xl, rng) for _k in range(kick)) if prayers else 300
         t = t0
-        for te, kind in evs:
+        consistent = True
+        for te, kind, amount in evs:
             tmo, t = max(0, tmo - (te - t)), te
             if kind == "wish":
                 tmo += 50 + rng.randrange(100)
@@ -207,9 +211,21 @@ def _p_timeout_ok(limit: int, hs: dict, now: int, xl: int, n: int = 20000) -> fl
                 tmo = 0
             elif kind == "reset":
                 tmo = _rnz(300, xl, rng)
+            elif kind == "reduced":
+                if tmo <= amount:          # it would have said "reconciliation" (0) or nothing
+                    consistent = False
+                    break
+                tmo -= amount
+        if not consistent:
+            continue
+        kept += 1
         tmo = max(0, tmo - (now - t))
         ok += tmo <= limit
-    return ok / n
+    if not kept:
+        # (records that no sampled history explains — e.g. an amount from a partly eaten corpse: ignore the cuts)
+        return _p_timeout_ok(limit, dict(hs, prayer_evidence=[e for e in hs.get("prayer_evidence", [])
+                                                              if e.get("kind") != "reduced"]), now, xl, n)
+    return ok / kept
 
 
 def _low_hp(st) -> bool:
@@ -520,6 +536,36 @@ _OWN_RACE = ("dwarf", "dwarf lord", "dwarf king", "dwarf mummy", "dwarf zombie")
 _UNICORN_ALIGN = {"white unicorn": "lawful", "gray unicorn": "neutral", "black unicorn": "chaotic"}
 
 
+def _note_hopeful_cut(name: str, msgs: list) -> None:
+    """A "You have a hopeful feeling." sacrifice: pray.c dosacrifice() cut the prayer timeout by
+    value*300/24 (500 for chaotics), value = the monster's difficulty + 1 (+1 undead unless you are chaotic)
+    — file that amount on the tracker's "reduced" record so prayer_check() can replay it. Not for a partly
+    eaten corpse (less value: unknown)."""
+    from nh.danger import monster_record
+    rec = monster_record(name) or {}
+    if not rec.get("difficulty") or any(re.search(r"\bpartly eaten\b", m) for m in msgs):
+        return
+    st = ctx.last().status
+    chaotic = (st.align or "").lower().startswith("chaotic")
+    value = int(rec["difficulty"]) + 1 + (1 if "M2_UNDEAD" in rec.get("flags2", []) and not chaotic else 0)
+    amount = value * (500 if chaotic else 300) // 24
+    mem = getattr(getattr(ctx, "game", None), "memory", None)
+    state = getattr(mem, "state", None)
+    if not isinstance(state, dict) or st.turn is None:
+        return
+    ev = state.setdefault("prayer_evidence", [])
+    rec_ev = next((e for e in reversed(ev) if e.get("turn") == st.turn and e.get("kind") == "reduced"), None)
+    if rec_ev is None:
+        ev.append({"turn": st.turn, "kind": "reduced", "amount": amount})
+    else:
+        rec_ev["amount"] = amount
+    try:
+        mem.save()
+    except Exception:  # noqa: BLE001
+        pass
+    print(f"offer(): the {name} (value {value}) cut the prayer timeout by {amount} turns (recorded for prayer_check())")
+
+
 def _note_prayer_evidence(turn, kind: str) -> None:
     """Add {"turn", "kind"} to the harness memory's prayer_evidence (tracker.py fills it from messages;
     this is for what only a helper can tell, e.g. a silent sacrifice)."""
@@ -596,6 +642,8 @@ def offer(pattern: str | None = None, max_age: int = 50, letter: str | None = No
         ctx.do("<Esc>", quiet=True)
     joined = " | ".join(msgs)
     outcome = next((o for pat, o in _OFFER_OUTCOMES if any(re.search(pat, m) for m in msgs)), "")
+    if offered and outcome.startswith("the prayer timeout went down"):
+        _note_hopeful_cut(offered, msgs)
     if offered and not outcome and any(_SILENT_OFFER.search(m) for m in msgs):
         st = ctx.last().status
         if "Hallu" in " ".join(st.conditions or []):

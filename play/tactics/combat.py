@@ -779,10 +779,13 @@ def fight_until_clear(radius: int = 2, stop_hp: float = 0.5, max_turns: int = 60
                 best, idle = d, 0
             else:
                 idle += 1
-            if idle >= patience:
+            if idle >= patience and not (hold and (s.status.turn or t0) - t0 < hold):
+                # (with hold=N the square is kept N turns whatever stays put in range — p3 shift 21 #313: a
+                # hold=12 ended after 5 turns on a minotaur that took its time)
                 who = ", ".join(f"{m.get('desc') or m['ch']} at ({m['x']},{m['y']})" for m in near[:4])
                 mim = any("mimic" in (m.get("desc") or "") for m in near)
-                return out(f"{who} within {radius} but not coming for {idle} turns (trapped, slow or sessile?) "
+                return out((f"held {hold} turns — " if hold else "")
+                           + f"{who} within {radius} but not coming for {idle} turns (trapped, slow or sessile?) "
                            "— go to it or leave it" + ("; a MIMIC re-hides as an object whenever you can't see "
                                                        "it — keep it in sight, or hunt() it" if mim else ""))
             s = ctx.do(".", ok=ROUTINE)

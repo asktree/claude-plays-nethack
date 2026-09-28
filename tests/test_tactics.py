@@ -2030,6 +2030,36 @@ def test_fight_until_clear_pause_new_modes(monkeypatch):
         assert (got[0](unlooked), got[0](lich)) == want, mode
 
 
+def test_fight_until_clear_hold_waits_out_a_monster_that_is_not_coming(monkeypatch):
+    # p3 shift 21 #313: hold=12 returned after 5 turns: "minotaur ... within 3 but not coming for 6 turns"
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(combat, "warn_bounce", lambda who: None)
+    turn = {"t": 100}
+    mino = {"x": 13, "y": 5, "ch": "H", "desc": "minotaur", "dist": 3}
+
+    def snap_now():
+        s = _snap({5: "        ......"}, (10, 5), [dict(mino)])
+        s.status.turn, s.status.hp, s.status.hpmax = turn["t"], 50, 50
+        return s
+    cur = {"s": snap_now()}
+    sent = []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        turn["t"] += 1
+        cur["s"] = snap_now()
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    r = combat.fight_until_clear(radius=3, hold=12, patience=4)
+    assert len(sent) >= 12 and r["reason"].startswith("held 12 turns") and "not coming" in r["reason"]
+    sent.clear()
+    r = combat.fight_until_clear(radius=3, patience=4)          # without hold: as before
+    assert r["reason"].startswith("minotaur") and len(sent) == 4
+
+
 def test_fight_until_clear_passes_near_water_to_fight(monkeypatch):
     # p1 shift 33 #801: fight_until_clear(near_water=True) at a walkway corner still paused inside fight()
     from tactics import combat, ctx, nav
@@ -5341,3 +5371,54 @@ def test_altar_test_reads_the_flashes_and_takes_the_items_back(monkeypatch):
     rx = re.compile(picked[0], re.I)
     assert rx.search("3 blessed clear potions") and rx.search("a cursed scroll labeled THARR")
     assert not rx.search("a large box")                  # (what lay on the altar before stays there)
+
+
+def test_prayer_timeout_replays_hopeful_sacrifice_cuts():
+    # p3 shift 21 #29-#85: three hopeful sacrifices (125+112+87 turns off) were ignored: "31%" instead of ~88%
+    from tactics import survival
+    hs = {"prayers": [{"turn": 19917, "outcome": "You feel that Tyr is well-pleased."}]}
+    base = survival._p_timeout_ok(200, hs, 20152, 13, n=4000)
+    hs["prayer_evidence"] = [{"turn": 19990, "kind": "reduced", "amount": 125},
+                             {"turn": 20000, "kind": "reduced", "amount": 112},
+                             {"turn": 20010, "kind": "reduced", "amount": 87}]
+    cut = survival._p_timeout_ok(200, hs, 20152, 13, n=4000)
+    assert cut > base + 0.1, (base, cut)         # (histories where a cut would have reached 0 are dropped)
+    # a "reduced" record without an amount changes nothing
+    hs["prayer_evidence"] = [{"turn": 19990, "kind": "reduced"}]
+    assert abs(survival._p_timeout_ok(200, hs, 20152, 13, n=4000) - base) < 1e-9
+
+
+def test_offer_files_the_hopeful_cut(monkeypatch):
+    from nh.parse import State
+    from tactics import ctx, survival
+
+    class Mem:
+        def __init__(self):
+            self.state = {"prayer_evidence": [{"turn": 19990, "kind": "reduced"}]}
+
+        def save(self):
+            pass
+    g = _G()
+    g.memory = Mem()
+    monkeypatch.setattr(ctx, "game", g)
+    base = _snap({}, (10, 5), [])
+    base.under = "_"
+    base.status.turn, base.status.align = 19990, "Lawful"
+    q = _snap({}, (10, 5), [])
+    q.state = State("yn", prompt="There is a winter wolf corpse here; sacrifice it? [ynq] (q)")
+    done = _snap({}, (10, 5), [])
+    done.messages = ["Your sacrifice is consumed in a flash of light!", "You have a hopeful feeling."]
+    seq = iter([q, done])
+    monkeypatch.setattr(ctx, "do", lambda keys, **kw: next(seq))
+    monkeypatch.setattr(ctx, "last", lambda: base)
+    survival.offer()
+    assert g.memory.state["prayer_evidence"] == [{"turn": 19990, "kind": "reduced", "amount": 125}]
+
+
+def test_picked_letters_finds_letters_mid_line():
+    # p3 shift 21 #26: "You have a little trouble lifting j - a winter wolf corpse." was missed by `^j - `
+    from tactics.items import picked_letters
+    msgs = ["You have a little trouble lifting j - a winter wolf corpse.", "q - 2 uncursed potions of water.",
+            "You see here a dagger."]
+    assert picked_letters(msgs) == ["j", "q"]
+    assert picked_letters(["$ - 25 gold pieces."]) == ["$"]

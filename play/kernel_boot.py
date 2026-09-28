@@ -49,6 +49,7 @@ from tactics.combat import fight, fight_until_clear, friendly_in_line, throw, za
 from tactics import options  # noqa: E402,F401  (options.bool_options(), options.set_bool('timed_delay', False))
 from tactics.town import buy_protection, pay, sell_offer  # noqa: E402,F401
 from tactics.items import bag_contents, bag_put, bag_take, call_type, dig, eat, force_box, kick_test, pickup, tunnel  # noqa: E402,F401
+from tactics.items import picked_letters  # noqa: E402,F401
 from tactics.items import altar_test, dip_into, discoveries, read_identify, rub, unlock, with_looks  # noqa: E402,F401
 from tactics.items import ID_PRIORITY, piety, write_scroll  # noqa: E402,F401
 from tactics.nav import drowners_adjacent, eel_level, eel_zone, squeaky_boards  # noqa: E402,F401

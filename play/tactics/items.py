@@ -1244,6 +1244,21 @@ def heavy_weight(text: str) -> int | None:
     return None
 
 
+_PICKED = re.compile(r"(?:^|(?<=\s))([a-zA-Z$]) - (.+?)(?:\.(?:\s|$)|$)")
+
+
+def picked_letters(msgs: list) -> list:
+    """The inventory letters in pickup/drop/wish messages, wherever they sit on the line: "j - a winter wolf
+    corpse." and also "You have a little trouble lifting j - a winter wolf corpse." (p3 shift 21 #26: a
+    `^j - ` regex missed that one). Returns [letter, ...] in order, without repeats."""
+    out = []
+    for m in msgs or ():
+        for mm in _PICKED.finditer(m):
+            if mm.group(1) not in out:
+                out.append(mm.group(1))
+    return out
+
+
 def pickup(pattern: str | None = None, force: bool = False) -> list:
     """Pick up the objects here whose text matches `pattern` (regex,
     case-insensitive), or everything if None — except, with no pattern,
