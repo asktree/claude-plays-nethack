@@ -80,3 +80,44 @@ CURSED Excalibur, unicorn horn, wand of digging, lizard, etc. Decision: wield Ex
 only), uncurse later by holy water / the next needed prayer; no dedicated prayer. Told shift 5 the lamp price
 correction (50). Harness request: shift 4's #146/#778 — the known mumak reached melee in the dark without a pause
 (travel/desmap.walk/explore). Could legs shorten/stop when a dangerous hostile was last seen nearby in the last N turns?
+
+## 2026-09-28 01:10 UTC — harness update on main (pull + restart the live daemon before the next shift); Excalibur + the MAGIC lamp
+
+`git pull --rebase`, then `bin/nh --game live daemon` (game.py, tracker.py, items.py changed).
+- **Shops**: the room is now recorded on the inside of east/south doors too (Minetown's lit street fooled it). A
+  new welcome replaces a wrong old record of the same shop, so an old record fixes itself on your next visit.
+- **Welded weapon**: the cursed Excalibur in hand now counts as your usual weapon, so there's no "wa to wield it
+  again" note. `rub()` and `dig()` now refuse up front and explain why (see below).
+- Trap memory: a hole or trap door you fell through is filed on the square you stepped onto, not the one you left.
+  A remembered trap on a square that shows plain floor is forgotten instead of blocking the step.
+
+**Excalibur facts (checked in the 3.6.7 source and in a local test):**
+- No blast for you. artifact.c `hack_artifacts()` gives Excalibur role NON_PM for every non-Knight, so a lawful
+  Valkyrie picks it up and wields it freely. The ttyrec agrees: HP never moved at T:3424 or T:3838.
+- **While it is welded, NetHack refuses anything that must be wielded.** That includes **#rub of a lamp** and
+  applying a pick-axe (apply.c `wield_tool`). You can't take the gloves off or put new ones on, and the right-hand
+  ring can't be changed.
+- #force still works: `force_box()` uses the wielded artifact blade, and a cursed blade never breaks (lock.c).
+
+**Your lamp j "MAGIC" is the real thing.** Trahnil's sell offer of 25 means base 50. It is CURSED, though. A cursed
+magic lamp grants a wish only 5% of the time, with an 80% hostile djinni; a BLESSED one grants a wish 80% of the time.
+To get the wish, both of these must happen:
+1. Excalibur uncursed, or #rub is impossible.
+2. The lamp blessed: cursed → uncursed → blessed, i.e. two holy-water dips.
+
+The cheapest route is **one prayer on a LAWFUL (Tyr) altar with potions of water lying on it**.
+- If the prayer succeeds, pray.c blesses the water on a co-aligned altar (water_prayer) and also fixes your worst
+  minor trouble. The welded weapon counts as minor trouble ("cursed items"), so Excalibur gets uncursed too.
+- Condition: `prayer_check()` must say the timeout is surely ≤ 100 (the minor-trouble limit). Pray at full HP, in a
+  quiet spot.
+- Then dip the lamp twice into the holy water, and `rub('j')` until the djinni comes.
+- Wish for **"blessed +2 gray dragon scale mail"**: magic resistance. It's the same wish p4 made.
+
+Collecting water on the way:
+- Clear potions you find are water.
+- Dip junk potions into a fountain twice ("dilute", then "water"), but NOT in Minetown. The Oracle's fountains
+  work, and so do DL1's (48,6) and DL2-4's.
+- Fountain dips can raise water moccasins, a nymph or a water demon. Do it at full HP with an escape square nearby.
+- Sell junk to afford water: shops sell clear potions at 100 (holy or unholy water; the altar tells which).
+- Keep j away from fire and never sell it. A known-magic lamp also lights forever (apply it) once you have light
+  to spare.
