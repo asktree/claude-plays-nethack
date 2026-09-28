@@ -105,3 +105,11 @@
 - #205 T:14515: eat(pattern='wraith corpse') while Satiated returned [] ("Satiated — not eating") although PLAYER.md says a 0-nutrition corpse like a
   wraith's is eaten even while Satiated. (There was no wraith corpse there anyway, so no harm this time — but it would have lost a level-gain.)
 - hunt((x,y)) toward a telepathy-sensed wraith across unexplored ground returned at once after "It's solid stone." (0 turns); head_to() then worked.
+
+## Shift 17 (T:15019-16114)
+- Whole shift: obs shows "!! harness code on disk is newer than this daemon's core" although the daemon had just been restarted (helpers worked fine).
+- DL18: the obs line "MIND FLAYER on this level (a psychic wave was felt...)" persisted all shift although the mind flayer was killed at T:14848 (before the
+  daemon restart) and telepathy scans show none. The kill probably wasn't linked to the note across the restart; the note should expire (or clear on a scan without one).
+- #1755: `m['name']` raised KeyError on an obs.monsters dict (a remembered 'I' entry has no 'name' key) — use m.get('name'); PLAYER.md implies every entry has it.
+- #1583: loot_all(check_traps=3) found "no trap" in 3 checks, then unlock() set off an electric box trap (-10 HP). Just the odds (~5% miss), noting it.
+- loot_all() stopped at the pack-full (52 letters) limit correctly and said so — good.

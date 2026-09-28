@@ -313,3 +313,19 @@
 - T:14884 killed a BALUCHITHERIUM (115 -> 90). T:14919 xan: wounded legs (Burdened) healed by T:14952. T:14957 winter wolf cub (frost breath reflected/missed).
 - T:14959 rust trap (63,18) hit my arm (Excalibur rustproof). T:15017 DL18 explored except behind boulders (60,9),(54,12).
 - Shift 16 ends T:15019 on the DL18 up stairs (9,19), HP 115/115, XL12, AC-15, Satiated. Goal XL14 NOT reached: the 5 wraiths left no corpses.
+
+## Shift 17 (T:15019-)
+- T:15055 DL18: killed a yellow light (dagger + Excalibur, no blast). T:15077 DL19: up (27,3), DOWN (32,19); oak wand u = SECRET DOOR DETECTION (engrave found a hidden door; named).
+  Trapped closet 'Vlad was here' -> trap door (28,12) avoided. T:15232 killed a FROST GIANT (-16 HP), ate it (no Str msg); 4 gems taken.
+  T:15279 black light exploded -> hallu, unihorn fixed. Food ration V picked up (74,18); dropped blessed oil lamp x + tin a there (weight). Leocrotta killed.
+- T:15413 DL20 arrived: up stairs (42,4). Scan: only an invisible stalker far west (4,13).
+- DL20 (T:15413-15884): up (42,4), DOWN (64,8); trapped closet 'Vlad was here' trap door (44,2) avoided; rust trap (17,4). Killed orc mummy, hill orcs,
+  scorpion, INVISIBLE STALKER + giant ants (blindfold telepathy), rock mole. A LICH (invisible) cast CURSE ITEMS (violet gems Y cursed, dropped; worn armor
+  BUC unknown — may be cursed now) and teleported away; it came back and stunned me (unihorn), killed in 3 blows blind T:15843. Large box (71,8): electric trap
+  (-10), took food ration + wand -> runed = SLOW MONSTER (named, dropped there with the secret door detection wand, tin, cursed gems). Potion of water left (69,13).
+  XP 29704 at T:15854 (XL13 = 40000). DL20 fully explored.
+- T:15884 DL19 re-scan: empty. T:15944 DL17: killed the mountain nymph (3 daggers from range, asleep), took her SCROLL OF TELEPORTATION (D). Gems now in the sack.
+- T:15992 DL17 Kinojevis price-ID (lowballs 3/8): p brilliant blue = 200 (enlight/levit/POLY), q dark green = 300 (GAIN LEVEL/gain abil/paral),
+  i emerald + n murky = 50. Shop box holds scroll of teleportation + level-4 spellbook. Food ration for sale 60. Killed a succubus at the shop door.
+- T:16093 DL18: killed a hidden TRAPPER (65,17) — striking zap from the doorway, then 1 Excalibur blow (blindfold telepathy). DL18 boulder (54,12) stuck (dead end).
+- Shift 17 ends T:16114 on the DL18 DOWN stairs (55,3), HP 115/115, XL12 (30241 exp), AC-15.

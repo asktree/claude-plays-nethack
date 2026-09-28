@@ -7,7 +7,7 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 
 ## Character
 - Name/role: ClaudeAscends, lawful female dwarven Valkyrie, god: Tyr
-- Turn / Dlvl / XL / HP / Pw / AC: T:15019 / DL18 MAIN DUNGEON, ON THE UP STAIRS (9,19) / XL12 / 115/115 / 22/22 / AC-15, Satiated. St18 Dx15 Co18 In8 Wi11 Ch8. PIOUSLY lawful (piety() T:14609).
+- Turn / Dlvl / XL / HP / Pw / AC: T:16114 / DL18 MAIN DUNGEON, ON THE DOWN STAIRS (55,3) / XL12 (30241 exp; XL13 at 40000, XL14 at 80000) / 115/115 / 22/22 / AC-15, not hungry. St18 Dx15 Co18 In8 Wi11 Ch8. PIOUSLY lawful (piety() T:14609).
 - T:11292 WISH DONE: z - blessed +2 GRAY DRAGON SCALE MAIL, WORN (MAGIC RESISTANCE) under the faded pall I (elven cloak). Elven mithril G left on the DL9 altar.
 - PROTECTION bought T:8670 from the priestess of Odin: 3600 gold, AC -4 -> -7 (next costs 400*XL again, gives +1 only now... it gives +1 per donation once AC protection>=... see priest.c). Sack Y: $1640 left.
 - T:8674 ALTAR BUC TEST (Minetown neutral altar): UNCURSED: riding boots V, faded pall I (= ELVEN CLOAK, now WORN, AC-8), rings d coral/D emerald/F moonstone/N wooden, wands T iron/K/s/y/U, scroll W READ ME, q earth, 3 food rations Q, slime molds, carrot, yellow gem j, all 3 WATERS (now n - 3 uncursed clear potions). CURSED: l THARR, k earth.
@@ -16,6 +16,24 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - Attributes: St18 Dx14 Co18 In8 Wi10 Ch8; EXPERT long sword (T:7145), basic dagger
 - Intrinsics (source, turn): POISON RES (gray unicorn T:4898), cold res (Valk), stealth (Valk), infravision (dwarf), TELEPATHY (floating eye T:3358), FAST (XL7, T:5047), SLEEP RES (Woodland-elf T:12347). MR (GDSM), REFLECTION (amulet).
 - Luck notes: full moon at game start (+1 while it lasts). Alignment / god anger: none
+
+## SHIFT 17 CHANGES (T:16114) — DL19-20 explored, potions price-IDed
+- DL19: up (27,3), DOWN (32,19); trapped closet 'Vlad was here' TRAP DOOR (28,12) avoided; fountains (26,15),(59,14). Fully explored, empty now.
+  Dropped at (74,18): blessed oil lamp, tin.
+- DL20 (deepest so far; LIMIT): up (42,4), DOWN (64,8); trapped closet trap door (44,2); rust trap (17,4). Fully explored. Dropped at the large box (71,8):
+  wand of slow monster (runed, named), wand of secret door detection (oak, named), tin, 3 cursed violet gems. Potion of water left at (69,13).
+- A LICH cast CURSE ITEMS on DL20 (MR limited it). Known result: violet gems cursed (dropped). Unknown-BUC items may be cursed now: worn helm o, gloves r,
+  iron shoes E, GDSM z (can't tell until removal is tried / altar), food ration V, potions, scrolls. Excalibur L, luckstone Z, blindfold H still uncursed.
+- PRICE-ID at Kinojevis (DL17; he LOWBALLS unidentified items at 3/8 base):
+  p brilliant blue = base 200: enlightenment / LEVITATION / POLYMORPH (never quaff) — named "200 enlight-levit-POLY"
+  q dark green = base 300: GAIN LEVEL / gain ability / paralysis — named "300 gainlevel-gainabil-paral" (BUC unknown; lich curse possible:
+    a CURSED gain level only lifts you to the level above). ORCHESTRATOR: altar-test at DL9, then decide on quaffing (1/3 chance +1 XL).
+  i emerald + n murky = base 50: booze / fruit juice / see invisible / sickness.
+  Shop stock: food ration 60 (at 73,10), milky potion 133, 'object detection?' potion 200, VERR YED HORRE 267, locked large box (unlocked it with my key):
+  scroll of teleportation 133 + glittering spellbook 533 (base 400, level 4). Gold in sack ~$1875.
+- NEW: D SCROLL OF TELEPORTATION (from the DL17 mountain nymph) — escape / confused = level teleport. Food: F + V x2 food rations, G fortune cookie.
+- Kills: frost giant (eaten), leocrotta, lich, invisible stalker, trapper, succubus, mountain nymph, giant mummy fled (DL20), scorpion, yellow/black lights, ants.
+- DL18 boulder (54,12) is stuck (rock behind): dead end. Peaceful dwarf wanders DL18 (maybe a pick-axe; peaceful — don't attack).
 
 ## SHIFT 15 CHANGES (T:14402) — levels DL15-18
 - DL15 = ROGUE LEVEL: up (21,17), down (34,18). Traps: bear (31,4), sleeping gas (33,5), dart (43,10). Dropped there: wand of speed monster + EMPTY digging wand a (37,8); balsa wand (no-effect group) + 4 daggers (35,10).
@@ -40,9 +58,10 @@ ttyrecs: https://www.hardfought.org/userdata/C/ClaudeAscends/nethack/ttyrec/
 - piety(): PIOUSLY lawful (quest alignment OK). Only XL is missing (XL14 needs 80000+ exp from XL13; kills at DL18 give ~200-300 each: wraiths /
   potions of gain level are the realistic routes).
 
-## PLAN (T:15019)
-- The graveyard is DONE (0 wraith corpses out of 5). Waiting for the orchestrator's next arc (XL14 route: more wraiths/graveyards, gain level; or quest planning).
-  Standing on the DL18 up stairs (9,19), full HP.
+## PLAN (T:16114)
+- DL17-20 are explored and nearly empty; XP grind there now yields ~500 exp per real monster (need ~50000 for XL14). Options for the orchestrator:
+  (a) altar-test q (dark green, 1/3 gain level) at DL9 and quaff if not cursed; (b) the Castle plan (wand of wishing -> blessed gain level);
+  (c) wait/search for random spawns on DL18-20. Standing on the DL18 DOWN stairs (55,3), full HP.
 
 ## PLAN (T:14402, done)
 - Graveyard wraiths on DL18 = the fastest route to XL14 (each wraith corpse +1 XL; eat at once). Approach at full HP; fight from a corridor/doorway;
