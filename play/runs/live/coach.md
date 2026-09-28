@@ -305,3 +305,9 @@ ack T11316 (orchestrator): WISH DONE — DL9 altar converted to Tyr on the first
 Next arc (shift 12+): Minetown protection (4400), kill the mumak, Mines' End luckstone, XL toward 14 for the quest.
 Harness note from shift 11: offer() paused as a generic message on the cross-aligned conversion lines ("You feel the
 power of Tyr increase. The altar glows white.") instead of reporting the outcome.
+
+ack T12669 (orchestrator): Minetown protection done (AC-15), mumak killed, sleep res, wand of cold. At Mines' End
+(minend-2 wine cellar, DL13); luckstone (72,9) needs a dig from the east region. FOOD is the risk (2 slime molds +
+lizard). Shift 12 harness reports: climb() took the Sokoban up stairs on DL8 when the link was unknown; explore()
+barely moved on dark Mines 10 (48 legs/57 turns); desmap.route() keeps routing through a 50% secret door that doesn't
+exist here (54,9) and ignores avoid(); desmap.walk() stops at a level teleporter although MR is worn.
