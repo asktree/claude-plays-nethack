@@ -99,6 +99,14 @@ def test_dead_ends():
     rows[5] = "        |@..|     #"
     s = _snap(rows, (9, 5), [])
     assert sorted(dead_ends(s)) == [(15, 8), (18, 5)]
+    # (live shift 1b) a corridor end touching the last square AND its diagonal: both on one side, still an end;
+    # an L-bend's corner (neighbours on two sides) is not
+    rows2 = {5: "              ##", 6: "          #####"}
+    s = _snap(rows2, (10, 6), [])
+    assert sorted(dead_ends(s)) == [(10, 6), (15, 5)]
+    rows3 = {5: "          #", 6: "          ####"}
+    s = _snap(rows3, (13, 6), [])
+    assert sorted(dead_ends(s)) == [(10, 5), (13, 6)]
 
 
 def test_squeeze_steps():
@@ -4435,3 +4443,27 @@ def test_zap_reports_frozen_water(monkeypatch, capsys):
     combat.zap("R", "l")
     out = capsys.readouterr().out
     assert "FROZE 3 water square(s) [(12, 5), (13, 5), (14, 5)]" in out and "(15, 5)" in out
+
+
+def test_fight_counts_a_kill_by_your_pet(monkeypatch, capsys):
+    # live shift 1b: the dog finished the newt ("The newt is killed!"); fight() said "gone — NOT killed" while
+    # hunt() counted the kill
+    from tactics import combat, ctx
+    monkeypatch.setattr(ctx, "game", _G())
+    monkeypatch.setattr(ctx, "monster_filter", None)
+    monkeypatch.setattr(ctx, "hp_rules", None)
+    newt = {"x": 11, "y": 5, "ch": ":", "desc": "newt", "dist": 1, "looked": True, "id": 4}
+    s = _snap({5: "        ..@:."}, (10, 5), [newt])
+    s.status.hp, s.status.hpmax, s.status.turn = 30, 30, 100
+    after = _snap({5: "        ..@.."}, (10, 5), [])
+    after.status.hp, after.status.hpmax, after.status.turn = 30, 30, 101
+    after.messages = ["You miss the newt.", "The little dog bites the newt.", "The newt is killed!"]
+    cur = {"s": s}
+
+    def fake_do(keys, **kw):
+        cur["s"] = after
+        return after
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    combat.fight(11, 5)
+    assert "NOT killed" not in capsys.readouterr().out

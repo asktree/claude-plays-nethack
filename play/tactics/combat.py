@@ -400,8 +400,11 @@ def _fight(x, y, stop_hp, max_blows, allow_passive, seen, only=None, force=False
             if not targets and locked_on:
                 recent = [m for t, m in list(getattr(ctx.game, "history", []))[-40:] if t is None or t >= t_first]
                 killed = re.compile(r"^You (?:kill|destroy) (?:it\b|(?:the |an? |poor )?" + re.escape(locked_on) + ")")
+                from nh.monitor import killed_names
+                # (live shift 1b: the dog finished the newt — "The newt is killed!" — and fight() said "NOT
+                # killed" while hunt() counted the kill)
                 was_killed = any(re.search(r"^You (?:kill|destroy) ", m) for m in seen) \
-                    or any(killed.search(m) for m in recent)
+                    or any(killed.search(m) for m in recent) or locked_on in killed_names(seen + recent)
                 again = [m for m in s.adjacent_hostiles() if base_name(m.get("desc") or "") == locked_on] \
                     if not was_killed else []
                 if again:

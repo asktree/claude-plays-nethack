@@ -808,10 +808,21 @@ def dig_throughs(s=None, targets=(), bad=None, limit: int = 3) -> list:
     return out[:limit]
 
 
+def _one_sided(x: int, y: int, nb: list) -> bool:
+    """All walkable neighbours on ONE side (same x step or same y step): the square ends a corridor. A
+    straight run or an L-bend has them on two sides. (live shift 1b: a spur's end square touched the previous
+    corridor square and its diagonal, two neighbours, and wasn't counted.)"""
+    if not nb:
+        return True
+    dxs = {c[0] - x for c in nb}
+    dys = {c[1] - y for c in nb}
+    return (len(dxs) == 1 and 0 not in dxs) or (len(dys) == 1 and 0 not in dys)
+
+
 def dead_ends(s=None, limit: int = 8) -> list:
-    """Corridor squares ('#') with at most one walkable neighbour: corridors
-    that just stop, the first places to search for a hidden passage
-    (search(15) standing on one). Nearest first."""
+    """Corridor squares ('#') whose walkable neighbours all lie on one side:
+    corridors that just stop, the first places to search for a hidden
+    passage (search(15) standing on one). Nearest first."""
     from nh.parse import MAP_BOTTOM, MAP_TOP
     from .mapview import is_walkable, neighbors
     s = s or ctx.last()
@@ -820,13 +831,14 @@ def dead_ends(s=None, limit: int = 8) -> list:
         for x, ch in enumerate(s.screen.row(y)):
             if ch != "#" or s.screen.color_at(x, y) not in (7, 8, 15):
                 continue                     # corridors only (not trees, sinks, bars)
-            if sum(1 for c in neighbors(x, y) if is_walkable(s, *c)) <= 1:
+            if _one_sided(x, y, [c for c in neighbors(x, y) if is_walkable(s, *c)]):
                 out.append((x, y))
     h = s.hero
     if h is not None and h not in out:
-        # the square you stand on shows '@', not '#': a corridor end with you on it counts too
+        # the square you stand on shows '@', not '#': a corridor end with you on it counts too (only among
+        # corridor squares: in a room corner the floor around you is on one side too)
         nb = [c for c in neighbors(*h) if is_walkable(s, *c)]
-        if len(nb) <= 1 and all(s.screen.at(*c) == "#" for c in nb):
+        if nb and all(s.screen.at(*c) == "#" for c in nb) and _one_sided(*h, nb):
             out.append(h)
     if h:
         out.sort(key=lambda c: max(abs(c[0] - h[0]), abs(c[1] - h[1])))
