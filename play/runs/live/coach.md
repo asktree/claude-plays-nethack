@@ -120,3 +120,10 @@ Collecting water on the way:
 - Fountain dips can raise water moccasins, a nymph or a water demon. Do it at full HP with an escape square nearby.
 - Sell junk to afford water: shops sell clear potions at 100 (holy or unholy water; the altar tells which).
 - Never sell j. A magic lamp also burns forever when lit (apply it), without using up the wish.
+
+ack T5109 (orchestrator): pulled + daemon restarted before shift 6. Adopted the lamp plan: collect water (clear potions,
+double fountain dips outside Minetown), then ONE prayer on a lawful altar with the water on it once prayer_check says
+surely <=100 → blessed water + Excalibur uncursed → bless lamp j twice → wish "blessed +2 gray dragon scale mail".
+New harness requests from shift 5 (harness_notes.md): #1203 elbereth() returned with a BROKEN engraving after two
+garbles while the mumak was adjacent (safety); loot_all() #looted a floor bag here() had already named a bag of tricks;
+#1023 dark-melee-without-pause again.

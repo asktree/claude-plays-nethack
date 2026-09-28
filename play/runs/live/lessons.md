@@ -17,3 +17,7 @@
   before using. An artifact in bones (Excalibur) blocks making your own (exist_artifact).
 - Engrave-testing a wand of digging leaves an ENGRAVED Elbereth — a durable safe square.
 - Price-ID in a general store with sell_offer(): a dozen items in ~20 turns; learn the shk's rate first.
+- Read here() before looting: "You see here a bag of tricks" means it bites when #looted (-10 HP, shift 5).
+- Gray ooze bites rust body armor: kill oozes at range (daggers) before they reach you; never melee with Excalibur (passive rust).
+- A fresh cross-aligned unicorn corpse is a 27% poison-resistance roll (got it T:4898); co-aligned unicorns: never kill.
+- Water nymph kit: 50% mirror, 50% potion of OBJECT DETECTION — the potion she drops is probably that.

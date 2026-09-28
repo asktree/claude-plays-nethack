@@ -79,3 +79,29 @@
   wands S T U V W, sack Y, key Z, credit card d, magic marker f. UNCURSED: unicorn horn e, digging X, lizard P, lembas O,
   tripe k, daggers B/H, l ETAOIN, p THARR, h XOR OTA, n emerald, lamp J, bag of tricks, gems. BLESSED: m THARR, t light.
   Shift 4 ended on the altar, T:3837, HP 54/54, XL5, AC-3.
+
+## Shift 5
+- T:3838 — wielded L Excalibur on the altar: welded (cursed; enchantment unknown). a +1 long sword kept as spare.
+- T:3866 — bones pile (49,13): took Q elven mithril-coat (Burdened; dwarvish one left there), j+s lamps, G+i horns,
+  g 4 slime molds, w golden potion. Pack hit 52 letters: put gems + cursed scrolls into sack Y.
+- T:3870 — MUMAK appeared adjacent in the dark at (51,12) (no pause until travel refused): it hit 54->39 while I engraved.
+  Elbereth held; rested to full by T:3978.
+- T:3996 — Trahnil price-ID: j lamp offer 25 = MAGIC LAMP (named type MAGIC); s = oil (sold 5). Horn i offer 25 (base 50:
+  frost/fire/plenty — keep); G = tooled horn (sold 8). Sold the bag of tricks for 50.
+- T:4018 — destroyed 114514's ghost in the shop with Excalibur (it only does 1 dmg) -> XL6, HP 66.
+- T:4080 — Minetown altar: elven mithril-coat CURSED (left on altar), magic lamp j CURSED (kept), horn i CURSED (kept),
+  2nd golden potion cursed (both left), slime molds uncursed. Mumak came to the temple door; Elbereth at (33,5) held.
+- T:4092 — killed a floating eye with thrown daggers. T:4118 long sword -> Skilled. Killed 3 fire ants, rats, newt; ate a
+  fire ant (no resistance). Left an acid blob alone.
+- T:4157-4247 — up through Mines DL6, DL5 (killed a fox; leprechaun seen at DL5 (48,4)) to DL4 main dungeon.
+- T:4270 DL4 — killed a homunculus (corpse poisonous, skipped). DL4 rest is boulder-blocked corridors; nothing worth it.
+- T:4297 DL5 main: up (21,13), down (50,7). Sipaliwini's GENERAL STORE west room (door 9,13): agate ring 400 (base 300:
+  conflict/poly/polycontrol/TC), scroll PRATYAVAYAH 178 (base 100), leash, sack, ring mail. Bought nothing.
+  Killed a water nymph (T:4409): its bubbly potion u = probably OBJECT DETECTION (nymph starting kit) — named.
+  Killed a gnome mummy. Ate lembas T:4559 (Hungry).
+- T:4566 DL6 main: arrived at up stairs (47,14); killed a giant bat.
+- T:4873-4898 DL6 — killed a lizard, a hill orc, a hostile GRAY UNICORN (1 hit); ate the unicorn: "You feel healthy" = POISON RESISTANCE.
+- T:4939 DL6 — gray ooze rusted the scale mail (AC-2); killed it with thrown daggers from range. Ghoul destroyed (1 hit).
+- T:5047 DL6 — killed an iron piercer -> XL7, "You feel quick!" (Fast). Killed a yellow light with daggers + a first strike
+  (no explosion). Looted a floor "bag" that here() already named a bag of tricks: bitten (-10). Killed a blue jelly, an acid blob.
+- Shift 5 ended T:5109 DL6 (25,16), HP 63/72, XL7, AC-2. No prayers this shift.

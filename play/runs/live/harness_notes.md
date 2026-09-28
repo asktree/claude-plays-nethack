@@ -23,3 +23,13 @@
 - #138: desmap.walk() "no progress" on "You stop. Your dog is in the way!" — a retry worked; could retry itself.
 - #775-ish: explore() walked me out of the general store and into the mumak; fine otherwise.
 - pickup(r'^(?!.*arrow)') worked as an "everything but" pattern — worth documenting.
+
+## Shift 5 (T:3837-5109)
+- #1023: the mumak (known, dangerous, last seen 12 turns earlier 3 squares away) was ADJACENT when travel() refused to
+  start; no pause had fired when it came into view in the dark. Same issue as shift 4. The engrave turn cost 15 HP.
+- #1203: elbereth() garbled twice in a row ("El~ereth" then "E}bereth") and returned after the 2nd garble with a BROKEN
+  engraving while the mumak was adjacent; had to call it again. Maybe retry up to 3 times when a hostile is adjacent.
+- explore(max_legs=20) covered very little on DL5 (legs are short); max_legs=60-80 works better.
+- trek(5,6) on Mines DL5 raised "the way is blocked by fox at (28,17)" although the fox was nowhere near the route (asleep?).
+- loot_all() on a floor bag that here() identified as a BAG OF TRICKS went ahead and #looted it (bitten, -10 HP). It could
+  refuse a known bag of tricks.
