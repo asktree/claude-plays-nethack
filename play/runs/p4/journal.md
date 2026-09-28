@@ -41,3 +41,37 @@
 - T:2394-2441 — back up: orc zombie (Mines 1), homunculus on DL4 (slept me 1 turn; HP 47/56).
 - T:2487 DL4 — Hungry; ate the food ration (o). Falling rock trap found at (43,16) under a food pile.
 - T:2494-2495 DL4 fountain (42,15): dip 1 rusted the sword, dip 2 = EXCALIBUR (blessed rustproof +1). Fountain gone.
+- T:2496-3199 (previous player, reconstructed) — DL5-7 via the Mines. XL6. Long sword SKILLED T:2834. DL7: a bugbear
+  zapped a wand of DIGGING (crystal) and fell through its hole at (30,7) with 2 hill orcs; a hill orc zapped MAKE
+  INVISIBLE (silver) at itself. A hostile BLACK UNICORN hit for 20 in 2 turns; retreated to a dead-end Elbereth (14,20).
+
+## Shift 2, resumed (after a container restart)
+- T:3241 DL7 — kobold shaman psi bolt (66->55), killed it. T:3245 explore() walked me next to the unicorn hiding behind
+  a wall corner at (39,16): 55->31 in one turn. Stepped away (it can't step adjacent to a hero it sees: NOTONL).
+- T:3262 Hungry: ate the tripe ration on Elbereth (no vomiting). T:3451 full HP; explore() again stepped next to the
+  unicorn at (39,16): 66->45. Swung once (miss), took 11 more, it wandered off; rested on Elbereth.
+- T:3499 killed a quivering blob (no corpse); scroll KO BATE (K). T:3559 Weak -> T:3562 PRAYED: success, hunger fixed.
+- T:3649 full HP 66/66 at (40,15), the unicorn hovering at distance 2-3.
+- T:3650-3651 DL7 — at full HP stepped next to the unicorn at (38,16) (took 23), then one blow: KILLED THE BLACK
+  UNICORN. Took its UNICORN HORN (L). Ate the corpse on Elbereth (no poison res). Rested to full (T:3787).
+- T:3825 dust vortex killed (1 blow). T:3839 MAGIC MARKER found on the floor at (37,18) (M).
+- T:3884 mountain nymph adjacent: killed in 1 blow before it stole anything; its bubbly potion = the 2nd nymph
+  bubbly potion -> called "object detection". Rothe, kobold mummy killed.
+- T:3988 heard an Uruk-hai read ETAOIN SHRDLU (called "create monster?").
+- T:3992-4076 DL7 — Uruk-hai pack (~9) along the row-8 corridor. One shot 2 POISONED orcish arrows (1 hit, T:3998).
+  Fought from the nook (32,9) where only adjacent squares line up; took iron shoes from one. One picked up a steel
+  wand and zapped STRIKING at me (14); killed it, took the wand (P) and the archer's bow/arrows. XL7 at T:4076
+  ("You feel quick!"). A 2nd archer wielded its bow at exactly 8 squares; retreated west out of its range.
+- T:4088-4096 floating eye: 3 thrown daggers from (49,9) down the diagonal, ate the corpse: TELEPATHY.
+- T:4103 a trap door on DL7 dropped me into MINETOWN (DL8, Bustling Town, desmap minetn-6).
+- T:4117 co-aligned temple of Tyr ("sense of peace"), lawful altar (55,17). T:4121 altar test: scroll PRATYAVAYAH
+  CURSED; dusty spellbook, dark potion, 1 object detection BLESSED; iron shoes/horn/pick-axe/marker/wands uncursed.
+  Wore the iron shoes (AC3). T:4135 bought a food ration (60zm) at Bojolali's delicatessen.
+- T:4154 Izchak's lighting store: a "lamp" priced 89zm = base 50 x 4/3 (Cha) x 4/3 (unID surcharge). In 3.6.7 the
+  MAGIC LAMP costs 50 (not 500; oil lamp 10 -> 13/18). Killed a lizard (2nd lizard corpse), an invisible
+  something, a Woodland-elf (dropped an ELVEN MITHRIL-COAT) and THE BUGBEAR (WAND OF DIGGING, U). Sold the bag of
+  tricks for 50 at Chibougamau's general store; T:4204 BOUGHT THE MAGIC LAMP (89zm). Killed a hill orc, a gnome
+  mummy, an iguana.
+- T:4245 altar: the lamp flashed AMBER (blessed); mithril-coat, digging wand, lizard, food ration uncursed.
+- T:4251 rubbed the blessed magic lamp (8 rubs): djinni -> WISH: "blessed +2 gray dragon scale mail". Worn T:4257:
+  AC -8, MAGIC RESISTANCE. End of shift at (55,17) on the altar, HP 57/78, XL7, $8. Prayer NOT available.

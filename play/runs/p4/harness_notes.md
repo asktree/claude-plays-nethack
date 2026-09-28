@@ -55,3 +55,74 @@ polymorph); go_down(to='Mines') resolving the branch by elimination after I took
 1. explore()'s false "travel couldn't reach" frontiers (#427, #1191): it hides whole parts of the level.
 2. go_down()/go_up() abandon the pet without pausing (#739, #1700).
 3. No safe lock-opening helper, and no obs warning when a non-main weapon stays wielded after a pause (#2208).
+
+## Shift 2
+
+First half (T:1994-3199, previous player, cut off by a container restart; from the journal/state): no notes were
+written. Journal items that touch the harness: a yellow light reached me DURING explore() ("A yellow light blocks
+your path." -> explore waited a turn) and exploded (Blind ~98 turns, T:2223). PLAYER.md now says travel refuses
+legs within 2 squares of a known exploder, so this may be fixed already; not re-tested. The daemon restart lost
+nothing: `history` and the run files were intact (journal entries T:2496-3199 were missing and are reconstructed
+from state.md).
+
+Second half (T:3199-4257, steps #0-#1244):
+
+1. **Shop rooms are recorded on the WRONG side of the door -> the shop guards are OFF inside shops and ON in the
+   street** (safety). #974/#1000/#1158: "— in Bojolali's delicatessen (no throwing/firing/digging down here)" at
+   (46,16) and (48,16), which are outside in Minetown's street; #1047 "in Izchak's lighting store" at (32,17) by
+   the fountain; #1168 "in Chibougamau's general store" at (44,12) in the street. Inside the real shops there was
+   NO tag: #987 at (44,16) in Bojolali's, #1043 at (30,13) in Izchak's, #1107/#1110 at (44,7)/(45,7) in
+   Chibougamau's. So a throw or a dig down inside those shops would not have been refused.
+   - Cause (I read the code, didn't change it): `game.py _room_rect()` on a door square steps inside with
+     `next(d for d in (1, -1) if scr.at(x+d, y) not in _ROOM_EDGE)`. It tries +1 (east/south) first. All three
+     doors were in the shop's EAST or SOUTH wall, and in Minetown the square outside the door is street floor (at
+     #974 and #1018 it even held my dropped pick-axe '('), so it picked the outside and scanned the street.
+   - Expected: the interior side is where the shopkeeper stands next to the door, or the side you did NOT come
+     from (the previous hero square is outside), or the side whose wall-to-wall scan is small and closed.
+2. **explore()'s travel legs step next to a dangerous hostile that is out of view behind a corner at its
+   last-seen square** (#135 T:3245: 55->31; #207 T:3452: 66->45). A hostile BLACK UNICORN (speed 24) hid at
+   (39,16) behind the wall corner of a 1-wide passage. Each time the leg (explore.py:446, the '.' that confirms
+   the travel cursor) moved me one square west, next to it, and it got 2 rounds (butt d12 + kick d6 each).
+   - `obs.gone` / `last_seen()` knew where it was. Expected: explore()/travel() keep 2+ squares from the
+     last-seen square of a non-trivial fast hostile that left view in the last ~20 turns, or pause before a leg
+     that passes next to it.
+   - Unicorn specifics worth a note: it never steps next to a hero it can see (monmove.c NOTONL), so it only
+     fights when YOU step next to it. Its note says only "fast (speed 24)" and threat() rated it 'normal' at
+     XL6/66 HP although it did 20-24 per turn.
+3. **Docs: the magic lamp's base price in 3.6.7 is 50, not 500** (objects.c line 665: `TOOL("magic lamp", "lamp",
+   ..., 50, COPPER, ...)`). PLAYBOOK A.1 says "base 500; an oil lamp is 10", and so did my brief. At #1043 Izchak
+   quoted 89zm = 50 x 4/3 (Cha 8-10) x 4/3 (unID surcharge). It WAS the magic lamp: it flashed amber (blessed)
+   at #1200 and gave a wish at #1232. A player trusting "500" would have walked past it. `price_id('TOOL_CLASS',
+   buy=89)` would probably have said it (I didn't try).
+
+Smaller:
+4. #755 T:4046: after I killed the Uruk-hai that zapped the steel wand, the NEXT Uruk-hai got its note "ZAPPED A
+   WAND OF STRIKING AT YOU (T:4045)". The zapper was dead and the wand lay on the floor (I picked it up at #773).
+   Expected: drop the note when the zapper dies (the note is per name by design, but here it misleads).
+5. #658 T:3989: explore() returned `stopped: getlin 'Call a scroll labeled ETAOIN SHRDLU:'` right after
+   `cont --reply 'create monster?<CR>'` had answered the prompt (heard an Uruk-hai read a scroll). Expected:
+   explore goes on after the reply. It cost one call.
+6. Monster notes: Uruk-hai/hill orcs say "packs" but not that their orcish arrows are ALWAYS poisoned
+   (makemon.c m_initthrow), i.e. 1 in 30 instadeath per hit without poison resistance (#676 T:3998, one hit).
+   A note like "archer: poisoned arrows (instadeath 1/30 per hit w/o poison res): don't stay lined up" would help.
+7. PLAYER.md: attacking from an Elbereth square "costs -5 alignment". For DUST in 3.6.7, attack() calls
+   u_wipe_engr(3) (uhitm.c:428) BEFORE hmon -> wakeup -> setmangry (the hypocrisy check), and the wipe always
+   garbles it, so there is no penalty. The guard is fine; the sentence is inaccurate (PLAYER.md says it right in
+   the Elbereth section).
+8. #147 T:3248: rest_on_elbereth() paused "couldn't get a clean Elbereth here" after two garbled engravings in a
+   row (1/25 per letter + random decay). Expected: a third try (it's one turn), then pause.
+9. #995 T:4135: travel() out of Bojolali's right after paying stopped with "Bojolali blocks your path." (the
+   shopkeeper stood beside the door). A second travel worked. Minor.
+
+Worked well: rest_on_elbereth (hundreds of turns, re-engraving by itself); fight_until_clear(hold=N) in the nook
+against the Uruk-hai pack; hunt(); throw() down a diagonal at the floating eye; desmap.identify() naming Bustling
+Town at once and travel() walking the fixed map over unseen ground; the altar test with the D menu (menus
+handled cleanly); farlook prices from inside the shop; rub() stopping at the wish prompt and re-wielding
+Excalibur after cont --reply; the WISH PROMPT pause text; prayer_check() counting the wish.
+
+### Top 3 (ranked)
+1. Shop room on the wrong side of east/south doors: guards off inside shops, on in the street (#987, #1043,
+   #1107 vs #1000, #1047, #1158, #1168) — game.py _room_rect().
+2. explore()/travel() legs step next to an out-of-view dangerous hostile at its last-seen square (black unicorn,
+   #135 and #207: -24 and -21 HP).
+3. PLAYBOOK: magic lamp base price is 50 in 3.6.7, not 500 (#1043: the 89zm lamp was the magic lamp).

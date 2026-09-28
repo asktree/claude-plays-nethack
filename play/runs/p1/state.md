@@ -1,6 +1,14 @@
 # p1 — current state (rewrite as things change)
 
 ## Character
+- **SHIFT 37 END (T:29290): DL26 VALLEY, standing ON THE `>` (3,3) inside the SEALED stairs pocket (door A (8,8) LOCKED again by me with key d; nothing but a level-1 warning inside at door B). HP 173/173, Pw 26/35, AC -10, XL16 (Exp 324306), not hungry, unburdened. NEXT SHIFT: just press `>` (no gas trap needed from this side).**
+- **!!! THE WIZARD OF YENDOR + HIS CLONE ARE ALIVE ON DL37 (wizard1), both INVISIBLE (potion of invisibility / hexagonal wand), around its `<` (5,4) and the corridor (9,6). The ORIGINAL took 7 Excalibur hits (wounded; covetous: heals on the `<` (5,4) only while I am >8 squares away). With them, frozen: the summoned XORN (hit 3x), UMBER HULK, PURPLE WORM (hit, harmless engulf with slow digestion), ROPE GOLEM (hit), SILVER DRAGON (reflects rays, resists cold), ALEAX, Woodland-elf, + '3'/'4' warnings. WAND OF DEATH z IS EMPTY ("Nothing happens" T:29061). While they live he cannot resurrect, but interventions go on (rndcurse / summon nasties / aggravate / "nervous"; last one T:29206, next >= T:29256). !!!**
+- **TELEPORTITIS since T:28772 (ate the Wizard's corpse), NO teleport control: silent random teleports ~1/85 turns on levels that allow teleport (they scrambled travel on DL27/DL29/DL22); ^T = teleport at will (cost me 30 Pw at T:29143; Pw max 35). No effect on noteleport levels (Valley, Castle, lairs, Wizard's Tower levels). => In Gehennom fillers: DIG DOWN at once instead of walking.**
+- **THE ORB OF FATE Z was #invoked T:29074 (random level teleport DL37 -> DL22; works on noteleport levels; an adjacent STALKER follows — a vampire lord did). Invoke timeout rnz(100) from then; a too-early invoke only adds d(3,10).**
+- NEW: Y = uncursed RING OF LEVITATION (shiny, identified T:29123), O = blessed +1 RING OF PROTECTION (bronze), both in the pack (both hands hold f + u: remove f to put Y on). Both identify scrolls used. Still unknown rings (bag D): agate, brass, black onyx, copper, coral x2, granite, ivory, pearl, tiger eye, wire x2.
+- Wands: z DEATH EMPTY (keep for a charging scroll), Q COLD EMPTY (T:29157), j COLD worked T:29157 (charges unknown, low), F lightning (2 zaps this shift), h/U fire, g/p digging (+2 in bag), e/C/I cancellation (never in the bag), M/P runed + K jeweled unknown. Bag D: PICK-AXE (take out to dig; bag it again after — Burdened with it), blessed remove curse (the uncursed one was READ T:28974 to unweld a pick-axe the Wizard's curse hit), POTION OF FULL HEALING + extra healing + healing, 8 teleportation scrolls, lightning (0:2), 2 magic missile, 2 digging wands, $3503.
+- **Invocation items: the Bell (i, carried, BUC unknown) + the Orb (Z); the BOOK + CANDELABRUM (7 candles) + 3 candles still on the DL44 `<` (4,10).**
+- (Shift 36 line kept for history:)
 - **!!! INVOCATION STASH (T:27600): THE BOOK OF THE DEAD (papyrus spellbook), THE CANDELABRUM (7 candles attached) and 3 spare candles LIE ON THE DL44 (FAKEWIZ1) UP STAIRS (4,10). DL43 (fakewiz2) `>` (47,8) leads straight onto them. Levels are frozen while I am away. Pick them up on the way down to the vibrating square (DL46/47). Reason: Orcus (DL35) has M3_WANTSBOOK (a covetous monster with a target on you mnexto()s next to you EVERY move), and the Wizard steals/curses carried invocation items; covetous targeting only sees items in your pack or on your CURRENT level (wizard.c target_on/on_ground). !!!**
 - Name/role: P1 — lawful female dwarven Valkyrie, god: Tyr (seed 101, local practice game)
 - **T:28706 / DL25 (THE CASTLE) at (4,18), the SW corner pocket 2 squares from the `<` (2,20) (traps (3,20), (4,20) under rothe corpses: a rust trap + one unknown). HP 173/173, AC -10, **XL16** (Exp 320380, wraith corpse T:28558), not hungry, unburdened. *** QUEST DONE: LORD SURTUR KILLED T:28223; the Norn completed the quest T:28404. CARRYING Z = THE ORB OF FATE (identified; half physical + half spell damage, warning, luck item; #invoke = level teleport, uncontrolled = random) AND i = THE BELL OF OPENING ("silver bell", never bagged). *** THE WIZARD resurrected twice more and died to one death ray each (T:28450 DL13, T:28505 DL15): **WAND OF DEATH z = 5 uses of 4-8 -> 0-3 LEFT** (if it says "Nothing happens": melee him, half damage from the Orb). Next intervention ~T:28622-28821. Invocation items: Bell (carried), Book + Candelabrum (7 candles) + 3 candles on the DL44 `<` (4,10). NEXT: Castle -> trap doors (48..63,12) -> Valley -> ... -> DL44 (route in "Objective and plan (shift 36)").**
@@ -106,6 +114,12 @@
 | **27** | Gehennom | Ordinary maze. `<` (6,19) far left, **`>` (30,9)**. Anti-magic field ~(30,5). Spiked pit (2,14). |
 | **Q1** | Quest | **VALKYRIE HOME (Shrine of Destiny)**, screen = map + (2,2). Portal (68,19) <-> DL13 (73,17). `>` (20,3) (NW). The Norn (37,12), chamber x28-45 rows 9-15 (east door (45,12) open). Lava + water pools, 5 random fire traps. QUEST ASSIGNED T:27986. |
 | **44 stash** | Gehennom | **THE BOOK OF THE DEAD + CANDELABRUM (7 candles) + 3 candles on the DL44 `<` (4,10)** (fakewiz1; DL43 `>` (47,8) leads onto it). |
+| **22** | main | `<` (42,6), `>` (4,5). T:29143 an intervention summoned storm giant, iron golem, guardian naga, gremlin, xorn, purple worm in the room x19-33 y16-18 (left alive there). |
+| **23 (holes)** | main | My hole (5,16) next to the `<` (7,16) is a SHAFT to DL25 (twice). (6,16) is NOT a hole (stale memory). |
+| **27 (shift 37)** | Gehennom | `<` (6,19), `>` (30,9). Salamander near (8,16), python (17,12), wood nymph (2,6). |
+| **29 (shift 37)** | Gehennom | The east part (x68+) connects west only past a boulder at (67,10). Dug hole (11,12). |
+| **30-36 holes (shift 37)** | Gehennom | Dug: DL31 (28,18), DL32 (12,4), DL33 (64,15), DL34 (22,16), DL35 (11,16) (west strip), DL36 (67,6). |
+| **37 (shift 37)** | Gehennom | wizard1: THE WIZARD + CLONE (invisible) + summoned mob around (5-12,4-8). I fled by the Orb from (9,6). |
 | Mines | Mines | Minetown = Mines 3 (DL6): temple of Odin (neutral), shops. Mines' End DL11. |
 | Sokoban | | ALL SOLVED. |
 
@@ -120,6 +134,16 @@
 - **WAND OF WISHING**: locked (never trapped) chest in one of the 4 corner rooms, on a burnt Elbereth + scroll of scare monster, 2 soldiers each. Key d opens it (`unlock()` / `loot_all()`).
 - Soldiers (@) ignore Elbereth; MR + reflection cover wand death rays; they hit hard in groups — fight in corridors/doorways; zap SLEEP (h) down a line of them.
 - Fire elementals/fire breath destroy potions/scrolls. Quantum mechanics teleport (not on the Castle). Gelatinous cubes: force bolt from range.
+
+## Objective and plan (shift 37, T:29290)
+**Goal unchanged: DL44 stash (Book + Candelabrum on the `<` (4,10)) -> vibrating square (DL46/47) -> invocation. The blocker is DL37 (wizard1, HARDFLOOR: no digging there, nor on DL38/39).**
+Way down (worked this shift, ~2 harness calls per level): Valley `>` (3,3) -> DL27 `<` (6,19): take the PICK-AXE out of bag D, `dig('>')` at once on every filler level (teleportitis makes walking unreliable; telepathy_scan() first) -> DL28 Asmodeus (arrival x1-6 strip; old hole (2,11)) -> DL29 -> DL30 JUIBLEX: arrival = EAST strip, my old hole (71,12) (never dig next to water: the hole floods and soaks the bag's scrolls) -> DL31 -> DL32 Baalzebub (west strip, dig) -> DL33 -> DL34 -> DL35 Orcus (west strip, dig) -> DL36 -> DL37.
+**DL37 options (decide at full HP, full budget):**
+ 1. From DL36 a dug hole/trap door is a SHAFT 1 time in 4 (trap.c: newlevel++ while !rn2(4)): 25% to skip DL37 (landing on DL38/39 outside the tower). DL36's trap door (71,6) is the same roll.
+ 2. On DL37 (random landing outside the tower): telepathy_scan(); the `>` is (7,20) (SW), the mob sits NW near the `<` (5,4). If they come: fight in a 1-WIDE DEAD END (summons land around YOU: fewer free squares = fewer attackers; the xorn phases through rock). Kill the Wizards first when adjacent (warning digit `5` = a Wizard; blindfold l + telepathy shows them as `@`). ~7 Excalibur hits each; at <= 1/3 HP they flee to the `<` (5,4) and heal only while I am > 8 squares away.
+ 3. Bail-outs: the Orb's #invoke (random level teleport, 80%: 1 in 5 "shudder"), potion of full healing (bag), extra healing, ^T (only where teleport works: NOT on wizard1).
+ - Never melee next to 5+ attackers again: at (9,6) six summoned nasties + 2 Wizards took 173 -> 100 HP in ~10 turns.
+ - A wand of death needs a scroll of charging (none). Unknown scrolls in bag: DUAM XNAHT, ELAM EBOW (100), READ ME.
 
 ## Objective and plan (shift 36, T:28423)
 **DONE: the quest (Bell of Opening + Orb of Fate carried). NOW: down to the DL44 stash and the invocation.**

@@ -305,3 +305,16 @@ T:17688-17803 — D14 -> D15 -> D16 -> D17 -> D18 -> my hole (44,6) -> D19 (T:17
 T:17804-17874 DL20 — telepathy scan; read the 2nd gold detection -> the D20 VAULT; from its "ad aerarium" closet dug west with the pick-axe (3 walls + 6 rock, ~25 turns): $767+1960+1024+620 = $4371, no guard, no Ludios portal. BAG GOLD NOW $5721 (the $1617 of T:17000 = $267 spent at Aklavik's + $1350 bagged). Quaffed the cursed object detection (nothing noted). Pick-axe bagged; found a hidden door.
 T:17875-17900 DL21 — telepathy scan; entered the GRAVEYARD blindfolded by the W doorway (graves "Elvis" (65,4) = empty box, "Rip Torn"); blindfold off; destroyed a dwarf zombie and a gnome zombie and KILLED THE 2nd MARILITH (70,8) in 2 blows. Exp 50932. HP 142/142.
 T:17900 — container restart; shift 18 resumed by a new agent at (69,7) inside the graveyard among the sleepers.
+
+## Shift 18 (second half, resumed by a new agent after the restart)
+T:17900-17920 DL21 GRAVEYARD — killed every visible sleeper one blow or two each: kobold/dwarf/orc/ettin/giant zombies and 5 GHOSTS (~220 XP each). Exp 50932 -> 52488, no damage worth noting.
+T:17940-17981 DL20 — explore(): nothing left but the hive and the closet door (26,16). Searched from the door: the "ad aerarium" closet (26,17) held a LEVEL TELEPORTER; stepped in with ring k: "To what level?" 16.
+T:17994 DL16 — a SHOCKING SPHERE in the temple doorway: one blow, it exploded (-8, "You duck some of the blast"; explmu does NOT destroy rings/wands).
+T:17999 DL16 — bag_take gold, buy_protection(): 5200 to the Odin priestess -> AC -9 -> -10. $521 back in the bag.
+T:18034-18148 — down D17, D18 (a stale "hole at (43,6)" made step() refuse a floor square: forced), my hole (44,6) -> D19, D20, D21 (elven leather helm (39,19) left), back up to D20 for the hive.
+T:18193 DL20 — telepathy_scan: 27 KILLER BEES + QUEEN asleep in the hive (2-8,16-19), lurker above (14,3).
+T:18204-18271 DL20 HIVE — killed all 27 bees asleep, row by row from the doorway (no sting landed), ate their fresh corpses: 4x "Ecch" (-St, -HP), the 5th at (3,17) "You feel healthy." = POISON RESISTANCE (T:~18254). Killed the QUEEN after that (one sting, harmless now). Royal jelly (+1 St, Hungry fixed), 2 CANDLES (8 in all now), potion of blindness, a BAG (#loot: "It develops a huge set of teeth and bites you!" = BAG OF TRICKS, C), 2 worthless black glass. Killed 2 wargs.
+T:18290-18432 — up D19, D18 (2 sleeping soldier ants killed at the anthole `>`), D17 (a RED NAGA's fire burnt my speed boots: AC -9; killed it, ate the whole corpse (no fire res); a human mummy destroyed), D16.
+T:18450-18467 DL16 lawful altar (58,18) — bag of tricks: iguana (sacrificed, no luck: difficulty too low), monkey (no corpse), ZRUTY (sacrificed: Luck up), WARHORSE (corpse too heavy to carry, left at (57,19)), GAS SPORE (killed later with force: -19 HP).
+T:18470-18500 DL16 — a peaceful WHITE UNICORN (co-aligned) came by: took the gems out of the bag and chased it with a scripted "step until lined up, then throw" loop: the AMETHYST (identified) "gratefully accepted" = +5 Luck; a real black gem = +1. It left view; Q/L/e (real gems) kept for next time.
+T:18500 DL16 — END OF SHIFT 18 at (38,19) in the big room: HP 137/142, XL13 (Exp 54401), AC -9, Luck ~+10, poison resistant, never prayed, not hungry. Only peacefuls in view (Aleax).

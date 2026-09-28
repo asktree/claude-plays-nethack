@@ -118,3 +118,11 @@
 - After a tunnel()/dig() exec is DROPPED by a new command, the pick-axe stays wielded: `w a` before any fight (my first blow at a long worm was a pick-axe bash).
 - Soldiers drop K-rations/C-rations (light food) and sometimes gloves; a SERGEANT carried a wand of lightning. A lightning ray that misses still BLINDS you with its flash (d(6,50) turns): unicorn horn at once; "Your arm tingles." = the bolt passed you again while blind (low AC makes rays miss: zap_hit uses AC).
 - Leftover leprechauns carry the gold they stole: the D12 one had $1972 — kill them on sight (keep your own gold bagged so they can't steal and teleport).
+- KILLER BEE HIVES + stealth: all bees stay asleep; kill them one blow each from row to row (a free row next to the wall to start). Fresh killer bee corpses give poison resistance 30% each (5th corpse worked); each "Ecch" costs 1-4 St and 1-15 HP. Royal jelly (+1 St, 200 nutrition) fixes the St. A hive can also hold random items (bag of tricks, candles).
+- here() returns ONE STRING (not a list): test `'killer bee corpse' in here()`; `' '.join(here())` silently breaks the match.
+- An unknown bag can be a BAG OF TRICKS (never into the bag of holding): drop it and #loot it — "It develops a huge set of teeth and bites you!" identifies it for 1d10 HP.
+- CO-ALIGNED UNICORN (white for lawful): a thrown IDENTIFIED real gem = +5 Luck ("gratefully accepts"), an unidentified real gem +1, glass nothing. Work out which of your unknown gems are real by elimination: when the glass of a colour is identified (discoveries), every "X gem" of that colour is real. Unicorns never step into your lines: script "step to a square lined up with it, throw at once".
+- Sacrifice value = difficulty + 1: difficulty 3 (iguana) gives no Luck at all; 4+ gives +1, 9+ gives +2. Big corpses (warhorse) can't be carried to the altar.
+- A SHOCKING SPHERE's explosion (explmu) only costs HP (4d6, halved when you "duck"): no ring/wand destruction. Strike it at once.
+- DESTROY ARMOR picks the helm (or gloves/boots/shield) 1 time in 4 each even with a cloak on: take off everything you'd hate to lose, not just the redundant pieces, before a read-test.
+- A red naga's fire breath burns leather boots ("smoulder": -1 AC). Close in fast; it breathes along lines.

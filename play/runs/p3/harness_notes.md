@@ -214,3 +214,28 @@ Top 3 (ranked):
 1. The pick-axe-wielded warning did not fire during or after `tunnel()` (#229/#230), and `fight()` bashed with the pick-axe (#231). `fight()` should re-wield first.
 2. `dip()` should classify the town warnings ("The flow reduces to a trickle.", "Hey, stop using that fountain!") as STOP, not as `fountain dried up` / `nothing special` (#1275, #1321). A Watch riot is one dip away.
 3. Graves are missing from the obs features (#438), and the hero is listed as an adjacent unidentified `@` while a prompt is open (#53). Both misled my reading of the map.
+
+## Shift 18
+
+(Resumed after a container restart at T:17900; step numbers restart at #0 with the new daemon.)
+
+1. #312 (MEDIUM) D18: `step('l')` from the `<` (42,6) was refused: "refusing to step onto the known trap at (43, 6)". (43,6) is plain floor (farlook: "floor of a room"; the map shows `.`); the real hole is (44,6). `nh info` lists D18 `hole [[44, 6], [43, 6]]`, so the tracker stored a wrong extra square, probably the square I fell from at T:17793 or the position read while the "There's a gaping hole under you!" message was up. Expected: record only the trap square itself, and drop a remembered trap when the square is seen as plain floor. As it is, it blocks the only short route from the D18 `<` to my hole; I had to use `force=True` blind to the harness's warning.
+2. #448, #459, #469, #476, #483 (MEDIUM, cost) After `telepathy_scan()` (#408) watched 29 sleeping killer bees, the hive sweep paused 5 times with `approaching: killer bee at (x,y) d=1`. Every one of them was ASLEEP and never moved; I walked up to them. PLAYER.md says "a sleeper you walk up to never counts". Also `-a 'approaching: killer bee'` cannot suppress these, because `-a` only matches messages, not pause reasons. Only `monster_filter` worked, and I used it from then on. Expected: no `approaching` pause when the monster's square didn't change, or let `-a` match pause reasons too.
+3. #933 (LOW-MEDIUM) `pickup('corpse')` on a warhorse corpse (1800 wt) left the game at "You have extreme difficulty lifting a warhorse corpse.  Continue? [ynq] (q)" and paused as "unexpected yn". It had already printed "pickup: you are now Stressed", although nothing had been lifted yet. I answered n and was fine. Expected: with a pattern, still decline the heavy lift ('n') unless `force=True`, as it does without a pattern, and print no load change before one happens.
+4. #605 (LOW) `hunt('warg')` said "no route to the warg at (3, 13) on the map you know (across water, behind a wall or other monsters)". The real cause was 74 old manual `avoid()` squares around the beehive, which I was standing inside. `travel()`'s NavError at #653 named them ("74 of them are your manual avoid() squares — avoid(clear=True) forgets them"). Expected: `hunt()`'s "no route" should name avoided squares the same way.
+5. #75 (LOW) Stepping onto a grave paused the exec on the epitaph ("You read: This gravestone is shareware..."). A headstone read on a step could be routine.
+6. Good:
+   - `step_onto(26, 17, risky=True)` on the D20 level teleporter, then `cont --reply '16<CR>'`.
+   - `buy_protection()` in one call.
+   - `fight()` struck the shocking sphere and the gas spore first (with `force=True` for the spore).
+   - `telepathy_scan()` found the 28 hive bees and the unicorn.
+   - `loot_all()` reported the bag of tricks bite clearly.
+   - `offer(letter=...)` gave clear outcomes.
+   - `throw(..., force=True)` at the peaceful unicorn.
+   - `eat(pattern=...)` / `corpse()` verdicts.
+   - `history 300/420` rebuilt the lost half-shift completely.
+
+Top 3 (ranked):
+1. The stale D18 trap square (43,6) (#312): a false trap memory on a floor square blocks routes and invites `force=True` habits.
+2. `approaching` pauses for sleepers you walk up to after `telepathy_scan()` (#448-#483), and `-a` can't autocontinue pause reasons.
+3. `pickup(pattern)` should decline an "extreme difficulty lifting" prompt itself and not announce Stressed early (#933).

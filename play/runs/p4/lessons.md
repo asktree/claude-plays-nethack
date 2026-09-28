@@ -20,3 +20,28 @@
   potion (100zm offer) paid for a useful 80zm-base scroll.
 - Gnomes, gnome lords and dwarves in the Mines were all peaceful to this dwarf. The hostiles on Mines 1 were a
   straw golem, a hobbit (throws daggers), a kobold shaman, and traps (pit, arrow trap, magic trap).
+
+## Shift 2 (resumed)
+- **Unicorns never step next to a hero they can see** (monmove.c m_move: NOTONL; every adjacent square is "in
+  line"), and teleport 50% of the time when boxed in. They only melee when YOU step next to them (or they can't
+  see you: don't blind one with the camera). So stepping one square away always ends the fight. Rule used: be
+  adjacent only while HP >= the max damage of one unicorn turn (black: 2 moves x (d12+d6) = 36). It hides behind
+  wall corners, so explore()/travel() walk you into it: watch where it was last seen.
+- **In NetHack 3.6.7 the MAGIC LAMP's base price is 50** (objects.c), not 500. With Cha 8-10 the lamp was 89zm
+  (50 x 4/3 x 4/3). An oil lamp would be 13 or 18. Always compute: price / Cha factor / (1 or 4/3).
+  Calibrate the Cha factor with an identified item (food ration base 45 sold at 60 = x4/3).
+- **Orcish arrows from a monster's starting inventory are ALWAYS poisoned** (makemon.c m_initthrow) and each hit
+  is a 1-in-30 instadeath without poison resistance (attrib.c poisoned: rn2(10+20)). Monsters only fire when
+  lined up and < 8 squares away; they wield the bow when you come within dist^2 64 ("wields an orcish bow!" =
+  that one is the archer). Fight packs from a square whose lines are all adjacent squares or walls.
+- **Melee from a DUST Elbereth**: attack() wipes 3 letters (u_wipe_engr(3)) before the monster is angered, so the
+  engraving is always broken first and there is no hypocrisy penalty (3.6.7 uhitm.c line 428, mon.c setmangry).
+  The harness still refuses it: step off first.
+- Luck-0 prayer OFF an altar fixes only MAJOR trouble (pray.c pleased(): action = rn1(Luck+2, 1) <= 2): praying
+  while merely Hungry wastes it — wait for Weak. On a co-aligned altar/shrine the roll is rn1(Luck+3(+1 shrine), 1),
+  so actions 3-4 can fix minor trouble too.
+- A blessed spellbook skips the failure roll (spell.c study_book) — but a "dull" one can still put you to sleep.
+- Minetown: desmap.identify() names the variant; the level file (dat/mines.des) gives every shop and the temple.
+  Shopkeepers refuse entry with a pick-axe: drop it right outside the door and be quick (dwarves pick them up).
+- Nymphs start with a mirror (50%) and a potion of object detection (50%): two nymphs' bubbly potions = object
+  detection.
