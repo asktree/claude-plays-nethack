@@ -414,6 +414,30 @@ class Tracker:
                     self.game.terrain_seen.setdefault(key, {}).update(found["features"])
         self.save()
 
+    def drop_traps(self, key: str, cells) -> None:
+        """Game._note_traps() found remembered traps on plain floor: drop them from the saved level (traps,
+        trap features and their names), or the next load merges them back in."""
+        lv = self.state["levels"].get(key)
+        cells = {tuple(c) for c in cells}
+        if not lv or not cells:
+            return
+        before = json.dumps(lv, sort_keys=True)
+        if lv.get("traps"):
+            lv["traps"] = [c for c in lv["traps"] if tuple(c) not in cells]
+        feats = lv.get("features") or {}
+        for name in list(feats):
+            if re.search(r"trap|pit|hole|web|board|mine|teleporter", name):
+                feats[name] = [c for c in feats[name] if tuple(c) not in cells]
+                if not feats[name]:
+                    del feats[name]
+        fd = lv.get("feature_desc") or {}
+        for k in list(fd):
+            if tuple(int(n) for n in k.split(",")) in cells and re.search(r"trap|pit|hole|web|board|mine|teleporter",
+                                                                          fd[k]):
+                del fd[k]
+        if json.dumps(lv, sort_keys=True) != before:
+            self.save()
+
     def drop_cells(self, key: str, cells) -> None:
         """Game._prune_features() dropped remembered features on arrival: drop them from the saved level too,
         or a daemon restart would load them back before the next step saves the level."""

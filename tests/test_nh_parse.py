@@ -1007,6 +1007,99 @@ def test_sacrifice_evidence_recorded(tmp_path):
     assert t.state["prayer_evidence"] == [{"turn": 7100, "kind": "zero"}]
 
 
+def test_shop_rect_on_east_and_south_doors_in_minetown():
+    """p4 shift 2: in Minetown the square outside a shop door is lit street floor; the door scan tried east/south
+    first and recorded the street as the shop (guards on in the street, off inside). Screens from p4's run."""
+    from nh.game import Snap
+    from nh.parse import State
+    status = {22: STATUS1, 23: "Dlvl:8 $:107 HP:69(78) Pw:10(10) AC:3 Xp:7 T:4131"}
+    bojolali = {    # door (45,16) in the shop's EAST wall; the street and a gnome lord 'h' outside
+        11: '                                   -----',
+        12: '                        +           ....',
+        13: '                        |.         -...   --+----------',
+        14: '                       --...--+-   |..-    ........G..',
+        15: '                        ........   |..|  -----....--------',
+        16: '                          #.....----..|  |%%.@(.h.|......|',
+        17: '                        -....{........|  |%!@|....-...@).|',
+        18: '                        -  |....#.....--------....|......|',
+        19: '                           --.....................|-------',
+        20: '                            --------..-------.-...|',
+    }
+    izchak = {      # door (30,14) in the SOUTH wall; your dropped pick-axe '(' lies outside it
+        10: '                            -----',
+        11: '                            |(((|  -----',
+        12: '                        +   |@((|   ....',
+        13: '                        |.  |..G|  -...   --+----------',
+        14: '                       --...--@--  |..-    ...........',
+        15: '                       |......(.|  |..|  -----....--------',
+        16: '                       |  #.....----..|  |%..-....|......|',
+        17: '                        -....{........|  |%!.|....-....).|',
+        18: '                        -..|....#.....--------....|......|',
+        19: '                        .. --.....................|-------',
+        20: '                      -..-  --------..-------.-...|',
+    }
+    chibougamau = {  # door (44,8) in the SOUTH wall of a shop in the town's NE corner
+        2: '                                  ---',
+        3: '                                   ..------',
+        4: '                                    ......|----',
+        5: '                                     .....|)//|',
+        6: '                                       ...|!@?|',
+        7: '                                       -..|G..|',
+        8: '                                       |.%--@--- -',
+        9: '                                       +.............-',
+        10: '                            -----      |......--+-   |',
+        11: '                            |(((|+------..{%..|',
+        12: '                        +   |(((|......)......|',
+        13: '                        |.  |...|-+-.....---|----------',
+        14: '                       --...--|-|  |.%-%-- ...........',
+        15: '                       |......(.|  |..|..-----....--------',
+    }
+    cases = [(bojolali, (45, 16), (46, 16), "Bojolali's delicatessen", [42, 16, 44, 17]),
+             (izchak, (30, 14), (30, 15), "Izchak's lighting store", [29, 11, 31, 13]),
+             (chibougamau, (44, 8), (44, 9), "Chibougamau's general store", [43, 5, 45, 7])]
+    for rows, door, outside, name, rect in cases:
+        for prev in (outside, None, (door[0] * 2 - outside[0], door[1] * 2 - outside[1])):
+            # the walls decide, whatever the previous square says (even a wrong one)
+            g = _guard_game()
+            scr = mk({**rows, **status}, cursor=door)
+            s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+            g._note_shop(s, [f'"Velkommen, p4!  Welcome to {name}!"'], prev_hero=prev)
+            assert g.shops[g.level_key(s.status)] == [rect + [name]], (name, prev)
+            inside = (rect[0], rect[1])
+            assert g.shop_at(inside, s.status) == name and g.shop_at(door, s.status) == name
+            assert not g.shop_at((outside[0] + (outside[0] - door[0]), outside[1] + (outside[1] - door[1])),
+                                 s.status)
+    # a wrong old record of the same shop (the street, from an older harness) is replaced on the next welcome
+    g = _guard_game()
+    scr = mk({**izchak, **status}, cursor=(30, 14))
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+    g.shops[g.level_key(s.status)] = [[24, 15, 31, 19, "Izchak's lighting store"],
+                                      [46, 14, 49, 19, "Bojolali's delicatessen"]]
+    g._note_shop(s, ['"Velkommen, p4!  Welcome again to Izchak\'s lighting store!"'], prev_hero=(30, 15))
+    assert g.shops[g.level_key(s.status)] == [[46, 14, 49, 19, "Bojolali's delicatessen"],
+                                              [29, 11, 31, 13, "Izchak's lighting store"]]
+
+
+def test_shop_rect_spellbook_and_dark_street():
+    """A spellbook '+' in the scan line doesn't end the shop scan; when the walls can't tell (a dark street), the
+    side you came from is the outside."""
+    from nh.game import Snap
+    from nh.parse import State
+    status = {22: STATUS1, 23: "Dlvl:6 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    rows = {3: "          -------",
+            4: "          |?+?.?|",
+            5: "          |.@...|",
+            6: "          |?.+..|",
+            7: "          ---@---",
+            8: "            ...."}                     # lit bits of a street outside, the rest unseen
+    for prev in ((13, 8), (12, 8), None):
+        g = _guard_game()
+        scr = mk({**rows, **status}, cursor=(13, 7))
+        s = Snap(screen=scr, state=State("command"), status=parse_status(scr))
+        g._note_shop(s, ['"Hello, p3!  Welcome to Asidonhopo\'s rare books!"'], prev_hero=prev)
+        assert g.shops[g.level_key(s.status)] == [[11, 4, 15, 6, "Asidonhopo's rare books"]]
+
+
 def test_zoo_welcome_is_not_a_shop_and_extcmd_guard():
     import pytest
     from nh.game import Snap
@@ -1574,6 +1667,36 @@ def test_hero_next_to_a_stale_position_is_not_a_monster():
     assert monsters_in_view(s, hero=(9, 20)) == []
     scr.fg[21][9] = 7                                    # a gray '@' (a human monster): listed
     assert [m["ch"] for m in monsters_in_view(s, hero=(9, 20))] == ["@"]
+
+
+def test_stale_trap_memory_on_plain_floor_is_forgotten(tmp_path):
+    """p3 shift 18 #312 / p1 shift 37 #633: a hole filed on the square the hero came FROM; the step guard then
+    refused plain floor, and the saved level brought it back after a restart. Floor there = no trap NetHack knows."""
+    import json
+    import pytest
+    from nh.game import Snap
+    from nh.parse import State, parse_status
+    from nh.tracker import Tracker
+    g = _guard_game()
+    rows = {5: "         .@^", 22: STATUS1, 23: "Dlvl:18 $:0 HP:10(10) Pw:1(1) AC:6 Xp:1/0 T:5"}
+    scr = mk(rows, cursor=(10, 5))
+    s = Snap(screen=scr, state=State("command"), status=parse_status(scr), monsters=[])
+    key = g.level_key(s.status)
+    path = tmp_path / "harness_state.json"
+    path.write_text(json.dumps({"levels": {key: {"traps": [[9, 5], [11, 5]],
+                                                 "features": {"hole": [[9, 5]], "trap door": [[11, 5]]},
+                                                 "feature_desc": {"9,5": "hole", "11,5": "trap door"}}}}))
+    g.memory = Tracker(g, path)
+    g.feature_desc[key] = {(9, 5): "hole", (11, 5): "trap door"}
+    assert g.traps[key] == {(9, 5), (11, 5)}
+    g._guard(s, b"h", force=False)                 # '.' at (9,5): no trap there as far as NetHack knows
+    with pytest.raises(PermissionError, match="known trap"):
+        g._guard(s, b"l", force=False)             # the '^' is real
+    g._note_traps(s, [])
+    assert g.traps[key] == {(11, 5)} and g.feature_desc[key] == {(11, 5): "trap door"}
+    lv = json.loads(path.read_text())["levels"][key]
+    assert lv["traps"] == [[11, 5]] and lv["features"] == {"trap door": [[11, 5]]}
+    assert lv["feature_desc"] == {"11,5": "trap door"}
 
 
 def test_stairs_never_in_the_trap_memory():

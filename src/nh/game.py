@@ -1065,48 +1065,83 @@ class Game:
     # shk.c u_entered_shop(): "Velkommen, p2!  Welcome to Carignan's antique weapons outlet!"
     # ("Welcome again to ..." on later visits); printed on the first square inside the door
     _SHOP_WELCOME = re.compile(r"^[^!]+!\s+Welcome(?: again)? to (?P<name>[^!]+?(?:'s|s') [^!]+)!")
-    _ROOM_EDGE = set("|-+# ")
 
-    def _room_rect(self, snap: Snap, start) -> tuple | None:
+    def _room_rect(self, snap: Snap, start, prev=None) -> tuple | None:
         """The interior (x1, y1, x2, y2) of the lit room around `start`,
-        scanning to the walls along its row and column."""
+        scanning to the walls along its row and column. On a door (in_rooms()
+        counts it as the shop, so the welcome comes there) the room is the
+        side whose scan is closed by walls — in Minetown the street outside a
+        shop door is lit floor too, and trying east/south first recorded the
+        street as the shop (p4 shift 2) — else the side you didn't come from
+        (`prev`: your square before this step)."""
+        from .mapscan import _door_like
         x, y = start
         scr = snap.screen
-        # on the shop door (in_rooms() counts it, so the welcome can come there): start one step inside
+
+        def edge(cx, cy):
+            ch = scr.at(cx, cy)
+            # a '+' is a door only in a wall line: a spellbook on the shop floor doesn't end the scan
+            return ch in "|-# " or (ch == "+" and _door_like(scr, cx, cy))
+
+        def scan(ix, iy, door):
+            def run(dx, dy):
+                cx, cy = ix, iy
+                for _ in range(80):
+                    nx, ny = cx + dx, cy + dy
+                    if not (0 <= nx < 80 and MAP_TOP < ny <= MAP_BOTTOM) or edge(nx, ny) or (nx, ny) == door:
+                        return cx if dx else cy
+                    cx, cy = nx, ny
+                return None
+            x1, x2, y1, y2 = run(-1, 0), run(1, 0), run(0, -1), run(0, 1)
+            if None in (x1, x2, y1, y2) or x2 - x1 > 40 or y2 - y1 > 15:
+                return None
+            return (x1, y1, x2, y2)
+
+        def gaps(rect, door):
+            """Squares of the ring around `rect` that aren't wall (or unseen): a street or corridor leads on."""
+            x1, y1, x2, y2 = rect
+            ring = [(cx, cy) for cx in range(x1 - 1, x2 + 2) for cy in (y1 - 1, y2 + 1)] + \
+                   [(cx, cy) for cy in range(y1, y2 + 1) for cx in (x1 - 1, x2 + 1)]
+            return sum(1 for c in ring if c != door and scr.at(*c) not in "|- ")
+
         if scr.at(x, y - 1) in "|-" and scr.at(x, y + 1) in "|-":       # a door in a left/right wall
-            x += next((d for d in (1, -1) if scr.at(x + d, y) not in self._ROOM_EDGE), 0)
+            sides = [(d, 0) for d in (1, -1) if not edge(x + d, y)]
         elif scr.at(x - 1, y) in "|-" and scr.at(x + 1, y) in "|-":     # a door in a top/bottom wall
-            y += next((d for d in (1, -1) if scr.at(x, y + d) not in self._ROOM_EDGE), 0)
-        door = start if (x, y) != tuple(start) else None               # (the '@' there is part of the wall)
+            sides = [(0, d) for d in (1, -1) if not edge(x, y + d)]
+        else:
+            return scan(x, y, None)
+        if not sides:
+            return scan(x, y, None)
+        door = tuple(start)                                              # (the '@' there is part of the wall)
+        best = None
+        for dx, dy in sides:
+            rect = scan(x + dx, y + dy, door)
+            if rect is None:
+                continue
+            came = prev is not None and tuple(prev) != door and (
+                (prev[0] - x) * dx > 0 if dx else (prev[1] - y) * dy > 0)
+            n = gaps(rect, door)
+            key = (n > 0, came, n, -(rect[2] - rect[0] + 1) * (rect[3] - rect[1] + 1))   # (then the bigger room)
+            if best is None or key < best[0]:
+                best = (key, rect)
+        return best[1] if best else None
 
-        def run(dx, dy):
-            cx, cy = x, y
-            for _ in range(80):
-                nx, ny = cx + dx, cy + dy
-                if not (0 <= nx < 80 and MAP_TOP < ny <= MAP_BOTTOM) or scr.at(nx, ny) in self._ROOM_EDGE \
-                        or (nx, ny) == door:
-                    return cx if dx else cy
-                cx, cy = nx, ny
-            return None
-        x1, x2, y1, y2 = run(-1, 0), run(1, 0), run(0, -1), run(0, 1)
-        if None in (x1, x2, y1, y2) or x2 - x1 > 40 or y2 - y1 > 15:
-            return None
-        return (x1, y1, x2, y2)
-
-    def _note_shop(self, snap: Snap, messages: list[str]) -> None:
+    def _note_shop(self, snap: Snap, messages: list[str], prev_hero=None) -> None:
         if snap.hero is None or not snap.status.ok:
             return
         for m in messages:
             mm = self._SHOP_WELCOME.search(m)
             if not mm:
                 continue
-            rect = self._room_rect(snap, snap.hero)
+            rect = self._room_rect(snap, snap.hero, prev_hero)
             if rect is None:
                 continue
             lst = self.shops.setdefault(self.level_key(snap.status), [])
             x1, y1, x2, y2 = rect
-            lst[:] = [e for e in lst if e[2] < x1 or e[0] > x2 or e[3] < y1 or e[1] > y2]
-            lst.append([x1, y1, x2, y2, mm.group("name")])
+            name = mm.group("name")
+            # one shop per shopkeeper: a new welcome replaces a wrong old record of the same shop
+            lst[:] = [e for e in lst if (e[2] < x1 or e[0] > x2 or e[3] < y1 or e[1] > y2) and e[4] != name]
+            lst.append([x1, y1, x2, y2, name])
 
     def shop_at(self, cell, status: Status | None = None) -> str:
         """The name of the known shop that `cell` is in — its interior or its
@@ -1461,7 +1496,10 @@ class Game:
             if step in self._MOVE and snap.hero is not None and snap.status.ok:
                 dx, dy = self._MOVE[step]
                 tx, ty = snap.hero[0] + dx, snap.hero[1] + dy
-                if (tx, ty) in self.traps.get(self.level_key(snap.status), ()):
+                if (tx, ty) in self.traps.get(self.level_key(snap.status), ()) \
+                        and snap.screen.at(tx, ty) not in ".#":
+                    # (plain floor/corridor there: NetHack knows no trap on it — our memory is stale, the step is
+                    # fine; _note_traps forgets it: p3 shift 18 #312, p1 shift 37 #633)
                     raise PermissionError(
                         f"refusing to step onto the known trap at {(tx, ty)} (NetHack doesn't ask). Go around "
                         f"(travel() avoids traps), or do('{chr(step)}', force=True) / step('{chr(step)}', "
@@ -1906,7 +1944,7 @@ class Game:
                     self._remember_terrain(snap, messages)
                     self._remember_here(snap, messages, prev_hero=cur.hero if cur is not None else None)
                     self._note_special_room(snap, messages, prev_hero=cur.hero if cur is not None else None)
-                    self._note_shop(snap, messages)
+                    self._note_shop(snap, messages, prev_hero=cur.hero if cur is not None and not moved else None)
                     if (cur.state.kind == "direction" or b"z" in data[:2]) and data[-1:] == b">":
                         # zapped/applied downward: a wand of teleportation/cancellation/make invisible
                         # moves or erases the engraving here without a word (zap.c)
@@ -1953,7 +1991,7 @@ class Game:
                     self._note_arrival(cur, snap, data, messages, old_key, moved)
                     self._note_pet_stays(cur, snap, messages, moved)
                     if moved:
-                        self._note_fall(cur, messages, old_key)
+                        self._note_fall(cur, messages, old_key, data)
             if (snap.hero is None or not snap.status.ok) and messages:
                 # a prompt holds the cursor: the notes that only read messages still run (applying a pick-axe
                 # prints "You now wield ..." together with the dig-direction prompt — p3 shift 17 #196: the
@@ -2039,10 +2077,21 @@ class Game:
         lv = self.level_key(snap.status)
         known = self.traps.setdefault(lv, set())
         # a seen trap stays drawn as '^' unless something stands/lies on it:
-        # plain floor/corridor there means it's gone (disarmed, used up, filled)
-        for c in list(known):
-            if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows:
-                known.discard(c)
+        # plain floor/corridor there means it's gone (disarmed, used up, filled) — or was never there (a stale
+        # memory: p3 shift 18 #312); forget its name and the saved copy too, or the next load brings it back
+        stale = [c for c in known if c != snap.hero and snap.screen.at(*c) in ".#" and c[1] > snap.state.msg_rows]
+        if stale:
+            known.difference_update(stale)
+            fd = self.feature_desc.get(lv) or {}
+            for c in stale:
+                if re.search(r"trap|pit|hole|web|board|mine|teleporter|portal", fd.get(c, "")):
+                    fd.pop(c, None)
+            mem = getattr(self, "memory", None)
+            if mem is not None and hasattr(mem, "drop_traps"):
+                try:
+                    mem.drop_traps(lv, stale)
+                except Exception as e:  # noqa: BLE001
+                    self.log_event({"ev": "drop_traps_error", "err": repr(e)})
         for y in range(1 + snap.state.msg_rows, 22):
             row = snap.screen.row(y)
             x = row.find("^")
@@ -2333,15 +2382,26 @@ class Game:
     _ON_STAIRS = re.compile(r"There is an? (?:staircase|ladder) (?:up|down) here")
     _ON_PORTAL = re.compile(r"There is a magic portal here")
 
-    def _note_fall(self, cur: Snap, messages: list, old_key) -> None:
+    def _note_fall(self, cur: Snap, messages: list, old_key, data: bytes = b"") -> None:
         """trap.c fall_through(): "A trap door opens up under you!" / "There's a gaping hole under you!" — the
-        square you stood on, on the level you LEFT, holds that trap: remember it there (a known way down, and a
-        square for routes to avoid) — in the harness memory too, as `nh info` shows it (p1 shift 31)."""
+        trap is on the level you LEFT: remember it there (a known way down, and a square for routes to avoid) — in
+        the harness memory too, as `nh info` shows it (p1 shift 31). On the square you stepped ONTO when the fall
+        came with a move (p3 shift 18 #312, p1 shift 37 #633: the square you came from was filed as a hole, and
+        the step guard then refused plain floor); on your own square for '>' / a dug hole; unknown (not filed)
+        when a travel crossed it."""
         kind = ("trap door" if any(m.startswith("A trap door opens up under you") for m in messages) else
                 "hole" if any(m.startswith("There's a gaping hole under you") for m in messages) else None)
         if kind is None or not old_key or cur.hero is None:
             return
-        x, y = cur.hero
+        data = bytes(data or b"")
+        key = data[-1] if data[:1] in (b"m", b"F") and len(data) == 2 else data[0] if len(data) == 1 else None
+        if key is not None and key in self._MOVE:
+            dx, dy = self._MOVE[key]
+            x, y = cur.hero[0] + dx, cur.hero[1] + dy
+        elif not data or data[:1] in (b">", b"<", b"s", b"."):
+            x, y = cur.hero               # '>' into a hole you stand on, waiting on it
+        else:
+            return                        # a travel or a rush: the trap was somewhere on the way — not filed
         self.traps.setdefault(old_key, set()).add((x, y))
         self.feature_desc.setdefault(old_key, {})[(x, y)] = kind
         mem = getattr(self, "memory", None)

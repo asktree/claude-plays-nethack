@@ -2819,6 +2819,14 @@ def test_fall_through_trap_door_is_remembered_on_the_level_left():
     assert lv["features"]["trap door"] == [[7, 5]] and lv["traps"] == [[7, 5]]
     g._note_fall(cur, ["You climb up the stairs."], "Gehennom / Level 40")
     assert "Gehennom / Level 40" not in g.traps
+    # p3 shift 18 #312 / p1 shift 37 #633: a step ONTO the hole falls from the square stepped onto, not the one
+    # left (the step guard then refused plain floor); a travel's fall square is unknown: not filed
+    g._note_fall(cur, ["There's a gaping hole under you!"], "Dlvl:18", b"l")
+    assert g.traps["Dlvl:18"] == {(8, 5)} and g.feature_desc["Dlvl:18"] == {(8, 5): "hole"}
+    g._note_fall(cur, ["There's a gaping hole under you!"], "Dlvl:19", b"_")
+    assert "Dlvl:19" not in g.traps
+    g._note_fall(cur, ["There's a gaping hole under you!"], "Dlvl:20", b">")
+    assert g.traps["Dlvl:20"] == {(7, 5)}
 
 
 def test_levitation_drowner_zone_stays_in_its_own_pool(monkeypatch):
