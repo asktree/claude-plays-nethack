@@ -236,3 +236,15 @@
 - T:9449-9453 DL10 room (49-56,3-10): lizard + 2 GREY-ELVES killed from the corridor at (58,6), no damage. Took
   S lizard corpse (now 3: J x2 + S), V orange potion, Q elven dagger. Ate the Grey-elf corpse while Satiated
   (nutrition bounded ~1200 -> ~1550, choke at 2000): no sleep resistance (40% roll failed). Fed until ~T:10850.
+- T:9529 DL10: KILTAMAGH'S SECOND-HAND BOOKSTORE (scroll shop) at (2-6,8-13), door (7,10), west of the '<' room's
+  locked door (14,14) (unlocked with the key). 3 small mimics (as scrolls) killed inside. Price-ID (Cha 8, x4/3):
+  STRC PRST SKRZ KRK = enchant weapon (80/107), PRATYAVAYAH = remove curse (107), ASHPD SODALG = light (67/89),
+  NR 9 = punishment (400), TEMOV base 200, YUM YUM/KO BATE/ANDOVA BEGARIN base 100. Bought 5 identify, NR 9,
+  PRATYAVAYAH, 2 EW (829zm). The odd identify (blessed?) IDENTIFIED THE WHOLE PACK: F teleportation (0:0) EMPTY,
+  q sleep (0:1), m cold (0:6), x polymorph (0:5), U digging (0:6), P striking (0:3), T slow monster (0:4),
+  r light (0:13), t enlightenment (0:13); C = sack holding a 2nd WAND OF DIGGING; V = cursed potion of SPEED
+  (orange = speed); D = 2 amethysts; B, E glass; K luckstone uncursed. Sold punishment (150) + cursed EW (30).
+- T:9572-9575 Excalibur +1 -> +4 (blessed EW) -> +5 (bag's uncursed EW). STOP enchanting it now (evaporation >+5).
+- T:9616-9629 manes x4 killed. T:9639 a 3rd GREY-ELF came out of a niche (41,14) through a hidden door (41,15);
+  killed in one blow; ate its corpse (Satiated again, bounded ~1740 < 2000): "You feel wide awake." = SLEEP
+  RESISTANCE. Black potion s picked up (bagged). DL10 '>' not found (explore done; dead ends (57,2) (59,9) (64,7)).
