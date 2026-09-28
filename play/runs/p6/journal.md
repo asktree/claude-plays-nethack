@@ -51,3 +51,11 @@
 - T:1943 killed a gecko; T:1952 destroyed the DL4 dwarf zombie at the stair room door -> XL4 (HP 51/51).
 - T:1962 DL4 stair room: took a white gem (t) and an orcish dagger (u, BUC unknown: throwing only).
 - T:1973 DL5 — arrived (13,16) up stairs, small room with a FOUNTAIN (12,13). Kitten killed a giant bat.
+- T:2348 DL6 Hungry. T:2256 "Off with her head!" = a THRONE ROOM on DL6 (not found; avoid). Hidden doors (35,12),
+  (9,19); DL6 '>' (8,17). T:2410 killed a giant ant (no corpse); T:2414 ate the lichen (last food).
+- T:2427 DL7 — up stairs (11,10). T:2447 a hostile housecat at the room door: killed, but 51 -> 34 HP.
+- T:2475-2490 DL7 corridor (48,7): auto-fight killed a fox; then TWO GIANT ANTS (speed 18, AC3: I hit them only ~40%)
+  took me 39 -> 25. Elbereth (verified) at (48,7): ants and a rock piercer "turn to flee". Hungry T:2523.
+- T:2538 tried to kill the rock piercer (speed 1) for food: missed, an ant came back, piercer bit: 27 -> 18 HP (35%).
+  Re-engraved Elbereth, rested to 27. T:2608 Weak -> T:2611 PRAYED (2nd prayer, 994 turns after the 1st): SUCCESS,
+  hunger fixed. Kitten lost somewhere on DL7 (last seen near the up stairs room (19,11)).

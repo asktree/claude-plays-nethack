@@ -317,3 +317,11 @@
   W KO BATE, 2 yellow gems (+1 yellow, 1 white gem), gray stone LEFT in the chest (possible loadstone); e magenta potion,
   H "scroll called create monster?". T:10565 read Y: "Excalibur glows blue ... suddenly vibrates unexpectedly" = +6:
   NEVER enchant again. Vampire bat killed.
+- T:10569 read identify on the hiking boots: uncursed +0 ELVEN BOOTS (stealth, already intrinsic) -> dropped.
+- T:10573 revived troll killed again (3rd time). T:10585 YETI killed, corpse eaten (-> Satiated, "hard time getting it
+  all down"; no choke risk since I started unsatiated). 2 apples (h).
+- DL19 '>' = (42,17) in a small room (41-44,16-19) east of the throne room; OCHRE JELLY at (42,16) beside it (left
+  alone: passive acid d(7,6)); a grave (43,19) "Saved by the bell!" with a plain bell. Walked past the jelly and went down.
+- T:10615 DL20: '<' (3,14) in the room (2-5,14-17); a HOLE at (2,17) (-> DL21). $181 bagged. WATER ELEMENTAL (mindless,
+  appeared adjacent in a corridor) killed in 2 blows. Large box (15,19) locked, empty. Gray stone (17,17) left.
+  explore(): blocked by a boulder (19,14) at the corridor's east end.

@@ -423,3 +423,14 @@ bounce couldn't reach me), throw() over the boulder, fight_until_clear() at the 
 - Good: the crowd pause before explore() led me into the court ("6 hostiles packed ... likely asleep"); hunt() loop over
   28 sleepers with fight()'s peaceful look worked flawlessly; loot_all(check_traps=3) auto-unlocked the chest and left
   the gray stone with the loadstone test explained; eat() reported ROTTEN clearly.
+- **#763 T:10569 SEVERE: `bin/nh reload` loaded tactics that need a newer core.** The obs asked for a reload
+  ("helpers ... `bin/nh reload` between execs"); after it, fight_until_clear() raised `ImportError: cannot import name
+  'coaligned_unicorn' from 'nh.danger'` — play/tactics/combat.py (uncommitted edit) imports it in fight()/
+  fight_until_clear() (lines 544, 621, 743), but it only exists in the on-disk src/nh/danger.py, which the running
+  daemon hasn't loaded. fight()/hunt() were broken too (same import). A mid-fight ImportError on the live server could
+  kill. Worked around at runtime in the kernel (no file change): injected the exact on-disk definitions
+  (`nh.danger.COALIGNED_UNICORN` + `coaligned_unicorn`) into the loaded module; `st.align` exists in the old core.
+  Expected: `reload` should refuse (or warn loudly) when the tactics import core names the daemon lacks — e.g. import
+  every tactics module in a dry run and check `from nh.X import Y` targets against the loaded modules; or tactics should
+  guard new core imports with a fallback.
+- #759 read_identify() paused for a revived troll 3 squares away mid-menu flow (fine), `cont` finished it cleanly.

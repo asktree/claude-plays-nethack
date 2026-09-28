@@ -45,3 +45,16 @@ prayer_check(); go_down() keeping the kitten both times; the Elbereth fallback p
    started 19:46:00 — a core edit landed a minute after the restart. `bin/nh reload` doesn't clear it (core, not
    tactics). Also: the PREVIOUS p6 daemon (pid 1236, started 19:17:42, PPID 1) is still alive next to the current
    one (daemon.pid = 9360). Expected: a daemon restart kills the old process. Not killed by me (not my role).
+2. (#715, T:2417, DL6 stairs) go_down()'s PetLost message says "wait for it (hold(n))", but `hold` is NOT defined
+   in the kernel (NameError). Waited with search(3) in a loop instead. Expected: the helper named by the error exists
+   (or the message names one that does: search()/rest()).
+3. **(#738, T:2437, DL7) SAFETY: `bin/nh reload` (as instructed for the "helpers newer" notice) loaded tactics that need
+   core functions the running daemon lacks.** fight_until_clear() died with `ImportError: cannot import name
+   'coaligned_unicorn' from 'nh.danger'` with a hostile housecat 2 squares away. danger.py/combat.py on disk are
+   from 19:58 (commit d52396b), the daemon from 19:46. The same import sits in fight() (combat.py:544),
+   auto_fightable() (:621 — travel/explore auto-fight) and friendly_in_line() (:868 — throw/zap): every combat
+   helper was broken. A scan of all `from nh.* import` names in play/tactics against the loaded modules found only
+   two missing: nh.danger.coaligned_unicorn and nh.danger.keeps_away (items.py). Workaround: exec'd the exact
+   on-disk lines 394-408 of src/nh/danger.py into the loaded nh.danger module (in memory only, no file changed);
+   fight_until_clear() then worked. Expected: `reload` refuses (or warns and keeps the old tactics) when the new
+   tactics import core names the daemon doesn't have — e.g. run that same import scan before swapping modules in.

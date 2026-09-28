@@ -48,3 +48,10 @@
 - T:1911 DL5 — Izchak's lighting store (50-52,7-9), door (52,10): "a lamp (for sale, 75 zorkmids)" = MAGIC LAMP (base 50;
   oil lamps are already identified in my discoveries, so an oil lamp would be named). BOUGHT it (z). $37 left.
   Stock left: tallow candles 15 each (5 for 75 at (51,8)), candles 20/30 each, 5 candles for 200 (50,8) = wax.
+- T:1941 DL5 — altar_test() on Odin's altar: lamp z, water y, rations, towel all UNCURSED. Named the lamp type "magic".
+- T:1944 bat killed. T:1963 "You hear a jackal howling at the moon" -> T:1971 killed a WEREJACKAL (d form) in the x=33
+  alley: it bit once, NO "feverish" (no lycanthropy). -> XL4 (HP 51). It dropped A - cyan potion.
+- T:1984-2006 Wonotobo's general store, sell offers from (35,15): i ASHPD SODALG 50 and m YUM YUM 50 (base 100 group),
+  n FOOBIE BLETCH 40 (base 80: enchant armor / remove curse), j HACKEM MUCHE 25 (= LIGHT; sold it, $62), q puce 75 and
+  s effervescent 75 (base 150), t orange 150 (base 300: gain ability/gain level/paralysis), A cyan 50 (base 100).
+- T:2004 Hungry: ate a food ration in the shop — ROTTEN (quarter nutrition, no side effect).

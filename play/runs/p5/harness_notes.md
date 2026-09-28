@@ -71,3 +71,21 @@ wrong-side-of-the-door bug looks fixed; throw() refusing through peacefuls; the 
    (4 piles on DL1-3 this game; I avoid()ed them by hand).
 5. **The daemon's CORE is older than the code on disk** (obs line since #695): `reload` fixed the helpers only.
    Orchestrator: restart p5's daemon between shifts.
+
+## Shift 2
+
+1. **travel()'s last step diagonal out of a known shop doorway — again** (#205, T:1979). `travel(35,15)` ended on
+   Wonotobo's door (34,16) and raised NavError "You can't move diagonally out of an intact doorway." The shopkeeper stood
+   on (35,16), the only orthogonal exit. Same bug as shift 1 #7 (#2821). Expected: wait for the peaceful to move (as
+   travel does elsewhere) and step orthogonally, never plan a diagonal step out of a door square.
+
+2. (info) **"harness code on disk is newer than this daemon's core"** from #154 (T:1943) on, although the daemon was
+   restarted right before this shift — the core on disk changed mid-shift. Helpers reloaded at #4, #154, #292 as told.
+
+3. **A pause inside sell_offer() loses the offer** (#290, T:2000). The exec paused on "You are beginning to feel hungry"
+   during sell_offer('A')'s pickup step; the offer text never reached my output, and `bin/nh history` does not keep the
+   "Wonotobo offers 50 gold pieces for your cyan potion." part (only "Sell it? [ynaq] (y)"). I had to redo the offer
+   (#302: 1 call, 2 turns). Expected: history keeps the full prompt text; and/or Hungry (not Weak) shouldn't pause in
+   the middle of a helper's drop/pickup pair.
+
+4. (minor) `bin/nh history` contains the whole Discoveries menu text (T:1998) — noise from a helper reading `\`.
