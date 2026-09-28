@@ -5310,3 +5310,34 @@ def test_dip_into_reports_potion_mixtures(monkeypatch):
     done.messages = ["Your potion of speed dilutes."]
     seq = iter([what, into, done])
     assert items.dip_into("Y", "Q")["outcome"] == "got wet/diluted (plain water)"
+
+
+def test_altar_test_reads_the_flashes_and_takes_the_items_back(monkeypatch):
+    # live T10388: clear potions to BUC-test for holy water; players did the drops and reads by hand
+    from tactics import ctx, items
+    base = _snap({}, (10, 5), [])
+    base.under = "_"
+    monkeypatch.setattr(ctx, "require_command", lambda who: base)
+    monkeypatch.setattr(items, "inventory", lambda: [
+        {"letter": "n", "text": "3 clear potions", "class": "Potions"},
+        {"letter": "q", "text": "a scroll labeled THARR", "class": "Scrolls"},
+        {"letter": "a", "text": "a blessed +2 long sword (weapon in hand)", "class": "Weapons"},
+        {"letter": "G", "text": "an elven mithril-coat (being worn)", "class": "Armor"},
+        {"letter": "x", "text": "an uncursed magic lamp", "class": "Tools"}])
+    replies = {"dn": ["There is an amber flash as 3 clear potions hit the altar."],
+               "dq": ["There is a black flash as a scroll labeled THARR hits the altar."]}
+    sent, picked = [], []
+
+    def fake_do(keys, **kw):
+        sent.append(keys)
+        s = _snap({}, (10, 5), [])
+        s.messages = replies.get(keys, [])
+        return s
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(items, "pickup", lambda pattern=None, force=False: picked.append(pattern) or [])
+    r = items.altar_test()
+    assert sent == ["dn", "dq"] and r == {"n": "blessed", "q": "cursed"}
+    import re
+    rx = re.compile(picked[0], re.I)
+    assert rx.search("3 blessed clear potions") and rx.search("a cursed scroll labeled THARR")
+    assert not rx.search("a large box")                  # (what lay on the altar before stays there)

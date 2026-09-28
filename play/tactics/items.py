@@ -159,6 +159,50 @@ def piety(letter: str | None = None, probe: bool = False) -> str | None:
     return word
 
 
+_IN_USE = re.compile(r"\((?:being worn|weapon in \w+|wielded|in use|alternate weapon|on (?:left|right) hand|"
+                     r"embedded|chained|in quiver|at the ready|lit)")
+
+
+def altar_test(letters: str | None = None, take_back: bool = True) -> dict:
+    """Learn B/U/C on the altar you stand on (any alignment — only PRAYING on a cross-aligned one is bad):
+    drop each item (`letters`, default: everything carried whose B/U/C isn't shown, except worn/wielded/in-use
+    things and gold), read the flash — "amber flash" = BLESSED (a clear potion: holy water), "black flash" =
+    CURSED, "lands on the altar" = uncursed — then pick them back up (take_back=True). One turn per item.
+    Returns {letter: 'blessed' | 'uncursed' | 'cursed' | '?'} and prints a summary."""
+    s = ctx.require_command("altar_test()")
+    if s.under != "_":
+        raise RuntimeError("altar_test(): you are not standing on an altar")
+    if s.status.ok and ("Blind" in s.status.conditions or "Hallu" in s.status.conditions):
+        raise RuntimeError("altar_test(): blind or hallucinating — you wouldn't see the flashes")
+    inv = inventory()
+    if letters is None:
+        items = [it for it in inv if it["letter"] != "$" and not _IN_USE.search(it["text"])
+                 and not re.search(r"\b(?:blessed|uncursed|cursed)\b", it["text"])]
+    else:
+        items = [it for it in inv if it["letter"] in letters]
+    out: dict = {}
+    names = []
+    for it in items:
+        s = ctx.do("d" + it["letter"], quiet=True,
+                   ok=[r" lands? on the altar", r"flash as .* hits? the altar", r"^You drop "])
+        msgs = " | ".join(s.messages)
+        out[it["letter"]] = ("cursed" if "black flash" in msgs else "blessed" if "amber flash" in msgs
+                             else "uncursed" if re.search(r" lands? on the altar", msgs) else "?")
+        names.append(it["text"])
+        if s.state.kind != "command":
+            ctx.do("<Esc>", quiet=True)
+            print(f"altar_test(): dropping {it['letter']} opened {s.state.kind} {s.state.prompt!r} — stopped")
+            break
+    if take_back and out:
+        # only what was dropped (not a pile that lay there before): its names without count/article/BUC
+        bases = {re.sub(r"\s*\(.*$", "", re.sub(r"^(?:an?|the|\d+)\s+", "", t)).strip() for t in names}
+        pickup("|".join(re.escape(b) for b in sorted(bases) if b) or None)
+    print("altar_test(): " + "; ".join(f"{k} {v.upper() if v != 'uncursed' else v} ({t})"
+                                        for (k, v), t in zip(out.items(), names)) if out else
+          "altar_test(): nothing to test (every carried item's B/U/C is known, or it is worn/wielded)")
+    return out
+
+
 def inventory_text():
     inv = inventory()
     out, cls = [], None
