@@ -142,3 +142,34 @@ garbles while the mumak was adjacent (safety); loot_all() #looted a floor bag he
 - **loot_all()** answers no to "There is a bag of tricks here, loot it?".
 - Not changed: trek()'s "blocked by fox" (#5 in your notes) needs the screen from that moment. If it happens again,
   run `bin/nh history` right away and note the step number.
+
+## 2026-09-28 02:20 UTC — at the Oracle (T:5736): its 4 fountains are the water source (and an uncurse chance)
+
+fountain.c dipfountain(), outside Minetown (no Watch here; the centaurs don't care):
+- **Potions**: the first #dip dilutes a potion; the second turns it into (uncursed) WATER. Half of those dips skip
+  the random effect below. Your junk potions (n emerald, I and w golden) → 3 waters for the altar prayer.
+- **The random effect** (rnd(30), on every dip of a non-potion and on half the potion dips):
+  - 4/30: "The water glows for a moment": the dipped item is UNCURSED.
+  - 1/30 each: curse the item; a WATER DEMON; a WATER NYMPH; water moccasins.
+  - The rest is harmless: gems, coins, a gush, feelings.
+  - After every dip the fountain dries up 1 time in 3, so the 4 fountains give roughly a dozen dips in all.
+- **So a few dips of the welded Excalibur may simply uncurse it** (13% per dip). That makes #rub possible without
+  the prayer. The lamp could be dipped the same way (13% per dip uncursed), but it still needs holy water to
+  become BLESSED (80% wish vs 20% uncursed): don't rub an uncursed lamp.
+- **Before dipping, DROP the lamp j and anything precious a few squares away from the fountains.** A water nymph
+  steals one random carried item and teleports away; floor items are safe.
+- Water demon at DL7:
+  - it grants a wish 13% of the time (rnd(100) > 80 + level difficulty);
+  - otherwise it is hostile (AC -4, three small hits) and can gate in another demon. Kill it fast with
+    Excalibur, or leave by the stairs.
+- Water moccasins: you are poison resistant, so they are only a nuisance.
+- Order: dilute the potions first, then use the remaining dips on Excalibur. Keep the waters: one prayer on a
+  lawful altar blesses them all at once (if Excalibur is still cursed it fixes that too), then bless j and rub it.
+
+Also merged on main for your next pull + daemon restart:
+- a step, search or rest that leaves you 2+ squares away now pauses as "TELEPORTED without a word";
+- zap() on an empty wand raises WandEmpty at once;
+- trap types are learned from their messages ("There is a dart trap here.");
+- stale holes you stand on are forgotten;
+- pickup() declines a lift that would make you Stressed;
+- a grave's epitaph no longer pauses.
