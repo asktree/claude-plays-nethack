@@ -227,3 +227,12 @@
   Stealth (go_down(pass_hostile=True)). Hungry T:9316 -> ate the new food ration (fine). A hill orc threw an ACID
   potion (-2); killed a hill orc and an elf mummy.
 - END OF SHIFT 6: T:9333, DL8 main (24,7), HP 107/109, XL10, AC -15, fed, LUCKSTONE carried, prayer safe.
+
+## Shift 7
+- T:9333 DL8: hill orc pile (drum, orcish helm, cursed scimitar) left. go_down: DL8 -> DL9 (T:9350).
+- T:9354-9359 DL9: INVISIBLE STALKER (seen by ESP amulet) hunted and killed, no damage. Ate its corpse (fresh):
+  temporarily invisible (~90 turns), stunned -> unicorn horn fixed it in 1 apply. Satiated.
+- T:9380 DL9: orc mummy killed (it swung at thin air: invisible). T:9405 DL10 via '>' (59,9); DL10 '<' (17,13).
+- T:9449-9453 DL10 room (49-56,3-10): lizard + 2 GREY-ELVES killed from the corridor at (58,6), no damage. Took
+  S lizard corpse (now 3: J x2 + S), V orange potion, Q elven dagger. Ate the Grey-elf corpse while Satiated
+  (nutrition bounded ~1200 -> ~1550, choke at 2000): no sleep resistance (40% roll failed). Fed until ~T:10850.

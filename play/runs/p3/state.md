@@ -14,6 +14,7 @@
 ## Prayer log
 | turn | reason | result |
 |---|---|---|
+| T:19917 | none: CROWNING ATTEMPT #3 on the D16 lawful altar (gate passed: nothing cursed worn, horn "Nothing happens.", not hungry, HP full, timeout proven 0 since T:19085) | SUCCESS "well-pleased" + "You are surrounded by a golden glow." = pat roll 2: max HP 142 -> 147, nutrition 900. NOT CROWNED. Timeout now rnz(350): restore with bag-of-tricks sacrifices until "reconciliation". |
 | T:19085 | (sacrifice, no prayer) | bag-of-tricks SNAKE (T:19077) "hopeful feeling"; then a XORN (T:19085) consumed with NO message = prayer timeout PROVEN 0 again (pray.c: a nonzero timeout always prints hopeful/reconciliation; Luck already max). Stays 0 until I pray or get a sacrifice gift: NO MORE SACRIFICES (1 in 10 is a gift = reset). Crowning attempt #3 possible if the coach approves. |
 | T:19065-19068 | none: CROWNING ATTEMPT #2 on the D16 lawful altar (Luck 13, piously, timeout proven 0, horn "Nothing happens.", Not hungry, HP full) | SUCCESS, pat on the head = rn2(9) rolled 5 (intrinsic): "You feel that Tyr is well-pleased." / The voice of Tyr rings out: "Thou hast pleased me with thy progress," / "and thus I grant thee the gift of my protection!" / "Use it wisely in my name!" = DIVINE PROTECTION +1: AC -9 -> -10. NOT CROWNED. Timeout reset to rnz(350) (no +1000: not crowned). No emergency prayer until prayer_check() says so (~T:19700+). |
 | T:19059 | (sacrifice, no prayer) | "reconciliation": timeout back to 0 |
@@ -23,13 +24,13 @@
 - a: the blessed rustproof +6 EXCALIBUR (wielded). NEVER ENCHANT IT AGAIN (+6: a read evaporates it 2 times in 3).
 - X: uncursed +0 ELVEN LEATHER HELM (worn again: the dwarvish iron helm bought on D6 was destroyed by the destroy armor read-test T:17649).
 - x: uncursed +0 LEATHER GLOVES (worn). c: uncursed +4 small shield (TAKE IT OFF before any enchant armor read). O: uncursed +0 ELVEN MITHRIL-COAT. P: uncursed -1 SPEED BOOTS, now BURNT (red naga fire T:18372).
-- b: uncursed +0 CLOAK OF INVISIBILITY (worn; redundant). For shops: T b, W the mummy wrapping (bag r).
+- b: uncursed +0 CLOAK OF INVISIBILITY (worn; redundant), GREASED T:19938 (eel wraps/hugs slip off; wears off 1 in 2 per slip: re-grease with F). For shops: T b, W the mummy wrapping (bag r).
 - J: ring of PROTECTION FROM SHAPE CHANGERS (left hand); k: ring of TELEPORT CONTROL (right hand). The ring of FIRE RESISTANCE is in the bag (redundant since T:19180).
 
 ## Key inventory (letters)
 - OUT OF THE BAG: K 1 uncursed EXTRA HEALING (quick quaff). Everything else potion-like is bagged (fire bites/cold breath destroy open potions).
 - r BAG OF HOLDING (T:19913): $654, 3 HOLY WATERS (3 blessed clear potions: made T:19912 by dipping 3 horn-made waters into the old holy water) — one is for blessing the scroll of CHARGING (uncursed, keep for the wand of wishing: blessed = exactly 3 charges), a DILUTED POTION CALLED BOOZE (magenta, uncursed: THE CASTLE ESCAPE = quaff it, then read a teleport scroll with ring k), a blessed potion called 'gain ability or paralysis 300' (bubbly; probably paralysis: don't drink), a cursed potion of extra healing, 3 uncursed TELEPORTATION scrolls, uncursed REMOVE CURSE + 2 cursed remove curse, blessed ZLORFIK (light), a BLANK scroll, create monster, rings of fire resistance + regeneration, wand of light, 6 candles (1 blessed), the PICK-AXE, +0 dagger, mummy wrapping, gems (5 orange, 4 violet (glass), white, 7 yellowish brown). NEVER put an unidentified wand or the bag of tricks in it.
-- C BAG OF TRICKS (identified T:18282 by #loot: it bit). Charges unknown (1-20 when made; 5 used T:18450-18467). Apply = a random monster next to you: SACRIFICE FODDER at the D16 lawful altar (58,18) (Luck) and XP. Never into the bag of holding.
+- C BAG OF TRICKS: EMPTY since T:19938 (16 uses; "Nothing happens."). Only a scroll of charging would refill it. Never into the bag of holding.
 - q 2 CANDLES (from the D20 hive) -> 8 candles in all (the Candelabrum needs 7).
 - Gems: Q and L went to the unicorn (T:18515/18531, named: +2 each). e = "gem called real yellow" (citrine/chrysoberyl) kept as a Luck reserve (+2 to a co-aligned unicorn); H 2 blue gems (unknown). w 2 worthless black glass (junk).
 - y potion of blindness (junk). D BLESSED BUBBLY potion (from a bag-of-tricks orc-captain T:19070; its item tables suggest acid/paralysis/polymorph, a random death drop could be anything): don't drink, price-ID it. The 2 EMERALD potions are BASE 100 (Kyzyl offered 50 at T:17119 = base/2, no lowball) = RESTORE ABILITY or HALLUCINATION, NOT booze. (Z confuse monster and both earth scrolls were used on D25.)
