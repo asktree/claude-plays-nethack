@@ -208,3 +208,44 @@ solved; zoo mostly cleared from the east door; prize not yet taken. Plan: 3 holy
 reports from shift 7: go_up() false "TELEPORTED during the leg" at #536/#1025 (NetHack travel ran a whole corridor in
 one leg, longer than the 8-square cap — the new silent-teleport pause may misfire on that); stale Elbereth guard
 refused a fight at #2320 after a blow had already smudged it.
+
+## 2026-09-28 04:25 UTC — Sokoban prize = your scroll pile (42,17); both shift-7 bugs fixed; crowning math corrected
+
+- **Both shift-7 reports are fixed on main (67f5d43).** Pull and restart the daemon between shifts.
+  - go_up()/travel() no longer call a long NetHack-travel run a teleport. A leg now counts as a teleport only if it
+    ends farther away than ~3 squares per turn it took.
+  - After a blow, kick or throw from a DUST Elbereth, the harness forgets it. One blow rubs out 3 letters (checked
+    live: "Elbereth" -> "Fl?ercth"), so the guard no longer blocks the next fight. A burned Elbereth is still guarded.
+- **The prize (sokoban.des soko1-1)**: 50% bag of holding, 50% **AMULET OF REFLECTION**. It sits on ONE of the
+  closet squares, together with a BURNED Elbereth and a CURSED scroll of scare monster. So your "scroll pile at
+  (42,17)" IS the prize square.
+  - Leave the scroll. A cursed scare monster crumbles to dust when picked up (pickup.c).
+  - The burned Elbereth makes (42,17) a safe square: monsters that respect it won't melee you there
+    (@ humans/elves and minotaurs ignore it).
+  - If it is the amulet of reflection, put it on at once. Even a cursed one reflects (only 5% are cursed).
+    Reflection is your answer to the Castle's dragons and to wand users.
+- **Keep the wand of striking (s) charged.** A striking/force bolt zap at the Castle's RAISED drawbridge destroys it:
+  that is one of your ways in, later. The others are the passtune, or a wand of opening.
+- **Correction to my earlier crowning numbers** (the "~9% / ~17%" came from the wrong branch of pray.c pleased()):
+  - With NO trouble at all (Not Hungry, no drained stat, nothing cursed worn) and alignment ≥ 14, a prayer at
+    timeout 0 gives a CERTAIN pat on the head.
+  - Crowning is then 1/8 at Luck 10-11, 2/9 at Luck 12-13, and needs "piously" (20+).
+  - Any minor trouble turns the certain pat into a roll.
+  - Crowning adds ~rnz(1000) to every later prayer timeout.
+  - This is not for now. prayer_check() explains it once a sacrifice proves the timeout is 0.
+- **New since your shift-8 pull** (all on main):
+  - `go_down()`, `dig('>')` and a downward zap of digging pause ONCE per level when the next level may be the Castle.
+    It is 1-4 levels below Medusa and the Dungeons' last level, DL25-29. ^O's "levels 1 to N" is only how deep you
+    have been.
+  - `telepathy_scan()` looks at every sensed monster. Anything it can't look at is labelled by glyph and colour,
+    never called harmless.
+  - Cockatrice-corpse pickups pass once `inventory()` has seen worn gloves.
+  - `prayer_check()` counts a drained attribute (poison, sickness) as minor trouble. Apply the unicorn horn until
+    "This makes you feel great!"; "Nothing seems to happen." just means that try fixed nothing.
+  - `piety(probe=True)` uses a wand of probing when you have no stethoscope.
+- **Zoo leftovers.**
+  - WEREWOLF: its bite gives lycanthropy (prayer fixes it, as does holy water or a sprig of wolfsbane). Kill it
+    from range or at full HP.
+  - GHOUL: its claw paralyses. Fight it only at full HP with nothing else adjacent.
+  - Brown pudding: iron blows (Excalibur) split it. Leave it, or kill it with non-iron.
+  - Giant mimic (46,18): it sticks to you and hits hard. Fight it only at full HP, never next to another monster.
