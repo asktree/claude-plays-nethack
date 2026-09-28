@@ -57,6 +57,11 @@ INVISIBLE_MISS = (r"^(?:The |An? )?.+? (?:(?:swings|snaps|kicks|lunges) wildly(?
                   r"reflections and misses!)$")
 DEFAULT_BENIGN = [re.compile(p) for p in (
     r"^You feel full of energy\.$",            # allmain.c: Pw back to max (interrupts a rest)
+    # trap.c fall_through(): a trap door/hole that doesn't take you (levitating, flying, held) — if it does take
+    # you, the level change pauses on its own (p3 shift 24 #14/#21: every step along the Castle's trap doors)
+    r"^A trap door opens up under you!$", r"^There's a gaping hole under you!$", r"^You don't fall in\.$",
+    # trap.c dotrap(): escaping a trap you already know, floating/flying over a known pit/hole/bear trap
+    r"^You escape an? [\w' -]+\.$", r"^You (?:float|fly) over (?:an?|your) [\w' -]+\.$",
     # (p2 shift 34: each paused a crowd fight) uhitm.c passive(): a fire elemental's fire, resisted — no damage;
     # mhitu.c AD_LEGS: a xan's prick stopped by your boots (dmg 0); zap.c zap_over_floor(): your cold ray froze
     # water out of your sight
@@ -684,6 +689,9 @@ class Kernel:
                                  "get out now"))
         trapmsg = [m for m in snap.messages if self.game._TRAP_MSG.search(m)
                    and not m.startswith("There is")
+                   # (trap.c dotrap(): escaping a trap you already know, or floating/flying over a known pit, hole
+                   # or bear trap, does nothing to you — p3 shift 24)
+                   and not re.match(r"^You (?:escape|float over|fly over) an? ", m)
                    # (the exec's own -a / ok patterns cover it: p2 shift 30's arrow traps in a trap-rich maze;
                    # the square is remembered all the same, and HP loss pauses on its own)
                    and not any(p.search(m) for p in self.autocontinue) and not any(p.search(m) for p in extra)]

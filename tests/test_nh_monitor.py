@@ -1939,3 +1939,41 @@ def test_an_I_proven_real_is_labelled_and_listed_on_its_own():
     assert p["peaceful"] and p["desc"] == "peaceful Asidonhopo (unseen)" and "don't attack" in p["note"]
     g.real = {(42, 9): {"turn": 30000, "msg": "You move right into it.", "hostile": True}}
     assert not by_pos(t.update(snap(cells, 30338)))[(42, 9)].get("real")
+
+
+def test_harmless_trap_door_lines_while_levitating_do_not_pause():
+    # p3 shift 24 #14/#21: step(..., force=True) along the Castle's trap doors, levitating, paused on
+    # "A trap door opens up under you! | You don't fall in." and on "You escape a trap door."
+    from nh.game import Game, Timing
+    from nh.kernel import Kernel
+    from nh.parse import State
+    g = Game(term=None, timing=Timing.local())
+    k = Kernel(g)
+    reasons = []
+    k._maybe_pause = lambda reason, snap, **kw: reasons.append(reason)
+
+    def step(msgs):
+        a = snap({}, 100)
+        a.state = State("command")
+        a.messages = list(msgs)
+        b = snap({}, 99)
+        reasons.clear()
+        k._check_events(b, a)
+        return list(reasons)
+    assert step(["A trap door opens up under you!", "You don't fall in."]) == []
+    assert step(["You escape a trap door."]) == []
+    assert step(["You float over a hole."]) == []
+    assert step(["An arrow shoots out at you!"])         # a trap that does something still pauses
+
+
+def test_exec_error_and_pause_are_said_again_at_the_end():
+    # p3 shift 24 #960: `bin/nh cont ... | tail` cut off the ERROR line printed above a full obs
+    from nh.daemon import _fmt_exec
+    render = lambda snap, mode: "OBS LINE 1\nOBS LINE 2"       # noqa: E731
+    out = _fmt_exec({"status": "error", "error": "ImportError: cannot import name 'x'", "traceback": "tb",
+                     "snap": object()}, "crop", render)
+    assert out.splitlines()[-1].startswith("[exec ERROR] ImportError")
+    out = _fmt_exec({"status": "paused", "reason": "approaching: sergeant\nmore", "snap": object()}, "crop", render)
+    assert out.splitlines()[-1].startswith("[exec PAUSED] approaching: sergeant")
+    out = _fmt_exec({"status": "done", "snap": object()}, "crop", render)
+    assert out.splitlines()[-1] == "OBS LINE 2"

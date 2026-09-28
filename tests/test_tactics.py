@@ -6329,3 +6329,29 @@ def test_read_identify_prefers_unknown_types_and_keeps_the_class_across_pages(mo
     seq.clear()
     items.read_identify("N", priority=(r"^Amulets", r"."), known_last=False)
     assert "h" in seq and "V" not in seq
+
+
+def test_zap_force_on_a_known_empty_wand_says_so_once(monkeypatch, capsys):
+    # p3 shift 24: a 325-zap wrest loop `zap('j', force=True)` printed the same EMPTY line on every zap (56 KB)
+    from nh.parse import State
+    from tactics import combat, ctx
+    g = _G()
+    monkeypatch.setattr(ctx, "game", g)
+    base = _snap({5: "          @....."}, (10, 5), [])
+    obj = _snap({}, (10, 5), [])
+    obj.state = State("object", prompt="What do you want to zap? [j or ?*]")
+    empty = _snap({5: "          @....."}, (10, 5), [])
+    empty.messages = ["Nothing happens."]
+    frames = {"z": obj, "j": empty}
+    cur = {"s": base}
+
+    def fake_do(keys, **kw):
+        cur["s"] = frames[keys]
+        return cur["s"]
+    monkeypatch.setattr(ctx, "do", fake_do)
+    monkeypatch.setattr(ctx, "last", lambda: cur["s"])
+    monkeypatch.setattr(ctx, "require_command", lambda what: base)
+    for _ in range(5):
+        cur["s"] = base
+        combat.zap("j", ".", force=True)
+    assert capsys.readouterr().out.count("is EMPTY") == 1

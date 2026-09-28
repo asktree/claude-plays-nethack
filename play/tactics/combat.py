@@ -1351,9 +1351,11 @@ def zap(wand: str, direction: str | None = None, force: bool = False):
         # spends no charge
         if getattr(ctx.game, "empty_wands", None) is None:
             ctx.game.empty_wands = set()
+        known = wand in ctx.game.empty_wands
         ctx.game.empty_wands.add(wand)
-        print(f"zap: wand {wand} is EMPTY (\"Nothing happens\": 0 charges) — recharge it (scroll of charging); "
-              "zap() now refuses it unless force=True (wresting a last charge: 1 in 121 per zap)")
+        if not (force and known):          # (p3 shift 24: a 325-zap wrest loop printed this line 325 times)
+            print(f"zap: wand {wand} is EMPTY (\"Nothing happens\": 0 charges) — recharge it (scroll of charging); "
+                  "zap() now refuses it unless force=True (wresting a last charge: 1 in 121 per zap)")
         if not force:
             # (p1 shift 34 #206: returning normally skipped the script's `except WandEmpty:` fallback this turn)
             raise WandEmpty(f"zap: wand {wand} is EMPTY — \"Nothing happens\" (0 charges; the turn is spent)"

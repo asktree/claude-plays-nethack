@@ -282,6 +282,11 @@ def _fmt_exec(out: dict, mode: str, render_fn) -> str:
     snap = out.get("snap")
     if snap is not None:
         lines.append(render_fn(snap, mode=mode))
+        # (p3 shift 24 #960: an ERROR above a full obs was cut off by `| tail`: say it once more at the end)
+        if st == "paused":
+            lines.append(f"[exec PAUSED] {str(out.get('reason', '')).splitlines()[0][:200]}  (details above)")
+        elif st not in ("done", "abandoned"):
+            lines.append(f"[exec ERROR] {str(out.get('error', '')).splitlines()[0][:200]}  (traceback above)")
     return "\n".join(lines)
 
 
